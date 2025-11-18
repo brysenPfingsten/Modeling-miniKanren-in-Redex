@@ -21,11 +21,11 @@
 
 (define-language Core
   ;--------------------Top Level-------------------------
-  [config (Γ Ans s)]    ; Program
+  [config (Γ ans* s)]    ; Program
 
   [Γ ((r_!_ d g) ...)]  ; Relation Environment w/ distinct relation names
   [d (x_!_ ...)]        ; Distinct variable declarations
-  [Ans (σ ...)]
+  [ans* (σ ...)]
 
   ;-------------------Search Trees------------------------
   [s (empty-tree)               ; Empty Tree / Failure
@@ -74,7 +74,7 @@
   [sub ((u t) ...)]   ; Substitution
   [maybe-sub sub #f]
   [trail (eq ...)]
-  [end-config (Γ Ans (empty-tree))]
+  [end-config (Γ ans* (empty-tree))]
   [c natural]
   ;-----------------Evaluation Contexts------------------
 
