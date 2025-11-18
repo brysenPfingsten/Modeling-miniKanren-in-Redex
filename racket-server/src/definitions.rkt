@@ -6,7 +6,7 @@
 
 #;(current-traced-metafunctions 'all)
 
-(provide L unify walk extend fresh-sub occurs?)
+(provide Core unify walk extend fresh-sub occurs?)
 
 ;; Jason Hemann
 ;; Initial redex lang setup from Ryan Jung
