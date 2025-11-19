@@ -122,6 +122,18 @@
   [(occurs? u (_ : t) sub) (occurs? u t sub)]
   [(occurs? u_1 u_1 sub)])
 
+(module+ test
+  ;; direct self
+  (check-true  (judgment-holds (occurs? u:0 u:0 ())))
+  (check-false (judgment-holds (occurs? u:0 u:1 ())))
+
+  ;; list spine
+  (check-true  (judgment-holds (occurs? u:0 (u:0 : (sym "x")) ())))
+  (check-true  (judgment-holds (occurs? u:0 ((sym "x") : u:0) ())))
+  (check-false (judgment-holds (occurs? u:0 ((sym "x") : (sym "y")) ())))
+)
+
+
 (define-metafunction Core
   walk : t sub -> t
   [(walk u (name sub (_ ... [u t] _ ...))) (walk t sub)]
@@ -168,4 +180,8 @@
    (term (unify (u:0 : u:1) (u:1 : (sym "a")) ()))
    (term ((u:1 (sym "a")) (u:0 u:1))))
 
+  ;; mismatched head fails
+  (check-equal?
+   (term (unify ((sym "a") : empty) ((sym "b") : empty) ()))
+   (term #f))
 )
