@@ -1,2 +1,3 @@
 Does succeed need a tag in the wf?
 How do I make sure that recursive case of wf-trail-unify*s-to-σ? doesn't return #f from unify
+Something seems odd about what I had to do for occurs?, like with the clause ordering. I couldn't figure out how to make them non-overlapping, so order matters apparently

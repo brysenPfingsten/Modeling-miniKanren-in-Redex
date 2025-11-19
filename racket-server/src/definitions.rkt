@@ -12,7 +12,10 @@
 (provide Core unify walk extend occurs?)
 
 (module+ test
-  (require rackunit))
+  (require rackunit)
+  (default-language Core)
+
+)
 
 (define-language Core
   ;--------------------Top Level-------------------------
@@ -95,42 +98,19 @@
   (redex-define Core (name new-var u) (variable-not-in (term (u: u:1 u:2 u:3)) 'u:))
   (term new-var)
 
+  ;; terms and primitives
   (check-equal? (term u:2) 'u:2)
   (check-true   (redex-match? Core u (term u:2)))
   (check-true   (redex-match? Core t (term u:2)))
   (check-true   (redex-match? Core t (term (u:0 : u:1))))
+  (check-true   (redex-match? Core t (term (u:0 : (sym "x")))))
   (check-true   (redex-match? Core pt (term empty)))
+  (check-false  (redex-match? Core pt (term (sym 5)))) ; bad payload
 
   ;; one binding: list of pairs ((u t) ...)
   (check-true  (redex-match? Core sub (term ((u:0 (sym "x"))))))
   (check-false (redex-match? Core sub (term (u:1 (sym "x"))))) ; missing parens
-)
-
-(default-language Core)
-
-
-(define-metafunction Core
-  extend : u t sub -> maybe-sub
-  [(extend u t sub) ([u t] ,@(term sub))
-   (side-condition (not (judgment-holds (occurs? u t sub))))]
-  [(extend u t sub) #f
-   (side-condition (judgment-holds (occurs? u t sub)))])
-
-(define-relation Core
-  occurs? ⊆ u × t × sub
-  [(occurs? u (t : _) sub) (occurs? u t sub)]
-  [(occurs? u (_ : t) sub) (occurs? u t sub)]
-  [(occurs? u_1 u_1 sub)])
-
-(module+ test
-  ;; direct self
-  (check-true  (judgment-holds (occurs? u:0 u:0 ())))
-  (check-false (judgment-holds (occurs? u:0 u:1 ())))
-
-  ;; list spine
-  (check-true  (judgment-holds (occurs? u:0 (u:0 : (sym "x")) ())))
-  (check-true  (judgment-holds (occurs? u:0 ((sym "x") : u:0) ())))
-  (check-false (judgment-holds (occurs? u:0 ((sym "x") : (sym "y")) ())))
+  (check-false (redex-match? Core sub (term ((u:0 (sym "x")) (u:0 (sym "y")))))) ; non-distinct
 )
 
 
@@ -147,9 +127,59 @@
   (check-equal? (term (walk u:1 ((u:0 (sym "z")) (u:1 u:0))))
 				(term (sym "z")))
 
-  ;; no change on constants
+  ;; no change on constants or pairs
   (check-equal? (term (walk (sym "x") ((u:0 (sym "a"))))) (term (sym "x")))
+
+  (check-equal? (term (walk (u:2 : (sym "q")) ((u:2 (sym "p")))))
+                (term (u:2 : (sym "q"))))
+
 )
+
+(define-relation Core
+  occurs? ⊆ u × t × sub
+  [(occurs? u (t : _) sub) (occurs? u (walk t sub) sub)]
+  [(occurs? u (_ : t) sub) (occurs? u (walk t sub) sub)]
+  [(occurs? u_1 u_1 sub)])
+
+(module+ test
+  ;; direct self
+  (check-true  (judgment-holds (occurs? u:0 u:0 ())))
+  (check-false (judgment-holds (occurs? u:0 u:1 ())))
+
+  ;; list spine
+  (check-true  (judgment-holds (occurs? u:0 (u:0 : (sym "x")) ())))
+  (check-true  (judgment-holds (occurs? u:0 ((sym "x") : u:0) ())))
+  (check-true  (judgment-holds (occurs? u:0 ((sym "x") : (u:1 : empty)) ((u:1 u:0)))))
+  (check-false (judgment-holds (occurs? u:0 ((sym "x") : (sym "y")) ())))
+
+)
+
+
+(define-metafunction Core
+  extend : u t sub -> maybe-sub
+  [(extend u t sub) #f
+   (side-condition (judgment-holds (occurs? u t sub)))]
+  [(extend u t sub) ([u t] ,@(term sub))
+   (side-condition (not (judgment-holds (occurs? u t sub))))])
+
+(module+ test
+  ;; ok when variable doesn't occur
+  (check-equal? (term (extend u:0 (sym "cat") ()))
+                (term ((u:0 (sym "cat")))))
+  ;; ok when variable doesn't occur
+  (check-equal? (term (extend u:0 (sym "cat") ((u:1 u:2))))
+                (term ((u:0 (sym "cat")) (u:1 u:2))))
+  ;; fails on direct self-occurs
+  (check-equal? (term (extend u:0 (u:0 : (sym "x")) ()))
+                (term #f))
+  ;; fails when u occurs on the right
+  (check-equal? (term (extend u:0 ((sym "x") : (u:0 : empty)) ()))
+                (term #f))
+  ;; fails when u occurs viz sub
+  (check-equal? (term (extend u:0 ((sym "x") : (u:1 : empty)) ((u:1 u:0))))
+                (term #f))
+)
+
 
 (define-metafunction Core
   unify : t t sub -> maybe-sub
@@ -163,9 +193,13 @@
   [(unify _ _ _) #f])
 
 (module+ test
+
   (check-equal? (term (unify u:0 u:0 ())) (term ()))
   (check-equal? (term (unify u:0 (sym "cat") ())) (term ((u:0 (sym "cat")))))
   (check-equal? (term (unify (sym "dog") u:1 ())) (term ((u:1 (sym "dog")))))
+  ;; variable/variable orientation (extend the second in (unify t u ...))
+  (check-equal? (term (unify u:0 u:1 ()))
+                (term ((u:0 u:1))))
 
   ;; pair/pair same-shape success
   (check-equal?
@@ -184,4 +218,5 @@
   (check-equal?
    (term (unify ((sym "a") : empty) ((sym "b") : empty) ()))
    (term #f))
+
 )
