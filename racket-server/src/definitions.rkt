@@ -55,23 +55,27 @@
   ;----------------------Terms---------------------------
   [t x             ; Parameters
      u             ; logic vars
-     (sym string)  ; String contants
-     (nat number)  ; Numeric constants
-     boolean
-     string
-     empty         ; Empty list
+	 pt
      (t : t)       ; Non-empty list
    ]
+
+  ;; primitive terms are either
+  [pt (sym string)  ; Symbol constants
+      (nat number)  ; Numeric constants
+      boolean
+      (str string)  ; String contants
+      empty         ; Empty list
+	  ]
 
 
   ;----------------------Other---------------------------
   [r (variable-prefix r:)]  ; to account for arbitrary relation names
   [x (variable-prefix x:)]  ; to account for arbitrary parameter names
-  [u (variable-prefix u:)]  ; Logic variables – tagged, not raw naturals
+  [u (variable-prefix u:)] ; Logic variables, tagged, not raw naturals
   [tag (label string)]
 
   [σ (state sub c trail tag)] ; State
-  [sub ((u t) ...)]   ; Substitution
+  [sub ((u_!_ t) ...)]        ; Substitution, make the vars definitionally distinct
   [maybe-sub sub #f]
   [trail (eq ...)]
   [end-config (Γ ans* (empty-tree))]
@@ -88,7 +92,7 @@
   ;---------------------Binding Forms--------------------
   #:binding-forms
   (∃ (x ...) g #:refers-to (shadow x ...))
-  (e #:refers-to (shadow r ...) ((r (x ...) g #:refers-to (shadow x ...)) ...) #:refers-to (shadow r ...))
+  (s #:refers-to (shadow r ...) ((r (x ...) g #:refers-to (shadow x ...)) ...) #:refers-to (shadow r ...))
 )
 
 (default-language Core)
@@ -112,8 +116,9 @@
 (define-metafunction Core
   extend : u t sub -> maybe-sub
   [(extend u t sub) ([u t] ,@(term sub))
-                          (side-condition (not (term (occurs? u t sub))))]
-  [(extend _ _ _) #f])
+   (side-condition (not (judgment-holds (occurs? u t sub))))]
+  [(extend u t sub) #f
+   (side-condition (judgment-holds (occurs? u t sub)))])
 
   ;; produce the mapping between lexical vars an the numbers for logic vars
 (define-metafunction Core
@@ -127,3 +132,9 @@
   [(occurs? u (t : _) sub) (occurs? u t sub)]
   [(occurs? u (_ : t) sub) (occurs? u t sub)]
   [(occurs? u_1 u_1 sub)])
+
+(module+ test
+  ;; matches to create a new variable not in a term
+  (redex-define Core (name new-var u) (variable-not-in (term (u: u:1 u:2 u:3)) 'u:))
+  (term new-var)
+)
