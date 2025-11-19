@@ -1,23 +1,18 @@
 #lang racket
 (require redex/reduction-semantics
          redex/pict)
+;; Jason Hemann and Brysen Pfingsten
+;; Initial redex lang setup from Ryan Jung
+;; Unify &c metafunctions from Phil Nguyen
 
 (check-redundancy #t)
 
 #;(current-traced-metafunctions 'all)
 
-(provide Core unify walk extend fresh-sub occurs?)
+(provide Core unify walk extend occurs?)
 
-;; Jason Hemann
-;; Initial redex lang setup from Ryan Jung
-;; Unify &c metafunctions from Phil Nguyen
-
-;; Consider, if we separate answer streams from search tree
-;; disjuncts, then we would need some rule to "move into the
-;; answer stream."
-
-;; Right now we pun between a succeed node in the language and a
-;; successful result, with that substitution. Not a sin.
+(module+ test
+  (require rackunit))
 
 (define-language Core
   ;--------------------Top Level-------------------------
@@ -95,7 +90,54 @@
   (s #:refers-to (shadow r ...) ((r (x ...) g #:refers-to (shadow x ...)) ...) #:refers-to (shadow r ...))
 )
 
+(module+ test
+  ;; matches to create a new variable not in a term
+  (redex-define Core (name new-var u) (variable-not-in (term (u: u:1 u:2 u:3)) 'u:))
+  (term new-var)
+
+  (check-equal? (term u:2) 'u:2)
+  (check-true   (redex-match? Core u (term u:2)))
+  (check-true   (redex-match? Core t (term u:2)))
+  (check-true   (redex-match? Core t (term (u:0 : u:1))))
+  (check-true   (redex-match? Core pt (term empty)))
+
+  ;; one binding: list of pairs ((u t) ...)
+  (check-true  (redex-match? Core sub (term ((u:0 (sym "x"))))))
+  (check-false (redex-match? Core sub (term (u:1 (sym "x"))))) ; missing parens
+)
+
 (default-language Core)
+
+
+(define-metafunction Core
+  extend : u t sub -> maybe-sub
+  [(extend u t sub) ([u t] ,@(term sub))
+   (side-condition (not (judgment-holds (occurs? u t sub))))]
+  [(extend u t sub) #f
+   (side-condition (judgment-holds (occurs? u t sub)))])
+
+(define-relation Core
+  occurs? ⊆ u × t × sub
+  [(occurs? u (t : _) sub) (occurs? u t sub)]
+  [(occurs? u (_ : t) sub) (occurs? u t sub)]
+  [(occurs? u_1 u_1 sub)])
+
+(define-metafunction Core
+  walk : t sub -> t
+  [(walk u (name sub (_ ... [u t] _ ...))) (walk t sub)]
+  [(walk t _) t])
+
+(module+ test
+
+  (check-equal? (term (walk u:0 ((u:0 (sym "a"))))) (term (sym "a")))
+
+  ;; triangular: 0 ↦ 1, 1 ↦ "z"
+  (check-equal? (term (walk u:1 ((u:0 (sym "z")) (u:1 u:0))))
+				(term (sym "z")))
+
+  ;; no change on constants
+  (check-equal? (term (walk (sym "x") ((u:0 (sym "a"))))) (term (sym "x")))
+)
 
 (define-metafunction Core
   unify : t t sub -> maybe-sub
@@ -108,33 +150,22 @@
   [(unify t_1 t_1 sub) sub]
   [(unify _ _ _) #f])
 
-(define-metafunction Core
-  walk : t sub -> t
-  [(walk u (name sub (_ ... [u t] _ ...))) (walk t sub)]
-  [(walk t _) t])
-
-(define-metafunction Core
-  extend : u t sub -> maybe-sub
-  [(extend u t sub) ([u t] ,@(term sub))
-   (side-condition (not (judgment-holds (occurs? u t sub))))]
-  [(extend u t sub) #f
-   (side-condition (judgment-holds (occurs? u t sub)))])
-
-  ;; produce the mapping between lexical vars an the numbers for logic vars
-(define-metafunction Core
-  fresh-sub : c x ... -> ((x c) ...)
-  [(fresh-sub c) ()]
-  [(fresh-sub c x_1 x_2 ...)
-   ,(cons (term (x_1 c)) (term (fresh-sub ,(add1 (term c)) x_2 ...)))])
-
-(define-relation Core
-  occurs? ⊆ u × t × sub
-  [(occurs? u (t : _) sub) (occurs? u t sub)]
-  [(occurs? u (_ : t) sub) (occurs? u t sub)]
-  [(occurs? u_1 u_1 sub)])
-
 (module+ test
-  ;; matches to create a new variable not in a term
-  (redex-define Core (name new-var u) (variable-not-in (term (u: u:1 u:2 u:3)) 'u:))
-  (term new-var)
+  (check-equal? (term (unify u:0 u:0 ())) (term ()))
+  (check-equal? (term (unify u:0 (sym "cat") ())) (term ((u:0 (sym "cat")))))
+  (check-equal? (term (unify (sym "dog") u:1 ())) (term ((u:1 (sym "dog")))))
+
+  ;; pair/pair same-shape success
+  (check-equal?
+   (term (unify ((sym "a") : u:0) ((sym "a") : (sym "b")) ()))
+   (term ((u:0 (sym "b")))))
+
+  (check-equal?
+   (term (unify ((sym "a") : u:1) (u:1 : u:0) ()))
+   (term ((u:0 (sym "a")) (u:1 (sym "a")))))
+
+  (check-equal?
+   (term (unify (u:0 : u:1) (u:1 : (sym "a")) ()))
+   (term ((u:1 (sym "a")) (u:0 u:1))))
+
 )
