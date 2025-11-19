@@ -14,10 +14,10 @@
          wf-sub?
 		 wf-program?)
 
-
 (module+ test
   (require rackunit)
-  )
+  (default-language Core)
+ )
 
 (define-judgment-form
   Core
@@ -60,6 +60,9 @@
   (check-true (judgment-holds (wf-term? u:0 () (u:0))))
   (check-true (judgment-holds (wf-term? u:1 () (u:0 u:1))))
   (check-false (judgment-holds (wf-term? u:3 () (u:0 u:1))))
+  ;; lexical variable must be in the binder list
+  (check-true  (judgment-holds (wf-term? x:0 (x:0) (u:5))))
+  (check-false (judgment-holds (wf-term? x:0 () (u:5))))
 )
 
 (define-judgment-form
@@ -75,8 +78,10 @@
 (module+ test
   (check-true  (judgment-holds (wf-sub? ((u:0 (sym "x"))) (u:0))))
   (check-false (judgment-holds (wf-sub? ((u:1 (sym "x"))) (u:0))))
+  ;; two bindings ok
+  (check-true  (judgment-holds (wf-sub? ((u:0 (sym "x")) (u:2 (sym "y")))
+                                        (u:0 u:2))))
 )
-
 
 (define-judgment-form
   Core
@@ -86,9 +91,9 @@
   [------------------ "trivial success wf"
    (wf-goal? (succeed) ((r (x ...)) ...) (x_1 ...) c)]
 
-  [(where (u_i ...) c)
-   (where (u_j ...) (fresh-lvars (x_1 ...) c))
-   (wf-goal? g ((r (x ...)) ...) (x_1 ... x_2 ...) (u_j ... u_i ...))
+  [(where (u_old ...) c)
+   (where (u_new ...) (fresh-lvars (x_1 ...) c))
+   (wf-goal? g ((r (x ...)) ...) (x_1 ... x_2 ...) (u_new ... u_old ...))
    ------------------- "fresh-wf"
    (wf-goal? (∃ (x_1 ...) g tag) ((r (x ...)) ...) (x_2 ...) c)]
 
@@ -105,7 +110,38 @@
   )
 
 (module+ test
+  ;; succeed
   (check-true (judgment-holds (wf-goal? (succeed) () () ())))
+
+  ;; equality with only lvs present in c
+  (check-true (judgment-holds
+               (wf-goal? (u:0 =? (sym "a") (label "t"))
+                         ()
+                         ()
+                         (u:0))))
+
+  ;; conjunction
+  (check-true (judgment-holds
+               (wf-goal? ((u:0 =? (sym "a") (label "t1"))
+                          ∧ (u:1 =? (sym "b") (label "t2")) (label "∧"))
+                         ()
+                         ()
+                         (u:0 u:1))))
+
+  ;; ∃ adds fresh u's to c via add-vars-not-in
+  (check-true (judgment-holds
+               (wf-goal? (u:0 =? (sym "a") (label "t"))
+                         ()
+                         (x:0 x:1)
+                         (u:2 u:1 u:0))))
+
+  ;; ∃ adds fresh u's to c via add-vars-not-in
+  (check-true (judgment-holds
+               (wf-goal? (∃ (x:0 x:1)
+                            (u:0 =? (sym "a") (label "t")) (label "fresh"))
+                         ()
+                         ()
+                         (u:0))))
 )
 
 ;; Given a list of used symbols, produce a fresh one
@@ -256,3 +292,101 @@
   #;[(wf-tree? s ((r (x ...)) ...))
    -------------------"proceed wf"
    (wf-tree? (proceed s) ((r (x ...)) ...))]
+
+
+
+(module+ test
+  ;; two-step trail; final σ must be exactly as unify builds it (new bindings consed in front)
+  (check-true
+   (judgment-holds
+    (wf-trail-unify*s-to-σ?
+     ((u:0 =? (sym "a") (label "t1"))
+      ((u:1 : u:0) =? ((sym "b") : (sym "a")) (label "t2")))
+     (u:0 u:1)
+     ()
+     ((u:1 (sym "b")) (u:0 (sym "a"))))))
+
+  (check-true
+   (judgment-holds
+    (wf-sub/wf+equiv-trail?
+     ((u:1 (sym "b")) (u:0 (sym "a")))
+     (u:0 u:1)
+     ((u:0 =? (sym "a") (label "t1"))
+      ((u:1 : u:0) =? ((sym "b") : (sym "a")) (label "t2"))))))
+)
+
+
+(module+ test
+  (check-false
+   (judgment-holds
+    (wf-state? (state ((u:1 (sym "b")) (u:0 (sym "a")))
+                      (u:0 u:1)
+                      ((u:0 =? (sym "a") (label "t1")))
+                      (label "σ")))))
+
+  (check-false
+   (judgment-holds
+    (wf-state? (state ((u:1 (sym "b")) (u:0 (sym "a")))
+                      (u:0 u:1)
+                      ((u:1 =? (sym "b") (label "t2"))
+                       (u:0 =? (sym "a") (label "t1")))
+                      (label "σ")))))
+
+  ;; empty tree
+  (check-true (judgment-holds (wf-tree? (empty-tree) ())))
+  ;; goal/state node
+  (check-true
+   (judgment-holds
+    (wf-tree?
+      ((u:0 =? (sym "a") (label "t"))
+       (state ((u:0 (sym "a")))
+              (u:0)
+              ((u:0 =? (sym "a") (label "t1")))
+              (label "σ")))
+      ())))
+  ;; conjunction
+  (check-true
+   (judgment-holds
+    (wf-tree?
+      (((u:0 =? (sym "a") (label "t"))
+       (state ((u:0 (sym "a")))
+              (u:0)
+              ((u:0 =? (sym "a") (label "t1")))
+              (label "σ")))
+       ×
+       (succeed))
+      ())))
+
+  ;; whole program: no states and empty relations
+  (check-true
+   (judgment-holds
+    (wf-program? (() () (empty-tree)))))
+
+  ;; whole program: one state and empty relations
+  (check-true
+   (judgment-holds
+    (wf-program?
+     (()  ; Γ
+      ((state ((u:0 (sym "a"))) (u:0) (((sym "a") =? u:0 (label "g1"))) (label "σ"))) ; ans*
+      (empty-tree)))))                                ; s
+)
+
+
+(module+ test
+  (require redex rackunit)
+
+  ;; walk is idempotent
+  (redex-check Core
+    (t sub)
+    (equal? (term (walk (walk t sub) sub)) (term (walk t sub))))
+
+  ;; if unify succeeds, the results walk to the same thing
+  (redex-check Core
+    (t_1 t_2 sub c trail tag_1 tag_2)
+    (implies
+     (judgment-holds (wf-tree? ((t_1 =? t_2 tag_1) (state sub c trail tag_2)) ()))
+     (let ([sub^ (term (unify (walk t_1 sub) (walk t_2 sub) sub))])
+       (or (equal? sub^ (term #f))
+           (equal? (term (walk t_1 ,sub^))
+                   (term (walk t_2 ,sub^)))))))
+)
