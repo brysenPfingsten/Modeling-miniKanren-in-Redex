@@ -1,193 +1,224 @@
 #lang racket
-(require redex)
-(require redex/reduction-semantics)
-(require rackunit)
+(require rackunit
+         redex
+         redex/reduction-semantics
+         "definitions.rkt")
+
 (check-redundancy #t)
 
-(provide closed-goal? closed-tree? closed-term?
-         closed-sub? closed-program?
-		 bump)
-
-(require "definitions.rkt")
-
-;; c is a natural; (x ...) is any list of binders/vars.
-;; Returns c + (length (x ...)).
-(define-metafunction L
-  bump : c (x ...) -> c
-  [(bump c (x ...))
-   ,(+ (term c) (length (term (x ...))))])
+(provide wf-goal?
+		 wf-tree?
+		 wf-term?
+		 wf-state?
+         wf-sub/wf+equiv-trail?
+         wf-sub?
+		 wf-program?)
 
 
-(define-judgment-form
-  L
-  #:contract (same-length? (t ...) (x ...))
-  #:mode (same-length? I I)
-
-  [
-   ------------"empty list same length"
-   (same-length? () ())]
-
-  [(same-length? (t ...) (x ...))
-   ------------"cons list same length"
-   (same-length? (t_1 t ...) (x_1 x ...))]
-
-  )
-
-
-(define-judgment-form
-  L
-  #:contract (closed-term? t (x ...) c)
-  #:mode (closed-term? I I I)
-
-  [
-   ----------------- "empty is closed"
-   (closed-term? empty (x ...) c)]
-
-  [#;(side-condition ,(< (term c_1) (term c_2)))
-   -------------- "logic var is closed"
-   (closed-term? c_1 (x ...) c_2)]
-
-  [
-   -------------- "primitive is closed"
-   (closed-term? o (x ...) c)]
-
-  [(closed-term? t_2 (x ...) c)
-   (closed-term? t_1 (x ...) c)
-   -------------- "list is closed"
-   (closed-term? (t_1 : t_2) (x ...) c)]
-
-  [
-   -------------- "lexical var is closed"
-   (closed-term? x_2 (x_1 ... x_2 x_3 ...) c)])
-
-(define-judgment-form
-  L
-  #:contract (closed-trail? trail c)
-  #:mode (closed-trail? I I)
-
-  [
-   ------------------ "empty trail is closed"
-   (closed-trail? () c)]
-
-  [(closed-term? t_1 () c)
-   (closed-term? t_2 () c)
-   (closed-trail? ((t_3 =? t_4 o) ...) c) 
-   ------------------ "trail is closed"
-  (closed-trail? ((t_1 =? t_2 _) (t_3 =? t_4 o) ...) c)])
-
-  
-(define-judgment-form
-  L
-  #:contract (closed-sub? sub c)
-  #:mode (closed-sub? I I)
-  [
-   ------------------ "empty sub is closed"
-   (closed-sub? () c)]
-
-  [(closed-term? t_1 () c_3)
-   (closed-term? c_1 () c_3)
-   (closed-sub? ((c_2 t_2)) c_3) ...
-   ------------------"sub is closed"
-   (closed-sub? ((c_1 t_1) (c_2 t_2) ...) c_3)])
-
-(define-judgment-form
-  L
-  ;; Well I suppose what I want to say is that the accumulator contains the same x ... as *some* set of variables in the (x ... ...) list
-  #:contract (closed-goal? g ((r (x ...)) ...) (x ... y ...) c)
-  #:mode (closed-goal? I I I I)
-
-  [
-   ------------------ "trivial success closed"
-   (closed-goal? ⊤ _ (x ...) c)]
-
-  [(where c_1 (bump c (x_1 ...)))
-   (closed-goal? g ((r (x ...)) ...) (x_1 ... x_2 ...) c_1)
-   ------------------- "fresh-closed"
-   (closed-goal? (∃ (x_1 ...) g _) ((r (x ...)) ...) (x_2 ...) c)]
-  
-  [(closed-goal? g_1 ((r (x ...)) ...) (x_1 ...) c)
-   (closed-goal? g_2 ((r (x ...)) ...) (x_1 ...) c)
-   ---------- "conj-closed"
-   (closed-goal? (g_1 ∧ g_2 _) ((r (x ...)) ...) (x_1 ...) c)]
-  
-  [(closed-goal? g_1 ((r (x ...)) ...) (x_1 ...) c)
-   (closed-goal? g_2 ((r (x ...)) ...) (x_1 ...) c)
-   ---------- "disj-closed"
-   (closed-goal? (g_1 ∨ g_2 _) ((r (x ...)) ...) (x_1 ...) c)]
-
-  [(closed-term? t_1 (x ...) c)
-   (closed-term? t_2 (x ...) c)
-   ---------- "==-closed"
-   (closed-goal? (t_1 =? t_2 _) _ (x ...) c)]
-  
-  [(same-length? (t ...) (x_i ...))
-   (closed-term? t (x_k ...) c) ...
-   ---------- "relcall-closed"
-   (closed-goal? (r_i t ... _) ((r_1 (x_1 ...)) ... (r_i (x_i ...)) (r_j (x_j ...)) ...) (x_k ...) c)]
+(module+ test
+  (require rackunit)
   )
 
 (define-judgment-form
-  L
-  ;; How do I distinguish between an ((r (x ...)) (r2 (x_1 ...))) if the lengths x x_1 have to be the same
-  #:contract (closed-tree? s ((r (x ...)) ...))
-  #:mode (closed-tree? I I)
+  Core
+  #:contract (lvar-member? u c)
+  #:mode (lvar-member? I I)
 
-  [
-   -------------------"empty tree is closed"
-   (closed-tree? () ((r (x ...)) ...))]
+  [--------"lvar member"
+   (lvar-member? u (u_1 ... u u_2 ...))]
+)
 
-  [
-   ------------------"trivial success is closed"
-   (closed-tree? ⊤ ((r (x ...)) ...))]
+(define-judgment-form
+  Core
+  #:contract (wf-term? t (x ...) (u_!_ ...))
+  #:mode (wf-term? I I I)
 
-  [(closed-goal? g ((r (x ...)) ...) () c)
-   (side-condition ,(andmap (λ (pair) (< (first pair) (term c))) (term sub)))
-   (side-condition ,(<= (length (term sub)) (term c)))
-   (closed-sub? sub c)
-   (closed-trail? trail c)
-   -------------------"goal w/ sub closed"
-   (closed-tree? (g (state sub c trail _)) ((r (x ...)) ...))]
+  [(lvar-member? u c)
+   -------------- "lv in extant lvs"
+   (wf-term? u xs c)]
 
-  [(closed-tree? s ((r (x ...)) ...))
-   -------------------"partial tree closed"
-   (closed-tree? (∂ s _) ((r (x ...)) ...))] ;; TODO: closed-state-judgement?
-  
-  [(closed-tree? s_1 ((r (x ...)) ...))
-   (closed-tree? s_2 ((r (x ...)) ...))
-   -------------------"left disj closed"
-   (closed-tree? (s_1 <-+ s_2) ((r (x ...)) ...))]
+  [-------------- "primitive terms are wf and valid"
+   (wf-term? pt (x ...) c)]
 
-  [(closed-tree? s_1 ((r (x ...)) ...))
-   (closed-tree? s_2 ((r (x ...)) ...))
-   -------------------"right disj closed"
-   (closed-tree? (s_1 +-> s_2) ((r (x ...)) ...))]
+  [(wf-term? t_2 (x ...) c)
+   (wf-term? t_1 (x ...) c)
+   -------------- "pairs wf when constituents wf"
+   (wf-term? (t_1 : t_2) (x ...) c)]
 
-  [(closed-sub? sub c)
-   (closed-trail? trail c)
-   (closed-tree? s ((r (x ...)) ...))
-   -------------------"answer stream closed"
-   (closed-tree? ((⊤ (state sub c trail _)) + s) ((r (x ...)) ...))]
+  [-------------- "lexical var is in bound vars"
+   (wf-term? x_2 (x_1 ... x_2 x_3 ...) c)])
 
-  [(closed-tree? s ((r (x ...)) ...))
-   (closed-goal? g ((r (x ...)) ...) () 0)
-   -------------------"conj closed"
-   (closed-tree? (s × g) ((r (x ...)) ...))]
+(module+ test
+  (check-true (judgment-holds (wf-term? (sym "a") () ())))
+  (check-true (judgment-holds (wf-term? u:0 () (u:0))))
+  (check-false (judgment-holds (wf-term? u:1 () (u:0 u:1))))
+)
 
-  [(closed-tree? s ((r (x ...)) ...))
-   -------------------"delay closed"
-   (closed-tree? (delay s) ((r (x ...)) ...))]
+(define-judgment-form
+  Core
+  #:contract (wf-sub? sub c)
+  #:mode (wf-sub? I I)
 
-  [(closed-tree? s ((r (x ...)) ...))
-   -------------------"proceed closed"
-   (closed-tree? (proceed s) ((r (x ...)) ...))])
+  [(wf-term? t () c) ...
+   (lvar-member? u c) ...
+   ------------------"sub is wf"
+   (wf-sub? ([u t] ...) c)])
+
+(module+ test
+  (check-true  (judgment-holds (wf-sub? ((u:0 (sym "x"))) (u:0))))
+  (check-false (judgment-holds (wf-sub? ((u:1 (sym "x"))) (u:0))))
+)
 
 
 (define-judgment-form
-  L
-  #:contract (closed-program? p)
-  #:mode (closed-program? I)
-  [(closed-tree? s ((r (x ...)) ...))
-   (closed-goal? g ((r (x ...)) ...) (x ...) 0) ...
-   ----------------------- "program-closed"
-   (closed-program? (s ((r (x ...) g) ...)))]
+  Core
+  #:contract (wf-goal? g ((r (x ...)) ...) (x_1 ...) c)
+  #:mode (wf-goal? I I I I)
+
+  [------------------ "trivial success wf"
+   (wf-goal? (succeed) ((r (x ...)) ...) (x_1 ...) c)]
+
+  [(where c1 (add-vars-not-in (x_1 ...) c))
+   (wf-goal? g ((r (x ...)) ...) (x_1 ... x_2 ...) c1)
+   ------------------- "fresh-wf"
+   (wf-goal? (∃ (x_1 ...) g tag) ((r (x ...)) ...) (x_2 ...) c)]
+
+  [(wf-goal? g_1 ((r (x ...)) ...) (x_1 ...) c)
+   (wf-goal? g_2 ((r (x ...)) ...) (x_1 ...) c)
+   ---------- "conj-wf"
+   (wf-goal? (g_1 ∧ g_2 tag) ((r (x ...)) ...) (x_1 ...) c)]
+
+  [(wf-term? t_1 (x_1 ...) c)
+   (wf-term? t_2 (x_1 ...) c)
+   ---------- "==-wf"
+   (wf-goal? (t_1 =? t_2 tag) ((r (x ...)) ...) (x_1 ...) c)]
+
   )
+
+(module+ test
+  (check-true (judgment-holds (wf-goal? (succeed) () () ())))
+)
+
+;; Given a list of used symbols, produce a fresh one
+(define-metafunction Core
+  ;; Takes a list of symbols, returns a fresh symbol
+  fresh-lv : (u ...) -> u
+  [(fresh-lv (u_used ...)) ,(variable-not-in (cons 'u: (term (u_used  ...))) 'u:)])
+
+(define-judgment-form
+  Core
+  #:contract (wf-trail-unify*s-to-σ? (eq ...) c sub sub)
+  #:mode (wf-trail-unify*s-to-σ? I I I I)
+
+  [-------------------"trail is empty, acc is our sub"
+   (wf-trail-unify*s-to-σ? () c sub sub)]
+
+  ;; grammar makes subst's u's distinct; if each is in c, |subst| < c
+  [(where (name sub_acc2 ([u_s t_s] ...)) (unify (walk t1 sub_acc) (walk t2 sub_acc) sub_acc))
+   (wf-term? t_1 xs c)
+   (wf-term? t_2 xs c)
+   (wf-trail-unify*s-to-σ? (eq ...) c sub_acc2 sub)
+   -------------------"this pair is well formed and unify"
+   (wf-trail-unify*s-to-σ? ((== t_1 t_2) eq ...) c sub_acc sub)]
+
+)
+
+(define-judgment-form
+  Core
+  #:contract (wf-sub/wf+equiv-trail? sub c trail)
+  #:mode (wf-sub/wf+equiv-trail? I I I)
+
+  ;; grammar makes subst's u's distinct; if each is in c, |subst| < c
+  [(wf-sub? sub c)
+   (wf-trail-unify*s-to-σ? (eq ...) c () sub)
+   -------------------"goal w/ sub wf"
+   (wf-sub/wf+equiv-trail? sub c (eq ...))]
+
+)
+
+(define-judgment-form
+  Core
+  #:contract (wf-state? σ)
+  #:mode (wf-state? I)
+
+  [(wf-sub/wf+equiv-trail? sub c trail)
+   ----------------------- "state wf"
+   (wf-state? (state sub c trail tag))])
+
+(define-judgment-form
+  Core
+  #:contract (wf-tree? s Γ)
+  #:mode (wf-tree? I I)
+
+  [-------------------"empty tree is wf"
+   (wf-tree? (empty-tree) ((r (x ...)) ...))]
+
+  [(wf-goal? g ((r (x ...)) ...) () c)
+   (wf-sub/wf+equiv-trail? sub c trail)
+   -------------------"goal/state wf"
+   (wf-tree? (g (state sub c trail tag)) ((r (x ...)) ...))]
+
+  [(wf-tree? s ((r (x ...)) ...))
+   (wf-goal? g ((r (x ...)) ...) () ())
+   -------------------"conj wf"
+   (wf-tree? (s × g) ((r (x ...)) ...))])
+
+(define-judgment-form
+  Core
+  #:contract (wf-program? config)
+  #:mode (wf-program? I)
+  [(wf-state? σ) ...
+   (wf-tree? s ((r (x ...)) ...))
+   (wf-goal? g ((r (x ...)) ...) (x ...) ()) ...
+   ----------------------- "program-wf"
+   (wf-program? (((r (x ...) g) ...) (σ ...) s))]
+  )
+
+  #;[(wf-tree? s ((r (x ...)) ...))
+   -------------------"partial tree wf"
+   (wf-tree? (∂ s _) ((r (x ...)) ...))] ;; TODO: wf-state-judgement?
+
+  #;[(wf-tree? s_1 ((r (x ...)) ...))
+   (wf-tree? s_2 ((r (x ...)) ...))
+   -------------------"left disj wf"
+   (wf-tree? (s_1 <-+ s_2) ((r (x ...)) ...))]
+
+  #;[(wf-tree? s_1 ((r (x ...)) ...))
+   (wf-tree? s_2 ((r (x ...)) ...))
+   -------------------"right disj wf"
+   (wf-tree? (s_1 +-> s_2) ((r (x ...)) ...))]
+
+
+
+;; (define-judgment-form
+;;   Core
+;;   #:contract (wf-trail? trail c)
+;;   #:mode (wf-trail? I I)
+
+;;   [
+;;    ------------------ "empty trail is wf"
+;;    (wf-trail? () c)]
+
+;;   [(wf-term? t_1 () c)
+;;    (wf-term? t_2 () c)
+;;    (wf-trail? ((t_3 =? t_4 o) ...) c)
+;;    ------------------ "trail is wf"
+;;   (wf-trail? ((t_1 =? t_2 _) (t_3 =? t_4 o) ...) c)])
+
+  ;; [(wf-goal? g_1 ((r (x ...)) ...) (x_1 ...) c)
+  ;;  (wf-goal? g_2 ((r (x ...)) ...) (x_1 ...) c)
+  ;;  ---------- "disj-wf"
+  ;;  (wf-goal? (g_1 ∨ g_2 _) ((r (x ...)) ...) (x_1 ...) c)]
+
+  ;; [(same-length? (t ...) (x_i ...))
+  ;;  (wf-term? t (x_k ...) c) ...
+  ;;  ---------- "relcall-wf"
+  ;;  (wf-goal? (r_i t ... _) ((r_1 (x_1 ...)) ... (r_i (x_i ...)) (r_j (x_j ...)) ...) (x_k ...) c)]
+
+  #;[(wf-tree? s ((r (x ...)) ...))
+   -------------------"delay wf"
+   (wf-tree? (delay s) ((r (x ...)) ...))]
+
+  #;[(wf-tree? s ((r (x ...)) ...))
+   -------------------"proceed wf"
+   (wf-tree? (proceed s) ((r (x ...)) ...))]

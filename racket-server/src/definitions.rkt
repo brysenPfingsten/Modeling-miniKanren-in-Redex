@@ -74,7 +74,7 @@
   [maybe-sub sub #f]
   [trail (eq ...)]
   [end-config (Γ ans* (empty-tree))]
-  [c natural]
+  [c (u_!_ ...)]
   ;-----------------Evaluation Contexts------------------
 
   ; Search Tree
