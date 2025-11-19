@@ -101,16 +101,28 @@
   ;; terms and primitives
   (check-equal? (term u:2) 'u:2)
   (check-true   (redex-match? Core u (term u:2)))
+
+  (check-true   (redex-match? Core pt (term empty)))
+  (check-false  (redex-match? Core pt (term (sym 5)))) ; bad payload
+
+  (check-true   (redex-match? Core t (term (sym "a"))))
   (check-true   (redex-match? Core t (term u:2)))
   (check-true   (redex-match? Core t (term (u:0 : u:1))))
   (check-true   (redex-match? Core t (term (u:0 : (sym "x")))))
-  (check-true   (redex-match? Core pt (term empty)))
-  (check-false  (redex-match? Core pt (term (sym 5)))) ; bad payload
 
   ;; one binding: list of pairs ((u t) ...)
   (check-true  (redex-match? Core sub (term ((u:0 (sym "x"))))))
   (check-false (redex-match? Core sub (term (u:1 (sym "x"))))) ; missing parens
   (check-false (redex-match? Core sub (term ((u:0 (sym "x")) (u:0 (sym "y")))))) ; non-distinct
+
+  (check-true (redex-match? Core tag (term (label "t"))))
+
+  (check-true (redex-match? Core g (term (u:0 =? (sym "a") (label "t")))))
+
+  (check-true (redex-match? Core s (term ((u:0 =? (sym "a") (label "t")) (state ((u:0 (sym "a"))) (u:0) () (label "σ"))))))
+
+  (check-true (redex-match? Core config (term (() () (empty-tree)))))
+
 )
 
 
@@ -220,3 +232,4 @@
    (term #f))
 
 )
+
