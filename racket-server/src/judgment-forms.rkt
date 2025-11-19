@@ -389,4 +389,7 @@
        (or (equal? sub^ (term #f))
            (equal? (term (walk t_1 ,sub^))
                    (term (walk t_2 ,sub^)))))))
+
+  ;; unify produces an occurs-free substitution (no binding (in)directly captures itself) TBD
+
 )
