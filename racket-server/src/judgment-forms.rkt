@@ -86,8 +86,9 @@
   [------------------ "trivial success wf"
    (wf-goal? (succeed) ((r (x ...)) ...) (x_1 ...) c)]
 
-  [(where c1 (add-vars-not-in (x_1 ...) c))
-   (wf-goal? g ((r (x ...)) ...) (x_1 ... x_2 ...) c1)
+  [(where (u_i ...) c)
+   (where (u_j ...) (fresh-lvars (x_1 ...) c))
+   (wf-goal? g ((r (x ...)) ...) (x_1 ... x_2 ...) (u_j ... u_i ...))
    ------------------- "fresh-wf"
    (wf-goal? (∃ (x_1 ...) g tag) ((r (x ...)) ...) (x_2 ...) c)]
 
@@ -111,7 +112,25 @@
 (define-metafunction Core
   ;; Takes a list of symbols, returns a fresh symbol
   fresh-lv : (u ...) -> u
-  [(fresh-lv (u_used ...)) ,(variable-not-in (cons 'u: (term (u_used  ...))) 'u:)])
+  [(fresh-lv (u ...)) ,(variable-not-in (cons 'u: (term (u  ...))) 'u:)])
+
+
+;;
+;;
+;; redex's variables-not-in uses the vars list themselves as the
+;; prefixes, which doesn't work with our use case.
+(define-metafunction Core
+  fresh-lvars : (x ...) c -> c
+  [(fresh-lvars (x ...) c)
+   ,(for/fold ([fv* '()])
+              ([_ (in-list (term (x ...)))])
+      (define fv (variable-not-in (cons 'u: (append fv* (term c))) 'u:))
+      (cons fv fv*))])
+
+(module+ test
+  (check-equal?
+    (term (fresh-lvars (x:0 x:1 x:2) (u:1 u:7 u:3)))
+    '(u:5 u:4 u:2)))
 
 (define-judgment-form
   Core
@@ -122,14 +141,21 @@
    (wf-trail-unify*s-to-σ? () c sub sub)]
 
   ;; grammar makes subst's u's distinct; if each is in c, |subst| < c
-  [(where (name sub_acc2 ([u_s t_s] ...)) (unify (walk t1 sub_acc) (walk t2 sub_acc) sub_acc))
-   (wf-term? t_1 xs c)
-   (wf-term? t_2 xs c)
+  [(where (name sub_acc2 ([u_s t_s] ...)) (unify (walk t_1 sub_acc) (walk t_2 sub_acc) sub_acc))
+   (wf-term? t_1 () c)
+   (wf-term? t_2 () c)
    (wf-trail-unify*s-to-σ? (eq ...) c sub_acc2 sub)
    -------------------"this pair is well formed and unify"
-   (wf-trail-unify*s-to-σ? ((== t_1 t_2) eq ...) c sub_acc sub)]
+   (wf-trail-unify*s-to-σ? ((t_1 =? t_2 tag) eq ...) c sub_acc sub)]
 
 )
+
+(module+ test
+  (check-false (judgment-holds (wf-trail-unify*s-to-σ? () (u:2 u:1 u:0) ((u:0 u:2) (u:1 u:0)) ((u:1 u:0)))))
+  (check-false (judgment-holds (wf-trail-unify*s-to-σ? () (u:2 u:1 u:0) ((u:1 u:0)) ((u:0 u:2) (u:1 u:0)))))
+)
+
+
 
 (define-judgment-form
   Core
