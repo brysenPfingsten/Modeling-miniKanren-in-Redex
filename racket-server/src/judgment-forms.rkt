@@ -28,14 +28,21 @@
    (lvar-member? u (u_1 ... u u_2 ...))]
 )
 
+(module+ test
+  (check-true (judgment-holds (lvar-member? u:0 (u:0))))
+  (check-true (judgment-holds (lvar-member? u:0 (u:1 u:0))))
+  (check-false (judgment-holds (lvar-member? u:7 (u:0))))
+  (check-true (judgment-holds (lvar-member? u:1 (u:2 u:1 u:0))))
+)
+
 (define-judgment-form
   Core
-  #:contract (wf-term? t (x ...) (u_!_ ...))
+  #:contract (wf-term? t (x ...) c)
   #:mode (wf-term? I I I)
 
   [(lvar-member? u c)
    -------------- "lv in extant lvs"
-   (wf-term? u xs c)]
+   (wf-term? u (x ...) c)]
 
   [-------------- "primitive terms are wf and valid"
    (wf-term? pt (x ...) c)]
@@ -51,7 +58,8 @@
 (module+ test
   (check-true (judgment-holds (wf-term? (sym "a") () ())))
   (check-true (judgment-holds (wf-term? u:0 () (u:0))))
-  (check-false (judgment-holds (wf-term? u:1 () (u:0 u:1))))
+  (check-true (judgment-holds (wf-term? u:1 () (u:0 u:1))))
+  (check-false (judgment-holds (wf-term? u:3 () (u:0 u:1))))
 )
 
 (define-judgment-form
