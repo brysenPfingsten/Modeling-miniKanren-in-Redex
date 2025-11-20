@@ -170,25 +170,25 @@
 
 (define-judgment-form
   Core
-  #:contract (wf-trail-unify*s-to-σ? (eq ...) c sub sub)
-  #:mode (wf-trail-unify*s-to-σ? I I I I)
+  #:contract (wf-trail-unify*s-to-sub (eq ...) c sub sub)
+  #:mode (wf-trail-unify*s-to-sub I I I I)
 
   [-------------------"trail is empty, acc is our sub"
-   (wf-trail-unify*s-to-σ? () c sub sub)]
+   (wf-trail-unify*s-to-sub () c sub sub)]
 
   ;; grammar makes subst's u's distinct; if each is in c, |subst| < c
-  [(where (name sub_acc2 ([u_s t_s] ...)) (unify (walk t_1 sub_acc) (walk t_2 sub_acc) sub_acc))
+  [(where sub_acc2 (unify (walk t_1 sub_acc) (walk t_2 sub_acc) sub_acc))
    (wf-term? t_1 () c)
    (wf-term? t_2 () c)
-   (wf-trail-unify*s-to-σ? (eq ...) c sub_acc2 sub)
+   (wf-trail-unify*s-to-sub (eq ...) c sub_acc2 sub)
    -------------------"this pair is well formed and unify"
-   (wf-trail-unify*s-to-σ? ((t_1 =? t_2 tag) eq ...) c sub_acc sub)]
+   (wf-trail-unify*s-to-sub ((t_1 =? t_2 tag) eq ...) c sub_acc sub)]
 
 )
 
 (module+ test
-  (check-false (judgment-holds (wf-trail-unify*s-to-σ? () (u:2 u:1 u:0) ((u:0 u:2) (u:1 u:0)) ((u:1 u:0)))))
-  (check-false (judgment-holds (wf-trail-unify*s-to-σ? () (u:2 u:1 u:0) ((u:1 u:0)) ((u:0 u:2) (u:1 u:0)))))
+  (check-false (judgment-holds (wf-trail-unify*s-to-sub () (u:2 u:1 u:0) ((u:0 u:2) (u:1 u:0)) ((u:1 u:0)))))
+  (check-false (judgment-holds (wf-trail-unify*s-to-sub () (u:2 u:1 u:0) ((u:1 u:0)) ((u:0 u:2) (u:1 u:0)))))
 )
 
 
@@ -200,7 +200,7 @@
 
   ;; grammar makes subst's u's distinct; if each is in c, |subst| < c
   [(wf-sub? sub c)
-   (wf-trail-unify*s-to-σ? (eq ...) c () sub)
+   (wf-trail-unify*s-to-sub (eq ...) c () sub)
    -------------------"goal w/ sub wf"
    (wf-sub/wf+equiv-trail? sub c (eq ...))]
 
@@ -222,6 +222,10 @@
 
   [-------------------"empty tree is wf"
    (wf-tree? (empty-tree) ((r (x ...)) ...))]
+
+  [(wf-sub/wf+equiv-trail? sub c trail)
+   -------------------"single answer/state wf"
+   (wf-tree? (⊤ (state sub c trail tag)) ((r (x ...)) ...))]
 
   [(wf-goal? g ((r (x ...)) ...) () c)
    (wf-sub/wf+equiv-trail? sub c trail)
@@ -299,7 +303,7 @@
   ;; two-step trail; final σ must be exactly as unify builds it (new bindings consed in front)
   (check-true
    (judgment-holds
-    (wf-trail-unify*s-to-σ?
+    (wf-trail-unify*s-to-sub
      ((u:0 =? (sym "a") (label "t1"))
       ((u:1 : u:0) =? ((sym "b") : (sym "a")) (label "t2")))
      (u:0 u:1)
@@ -390,6 +394,43 @@
            (equal? (term (walk t_1 ,sub^))
                    (term (walk t_2 ,sub^)))))))
 
-  ;; unify produces an occurs-free substitution (no binding (in)directly captures itself) TBD
+  ;; WF-guarded property:
+  ;; If the input tree is well-formed, then:
+  ;;  - unify either fails, or
+  ;;  - the result substitution is triangular,
+  ;;  - each binding is occurs-free (w.r.t. the *result* sub),
+  ;;  - and the two sides walk to the same term under the result.
+  (redex-check Core
+    (t_1 t_2 sub c trail tag_1 tag_2)
+    (implies
+     (judgment-holds (wf-tree? ((t_1 =? t_2 tag_1) (state sub c trail tag_2)) ()))
+     (let* ([s (term (unify (walk t_1 sub) (walk t_2 sub) sub))])
+       (or (equal? s (term #f))
+           (let* ([pairs s]
+                  [dom   (map first pairs)]
+                  ;; map each domain var to its position in the result list
+                  [pos   (for/hash ([u dom] [i (in-naturals)]) (values u i))])
 
+             (define (vars-in t)
+               (cond [(symbol? t) (list t)]
+                     [(list? t)   (apply append (map vars-in t))]
+                     [else        '()]))
+
+             ;; Triangular: for binding i, every domain var v in RHS(t)
+             ;; must occur strictly later in the list (pos[v] > i).
+             (define (triangular? pairs)
+               (for/and ([p pairs] [i (in-naturals)])
+                 (for/and ([v (vars-in (second p))] #:when (hash-has-key? pos v))
+                   (> (hash-ref pos v) i))))
+
+             ;; Occurs-free: no binding [u t] has u reachable in t under the *result* sub.
+             (define (occurs-free? pairs)
+               (for/and ([p pairs])
+                 (let ([u (first p)] [t (second p)])
+                   (not (term (judgment-holds (occurs? ,u ,t ,s)))))))
+
+             (and (triangular? pairs)
+                  (occurs-free? pairs)
+                  (equal? (term (walk t_1 ,s))
+                          (term (walk t_2 ,s)))))))))
 )

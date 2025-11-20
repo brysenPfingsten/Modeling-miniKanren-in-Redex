@@ -29,6 +29,7 @@
   [s (empty-tree)               ; Empty Tree / Failure
      (g σ)                      ; Goal-State
      (s × g)                    ; Conjunction
+     (⊤ σ)
 
      ;; ((⊤ σ) + s)                ; Answer Stream
 
