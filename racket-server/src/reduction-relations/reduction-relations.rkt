@@ -144,5 +144,10 @@
    (apply-reduction-relation red-tree trivial-conjunction-tree)
    (list (term (((succeed) (state () () () (label "cat"))) × (succeed)))))
 
+  (define (red-tree-closed-under-s? st)
+    (match-let ([(list st^) (apply-reduction-relation red-tree st)])
+      (redex-match? Core s st^)))
+
+  (check-reduction-relation red-tree red-tree-closed-under-s?)
 
   )
