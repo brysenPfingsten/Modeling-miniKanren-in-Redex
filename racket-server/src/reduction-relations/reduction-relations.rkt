@@ -38,92 +38,34 @@
 (define red-tree
   (reduction-relation Core
                       #:domain s
-                      [==> ((g_1 ∨ g_2 _) (state sub c trail o))
-                           ((g_1 (state sub c trail o)) <-+ (g_2 (state sub c trail ,(symbol->string (gensym)))))
-                           "Distribute State Over Disjunction"]
+                      #:codomain s
 
                       [==> ((g_1 ∧ g_2 _) σ)
                            ((g_1 σ) × g_2)
                            "Distribute State Over Conjunction"]
 
-                      [==> (((⊤ σ) <-+ s) × g)
-                           (((⊤ σ) × g) <-+ (s × g))
-                           "Distribute Left Disjunction Answer Over Conjunction"]
-
-                      [==> ((s +-> (⊤ σ)) × g)
-                           ((s × g) +-> ((⊤ σ) × g))
-                           "Distribute Right Disjunction Answer Over Conjunction"]
-
-                      [==> (s_2 +-> ((⊤ σ) <-+ s))
-                           ((⊤ σ) <-+ (s_2 +-> s))
-                           "Reassociate Right-Left Disjunction"]
-
-                      [==> (s_2 +-> (s +-> (⊤ σ)))
-                           ((s_2 +-> s) +-> (⊤ σ))
-                           "Reassociate Right-Right Disjunction"]
-
-                      [==> (((⊤ σ) <-+ s) <-+ s_2)
-                           ((⊤ σ) <-+ (s <-+ s_2))
-                           "Reassociate Left-Left Disjunction"]
-
-                      [==> ((s +-> (⊤ σ)) <-+ s_2)
-                           ((s <-+ s_2) +-> (⊤ σ))
-                           "Reassociate Left-Right Disjunction"]
-
                       [==> ((⊤ σ) × g)
                            (g σ)
                            "Bring Success State To Second Conjunct"]
 
-                      [==> (() × g)
-                           ()
+                      [==> ((empty-tree) × g)
+                           (empty-tree)
                            "Prune Failed Conjuncts"]
 
-                      ;; [==> (() <-+ s)
-                      ;;      s
-                      ;;      "Prune Left Disjunction Failure"]
-
-                      ;; [==> (s +-> ())
-                      ;;      s
-                      ;;      "Prune Right Disjunction Failure"]
-
-                      ;; [--> (in-hole Ev ((⊤ σ) <-+ s))
-                      ;;      (in-hole Ev ((⊤ σ) + s))
-                      ;;      "Promote Left Answer"]
-
-                      ;; [--> (in-hole Ev (s +-> (⊤ σ)))
-                      ;;      (in-hole Ev ((⊤ σ) + s))
-                      ;;      "Promote Right Answer"]
-
                       [==> ((∃ (x ...) g _) (state sub c trail o))
-                           ((substitute g ,@(term (fresh-sub c x ...))) 
-                                        (state sub (bump c (x ...)) trail o))
+                           ((substitute g c^) (state sub (,@(term c^) ,@(term c))  trail o))
+                           (where c^ (fresh-lvars (x ...) c))
                            "Substitute Fresh Variables"]
 
-                      ;; [==> ((r_1 t ... o) σ)
-                      ;;      (delay (proceed ((r_1 t ... o) σ)))
-                      ;;      "Relation Call And Add Delay"]
-
-                      [==> ((t_1 =? t_2 o) (state sub c ((t_3 =? t_4 tag_1) ...) tag_2))
-                           (⊤ (state sub_1 c ((t_3 =? t_4 tag_1) ... (t_1 =? t_2 o)) tag_2))
+                      [==> ((t_1 =? t_2 tag) (state sub c ((t_3 =? t_4 tag_1) ...) tag_2))
+                           (⊤ (state sub_1 c ((t_3 =? t_4 tag_1) ... (t_1 =? t_2 tag)) tag_2))
                            (where sub_1 (unify (walk t_1 sub) (walk t_2 sub) sub))
                            "Unification Succeeds"]
 
-                      [==> ((t_1 =? t_2 o) (state sub _ _ _))
-                           ()
+                      [==> ((t_1 =? t_2 _) (state sub _ _ _))
+                           (empty-tree)
                            (where #f (unify (walk t_1 sub) (walk t_2 sub) sub))
                             "Unification Fails"]
-
-                      ;; [==> ((delay s) × g)
-                      ;;      (delay (s × g))
-                      ;;      "Propagate Delay Through Conjunction"]
-
-                      ;; [==> ((delay s_1) <-+ s_2)
-                      ;;      (delay (s_1 +-> s_2))
-                      ;;      "Propagate Delay Through Left Disjunction And Flip"]
-
-                      ;; [==> (s_2 +-> (delay s_1))
-                      ;;      (delay (s_2 <-+ s_1))
-                      ;;      "Propagate Delay Through Right Disjunction And Flip"]
 
                       with [(--> (in-hole Es a) (in-hole Es b))
                             (==> a b)]
@@ -131,7 +73,6 @@
 
 
 (module+ test
-
 
   (check-true (redex-match? Core σ (term (state () () () (label "cat")))))
   (check-true (redex-match? Core g (term ((succeed) ∧ (succeed) (label "horse")))))
