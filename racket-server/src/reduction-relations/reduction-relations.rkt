@@ -1,19 +1,22 @@
 #lang racket
 (require redex
          redex/reduction-semantics
-         rackunit
          redex/pict)
 (check-redundancy #t)
 
-(provide red step-once red-tree)
+(provide ;;red step-once
+		 red-tree)
 (require "../definitions.rkt" "../judgment-forms.rkt")
 
+(module+ test
+  (require rackunit))
+
 ;; Term -> [Listof [List String Term]]
-(define (step-once prog)
+#;(define (step-once prog)
   (apply-reduction-relation/tag-with-names red (term ,prog)))
 
-(define red
-  (reduction-relation L
+#;(define red
+  (reduction-relation Core
                       #:domain (side-condition (name prog p) (judgment-holds (closed-program? prog)))
 
                       [--> ((in-hole Ex (proceed ((r_1 t ... o) σ)))
@@ -33,8 +36,8 @@
                            (computed-name (caar (apply-reduction-relation/tag-with-names red-tree (term e_1))))]))
 
 (define red-tree
-  (reduction-relation L
-                      #:domain e
+  (reduction-relation Core
+                      #:domain s
                       [==> ((g_1 ∨ g_2 _) (state sub c trail o))
                            ((g_1 (state sub c trail o)) <-+ (g_2 (state sub c trail ,(symbol->string (gensym)))))
                            "Distribute State Over Disjunction"]
@@ -75,53 +78,71 @@
                            ()
                            "Prune Failed Conjuncts"]
 
-                      [==> (() <-+ s)
-                           s
-                           "Prune Left Disjunction Failure"]
+                      ;; [==> (() <-+ s)
+                      ;;      s
+                      ;;      "Prune Left Disjunction Failure"]
 
-                      [==> (s +-> ())
-                           s
-                           "Prune Right Disjunction Failure"]
+                      ;; [==> (s +-> ())
+                      ;;      s
+                      ;;      "Prune Right Disjunction Failure"]
 
-                      [--> (in-hole Ev ((⊤ σ) <-+ s))
-                           (in-hole Ev ((⊤ σ) + s))
-                           "Promote Left Answer"]
+                      ;; [--> (in-hole Ev ((⊤ σ) <-+ s))
+                      ;;      (in-hole Ev ((⊤ σ) + s))
+                      ;;      "Promote Left Answer"]
 
-                      [--> (in-hole Ev (s +-> (⊤ σ)))
-                           (in-hole Ev ((⊤ σ) + s))
-                           "Promote Right Answer"]
+                      ;; [--> (in-hole Ev (s +-> (⊤ σ)))
+                      ;;      (in-hole Ev ((⊤ σ) + s))
+                      ;;      "Promote Right Answer"]
 
                       [==> ((∃ (x ...) g _) (state sub c trail o))
                            ((substitute g ,@(term (fresh-sub c x ...))) 
                                         (state sub (bump c (x ...)) trail o))
                            "Substitute Fresh Variables"]
 
-                      [==> ((r_1 t ... o) σ)
-                           (delay (proceed ((r_1 t ... o) σ)))
-                           "Relation Call And Add Delay"]
+                      ;; [==> ((r_1 t ... o) σ)
+                      ;;      (delay (proceed ((r_1 t ... o) σ)))
+                      ;;      "Relation Call And Add Delay"]
 
-                      [==> ((t_1 =? t_2 o) (state sub c ((t_3 =? t_4 o_1) ...) o_2))
-                           (⊤ (state sub_1 c ((t_3 =? t_4 o_1) ... (t_1 =? t_2 o)) o_2))
+                      [==> ((t_1 =? t_2 o) (state sub c ((t_3 =? t_4 tag_1) ...) tag_2))
+                           (⊤ (state sub_1 c ((t_3 =? t_4 tag_1) ... (t_1 =? t_2 o)) tag_2))
                            (where sub_1 (unify (walk t_1 sub) (walk t_2 sub) sub))
                            "Unification Succeeds"]
 
                       [==> ((t_1 =? t_2 o) (state sub _ _ _))
                            ()
                            (where #f (unify (walk t_1 sub) (walk t_2 sub) sub))
-                           "Unification Fails"]
+                            "Unification Fails"]
 
-                      [==> ((delay s) × g)
-                           (delay (s × g))
-                           "Propagate Delay Through Conjunction"]
+                      ;; [==> ((delay s) × g)
+                      ;;      (delay (s × g))
+                      ;;      "Propagate Delay Through Conjunction"]
 
-                      [==> ((delay s_1) <-+ s_2)
-                           (delay (s_1 +-> s_2))
-                           "Propagate Delay Through Left Disjunction And Flip"]
+                      ;; [==> ((delay s_1) <-+ s_2)
+                      ;;      (delay (s_1 +-> s_2))
+                      ;;      "Propagate Delay Through Left Disjunction And Flip"]
 
-                      [==> (s_2 +-> (delay s_1))
-                           (delay (s_2 <-+ s_1))
-                           "Propagate Delay Through Right Disjunction And Flip"]
+                      ;; [==> (s_2 +-> (delay s_1))
+                      ;;      (delay (s_2 <-+ s_1))
+                      ;;      "Propagate Delay Through Right Disjunction And Flip"]
 
-                      with [(--> (in-hole Ex a) (in-hole Ex b))
+                      with [(--> (in-hole Es a) (in-hole Es b))
                             (==> a b)]
                       ))
+
+
+(module+ test
+
+
+  (check-true (redex-match? Core σ (term (state () () () (label "cat")))))
+  (check-true (redex-match? Core g (term ((succeed) ∧ (succeed) (label "horse")))))
+  (check-true (redex-match? Core s (term (((succeed) ∧ (succeed) (label "horse")) (state () () () (label "cat"))))))
+
+  (define trivial-conjunction-tree
+    (term (((succeed) ∧ (succeed) (label "horse")) (state () () () (label "cat")))))
+
+  (check-equal?
+   (apply-reduction-relation red-tree trivial-conjunction-tree)
+   (list (term (((succeed) (state () () () (label "cat"))) × (succeed)))))
+
+
+  )
