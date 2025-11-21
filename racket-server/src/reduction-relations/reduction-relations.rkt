@@ -4,7 +4,7 @@
          redex/pict)
 (check-redundancy #t)
 
-(provide red step-once red-tree)
+(provide -->cfg/whole step-once -->*e)
 (require "../definitions.rkt" "../judgment-forms.rkt")
 
 (module+ test
@@ -12,51 +12,70 @@
 
 ;; Term -> [Listof [List String Term]]
 (define (step-once prog)
-  (apply-reduction-relation/tag-with-names red (term ,prog)))
+  (apply-reduction-relation/tag-with-names -->cfg/whole (term ,prog)))
 
-(define red
-  (reduction-relation Core
-                      #:domain (side-condition (name prog config) (judgment-holds (wf-program? prog)))
-                      #:codomain (side-condition (name prog-out config) (judgment-holds (wf-program? prog-out)))
+(define -->test
+  (reduction-relation
+    Core
+    #:domain c
+    #:codomain (u ...)
 
-                      [--> (Γ (σ ...) (⊤ σ_new))
-                           (Γ (σ ... σ_new) (empty-tree))]))
+    [--> (u u_1 ...)
+         (u:2 ...)
+         (fresh ((u:2 ...) (u_1 ...)))
+         "test rule"]))
 
 
-(define step-tree
-  (reduction-relation Core
-                      #:domain s
-                      #:codomain s
 
-                      [--> ((g_1 ∧ g_2 _) σ)
-                           ((g_1 σ) × g_2)
-                           "Distribute State Over Conjunction"]
+(define -->cfg/whole
+  (reduction-relation
+    Core
+    #:domain (side-condition (name prog config) (judgment-holds (wf-program? prog)))
+    #:codomain (side-condition (name prog-out config) (judgment-holds (wf-program? prog-out)))
 
-                      [--> ((⊤ σ) × g)
-                           (g σ)
-                           "Bring Success State To Second Conjunct"]
+    [--> (Γ (σ ...) (⊤ σ_new))
+         (Γ (σ ... σ_new) (empty-tree))]))
 
-                      [--> ((empty-tree) × g)
-                           (empty-tree)
-                           "Prune Failed Conjuncts"]
 
-                      [--> ((∃ (x ...) g _) (state sub c trail o))
-                           ((substitute g c^) (state sub (,@(term c^) ,@(term c))  trail o))
-                           (where c^ (fresh-lvars (x ...) c))
-                           "Substitute Fresh Variables"]
+(define -->e
+  (reduction-relation
+    Core
+    #:domain s
+    #:codomain s
 
-                      [--> ((t_1 =? t_2 tag) (state sub c ((t_3 =? t_4 tag_1) ...) tag_2))
-                           (⊤ (state sub_1 c ((t_3 =? t_4 tag_1) ... (t_1 =? t_2 tag)) tag_2))
-                           (where sub_1 (unify (walk t_1 sub) (walk t_2 sub) sub))
-                           "Unification Succeeds"]
+    [--> ((g_1 ∧ g_2 _) σ)
+         ((g_1 σ) × g_2)
+         "Distribute State Over Conjunction"]
 
-                      [--> ((t_1 =? t_2 _) (state sub _ _ _))
-                           (empty-tree)
-                           (where #f (unify (walk t_1 sub) (walk t_2 sub) sub))
-                            "Unification Fails"]
-                      ))
+    [--> ((⊤ σ) × g)
+         (g σ)
+         "Bring Success State To Second Conjunct"]
 
-(define red-tree (compatible-closure step-tree Core s))
+    [--> ((empty-tree) × _)
+         (empty-tree)
+         "Prune Failed Conjuncts"]
+
+    [--> ((∃ (x ...) g _) (state sub c trail o))
+         ((substitute g (u ...)) (state sub (u ... ,@(term c))  trail o))
+         (fresh ((u ...) (x ...)))
+         "Substitute Fresh Variables"]
+
+    [--> ((t_1 =? t_2 tag) (state sub c ((t_3 =? t_4 tag_1) ...) tag_2))
+         (⊤ (state sub_1 c ((t_3 =? t_4 tag_1) ... (t_1 =? t_2 tag)) tag_2))
+         (where sub_1 (unify (walk t_1 sub) (walk t_2 sub) sub))
+         "Unification Succeeds"]
+
+    [--> ((t_1 =? t_2 _) (state sub _ _ _))
+         (empty-tree)
+         (where #f (unify (walk t_1 sub) (walk t_2 sub) sub))
+          "Unification Fails"]
+    ))
+
+
+
+(define -->*e (compatible-closure -->e Core s))
+(define -->cfg/base (context-closure -->*e Core (Γ ans* hole)))
+(define -->cfg (union-reduction-relations -->cfg/base -->cfg/whole))
 
 (module+ test
 
@@ -68,13 +87,13 @@
     (term (((succeed) ∧ (succeed) (label "horse")) (state () () () (label "cat")))))
 
   (check-equal?
-   (apply-reduction-relation red-tree trivial-conjunction-tree)
+   (apply-reduction-relation -->*e trivial-conjunction-tree)
    (list (term (((succeed) (state () () () (label "cat"))) × (succeed)))))
 
   (define (red-tree-closed-under-s? st)
-    (match-let ([(list st^) (apply-reduction-relation red-tree st)])
+    (match-let ([(list st^) (apply-reduction-relation -->*e st)])
       (redex-match? Core s st^)))
 
-  (check-reduction-relation red-tree red-tree-closed-under-s?)
+  (check-reduction-relation -->*e red-tree-closed-under-s?)
 
   )
