@@ -44,7 +44,7 @@
   [eq (t =? t tag)] ; Syntactic equality w/ tag
 
   [g eq
-     (succeed)
+     (succeed tag)
      (∃ d g tag)     ; Variable introduction w/ tag
      (g ∧ g tag)     ; Conjunction w/ tag
      ;(r t ... tag)   ; Relation call w/ tag
@@ -119,7 +119,7 @@
   (check-true (redex-match? Core tag (term (label "t"))))
 
   (check-true (redex-match? Core g (term (u:0 =? (sym "a") (label "t")))))
-
+  (check-true (redex-match? Core s (term (⊤ (state () () () (label "Om"))))))
   (check-true (redex-match? Core s (term ((u:0 =? (sym "a") (label "t")) (state ((u:0 (sym "a"))) (u:0) () (label "σ"))))))
 
   (check-true (redex-match? Core config (term (() () (empty-tree)))))

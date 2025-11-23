@@ -12,7 +12,7 @@
 		 wf-state?
          wf-sub/wf+equiv-trail?
          wf-sub?
-		 wf-program?)
+		 wf-config?)
 
 (module+ test
   (require rackunit)
@@ -89,7 +89,7 @@
   #:mode (wf-goal? I I I I)
 
   [------------------ "trivial success wf"
-   (wf-goal? (succeed) ((r (x ...)) ...) (x_1 ...) c)]
+   (wf-goal? (succeed tag) ((r (x ...)) ...) (x_1 ...) c)]
 
   [(where (u_old ...) c)
    (where (u_new ...) (fresh-lvars (x_1 ...) c))
@@ -111,7 +111,7 @@
 
 (module+ test
   ;; succeed
-  (check-true (judgment-holds (wf-goal? (succeed) () () ())))
+  (check-true (judgment-holds (wf-goal? (succeed (label "fish")) () () ())))
 
   ;; equality with only lvs present in c
   (check-true (judgment-holds
@@ -217,35 +217,35 @@
 
 (define-judgment-form
   Core
-  #:contract (wf-tree? s Γ)
+  #:contract (wf-tree? s ((r d) ...))
   #:mode (wf-tree? I I)
 
   [-------------------"empty tree is wf"
-   (wf-tree? (empty-tree) ((r (x ...)) ...))]
+   (wf-tree? (empty-tree) ((r d) ...))]
 
   [(wf-sub/wf+equiv-trail? sub c trail)
    -------------------"single answer/state wf"
-   (wf-tree? (⊤ (state sub c trail tag)) ((r (x ...)) ...))]
+   (wf-tree? (⊤ (state sub c trail tag)) ((r d) ...))]
 
-  [(wf-goal? g ((r (x ...)) ...) () c)
+  [(wf-goal? g ((r d) ...) () c)
    (wf-sub/wf+equiv-trail? sub c trail)
    -------------------"goal/state wf"
-   (wf-tree? (g (state sub c trail tag)) ((r (x ...)) ...))]
+   (wf-tree? (g (state sub c trail tag)) ((r d) ...))]
 
-  [(wf-tree? s ((r (x ...)) ...))
-   (wf-goal? g ((r (x ...)) ...) () ())
+  [(wf-tree? s ((r d) ...))
+   (wf-goal? g ((r d) ...) () ())
    -------------------"conj wf"
-   (wf-tree? (s × g) ((r (x ...)) ...))])
+   (wf-tree? (s × g) ((r d) ...))])
 
 (define-judgment-form
   Core
-  #:contract (wf-program? config)
-  #:mode (wf-program? I)
+  #:contract (wf-config? config)
+  #:mode (wf-config? I)
   [(wf-state? σ) ...
-   (wf-tree? s ((r (x ...)) ...))
-   (wf-goal? g ((r (x ...)) ...) (x ...) ()) ...
+   (wf-tree? s ((r d) ...))
+   (wf-goal? g ((r d) ...) d ()) ...
    ----------------------- "program-wf"
-   (wf-program? (((r (x ...) g) ...) (σ ...) s))]
+   (wf-config? (((r d g) ...) (σ ...) s))]
   )
 
   #;[(wf-tree? s ((r (x ...)) ...))
@@ -358,18 +358,18 @@
               ((u:0 =? (sym "a") (label "t1")))
               (label "σ")))
        ×
-       (succeed))
+       (succeed (label "fish")))
       ())))
 
   ;; whole program: no states and empty relations
   (check-true
    (judgment-holds
-    (wf-program? (() () (empty-tree)))))
+    (wf-config? (() () (empty-tree)))))
 
   ;; whole program: one state and empty relations
   (check-true
    (judgment-holds
-    (wf-program?
+    (wf-config?
      (()  ; Γ
       ((state ((u:0 (sym "a"))) (u:0) (((sym "a") =? u:0 (label "g1"))) (label "σ"))) ; ans*
       (empty-tree)))))                                ; s

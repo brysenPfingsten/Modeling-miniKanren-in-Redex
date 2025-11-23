@@ -1,14 +1,18 @@
 #lang racket
 (require redex
          redex/reduction-semantics
-         redex/pict)
+         "../definitions.rkt"
+         "../judgment-forms.rkt")
+
 (check-redundancy #t)
 
 (provide -->cfg/whole step-once -->*e)
-(require "../definitions.rkt" "../judgment-forms.rkt")
+
+(module+ examples)
 
 (module+ test
-  (require rackunit))
+  (require (submod ".." examples)
+           rackunit))
 
 ;; Term -> [Listof [List String Term]]
 (define (step-once prog)
@@ -21,7 +25,6 @@
     [--> (Γ (σ ...) (⊤ σ_new))
          (Γ (σ ... σ_new) (empty-tree))]))
 
-
 (define -->e
   (reduction-relation
     Core
@@ -30,11 +33,16 @@
          ((g_1 σ) × g_2)
          "Distribute State Over Conjunction"]
 
+    [--> ((succeed tag) σ)
+         (⊤ σ)
+         "(succeed) succeeds"]
+
+
     [--> ((⊤ σ) × g)
          (g σ)
          "Bring Success State To Second Conjunct"]
 
-    [--> ((empty-tree) × tag)
+    [--> ((empty-tree) × g)
          (empty-tree)
          "Prune Failed Conjuncts"]
 
@@ -55,28 +63,69 @@
     ))
 
 
-
 (define -->*e (compatible-closure -->e Core s))
 (define -->cfg/base (context-closure -->*e Core (Γ ans* hole)))
 (define -->cfg (union-reduction-relations -->cfg/base -->cfg/whole))
 
-(module+ test
-
-  (check-true (redex-match? Core σ (term (state () () () (label "cat")))))
-  (check-true (redex-match? Core g (term ((succeed) ∧ (succeed) (label "horse")))))
-  (check-true (redex-match? Core s (term (((succeed) ∧ (succeed) (label "horse")) (state () () () (label "cat"))))))
+(module+ examples
+  (provide trivial-conjunction-tree)
 
   (define trivial-conjunction-tree
-    (term (((succeed) ∧ (succeed) (label "horse")) (state () () () (label "cat")))))
+    (term (((succeed (label "fish")) ∧ (succeed (label "dog")) (label "horse")) (state () () () (label "cat")))))
+)
+
+(module+ test
+  (require (submod ".." examples))
+  (check-true (redex-match? Core σ (term (state () () () (label "cat")))))
+  (check-true (redex-match? Core g (term ((succeed (label "fish")) ∧ (succeed (label "dog")) (label "horse")))))
+  (check-true (redex-match? Core s (term (((succeed (label "fish")) ∧ (succeed (label "dog")) (label "horse")) (state () () () (label "cat"))))))
 
   (check-equal?
    (apply-reduction-relation -->*e trivial-conjunction-tree)
-   (list (term (((succeed) (state () () () (label "cat"))) × (succeed)))))
+   '((((succeed (label "fish")) (state () () () (label "cat")))
+       ×
+       (succeed (label "dog")))))
 
   (define (-->*e-closed? st)
     (let ([st* (apply-reduction-relation -->*e st)])
       (andmap (lambda (st^) (redex-match? Core s st^)) st*)))
 
   (check-reduction-relation -->*e -->*e-closed?)
+
+  (define (final-config? cfg)
+    (redex-match? Core end-config cfg))
+
+
+  (define matches (redex-match Core s trivial-conjunction-tree))
+  (check-equal? (length matches) 1)
+  (define m (first matches))
+  (check-true (match? m))
+
+  (define binds (match-bindings m)) ; list of bind structs
+  (check-equal? (map bind-name binds) '(s))
+  (check-equal? (map bind-exp binds)
+                (list '(((succeed (label "fish")) ∧ (succeed (label "dog")) (label "horse"))
+                        (state () () () (label "cat")))))
+
+  (check-true (judgment-holds (wf-tree? ,trivial-conjunction-tree ())))
+  (check-true (judgment-holds (wf-tree? ,trivial-conjunction-tree ((r:foo (x:1 x:2 x:3))))))
+
+  (define (progress? cfg)
+    (or (final-config? cfg)
+        (not (null? (apply-reduction-relation -->cfg cfg)))))
+
+  (define (wf-config-term? cfg)
+    (not (null? (judgment-holds (wf-config? ,cfg)))))
+
+
+  (redex-check Core
+               config
+               (implies (wf-config-term? (term config))
+                        (progress? (term config)))
+    #:attempts 10000)
+
+  (define (wf-preserved? cfg)
+    (for/and ([cfg^ (in-list (apply-reduction-relation -->cfg cfg))])
+      (judgment-holds (wf-config? (term cfg^)))))
 
   )
