@@ -126,6 +126,12 @@
 
   (define (wf-preserved? cfg)
     (for/and ([cfg^ (in-list (apply-reduction-relation -->cfg cfg))])
-      (judgment-holds (wf-config? (term cfg^)))))
+      (judgment-holds (wf-config? ,cfg^))))
+
+  (redex-check Core
+               config
+               (implies (wf-config-term? (term config))
+                        (wf-preserved? (term config)))
+    #:attempts 10000)
 
   )
