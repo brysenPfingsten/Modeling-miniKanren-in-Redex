@@ -29,8 +29,8 @@
   (reduction-relation
     Core
 
-    [--> ((g_1 ∧ g_2 tag) σ)
-         ((g_1 σ) × g_2)
+    [--> ((g_1 ∧ g_2 tag) (state sub c trail tag_1))
+         ((g_1 (state sub c trail tag_1)) × g_2 c)
          "Distribute State Over Conjunction"]
 
     [--> ((succeed tag) σ)
@@ -38,11 +38,11 @@
          "(succeed) succeeds"]
 
 
-    [--> ((⊤ σ) × g)
+    [--> ((⊤ σ) × g c)
          (g σ)
          "Bring Success State To Second Conjunct"]
 
-    [--> ((empty-tree) × g)
+    [--> ((empty-tree) × g c)
          (empty-tree)
          "Prune Failed Conjuncts"]
 
@@ -83,8 +83,9 @@
   (check-equal?
    (apply-reduction-relation -->*e trivial-conjunction-tree)
    '((((succeed (label "fish")) (state () () () (label "cat")))
-       ×
-       (succeed (label "dog")))))
+      ×
+      (succeed (label "dog"))
+      ())))
 
   (define (-->*e-closed? st)
     (let ([st* (apply-reduction-relation -->*e st)])
@@ -107,15 +108,15 @@
                 (list '(((succeed (label "fish")) ∧ (succeed (label "dog")) (label "horse"))
                         (state () () () (label "cat")))))
 
-  (check-true (judgment-holds (wf-tree? ,trivial-conjunction-tree ())))
-  (check-true (judgment-holds (wf-tree? ,trivial-conjunction-tree ((r:foo (x:1 x:2 x:3))))))
+  (check-true (judgment-holds (wf-tree? ,trivial-conjunction-tree () ())))
+  (check-true (judgment-holds (wf-tree? ,trivial-conjunction-tree ((r:foo (x:1 x:2 x:3))) ())))
 
   (define (progress? cfg)
     (or (final-config? cfg)
         (not (null? (apply-reduction-relation -->cfg cfg)))))
 
   (define (wf-config-term? cfg)
-    (not (null? (judgment-holds (wf-config? ,cfg)))))
+    (judgment-holds (wf-config? ,cfg)))
 
 
   (redex-check Core

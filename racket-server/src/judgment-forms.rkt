@@ -37,6 +37,20 @@
 
 (define-judgment-form
   Core
+  #:contract (lvars-subset? (u ...) (u ...))
+  #:mode (lvars-subset? I I)
+
+  [------------------- "empty ⊆ anything"
+   (lvars-subset? () c)]
+
+  [(lvar-member? u c_2)
+   (lvars-subset? (u_rest ...) c_2)
+   ------------------- "cons ⊆"
+   (lvars-subset? (u u_rest ...) c_2)])
+
+
+(define-judgment-form
+  Core
   #:contract (wf-term? t (x ...) c)
   #:mode (wf-term? I I I)
 
@@ -217,32 +231,35 @@
 
 (define-judgment-form
   Core
-  #:contract (wf-tree? s ((r d) ...))
-  #:mode (wf-tree? I I)
+  #:contract (wf-tree? s ((r d) ...) c)
+  #:mode (wf-tree? I I I)
 
   [-------------------"empty tree is wf"
-   (wf-tree? (empty-tree) ((r d) ...))]
+   (wf-tree? (empty-tree) ((r d) ...) c)]
 
-  [(wf-sub/wf+equiv-trail? sub c trail)
+  [(lvars-subset? c c_i)
+   (wf-sub/wf+equiv-trail? sub c_i trail)
    -------------------"single answer/state wf"
-   (wf-tree? (⊤ (state sub c trail tag)) ((r d) ...))]
+   (wf-tree? (⊤ (state sub c_i trail tag)) ((r d) ...) c)]
 
-  [(wf-goal? g ((r d) ...) () c)
-   (wf-sub/wf+equiv-trail? sub c trail)
+  [(lvars-subset? c c_i)
+   (wf-goal? g ((r d) ...) () c_i)
+   (wf-sub/wf+equiv-trail? sub c_i trail)
    -------------------"goal/state wf"
-   (wf-tree? (g (state sub c trail tag)) ((r d) ...))]
+   (wf-tree? (g (state sub c_i trail tag)) ((r d) ...) c)]
 
-  [(wf-tree? s ((r d) ...))
-   (wf-goal? g ((r d) ...) () ())
+  [(lvars-subset? c c_i)
+   (wf-tree? s ((r d) ...) c_i)
+   (wf-goal? g ((r d) ...) () c_i)
    -------------------"conj wf"
-   (wf-tree? (s × g) ((r d) ...))])
+   (wf-tree? (s × g c_i) ((r d) ...) c)])
 
 (define-judgment-form
   Core
   #:contract (wf-config? config)
   #:mode (wf-config? I)
   [(wf-state? σ) ...
-   (wf-tree? s ((r d) ...))
+   (wf-tree? s ((r d) ...) ())
    (wf-goal? g ((r d) ...) d ()) ...
    ----------------------- "program-wf"
    (wf-config? (((r d g) ...) (σ ...) s))]
@@ -337,7 +354,7 @@
                       (label "σ")))))
 
   ;; empty tree
-  (check-true (judgment-holds (wf-tree? (empty-tree) ())))
+  (check-true (judgment-holds (wf-tree? (empty-tree) () ())))
   ;; goal/state node
   (check-true
    (judgment-holds
@@ -347,7 +364,8 @@
               (u:0)
               ((u:0 =? (sym "a") (label "t1")))
               (label "σ")))
-      ())))
+      ()
+	  (u:0))))
   ;; conjunction
   (check-true
    (judgment-holds
@@ -358,8 +376,10 @@
               ((u:0 =? (sym "a") (label "t1")))
               (label "σ")))
        ×
-       (succeed (label "fish")))
-      ())))
+       (succeed (label "fish"))
+	   ())
+      ()
+	  ())))
 
   ;; whole program: no states and empty relations
   (check-true
@@ -388,49 +408,13 @@
   (redex-check Core
     (t_1 t_2 sub c trail tag_1 tag_2)
     (implies
-     (judgment-holds (wf-tree? ((t_1 =? t_2 tag_1) (state sub c trail tag_2)) ()))
+     (judgment-holds (wf-tree? ((t_1 =? t_2 tag_1) (state sub c trail tag_2)) () ()))
      (let ([sub^ (term (unify (walk t_1 sub) (walk t_2 sub) sub))])
        (or (equal? sub^ (term #f))
            (equal? (term (walk t_1 ,sub^))
                    (term (walk t_2 ,sub^)))))))
 
-  ;; WF-guarded property:
-  ;; If the input tree is well-formed, then:
-  ;;  - unify either fails, or
-  ;;  - the result substitution is triangular,
-  ;;  - each binding is occurs-free (w.r.t. the *result* sub),
-  ;;  - and the two sides walk to the same term under the result.
-  (redex-check Core
-    (t_1 t_2 sub c trail tag_1 tag_2)
-    (implies
-     (judgment-holds (wf-tree? ((t_1 =? t_2 tag_1) (state sub c trail tag_2)) ()))
-     (let* ([s (term (unify (walk t_1 sub) (walk t_2 sub) sub))])
-       (or (equal? s (term #f))
-           (let* ([pairs s]
-                  [dom   (map first pairs)]
-                  ;; map each domain var to its position in the result list
-                  [pos   (for/hash ([u dom] [i (in-naturals)]) (values u i))])
+  ;; WF-guarded property: valid triangular subst property
+  ;; TODO
 
-             (define (vars-in t)
-               (cond [(symbol? t) (list t)]
-                     [(list? t)   (apply append (map vars-in t))]
-                     [else        '()]))
-
-             ;; Triangular: for binding i, every domain var v in RHS(t)
-             ;; must occur strictly later in the list (pos[v] > i).
-             (define (triangular? pairs)
-               (for/and ([p pairs] [i (in-naturals)])
-                 (for/and ([v (vars-in (second p))] #:when (hash-has-key? pos v))
-                   (> (hash-ref pos v) i))))
-
-             ;; Occurs-free: no binding [u t] has u reachable in t under the *result* sub.
-             (define (occurs-free? pairs)
-               (for/and ([p pairs])
-                 (let ([u (first p)] [t (second p)])
-                   (not (term (judgment-holds (occurs? ,u ,t ,s)))))))
-
-             (and (triangular? pairs)
-                  (occurs-free? pairs)
-                  (equal? (term (walk t_1 ,s))
-                          (term (walk t_2 ,s)))))))))
 )

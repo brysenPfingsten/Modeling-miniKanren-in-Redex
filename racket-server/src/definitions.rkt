@@ -28,7 +28,7 @@
   ;-------------------Search Trees------------------------
   [s (empty-tree)               ; Empty Tree / Failure
      (g σ)                      ; Goal-State
-     (s × g)                    ; Conjunction
+     (s × g c)                  ; Conjunction, w/vars used so far.
      (⊤ σ)
 
      ;; ((⊤ σ) + s)                ; Answer Stream
