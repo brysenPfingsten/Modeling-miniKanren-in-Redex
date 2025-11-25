@@ -16,8 +16,7 @@
 
 (module+ test
   (require rackunit)
-  (default-language Core)
- )
+  (default-language Core))
 
 (define-judgment-form
   Core
@@ -394,7 +393,6 @@
       ((state ((u:0 (sym "a"))) (u:0) (((sym "a") =? u:0 (label "g1"))) (label "σ"))) ; ans*
       (empty-tree)))))                                ; s
 )
-
 
 (module+ test
   (require redex rackunit)
