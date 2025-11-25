@@ -65,7 +65,7 @@
    -------------- "pairs wf when constituents wf"
    (wf-term? (t_1 : t_2) (x ...) c)]
 
-  [-------------- "lexical var is in bound vars"
+  [-------------- "lexical var is in lv bindings"
    (wf-term? x_2 (x_1 ... x_2 x_3 ...) c)])
 
 (module+ test
@@ -85,7 +85,8 @@
 
   [(wf-term? t () c) ...
    (lvar-member? u c) ...
-   ------------------"sub is wf"
+   #;(triangular? ([u t] ...))
+   ------------------"sub closed under c w/no lexical vars"
    (wf-sub? ([u t] ...) c)])
 
 (module+ test
@@ -142,19 +143,21 @@
                          (u:0 u:1))))
 
   ;; ∃ adds fresh u's to c via add-vars-not-in
-  (check-true (judgment-holds
-               (wf-goal? (u:0 =? (sym "a") (label "t"))
-                         ()
-                         (x:0 x:1)
-                         (u:2 u:1 u:0))))
+  (check-true
+    (judgment-holds
+      (wf-goal? (u:0 =? (sym "a") (label "t"))
+                ()
+                (x:0 x:1)
+                (u:2 u:1 u:0))))
 
   ;; ∃ adds fresh u's to c via add-vars-not-in
-  (check-true (judgment-holds
-               (wf-goal? (∃ (x:0 x:1)
-                            (u:0 =? (sym "a") (label "t")) (label "fresh"))
-                         ()
-                         ()
-                         (u:0))))
+  (check-true
+    (judgment-holds
+      (wf-goal? (∃ (x:0 x:1)
+                  (u:0 =? (sym "a") (label "t")) (label "fresh"))
+                ()
+                ()
+                (u:0))))
 )
 
 ;; Given a list of used symbols, produce a fresh one
@@ -164,17 +167,15 @@
   [(fresh-lv (u ...)) ,(variable-not-in (cons 'u: (term (u  ...))) 'u:)])
 
 
-;;
-;;
 ;; redex's variables-not-in uses the vars list themselves as the
 ;; prefixes, which doesn't work with our use case.
 (define-metafunction Core
   fresh-lvars : (x ...) c -> c
   [(fresh-lvars (x ...) c)
-   ,(for/fold ([fv* '()])
-              ([_ (in-list (term (x ...)))])
-      (define fv (variable-not-in (cons 'u: (append fv* (term c))) 'u:))
-      (cons fv fv*))])
+    ,(for/fold ([fv* '()])
+               ([_ (in-list (term (x ...)))])
+       (define fv (variable-not-in (cons 'u: (append fv* (term c))) 'u:))
+       (cons fv fv*))])
 
 (module+ test
   (check-equal?
