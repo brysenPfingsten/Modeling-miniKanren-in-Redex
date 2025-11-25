@@ -2,7 +2,7 @@
 (require rackunit
          redex
          redex/reduction-semantics
-         "definitions.rkt")
+         "core-definitions.rkt")
 
 (check-redundancy #t)
 

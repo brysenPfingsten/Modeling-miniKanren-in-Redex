@@ -1,8 +1,8 @@
 #lang racket
 (require redex
          redex/reduction-semantics
-         "../definitions.rkt"
-         "../judgment-forms.rkt")
+         "../core-definitions.rkt"
+         "../core-judgment-forms.rkt")
 
 (check-redundancy #t)
 
