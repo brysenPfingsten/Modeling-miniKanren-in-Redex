@@ -37,7 +37,6 @@
          (⊤ σ)
          "(succeed) succeeds"]
 
-
     [--> ((⊤ σ) × g c)
          (g σ)
          "Bring Success State To Second Conjunct"]
@@ -61,7 +60,6 @@
          (where #f (unify (walk t_1 sub) (walk t_2 sub) sub))
           "Unification Fails"]
     ))
-
 
 (define -->*e (compatible-closure -->e Core s))
 (define -->cfg/base (context-closure -->*e Core (Γ ans* hole)))
@@ -97,8 +95,20 @@
     (redex-match? Core end-config cfg))
 
 
+  (define (unique-decomposition? cfg)
+    (let ([next* (apply-reduction-relation -->cfg cfg)])
+      (cond
+        [(final-config? cfg) (null? next*)] ; finals must be stuck
+        [else (null? (cdr next*))])))        ; non-finals must have exactly one step
+
+  (redex-check Core
+               config
+               (implies (wf-config-term? (term config))
+                        (unique-decomposition? (term config)))
+    #:attempts 10000)
+
   (define matches (redex-match Core s trivial-conjunction-tree))
-  (check-equal? (length matches) 1)
+  (check-true (null? (cdr matches)))
   (define m (first matches))
   (check-true (match? m))
 
