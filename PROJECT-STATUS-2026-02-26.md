@@ -100,6 +100,12 @@ This note is a restart map: what has been decided, what is provisional, and what
    - delayful DFS model with no interleaving (possibly UI-collapsing administrative delay steps).
 5. **Theorem surface**: exact claim set for progress/preservation/frame/locality across model variants.
 6. **Frontend syntax/UI axis** (miniKanren + microKanren surfaces with shared backend): desired, but currently tabled.
+7. **Interleaving policy family coverage**:
+   - whether to add Dmitri-style deterministic interleaving (rotate at every disjunction node)
+   - as a first-class relation variant, alongside current `flip` and `railroad` branches.
+8. **Disequality constraints axis**:
+   - whether to add disequality constraints as an extension family in this paper cycle,
+   - and whether to phase-gate it to selected variants vs full lattice cross-product.
 
 ## 4) Dependency Map (what constrains what)
 
@@ -164,6 +170,15 @@ Dependencies:
 Dependencies:
 - `F3` requires conflict resolution between disjunction scheduling (`D*`) and call expansion policy (`E*`).
 - This split reduces design risk by validating each extension independently before composition.
+
+### J. Constraint-store expressivity
+- `J1 = equality-only`
+- `J2 = equality + disequality`
+
+Dependencies:
+- `J2` adds a new semantic/testing/proof axis (constraint-store behavior and WF invariants).
+- If combined with every scheduler/call-timing branch, matrix size grows quickly (cross-product effect).
+- Recommended containment: stage `J2` on a selected baseline branch first, then widen only if needed.
 
 ### G. Answer-stream placement
 - `G1 = external ans* list` (current core)
@@ -236,6 +251,12 @@ Dependencies:
    - current handling: deferred as an extension issue (not a blocker for core path).
 8. `DECIDED`: **`c` discipline for paper-primary metatheory**
    - **subset-`c` primary** (global-`c` as simplification baseline only).
+9. `OPEN`: **Interleaving policy coverage**
+   - current implemented branches: `flip`, `railroad`.
+   - candidate additional branch: Dmitri-style "interleave at every disjunction node."
+10. `OPEN`: **Disequality constraints**
+   - add as extension family or defer.
+   - if added, choose full-lattice rollout vs phased rollout (recommended).
 
 ## 6) Testing Quality Upgrade Plan (concrete)
 - Add a "property inventory" doc: each property, intended bug class, generator assumptions.
