@@ -560,13 +560,7 @@
         [(= i 1) (forced-failure-sample)]
         [(= i 2) (forced-pair-sample)]
         [else (generate-wf-eq-sample)]))
-    (define t_1 (first sample))
-    (define t_2 (second sample))
-    (define sub (third sample))
-    (define c (fourth sample))
-    (define trail (fifth sample))
-    (define tag_1 (sixth sample))
-    (define tag_2 (seventh sample))
+    (match-define (list t_1 t_2 sub c trail tag_1 tag_2) sample)
     (set! max-c-size-seen (max max-c-size-seen (length c)))
     (when (or (pair-term? t_1) (pair-term? t_2))
       (set! pair-cases (add1 pair-cases)))

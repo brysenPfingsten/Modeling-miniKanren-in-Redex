@@ -9,12 +9,16 @@
          gen-primitive/rng)
 
 (define (make-seeded-rng seed)
+  (unless (exact-nonnegative-integer? seed)
+    (raise-argument-error 'make-seeded-rng "exact-nonnegative-integer?" seed))
   (define rng (make-pseudo-random-generator))
   (parameterize ([current-pseudo-random-generator rng])
     (random-seed seed))
   rng)
 
 (define (rng-random rng n)
+  (unless (exact-positive-integer? n)
+    (raise-argument-error 'rng-random "exact-positive-integer?" n))
   (parameterize ([current-pseudo-random-generator rng])
     (random n)))
 
@@ -23,6 +27,8 @@
   (if (null? suffix) prefix (append prefix (cdr suffix))))
 
 (define (random-distinct/rng rng xs k)
+  (unless (exact-nonnegative-integer? k)
+    (raise-argument-error 'random-distinct/rng "exact-nonnegative-integer?" k))
   (let loop ([pool xs]
              [need (min k (length xs))]
              [acc '()])

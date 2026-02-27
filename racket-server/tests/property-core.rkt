@@ -24,6 +24,22 @@
 (define PROPERTY-MIN-EXISTS-HITS 1)
 (define PROPERTY-MIN-CONJ-HITS 1)
 
+(define (require-positive who n)
+  (unless (positive? n)
+    (error 'property-core (format "~a must be >= 1, got ~a" who n))))
+
+(define (require-nonnegative who n)
+  (unless (>= n 0)
+    (error 'property-core (format "~a must be >= 0, got ~a" who n))))
+
+(require-positive 'PROPERTY-ATTEMPTS PROPERTY-ATTEMPTS)
+(require-positive 'PROPERTY-TERM-SIZE PROPERTY-TERM-SIZE)
+(require-positive 'PROPERTY-U-POOL-SIZE PROPERTY-U-POOL-SIZE)
+(require-positive 'PROPERTY-X-POOL-SIZE PROPERTY-X-POOL-SIZE)
+(require-positive 'PROPERTY-R-POOL-SIZE PROPERTY-R-POOL-SIZE)
+(require-positive 'PROPERTY-C-MAX PROPERTY-C-MAX)
+(require-nonnegative 'PROPERTY-C-EXTRA-MAX PROPERTY-C-EXTRA-MAX)
+
 (define PROPERTY-RNG (h:make-seeded-rng PROPERTY-SEED))
 
 (define (prandom n)
@@ -68,8 +84,7 @@
     (filter (lambda (u) (not (member u c))) U-POOL))
   (define room (max 0 (- PROPERTY-C-MAX (length c))))
   (define extra-limit (min max-extra room (length unused)))
-  (define extra-count
-    (if (zero? extra-limit) 0 (prandom (add1 extra-limit))))
+  (define extra-count (prandom (add1 extra-limit)))
   (append c (h:random-distinct/rng PROPERTY-RNG unused extra-count)))
 
 (define (make-label prefix)
@@ -103,9 +118,7 @@
   (define available (filter (lambda (x) (not (member x x-env))) X-POOL))
   (h:random-distinct/rng PROPERTY-RNG
                          available
-                         (if (null? available)
-                             0
-                             (add1 (prandom (min 2 (length available)))))))
+                         (prandom (add1 (min 2 (length available))))))
 
 (define (gen-goal x-env c depth)
   (define options
@@ -137,7 +150,7 @@
   `(state () ,c () ,(make-label "st")))
 
 (define (max-depth)
-  (max 1 (min PROPERTY-TERM-SIZE 4)))
+  (min PROPERTY-TERM-SIZE 4))
 
 (define (gen-tree c depth)
   (define options
@@ -167,8 +180,8 @@
 
 (define (gen-rel-env)
   (define count (prandom 3))
-  (for/list ([r (in-list (h:random-distinct/rng PROPERTY-RNG R-POOL count))])
-    (gen-rel-def r)))
+  (map gen-rel-def
+       (h:random-distinct/rng PROPERTY-RNG R-POOL count)))
 
 (define (gen-answers)
   (define count (prandom 3))
@@ -275,9 +288,7 @@
            PROPERTY-ATTEMPTS
            wf-hits
            (real->decimal-string (* 100.0
-                                    (if (zero? PROPERTY-ATTEMPTS)
-                                        0.0
-                                        (/ (exact->inexact wf-hits) PROPERTY-ATTEMPTS)))
+                                    (/ (exact->inexact wf-hits) PROPERTY-ATTEMPTS))
                                 2)
            fail-count
            nonempty-c-hits
