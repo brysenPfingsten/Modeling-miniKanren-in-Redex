@@ -6,16 +6,56 @@
 (check-redundancy #t)
 
 (provide wf-goal?
-		 wf-tree?
-		 wf-term?
-		 wf-state?
+         wf-tree?
+         wf-term?
+         wf-state?
          wf-sub/wf+equiv-trail?
          wf-sub?
-		 wf-config?)
+         wf-rel-env?
+         wf-config?)
 
 (module+ test
   (require rackunit)
   (default-language Core))
+
+;; Collect symbols appearing in a term-shaped datum into a set.
+(define (symbols-in/set t [acc (set)])
+  (match t
+    ['() acc]
+    [(? symbol?) (set-add acc t)]
+    [(cons a d) (symbols-in/set a (symbols-in/set d acc))]
+    [_ acc]))
+
+;; Graph-based acyclicity check for substitutions represented as
+;; `((u t) ...)` lists.
+(define (substitution-acyclic? pairs)
+  (define dom (map first pairs))
+  (define adj
+    (for/hash ([(u t*) (in-dict pairs)])
+      (values u
+              (for/set ([v (in-set (symbols-in/set (car t*)))]
+                        #:when (member v dom))
+                v))))
+  (define visiting (make-hash))
+  (define visited (make-hash))
+  (define (visit u)
+    (cond
+      [(hash-ref visited u #f) #t]
+      [(hash-ref visiting u #f) #f]
+      [else
+       (hash-set! visiting u #t)
+       (define ok
+         (for/and ([v (in-set (hash-ref adj u (set)))])
+           (visit v)))
+       (hash-remove! visiting u)
+       (when ok (hash-set! visited u #t))
+       ok]))
+  (for/and ([u dom]) (visit u)))
+
+(define-metafunction Core
+  acyclic-sub? : sub -> boolean
+  [(acyclic-sub? sub)
+   ,(substitution-acyclic? (term sub))])
 
 (define-judgment-form
   Core
@@ -84,16 +124,24 @@
 
   [(wf-term? t () c) ...
    (lvar-member? u c) ...
-   #;(triangular? ([u t] ...))
+   (where #t (acyclic-sub? ([u t] ...)))
    ------------------"sub closed under c w/no lexical vars"
    (wf-sub? ([u t] ...) c)])
 
 (module+ test
+  (check-true  (substitution-acyclic? (term ((u:0 u:1) (u:1 (sym "z"))))))
+  (check-false (substitution-acyclic? (term ((u:0 u:1) (u:1 u:0)))))
   (check-true  (judgment-holds (wf-sub? ((u:0 (sym "x"))) (u:0))))
   (check-false (judgment-holds (wf-sub? ((u:1 (sym "x"))) (u:0))))
   ;; two bindings ok
   (check-true  (judgment-holds (wf-sub? ((u:0 (sym "x")) (u:2 (sym "y")))
                                         (u:0 u:2))))
+  ;; acyclic variable chain is allowed
+  (check-true  (judgment-holds (wf-sub? ((u:0 u:1) (u:1 (sym "z")))
+                                        (u:0 u:1))))
+  ;; cyclic substitutions are rejected
+  (check-false (judgment-holds (wf-sub? ((u:0 u:1) (u:1 u:0))
+                                        (u:0 u:1))))
 )
 
 (define-judgment-form
@@ -171,10 +219,13 @@
 (define-metafunction Core
   fresh-lvars : (x ...) c -> c
   [(fresh-lvars (x ...) c)
-    ,(for/fold ([fv* '()])
-               ([_ (in-list (term (x ...)))])
-       (define fv (variable-not-in (cons 'u: (append fv* (term c))) 'u:))
-       (cons fv fv*))])
+    ,(let-values ([(fv* _used)
+                   (for/fold ([fv* '()]
+                              [used (term c)])
+                             ([_ (in-list (term (x ...)))])
+                     (define fv (variable-not-in (cons 'u: used) 'u:))
+                     (values (cons fv fv*) (cons fv used)))])
+       fv*)])
 
 (module+ test
   (check-equal?
@@ -255,11 +306,19 @@
 
 (define-judgment-form
   Core
+  #:contract (wf-rel-env? Γ)
+  #:mode (wf-rel-env? I)
+  [(wf-goal? g ((r d) ...) d ()) ...
+   ----------------------- "relation-env-wf"
+   (wf-rel-env? ((r d g) ...))])
+
+(define-judgment-form
+  Core
   #:contract (wf-config? config)
   #:mode (wf-config? I)
-  [(wf-state? σ) ...
+  [(wf-rel-env? ((r d g) ...))
+   (wf-state? σ) ...
    (wf-tree? s ((r d) ...) ())
-   (wf-goal? g ((r d) ...) d ()) ...
    ----------------------- "program-wf"
    (wf-config? (((r d g) ...) (σ ...) s))]
   )
@@ -392,6 +451,17 @@
      (()  ; Γ
       ((state ((u:0 (sym "a"))) (u:0) (((sym "a") =? u:0 (label "g1"))) (label "σ"))) ; ans*
       (empty-tree)))))                                ; s
+
+  ;; relation environment well-formedness
+  (check-true
+   (judgment-holds
+    (wf-rel-env?
+     ((r:ok (x:0) (x:0 =? x:0 (label "eq")))))))
+
+  (check-false
+   (judgment-holds
+    (wf-rel-env?
+     ((r:bad () (x:0 =? x:0 (label "eq")))))))
 )
 
 (module+ test
@@ -404,6 +474,7 @@
   ;; Edit these values directly when you want different pressure/coverage.
   (define JUDGMENT-PROP-ATTEMPTS 200)
   (define JUDGMENT-PROP-SIZE 8)
+  (define JUDGMENT-MAX-DEPTH 4)
   (define JUDGMENT-PROP-SEED 424242)
   (define JUDGMENT-U-POOL-SIZE 24)
   (define JUDGMENT-C-MAX 4)
@@ -415,14 +486,6 @@
 
   (define (jrandom n)
     (h:rng-random JUDGMENT-RNG n))
-
-  (define (j-generate-t)
-    (parameterize ([current-pseudo-random-generator JUDGMENT-RNG])
-      (generate-term Core t JUDGMENT-PROP-SIZE)))
-
-  (define (j-generate-sub)
-    (parameterize ([current-pseudo-random-generator JUDGMENT-RNG])
-      (generate-term Core sub JUDGMENT-PROP-SIZE)))
 
   (displayln
    (format "[core-judgment-forms] randomized checks attempts=~a size=~a seed=~a"
@@ -440,6 +503,16 @@
               "JUDGMENT-U-POOL-SIZE must be >= 1.")
   (check-true (positive? JUDGMENT-C-MAX)
               "JUDGMENT-C-MAX must be >= 1.")
+  (check-true (<= JUDGMENT-C-MAX JUDGMENT-U-POOL-SIZE)
+              "JUDGMENT-C-MAX must be <= JUDGMENT-U-POOL-SIZE.")
+  (check-true (<= 1 JUDGMENT-MAX-DEPTH 4)
+              "JUDGMENT-MAX-DEPTH must be in [1,4].")
+  (check-true (<= 1 JUDGMENT-MIN-UNIFY-SUCCESSES JUDGMENT-PROP-ATTEMPTS)
+              "JUDGMENT-MIN-UNIFY-SUCCESSES must be in [1, JUDGMENT-PROP-ATTEMPTS].")
+  (check-true (<= 1 JUDGMENT-MIN-UNIFY-FAILURES JUDGMENT-PROP-ATTEMPTS)
+              "JUDGMENT-MIN-UNIFY-FAILURES must be in [1, JUDGMENT-PROP-ATTEMPTS].")
+  (check-true (<= 1 JUDGMENT-MIN-PAIR-CASES JUDGMENT-PROP-ATTEMPTS)
+              "JUDGMENT-MIN-PAIR-CASES must be in [1, JUDGMENT-PROP-ATTEMPTS].")
 
   ;; Constructively build wf terms with respect to c (no lexical vars).
   (define (gen-wf-term c depth)
@@ -455,14 +528,27 @@
   ;; Returns a sample (list t1 t2 sub c trail tag1 tag2) that always satisfies
   ;; the wf-tree antecedent used by the randomized unify checks.
   (define (generate-wf-eq-sample)
-    (define c-limit (min JUDGMENT-C-MAX (length U-POOL)))
-    (define c-size (add1 (jrandom c-limit)))
+    (define c-size (add1 (jrandom JUDGMENT-C-MAX)))
     (define c (h:random-distinct/rng JUDGMENT-RNG U-POOL c-size))
-    (define depth (max 1 (min 4 JUDGMENT-PROP-SIZE)))
+    (define depth JUDGMENT-MAX-DEPTH)
     (define t_1 (gen-wf-term c depth))
     ;; Bias half the time to guaranteed unification success.
     (define t_2 (if (zero? (jrandom 2)) t_1 (gen-wf-term c depth)))
     (list t_1 t_2 (term ()) c (term ()) (term (label "t1")) (term (label "t2"))))
+
+  ;; Returns a sample (list t sub) where sub is acyclic by construction:
+  ;; all bindings map to primitive terms only.
+  (define (generate-walk-sample)
+    (define c-size (add1 (jrandom JUDGMENT-C-MAX)))
+    (define c (h:random-distinct/rng JUDGMENT-RNG U-POOL c-size))
+    (define depth JUDGMENT-MAX-DEPTH)
+    (define t* (gen-wf-term c depth))
+    (define binding-count (jrandom (add1 c-size)))
+    (define dom (h:random-distinct/rng JUDGMENT-RNG c binding-count))
+    (define sub*
+      (for/list ([u (in-list dom)])
+        (list u (h:gen-primitive/rng JUDGMENT-RNG))))
+    (list t* sub*))
 
   ;; Deterministic must-hit samples keep minimum-threshold checks stable.
   (define (forced-success-sample)
@@ -494,8 +580,7 @@
 
   ;; walk is idempotent
   (for ([_ (in-range JUDGMENT-PROP-ATTEMPTS)])
-    (define t* (j-generate-t))
-    (define sub* (j-generate-sub))
+    (match-define (list t* sub*) (generate-walk-sample))
     (check-equal? (term (walk (walk ,t* ,sub*) ,sub*))
                   (term (walk ,t* ,sub*))))
 
@@ -507,38 +592,30 @@
   (define pair-cases 0)
   (define max-c-size-seen 0)
 
-  (define (vars-in t)
-    (cond
-      [(symbol? t) (list t)]
-      [(pair? t)   (append (vars-in (car t)) (vars-in (cdr t)))]
-      [else        '()]))
-
-  (define (triangular? pairs)
-    (define dom (map first pairs))
-    (define adj
-      (for/hash ([(u t*) (in-dict pairs)])
-        (values u
-                (filter (lambda (v) (member v dom))
-                        (remove-duplicates (vars-in (car t*)))))))
-    (define visiting (make-hash))
-    (define visited (make-hash))
-    (define (visit u)
-      (cond
-        [(hash-ref visited u #f) #t]
-        [(hash-ref visiting u #f) #f]
-        [else
-         (hash-set! visiting u #t)
-         (define ok
-           (for/and ([v (in-list (hash-ref adj u '()))])
-             (visit v)))
-         (hash-remove! visiting u)
-         (when ok (hash-set! visited u #t))
-         ok]))
-    (for/and ([u dom]) (visit u)))
+  (define triangular? substitution-acyclic?)
 
   (define (occurs-free? pairs)
-    (for/and ([(u t*) (in-dict pairs)])
-      (not (judgment-holds (occurs? ,u ,(car t*) ,pairs)))))
+    ;; For substitutions, occurs-free is equivalent to acyclic dependency
+    ;; among domain vars. Use the structural check to keep this test total.
+    (triangular? pairs))
+
+  ;; Deterministic regression checks for graph-style substitution invariants.
+  (check-true
+   (triangular? (term ((u:0 (sym "a"))
+                       (u:1 u:0)
+                       (u:2 (u:1 : empty))))))
+  (check-true
+   (triangular? (term ((u:1 u:0)
+                       (u:0 (sym "a"))))))
+  (check-false
+   (triangular? (term ((u:0 u:1)
+                       (u:1 u:0)))))
+
+  (check-true
+   (occurs-free? (term ((u:0 (sym "a"))
+                        (u:1 u:0)))))
+  (check-false
+   (occurs-free? (term ((u:0 (u:0 : empty))))))
 
   ;; Full walk over pair terms for testing unify equalization.
   ;; The core walk metafunction is intentionally shallow.

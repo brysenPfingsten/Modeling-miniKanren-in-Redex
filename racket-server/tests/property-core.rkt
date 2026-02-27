@@ -14,6 +14,7 @@
 ;; Edit these values directly when you want different pressure/coverage.
 (define PROPERTY-ATTEMPTS 200)
 (define PROPERTY-TERM-SIZE 8)
+(define PROPERTY-MAX-DEPTH 4)
 (define PROPERTY-SEED 424242)
 (define PROPERTY-U-POOL-SIZE 24)
 (define PROPERTY-X-POOL-SIZE 16)
@@ -39,6 +40,26 @@
 (require-positive 'PROPERTY-R-POOL-SIZE PROPERTY-R-POOL-SIZE)
 (require-positive 'PROPERTY-C-MAX PROPERTY-C-MAX)
 (require-nonnegative 'PROPERTY-C-EXTRA-MAX PROPERTY-C-EXTRA-MAX)
+(unless (<= PROPERTY-C-MAX PROPERTY-U-POOL-SIZE)
+  (error 'property-core
+         (format "PROPERTY-C-MAX must be <= PROPERTY-U-POOL-SIZE, got ~a > ~a"
+                 PROPERTY-C-MAX PROPERTY-U-POOL-SIZE)))
+(unless (<= 1 PROPERTY-MAX-DEPTH 4)
+  (error 'property-core
+         (format "PROPERTY-MAX-DEPTH must be in [1,4], got ~a"
+                 PROPERTY-MAX-DEPTH)))
+(unless (<= 0 PROPERTY-MIN-NONEMPTY-C-HITS PROPERTY-ATTEMPTS)
+  (error 'property-core
+         (format "PROPERTY-MIN-NONEMPTY-C-HITS must be in [0, PROPERTY-ATTEMPTS], got ~a"
+                 PROPERTY-MIN-NONEMPTY-C-HITS)))
+(unless (<= 0 PROPERTY-MIN-EXISTS-HITS PROPERTY-ATTEMPTS)
+  (error 'property-core
+         (format "PROPERTY-MIN-EXISTS-HITS must be in [0, PROPERTY-ATTEMPTS], got ~a"
+                 PROPERTY-MIN-EXISTS-HITS)))
+(unless (<= 0 PROPERTY-MIN-CONJ-HITS PROPERTY-ATTEMPTS)
+  (error 'property-core
+         (format "PROPERTY-MIN-CONJ-HITS must be in [0, PROPERTY-ATTEMPTS], got ~a"
+                 PROPERTY-MIN-CONJ-HITS)))
 
 (define PROPERTY-RNG (h:make-seeded-rng PROPERTY-SEED))
 
@@ -80,9 +101,13 @@
     (string->symbol (format "r:~a" i))))
 
 (define (extend-c c max-extra)
+  (when (> (length c) PROPERTY-C-MAX)
+    (error 'extend-c
+           (format "incoming c is too large: |c|=~a, PROPERTY-C-MAX=~a"
+                   (length c) PROPERTY-C-MAX)))
   (define unused
     (filter (lambda (u) (not (member u c))) U-POOL))
-  (define room (max 0 (- PROPERTY-C-MAX (length c))))
+  (define room (- PROPERTY-C-MAX (length c)))
   (define extra-limit (min max-extra room (length unused)))
   (define extra-count (prandom (add1 extra-limit)))
   (append c (h:random-distinct/rng PROPERTY-RNG unused extra-count)))
@@ -150,7 +175,7 @@
   `(state () ,c () ,(make-label "st")))
 
 (define (max-depth)
-  (min PROPERTY-TERM-SIZE 4))
+  PROPERTY-MAX-DEPTH)
 
 (define (gen-tree c depth)
   (define options

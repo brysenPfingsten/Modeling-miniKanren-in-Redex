@@ -44,11 +44,11 @@
          (empty-tree)
          "Prune Failed Conjuncts"]
 
-    [--> ((∃ (x ...) g tag) (state sub c trail tag_1))
-         ((substitute g (x_1 u_1) ...)
+    [--> ((∃ d g tag) (state sub c trail tag_1))
+         ((subst-goal g ((x_1 u_1) ...))
           (state sub (u_1 ... ,@(term c)) trail tag_1))
          (where ((x_1 u_1) ...)
-                (fresh-substitution c (x ...)))
+                (fresh-substitution c d))
          "Substitute Fresh Variables"]
 
     [--> ((t_1 =? t_2 tag) (state sub c ((t_3 =? t_4 tag_1) ...) tag_2))

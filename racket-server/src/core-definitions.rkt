@@ -8,7 +8,7 @@
 
 #;(current-traced-metafunctions 'all)
 
-(provide Core unify walk extend occurs? fresh-substitution)
+(provide Core unify walk extend occurs? fresh-substitution subst-goal)
 
 (module+ test
   (require rackunit)
@@ -146,6 +146,51 @@
                   (cons u used))))
       (reverse rev-pairs))])
 
+;; Remove substitutions for variables newly bound by a declaration list.
+(define-metafunction Core
+  drop-subst-for : d ((x t) ...) -> ((x t) ...)
+  [(drop-subst-for (x_b ...) ((x_1 t_1) ...))
+   ,(let* ([bound (term (x_b ...))]
+           [subs (term ((x_1 t_1) ...))])
+      (for/list ([(x t*) (in-dict subs)]
+                 #:unless (member x bound))
+        (list x (car t*))))])
+
+;; Capture-avoiding substitution over terms.
+(define-metafunction Core
+  subst-t : t ((x t) ...) -> t
+  [(subst-t x ((x_1 t_1) ... (x t_0) (x_2 t_2) ...))
+   t_0]
+  [(subst-t x ((x_1 t_1) ...))
+   x]
+  [(subst-t u ((x_1 t_1) ...)) u]
+  [(subst-t pt ((x_1 t_1) ...)) pt]
+  [(subst-t (t_1 : t_2) ((x_1 t_1_sub) ...))
+   ((subst-t t_1 ((x_1 t_1_sub) ...))
+    :
+    (subst-t t_2 ((x_1 t_1_sub) ...)))])
+
+;; Capture-avoiding substitution over goals.
+(define-metafunction Core
+  subst-goal : g ((x t) ...) -> g
+  [(subst-goal (succeed tag) ((x_1 t_1) ...))
+   (succeed tag)]
+  [(subst-goal (t_1 =? t_2 tag) ((x_1 t_1_sub) ...))
+   ((subst-t t_1 ((x_1 t_1_sub) ...))
+    =?
+    (subst-t t_2 ((x_1 t_1_sub) ...)
+    )
+    tag)]
+  [(subst-goal (g_1 ∧ g_2 tag) ((x_1 t_1_sub) ...))
+   ((subst-goal g_1 ((x_1 t_1_sub) ...))
+    ∧
+    (subst-goal g_2 ((x_1 t_1_sub) ...))
+    tag)]
+  [(subst-goal (∃ d g tag) ((x_1 t_1_sub) ...))
+   (∃ d
+      (subst-goal g (drop-subst-for d ((x_1 t_1_sub) ...)))
+      tag)])
+
 (module+ test
 
   (check-equal? (term (walk u:0 ((u:0 (sym "a"))))) (term (sym "a")))
@@ -166,6 +211,17 @@
   (check-equal? (map first fs-pairs) '(x:0 x:1 x:2))
   (check-true (andmap (lambda (pr) (redex-match? Core u (second pr))) fs-pairs))
   (check-false (ormap (lambda (pr) (member (second pr) '(u:0 u:1))) fs-pairs))
+
+  (check-equal?
+   (term (subst-goal (x:0 =? (x:1 : u:3) (label "t"))
+                     ((x:0 u:0) (x:1 (sym "a")))))
+   (term (u:0 =? ((sym "a") : u:3) (label "t"))))
+
+  ;; Bound variables are not substituted under ∃.
+  (check-equal?
+   (term (subst-goal (∃ (x:0) (x:0 =? x:1 (label "t1")) (label "f"))
+                     ((x:0 u:0) (x:1 u:1))))
+   (term (∃ (x:0) (x:0 =? u:1 (label "t1")) (label "f"))))
 
 )
 
