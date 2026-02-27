@@ -72,6 +72,9 @@
 (define (wf-config-term? cfg)
   (judgment-holds (wf-config? ,cfg)))
 
+(define (core-shape-term? cfg)
+  (judgment-holds (core-shape? ,cfg)))
+
 (define (unique-decomposition? cfg)
   (define next* (apply-reduction-relation -->cfg cfg))
   (cond
@@ -85,6 +88,11 @@
 (define (wf-preserved? cfg)
   (for/and ([cfg^ (in-list (apply-reduction-relation -->cfg cfg))])
     (wf-config-term? cfg^)))
+
+(define (core-shape-preserved? cfg)
+  (and (core-shape-term? cfg)
+       (for/and ([cfg^ (in-list (apply-reduction-relation -->cfg cfg))])
+         (core-shape-term? cfg^))))
 
 ;; Pool sizes bound generated test-data diversity only; they do not bound the
 ;; semantic logic-variable/name space of the language.
@@ -348,7 +356,9 @@
   (test-case "WF-guarded progress"
     (check-wf-guarded-property "progress" progress?))
   (test-case "WF-guarded one-step preservation"
-    (check-wf-guarded-property "wf-preserved" wf-preserved?)))
+    (check-wf-guarded-property "wf-preserved" wf-preserved?))
+  (test-case "WF-guarded core-shape closure"
+    (check-wf-guarded-property "core-shape-preserved" core-shape-preserved?)))
 
 (define/provide-test-suite PROPERTY-CORE
   #:before

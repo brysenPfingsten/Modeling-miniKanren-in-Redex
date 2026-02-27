@@ -12,7 +12,8 @@
          wf-sub/wf+equiv-trail?
          wf-sub?
          wf-rel-env?
-         wf-config?)
+         wf-config?
+         core-shape?)
 
 (module+ test
   (require rackunit)
@@ -169,6 +170,55 @@
    (wf-goal? (t_1 =? t_2 tag) ((r (x ...)) ...) (x_1 ...) c)]
 
   )
+
+(define-judgment-form
+  Core
+  #:contract (core-goal-shape? g)
+  #:mode (core-goal-shape? I)
+
+  [------------------- "core-succeed-shape"
+   (core-goal-shape? (succeed tag))]
+
+  [------------------- "core-eq-shape"
+   (core-goal-shape? (t_1 =? t_2 tag))]
+
+  [(core-goal-shape? g_1)
+   (core-goal-shape? g_2)
+   ------------------- "core-conj-shape"
+   (core-goal-shape? (g_1 ∧ g_2 tag))]
+
+  [(core-goal-shape? g)
+   ------------------- "core-exists-shape"
+   (core-goal-shape? (∃ d g tag))])
+
+(define-judgment-form
+  Core
+  #:contract (core-tree-shape? s)
+  #:mode (core-tree-shape? I)
+
+  [------------------- "core-empty-tree-shape"
+   (core-tree-shape? (empty-tree))]
+
+  [------------------- "core-answer-shape"
+   (core-tree-shape? (⊤ σ))]
+
+  [(core-goal-shape? g)
+   ------------------- "core-goal-state-shape"
+   (core-tree-shape? (g σ))]
+
+  [(core-tree-shape? s)
+   (core-goal-shape? g)
+   ------------------- "core-conj-tree-shape"
+   (core-tree-shape? (s × g c))])
+
+(define-judgment-form
+  Core
+  #:contract (core-shape? config)
+  #:mode (core-shape? I)
+  [(core-goal-shape? g) ...
+   (core-tree-shape? s)
+   ------------------- "core-config-shape"
+   (core-shape? (((r d g) ...) (σ ...) s))])
 
 (module+ test
   ;; succeed
@@ -462,6 +512,33 @@
    (judgment-holds
     (wf-rel-env?
      ((r:bad () (x:0 =? x:0 (label "eq")))))))
+
+  (check-true
+   (judgment-holds
+    (core-shape? (() () (empty-tree)))))
+
+  (check-true
+   (judgment-holds
+    (core-shape?
+     (() ((state () () () (label "a")))
+         (((succeed (label "ok")) ∧ (succeed (label "ok2")) (label "c"))
+          (state () () () (label "s")))))))
+
+  (define (core-tree-shape-holds? st)
+    (with-handlers ([exn:fail? (lambda (_) #f)])
+      (judgment-holds (core-tree-shape? ,st))))
+
+  (define (core-config-shape-holds? cfg)
+    (with-handlers ([exn:fail? (lambda (_) #f)])
+      (judgment-holds (core-shape? ,cfg))))
+
+  ;; non-core constructors must be rejected by the core shape judgment
+  (check-false (core-tree-shape-holds? '(delay (empty-tree))))
+
+  (check-false
+   (core-config-shape-holds?
+    '(() () (proceed ((r:foo (sym "x") (label "t"))
+                      (state () () () (label "s")))))))
 )
 
 (module+ test
