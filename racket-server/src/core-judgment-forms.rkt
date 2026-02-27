@@ -397,7 +397,8 @@
 (module+ test
   (require rackunit
            redex/reduction-semantics
-           racket/list)
+           racket/list
+           (prefix-in h: "../tests/helpers.rkt"))
 
   ;; Randomized test tuning constants.
   ;; Edit these values directly when you want different pressure/coverage.
@@ -410,13 +411,10 @@
   (define JUDGMENT-MIN-UNIFY-FAILURES 1)
   (define JUDGMENT-MIN-PAIR-CASES 1)
 
-  (define JUDGMENT-RNG (make-pseudo-random-generator))
-  (parameterize ([current-pseudo-random-generator JUDGMENT-RNG])
-    (random-seed JUDGMENT-PROP-SEED))
+  (define JUDGMENT-RNG (h:make-seeded-rng JUDGMENT-PROP-SEED))
 
   (define (jrandom n)
-    (parameterize ([current-pseudo-random-generator JUDGMENT-RNG])
-      (random n)))
+    (h:rng-random JUDGMENT-RNG n))
 
   (define (j-generate-t)
     (parameterize ([current-pseudo-random-generator JUDGMENT-RNG])
@@ -438,26 +436,6 @@
     (for/list ([n (in-range 0 JUDGMENT-U-POOL-SIZE)])
       (string->symbol (format "u:~a" n))))
 
-  (define (remove-at xs idx)
-    (define-values (prefix suffix) (split-at xs idx))
-    (if (null? suffix) prefix (append prefix (cdr suffix))))
-
-  (define (random-distinct xs k)
-    (let loop ([pool xs] [need (min k (length xs))] [acc '()])
-      (if (zero? need)
-          (reverse acc)
-          (let* ([idx (jrandom (length pool))]
-                 [picked (list-ref pool idx)])
-            (loop (remove-at pool idx) (sub1 need) (cons picked acc))))))
-
-  (define (gen-primitive)
-    (case (jrandom 5)
-      [(0) `(sym ,(format "sym-~a" (jrandom 100)))]
-      [(1) `(nat ,(jrandom 20))]
-      [(2) (zero? (jrandom 2))]
-      [(3) `(str ,(format "str-~a" (jrandom 100)))]
-      [else 'empty]))
-
   ;; Constructively build wf terms with respect to c (no lexical vars).
   (define (gen-wf-term c depth)
     (define choices
@@ -465,7 +443,7 @@
               (if (null? c) '() '(logic-var))
               (if (zero? depth) '() '(pair))))
     (case (list-ref choices (jrandom (length choices)))
-      [(primitive) (gen-primitive)]
+      [(primitive) (h:gen-primitive/rng JUDGMENT-RNG)]
       [(logic-var) (list-ref c (jrandom (length c)))]
       [(pair) `(,(gen-wf-term c (sub1 depth)) : ,(gen-wf-term c (sub1 depth)))]))
 
@@ -474,7 +452,7 @@
   (define (generate-wf-eq-sample)
     (define c-limit (min JUDGMENT-C-MAX (length U-POOL)))
     (define c-size (if (zero? c-limit) 0 (jrandom (add1 c-limit))))
-    (define c (random-distinct U-POOL c-size))
+    (define c (h:random-distinct/rng JUDGMENT-RNG U-POOL c-size))
     (define depth (max 1 (min 4 JUDGMENT-PROP-SIZE)))
     (define t_1 (gen-wf-term c depth))
     ;; Bias half the time to guaranteed unification success.

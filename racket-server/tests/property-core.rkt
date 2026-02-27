@@ -5,6 +5,7 @@
          racket/format
          racket/list
          redex/reduction-semantics
+         (prefix-in h: "./helpers.rkt")
          "../src/core-definitions.rkt"
          "../src/core-judgment-forms.rkt"
          "../src/reduction-relations/core-reduction-relations.rkt")
@@ -23,13 +24,10 @@
 (define PROPERTY-MIN-EXISTS-HITS 1)
 (define PROPERTY-MIN-CONJ-HITS 1)
 
-(define PROPERTY-RNG (make-pseudo-random-generator))
-(parameterize ([current-pseudo-random-generator PROPERTY-RNG])
-  (random-seed PROPERTY-SEED))
+(define PROPERTY-RNG (h:make-seeded-rng PROPERTY-SEED))
 
 (define (prandom n)
-  (parameterize ([current-pseudo-random-generator PROPERTY-RNG])
-    (random n)))
+  (h:rng-random PROPERTY-RNG n))
 
 (define (final-config? cfg)
   (redex-match? Core end-config cfg))
@@ -65,22 +63,6 @@
   (for/list ([i (in-range 0 PROPERTY-R-POOL-SIZE)])
     (string->symbol (format "r:~a" i))))
 
-(define (remove-at xs idx)
-  (define-values (prefix suffix) (split-at xs idx))
-  (if (null? suffix) prefix (append prefix (cdr suffix))))
-
-(define (random-distinct xs k)
-  (let loop ([pool xs]
-             [need (min k (length xs))]
-             [acc '()])
-    (if (zero? need)
-        (reverse acc)
-        (let* ([idx (prandom (length pool))]
-               [picked (list-ref pool idx)])
-          (loop (remove-at pool idx)
-                (sub1 need)
-                (cons picked acc))))))
-
 (define (extend-c c max-extra)
   (define unused
     (filter (lambda (u) (not (member u c))) U-POOL))
@@ -88,18 +70,10 @@
   (define extra-limit (min max-extra room (length unused)))
   (define extra-count
     (if (zero? extra-limit) 0 (prandom (add1 extra-limit))))
-  (append c (random-distinct unused extra-count)))
+  (append c (h:random-distinct/rng PROPERTY-RNG unused extra-count)))
 
 (define (make-label prefix)
   `(label ,(format "~a-~a" prefix (prandom 1000000))))
-
-(define (gen-primitive)
-  (case (prandom 5)
-    [(0) `(sym ,(format "sym-~a" (prandom 100)))]
-    [(1) `(nat ,(prandom 20))]
-    [(2) (if (zero? (prandom 2)) #t #f)]
-    [(3) `(str ,(format "str-~a" (prandom 100)))]
-    [else 'empty]))
 
 (define (pick-one xs)
   (list-ref xs (prandom (length xs))))
@@ -111,7 +85,7 @@
             (if (null? x-env) '() '(lex-var))
             (if (zero? depth) '() '(pair))))
   (case (pick-one options)
-    [(primitive) (gen-primitive)]
+    [(primitive) (h:gen-primitive/rng PROPERTY-RNG)]
     [(logic-var) (pick-one c)]
     [(lex-var) (pick-one x-env)]
     [(pair)
@@ -127,10 +101,11 @@
 
 (define (fresh-x-list x-env)
   (define available (filter (lambda (x) (not (member x x-env))) X-POOL))
-  (random-distinct available
-                   (if (null? available)
-                       0
-                       (add1 (prandom (min 2 (length available)))))))
+  (h:random-distinct/rng PROPERTY-RNG
+                         available
+                         (if (null? available)
+                             0
+                             (add1 (prandom (min 2 (length available)))))))
 
 (define (gen-goal x-env c depth)
   (define options
@@ -151,7 +126,7 @@
            `(succeed ,(make-label "ok"))
            `(,(car d)
              =?
-             ,(gen-primitive)
+             ,(h:gen-primitive/rng PROPERTY-RNG)
              ,(make-label "eq"))))
      `(∃
        ,d
@@ -185,14 +160,14 @@
        ,c^)]))
 
 (define (gen-rel-def r)
-  (define d (random-distinct X-POOL (prandom 3)))
+  (define d (h:random-distinct/rng PROPERTY-RNG X-POOL (prandom 3)))
   `(,r
     ,d
     ,(gen-goal d '() (max-depth))))
 
 (define (gen-rel-env)
   (define count (prandom 3))
-  (for/list ([r (in-list (random-distinct R-POOL count))])
+  (for/list ([r (in-list (h:random-distinct/rng PROPERTY-RNG R-POOL count))])
     (gen-rel-def r)))
 
 (define (gen-answers)
