@@ -79,7 +79,7 @@
   (define next* (apply-reduction-relation -->cfg cfg))
   (cond
     [(final-config? cfg) (null? next*)]
-    [else (null? (cdr next*))]))
+    [else (= (length next*) 1)]))
 
 (define (progress? cfg)
   (or (final-config? cfg)
