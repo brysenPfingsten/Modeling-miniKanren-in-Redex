@@ -3,55 +3,73 @@
 Use this as a working sheet. Mark one option per decision (or mark `DEFER`) and note rationale.
 
 ## D1) Variant Expression Style (`DECIDE-NEXT`)
-- Status: `OPEN`
+- Status: `DECIDED`
 - Choose:
   - [ ] `I1` Strict per-variant syntax (each variant has only executable forms)
-  - [ ] `I2` Shared superset syntax + variant WF fragment + non-generation theorem
+  - [x] `I2` Shared superset syntax + variant WF fragment + non-generation theorem
   - [ ] `DEFER`
-- If `I2`, commit to proving fragment-closure/non-generation: [ ] yes [ ] no
+- If `I2`, commit to proving fragment-closure/non-generation: [x] yes [ ] no
 - Rationale:
+  - Preserve visible inheritance and "small semantic delta" narrative in code/paper.
+  - Lock semantic choices as relation variants over closely related syntax.
 
 ## D2) Baseline Family After Core (`DECIDE-NEXT`)
-- Status: `OPEN`
+- Status: `DECIDED`
 - Choose:
-  - [ ] Left-biased deterministic family first
+  - [x] Left-biased deterministic family first
   - [ ] Deterministic interleaving family first
   - [ ] `DEFER`
 - Rationale:
+  - Disjunction extension uses left-pointing node semantics first; interleaving is layered later.
 
 ## D3) Disjunction Representation (`DECIDE-NEXT`)
-- Status: `OPEN`
+- Status: `DECIDED`
 - Choose:
-  - [ ] Single-arrow base; add opposite arrow only in railroad extension
+  - [x] Single-arrow base; add opposite arrow only in railroad extension
   - [ ] Dual-arrow from first disjunction layer
   - [ ] `DEFER`
 - Rationale:
+  - Keep baseline deterministic disjunction syntax minimal.
+  - Reserve right-facing arrow syntax for railroad branch only.
 
 ## D4) Delay In DFS-Family (`DECIDE-NEXT`)
-- Status: `OPEN`
+- Status: `DECIDED (for this implementation path)`
 - Choose:
   - [ ] Delay-free DFS baseline
-  - [ ] Delayful DFS (no interleaving), possibly UI-collapsed admin steps
+  - [x] Delayful DFS (no interleaving), possibly UI-collapsed admin steps
   - [ ] Keep both as sibling variants
   - [ ] `DEFER`
 - Rationale:
+  - First extension is explicitly relation-calls + delay/proceed.
+  - Delay-free DFS remains possible as later sibling variant, but not on current lattice path.
 
 ## D5) Delay-Call Timing (`DECIDE-NEXT`)
-- Status: `OPEN`
+- Status: `DECIDED`
 - Choose:
   - [ ] Eager expansion under delay
   - [ ] Lazy expansion on resume/proceed
-  - [ ] Keep same syntax, compare both by relation variants
+  - [x] Keep same syntax, compare both by relation variants
   - [ ] `DEFER`
 - Rationale:
+  - Build two call-timing variants over one syntax (`Rcall-eager`, `Rcall-lazy`).
 
 ## D6) Feature Composition Path (`DECIDE-NEXT`)
-- Status: `OPEN`
+- Status: `DECIDED`
 - Choose:
-  - [ ] Build `Core + Disjunction` and `Core + RelCalls` separately, then combine
+  - [x] Build `Core + Disjunction` and `Core + RelCalls` separately, then combine
   - [ ] Build directly as one combined extension
   - [ ] `DEFER`
 - Rationale:
+  - Locked lattice:
+    - `L1 = Core + relcalls/delay/proceed`
+    - `L2 = Core + left-disjunction`
+    - `L3 = union(L1, L2)`
+    - `L4 = L3 + right-disjunction`
+  - Relations:
+    - `Rbase-e = union(Rcall-eager, Rdisj-left)`
+    - `Rbase-l = union(Rcall-lazy, Rdisj-left)`
+    - `Rflip-{e,l}` extend base on left-only syntax
+    - `Rrail-{e,l}` extend base on right-arrow syntax
 
 ## D7) Answer Placement
 - Status: `OPEN`

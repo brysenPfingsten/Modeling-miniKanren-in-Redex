@@ -71,37 +71,35 @@ This note is a restart map: what has been decided, what is provisional, and what
    - paper-primary: **subset-`c` precision**,
    - global-`c` may be presented only as a simplification baseline.
 
+### Decided (variant lattice)
+1. **Expression strategy**: `D1 = I2` shared/superset syntax with fragment discipline.
+2. **First extension pair is locked**:
+   - `L1 = Core + relation calls + delay/proceed`.
+   - `L2 = Core + left-pointing disjunction nodes`.
+3. **Union path is locked**:
+   - `L3 = union(L1, L2)`.
+   - `L4 = L3 + right-pointing disjunction nodes`.
+4. **Call timing axis is locked as relation variants over same syntax**:
+   - `Rcall-eager`, `Rcall-lazy`.
+5. **Base and branch relations are locked**:
+   - `Rbase-e = union(Rcall-eager, Rdisj-left)`
+   - `Rbase-l = union(Rcall-lazy, Rdisj-left)`
+   - `Rflip-e` / `Rflip-l` from left-only branch behavior
+   - `Rrail-e` / `Rrail-l` from right-arrow railroad behavior
+
 ### Open / unresolved
-1. **How relation calls compose with `c` tracking** in the stratified core.
-2. **Disjunction staging and execution policy**:
-   - one-arrow deterministic base first?
-   - when to introduce two-arrow / railroad-specific rewrites?
-   - exact deterministic scheduler rule once disjunction nodes are added.
-3. **Baseline semantics family choice once disjunction exists**:
-   - deterministic left-biased family first, or
-   - deterministic interleaving family first, with railroad as separate extension.
-4. **Delay placement strategy**:
-   - absent in DFS core
-   - present but inert in DFS
-   - only introduced in railroad/interleaving model
-5. **Delay-call execution timing**:
-   - eager expansion under delay,
-   - lazy expansion only when resumed (`proceed`-style suspension),
-   - and whether to keep these as same-syntax/different-relation variants (preferred) vs syntax-split variants.
-6. **Feature-factoring strategy** (newly clarified):
-   - extend from Core to `+Disjunction (no relcalls/recursion)` and `+RelCalls/recursion (no disjunction)` separately,
-   - then combine for the joint language/model.
-7. **Answer representation**:
+1. **How relation-call + subset-`c` invariants are enforced/proved** per branch.
+2. **Answer representation**:
    - keep external `ans*` (current core),
    - or move answer stream fully inside tree for stronger/localer structural invariants (including optional hidden marker nodes for freshening origin/scope tracking).
-8. **Fresh-history marker nodes**:
+3. **Fresh-history marker nodes**:
    - whether to keep explicit "fresh happened here" nodes even after stepping past them, to support local subset-`c` reasoning and exposition.
    - **current stance**: deferred for now; revisit when provenance theorem/UI trace needs appear.
-9. **DFS pedagogy choice**:
+4. **DFS pedagogy choice**:
    - delay-free DFS model as baseline, or
    - delayful DFS model with no interleaving (possibly UI-collapsing administrative delay steps).
-10. **Theorem surface**: exact claim set for progress/preservation/frame/locality across model variants.
-11. **Frontend syntax/UI axis** (miniKanren + microKanren surfaces with shared backend): desired, but currently tabled.
+5. **Theorem surface**: exact claim set for progress/preservation/frame/locality across model variants.
+6. **Frontend syntax/UI axis** (miniKanren + microKanren surfaces with shared backend): desired, but currently tabled.
 
 ## 4) Dependency Map (what constrains what)
 
@@ -197,10 +195,10 @@ Dependencies:
 ## 5) Recommended Roadmap (short)
 1. **(Completed) Freeze semantic kernel contract**:
    - paper-primary `c` discipline is locked to subset-`c` precision (global-`c` as simplification note).
-2. **Finish the semantic stratification spec** (on paper first):
-   - preferred pathway: `Core` -> (`+Disjunction` and `+RelCalls/recursion` separately) -> `Combined` -> `Railroad/Interleaving variants`.
-   - each layer must define both added syntax and the concrete step policy for that syntax.
-   - for eager/lazy and some DFS/interleaving comparisons, prefer same-syntax/different-relation presentation where feasible.
+2. **(Completed) Freeze semantic stratification pathway**:
+   - `Core -> L1/L2 -> L3 -> L4`.
+   - eager/lazy are relation variants over shared syntax.
+3. **Implement the lattice modules + relation family**.
 3. **State theorem targets per layer**:
    - minimum: progress + WF preservation,
    - optional stronger layer: locality/frame-style theorem (subset-c benefit).
@@ -219,21 +217,16 @@ Dependencies:
   - `OPEN` = not committed.
   - `DECIDE-NEXT` = should be decided before adding the next semantic layer.
 
-1. `OPEN` / `DECIDE-NEXT`: **Variant expression style**
-   - `I1`: strict per-variant syntax.
-   - `I2`: shared superset syntax + fragment WF + non-generation theorem.
-2. `OPEN` / `DECIDE-NEXT`: **Baseline family after Core**
-   - deterministic left-biased family first,
-   - deterministic interleaving family first.
-3. `OPEN` / `DECIDE-NEXT`: **Disjunction representation**
-   - single-arrow base first,
-   - dual-arrow only in railroad extension.
-4. `OPEN` / `DECIDE-NEXT`: **Delay in DFS-family variants**
-   - no delay constructors in DFS baseline,
-   - delay constructors present but inert/no interleaving.
-5. `OPEN` / `DECIDE-NEXT`: **Delay-call timing (same syntax, different relations if possible)**
-   - eager expansion under delay,
-   - lazy expansion on resume/proceed.
+1. `DECIDED`: **Variant expression style**
+   - `I2`: shared/superset syntax + fragment discipline.
+2. `DECIDED`: **Baseline family after Core**
+   - deterministic left-biased branch first.
+3. `DECIDED`: **Disjunction representation**
+   - single-arrow base first; right-arrow only in railroad extension.
+4. `DECIDED (current path)`: **Delay in DFS-family variants**
+   - delayful path first (`L1`); delay-free DFS remains optional later sibling.
+5. `DECIDED`: **Delay-call timing (same syntax, different relations)**
+   - eager and lazy both first-class.
 6. `OPEN`: **Answer placement**
    - external `ans*`,
    - in-tree answers (+ optional hidden marker nodes).
