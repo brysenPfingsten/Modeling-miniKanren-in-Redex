@@ -436,6 +436,11 @@
     (for/list ([n (in-range 0 JUDGMENT-U-POOL-SIZE)])
       (string->symbol (format "u:~a" n))))
 
+  (check-true (positive? JUDGMENT-U-POOL-SIZE)
+              "JUDGMENT-U-POOL-SIZE must be >= 1.")
+  (check-true (positive? JUDGMENT-C-MAX)
+              "JUDGMENT-C-MAX must be >= 1.")
+
   ;; Constructively build wf terms with respect to c (no lexical vars).
   (define (gen-wf-term c depth)
     (define choices
@@ -451,7 +456,7 @@
   ;; the wf-tree antecedent used by the randomized unify checks.
   (define (generate-wf-eq-sample)
     (define c-limit (min JUDGMENT-C-MAX (length U-POOL)))
-    (define c-size (if (zero? c-limit) 0 (jrandom (add1 c-limit))))
+    (define c-size (add1 (jrandom c-limit)))
     (define c (h:random-distinct/rng JUDGMENT-RNG U-POOL c-size))
     (define depth (max 1 (min 4 JUDGMENT-PROP-SIZE)))
     (define t_1 (gen-wf-term c depth))
@@ -511,11 +516,10 @@
   (define (triangular? pairs)
     (define dom (map first pairs))
     (define adj
-      (for/hash ([p pairs])
-        (values (first p)
-                (remove-duplicates
-                 (filter (lambda (v) (member v dom))
-                         (vars-in (second p)))))))
+      (for/hash ([(u t*) (in-dict pairs)])
+        (values u
+                (filter (lambda (v) (member v dom))
+                        (remove-duplicates (vars-in (car t*)))))))
     (define visiting (make-hash))
     (define visited (make-hash))
     (define (visit u)
@@ -533,10 +537,8 @@
     (for/and ([u dom]) (visit u)))
 
   (define (occurs-free? pairs)
-    (for/and ([p pairs])
-      (define u (first p))
-      (define t (second p))
-      (not (judgment-holds (occurs? ,u ,t ,pairs)))))
+    (for/and ([(u t*) (in-dict pairs)])
+      (not (judgment-holds (occurs? ,u ,(car t*) ,pairs)))))
 
   ;; Full walk over pair terms for testing unify equalization.
   ;; The core walk metafunction is intentionally shallow.
