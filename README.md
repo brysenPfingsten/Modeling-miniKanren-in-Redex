@@ -22,6 +22,41 @@ docker compose -f docker-compose.dev.yml up --build
 ```
 Finally, visit [localhost:5173](http://localhost:5173).
 
+## **Test Lanes**
+
+Use the lane that matches what you are validating.
+
+### **1) Headless lane (default CI/local smoke)**
+
+```sh
+raco test racket-server/tests/test-all-headless.rkt
+```
+
+### **2) App/API regression lane**
+
+```sh
+raco test racket-server/tests/test-all.rkt
+```
+
+### **3) Legacy semantics lane (manual host lane)**
+
+This lane exercises legacy Redex models and visual smoke tests:
+
+```sh
+raco test \
+  racket-server/tests/test-reduction-relations.rkt \
+  racket-server/tests/unit-tests.rkt \
+  racket-server/tests/translator-tests.rkt \
+  racket-server/tests/visual-tests.rkt \
+  racket-server/tests/test-dmitry-and-dmitry.rkt
+```
+
+Optional interactive visual check:
+
+```sh
+racket racket-server/tests/visual-tests.rkt
+```
+
 ## **Configuration**
 
 The Docker images expect an amd64 platform. Users on Apple Silicon or other arm64 based architectures,
@@ -53,4 +88,3 @@ Aborted
 To resolve this, open Docker.app and under Settings > General >
 Virtual Machine Options, make sure you have un-checked `Use Rosetta
 for x86_64/amd64 emulation on Apple Silicon`, and have selected QEMU as the VMM.
-

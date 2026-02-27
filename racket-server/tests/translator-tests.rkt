@@ -2,7 +2,8 @@
 
 (require redex
          redex/reduction-semantics
-         rackunit)
+         rackunit
+         rackunit/text-ui)
 (check-redundancy #t)
 
 (require "../src/definitions.rkt"
@@ -18,25 +19,24 @@
 (define (parse-src src)
   (parse-prog (read-all (open-input-string src))))
 
-(module+ test
-  (define-values (model-1 html-1)
-    (parse-src "(run* (q) (== 'a 'a))"))
+(define/provide-test-suite TRANSLATOR-LEGACY
+  (test-case
+   "run*-only translation is shape-correct and closed"
+   (define-values (model-1 html-1)
+     (parse-src "(run* (q) (== 'a 'a))"))
+   (check-true (redex-match? L p model-1))
+   (check-true (judgment-holds (closed-program? ,model-1)))
+   (check-true (string? html-1)))
 
-  (test-true "run*-only translation matches program non-terminal"
-             (redex-match? L p model-1))
-  (test-true "run*-only translation is closed"
-             (judgment-holds (closed-program? ,model-1)))
-  (test-true "translator returns tagged HTML payload" (string? html-1))
-
-  (define-values (model-2 html-2)
-    (parse-src
-     "(defrel (same x y) (== x y))
+  (test-case
+   "defrel+run* translation is shape-correct and closed"
+   (define-values (model-2 html-2)
+     (parse-src
+      "(defrel (same x y) (== x y))
 (run* (q) (same q 'cat))"))
+   (check-true (redex-match? L p model-2))
+   (check-true (judgment-holds (closed-program? ,model-2)))
+   (check-true (string? html-2))))
 
-  (test-true "defrel+run* translation matches program non-terminal"
-             (redex-match? L p model-2))
-  (test-true "defrel+run* translation is closed"
-             (judgment-holds (closed-program? ,model-2)))
-  (test-true "defrel+run* returns tagged HTML payload" (string? html-2))
-
-  (test-results))
+(module+ test
+  (run-tests TRANSLATOR-LEGACY))

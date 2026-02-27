@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import "../styles.css";
-import { exampleProgs } from "../utils/example_programs.js";
+import { examplesForModel } from "../utils/example_programs.js";
 
 
 const modelOptions = [
@@ -17,6 +17,13 @@ export default function CodeHeader({
   onModelChange,
   isFrozen,
 }) {
+  const availableExamples = examplesForModel(modelValue);
+
+  useEffect(() => {
+    const stillAvailable = availableExamples.some((opt) => opt.value === programText);
+    if (!stillAvailable) onProgramChange("");
+  }, [availableExamples, programText, onProgramChange]);
+
   const renderOptions = (opts) =>
     opts.map(({ value, label }) => (
       <option key={value} value={value}>
@@ -46,7 +53,7 @@ export default function CodeHeader({
         onChange={(e) => onProgramChange(e.target.value)}
         disabled={isFrozen}
       >
-        {renderOptions(exampleProgs)}
+        {renderOptions(availableExamples)}
       </select>
 
       <select

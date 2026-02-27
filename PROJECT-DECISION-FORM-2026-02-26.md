@@ -131,6 +131,16 @@ Use this as a working sheet. Mark one option per decision (or mark `DEFER`) and 
   - Disequality is valuable but introduces another binary axis.
   - Full matrix expansion can become combinatorial; phase-gating limits complexity while preserving comparison value.
 
+## D13) Frontend/Backend Variant Dispatch (`DECIDE-NEXT`)
+- Status: `OPEN`
+- Choose:
+  - [ ] Keep one parser and one shared example set for all selectable models
+  - [ ] Add model registry with explicit parser profile + example compatibility per model
+  - [ ] `DEFER`
+- Rationale:
+  - Multiple semantics/languages require explicit dispatch to avoid invalid parser/example/model combinations.
+  - This is mostly orthogonal to semantic correctness, but blocks robust JS-side UX.
+
 ## Milestone Gate
 - Before coding next semantic layer, decisions required: `D1-D6`.
-- Before theorem/proof write-up, decisions required: `D7-D12`.
+- Before theorem/proof write-up, decisions required: `D7-D13`.

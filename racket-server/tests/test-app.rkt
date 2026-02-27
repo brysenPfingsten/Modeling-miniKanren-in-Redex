@@ -43,9 +43,9 @@
               (define new-zipper (session-zipper ses))
               (check-equal? zip new-zipper))
 
-  (test-case "step! steps the current program if there is no future cache and updates state"
+  (test-case "step! advances via stepper when no future cache and updates state"
               (define zip (zipper '() (step "foo" sample-tree) '() 1))
-              (define stepper (make-stepper mmk:step-once))
+              (define stepper step/const-tree-output)
               (define ses (session zip stepper 1))
               (define response (step! ses))
               (check-equal? (response-code response) 200)
@@ -53,10 +53,10 @@
               (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
               (check-equal? (response-headers response) '())
               (check-equal? (get-response-out response)
-                            "{\"program\":\"{\\\"id\\\":\\\"u5\\\",\\\"left\\\":{\\\"sym\\\":\\\"tree1\\\"},\\\"name\\\":\\\"Unify\\\",\\\"reified\\\":[],\\\"right\\\":{\\\"sym\\\":\\\"horse\\\"},\\\"stateId\\\":\\\"s\\\",\\\"sub\\\":[],\\\"trail\\\":[]}\",\"step\":2,\"stepName\":\"Substitute Fresh Variables\"}")
+                            "{\"program\":\"{\\\"children\\\":[{\\\"id\\\":\\\"u5\\\",\\\"left\\\":{\\\"sym\\\":\\\"tree1\\\"},\\\"name\\\":\\\"Unify\\\",\\\"right\\\":{\\\"sym\\\":\\\"horse\\\"}}],\\\"id\\\":\\\"f0\\\",\\\"name\\\":\\\"Fresh\\\",\\\"reified\\\":[],\\\"stateId\\\":\\\"s\\\",\\\"sub\\\":[],\\\"trail\\\":[],\\\"vars\\\":[{\\\"var\\\":\\\"q\\\"}]}\",\"step\":2,\"stepName\":\"foo\"}")
               (define new-zipper (session-zipper ses))
               (check-equal? (zipper-prev new-zipper) (list (step "foo" sample-tree)))
-              (check-equal? (step-name (zipper-curr new-zipper)) "Substitute Fresh Variables")
+              (check-equal? (step-name (zipper-curr new-zipper)) "foo")
               (check-equal? (zipper-next new-zipper) '())
               (check-equal? (zipper-idx   new-zipper) 2))
 

@@ -106,6 +106,9 @@ This note is a restart map: what has been decided, what is provisional, and what
 8. **Disequality constraints axis**:
    - whether to add disequality constraints as an extension family in this paper cycle,
    - and whether to phase-gate it to selected variants vs full lattice cross-product.
+9. **JS dispatch architecture**:
+   - parser profile may differ by selected language/semantics,
+   - example dropdown should be model-compatible rather than global.
 
 ## 4) Dependency Map (what constrains what)
 
@@ -257,6 +260,9 @@ Dependencies:
 10. `OPEN`: **Disequality constraints**
    - add as extension family or defer.
    - if added, choose full-lattice rollout vs phased rollout (recommended).
+11. `OPEN`: **Frontend/backend variant dispatch**
+   - one shared parser/example set vs model registry with parser+example compatibility.
+   - currently: partial guardrails on frontend example filtering; full parser-profile dispatch still open.
 
 ## 6) Testing Quality Upgrade Plan (concrete)
 - Add a "property inventory" doc: each property, intended bug class, generator assumptions.
