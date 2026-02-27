@@ -1,12 +1,11 @@
 #lang racket
-(require redex
-         redex/reduction-semantics
+(require redex/reduction-semantics
          "../core-definitions.rkt"
          "../core-judgment-forms.rkt")
 
 (check-redundancy #t)
 
-(provide -->cfg/whole step-once -->*e)
+(provide -->cfg -->cfg/base -->cfg/whole step-once -->*e)
 
 (module+ examples)
 
@@ -46,8 +45,10 @@
          "Prune Failed Conjuncts"]
 
     [--> ((∃ (x ...) g tag) (state sub c trail tag_1))
-         ((substitute g (u: x) ...) (state sub (u: ... ,@(term c)) trail tag_1))
-         (fresh ((u: ...) (x ...)))
+         ((substitute g (x_1 u_1) ...)
+          (state sub (u_1 ... ,@(term c)) trail tag_1))
+         (where ((x_1 u_1) ...)
+                (fresh-substitution c (x ...)))
          "Substitute Fresh Variables"]
 
     [--> ((t_1 =? t_2 tag) (state sub c ((t_3 =? t_4 tag_1) ...) tag_2))
@@ -94,6 +95,8 @@
   (define (final-config? cfg)
     (redex-match? Core end-config cfg))
 
+  (define (wf-config-term? cfg)
+    (judgment-holds (wf-config? ,cfg)))
 
   (define (unique-decomposition? cfg)
     (let ([next* (apply-reduction-relation -->cfg cfg)])
@@ -124,10 +127,6 @@
   (define (progress? cfg)
     (or (final-config? cfg)
         (not (null? (apply-reduction-relation -->cfg cfg)))))
-
-  (define (wf-config-term? cfg)
-    (judgment-holds (wf-config? ,cfg)))
-
 
   (redex-check Core
                config

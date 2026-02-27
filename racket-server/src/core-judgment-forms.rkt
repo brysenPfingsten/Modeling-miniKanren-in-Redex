@@ -1,6 +1,5 @@
 #lang racket
 (require rackunit
-         redex
          redex/reduction-semantics
          "core-definitions.rkt")
 
@@ -396,24 +395,237 @@
 )
 
 (module+ test
-  (require redex rackunit)
+  (require rackunit
+           redex/reduction-semantics
+           racket/list)
+
+  ;; Randomized test tuning constants.
+  ;; Edit these values directly when you want different pressure/coverage.
+  (define JUDGMENT-PROP-ATTEMPTS 200)
+  (define JUDGMENT-PROP-SIZE 8)
+  (define JUDGMENT-PROP-SEED 424242)
+  (define JUDGMENT-U-POOL-SIZE 24)
+  (define JUDGMENT-C-MAX 4)
+  (define JUDGMENT-MIN-UNIFY-SUCCESSES 1)
+  (define JUDGMENT-MIN-UNIFY-FAILURES 1)
+  (define JUDGMENT-MIN-PAIR-CASES 1)
+
+  (define JUDGMENT-RNG (make-pseudo-random-generator))
+  (parameterize ([current-pseudo-random-generator JUDGMENT-RNG])
+    (random-seed JUDGMENT-PROP-SEED))
+
+  (define (jrandom n)
+    (parameterize ([current-pseudo-random-generator JUDGMENT-RNG])
+      (random n)))
+
+  (define (j-generate-t)
+    (parameterize ([current-pseudo-random-generator JUDGMENT-RNG])
+      (generate-term Core t JUDGMENT-PROP-SIZE)))
+
+  (define (j-generate-sub)
+    (parameterize ([current-pseudo-random-generator JUDGMENT-RNG])
+      (generate-term Core sub JUDGMENT-PROP-SIZE)))
+
+  (displayln
+   (format "[core-judgment-forms] randomized checks attempts=~a size=~a seed=~a"
+           JUDGMENT-PROP-ATTEMPTS
+           JUDGMENT-PROP-SIZE
+           JUDGMENT-PROP-SEED))
+
+  ;; Pool size bounds generated test-data diversity only; it does not bound
+  ;; the semantic space of logic variables used by the language.
+  (define U-POOL
+    (for/list ([n (in-range 0 JUDGMENT-U-POOL-SIZE)])
+      (string->symbol (format "u:~a" n))))
+
+  (define (remove-at xs idx)
+    (define-values (prefix suffix) (split-at xs idx))
+    (if (null? suffix) prefix (append prefix (cdr suffix))))
+
+  (define (random-distinct xs k)
+    (let loop ([pool xs] [need (min k (length xs))] [acc '()])
+      (if (zero? need)
+          (reverse acc)
+          (let* ([idx (jrandom (length pool))]
+                 [picked (list-ref pool idx)])
+            (loop (remove-at pool idx) (sub1 need) (cons picked acc))))))
+
+  (define (gen-primitive)
+    (case (jrandom 5)
+      [(0) `(sym ,(format "sym-~a" (jrandom 100)))]
+      [(1) `(nat ,(jrandom 20))]
+      [(2) (zero? (jrandom 2))]
+      [(3) `(str ,(format "str-~a" (jrandom 100)))]
+      [else 'empty]))
+
+  ;; Constructively build wf terms with respect to c (no lexical vars).
+  (define (gen-wf-term c depth)
+    (define choices
+      (append '(primitive)
+              (if (null? c) '() '(logic-var))
+              (if (zero? depth) '() '(pair))))
+    (case (list-ref choices (jrandom (length choices)))
+      [(primitive) (gen-primitive)]
+      [(logic-var) (list-ref c (jrandom (length c)))]
+      [(pair) `(,(gen-wf-term c (sub1 depth)) : ,(gen-wf-term c (sub1 depth)))]))
+
+  ;; Returns a sample (list t1 t2 sub c trail tag1 tag2) that always satisfies
+  ;; the wf-tree antecedent used by the randomized unify checks.
+  (define (generate-wf-eq-sample)
+    (define c-limit (min JUDGMENT-C-MAX (length U-POOL)))
+    (define c-size (if (zero? c-limit) 0 (jrandom (add1 c-limit))))
+    (define c (random-distinct U-POOL c-size))
+    (define depth (max 1 (min 4 JUDGMENT-PROP-SIZE)))
+    (define t_1 (gen-wf-term c depth))
+    ;; Bias half the time to guaranteed unification success.
+    (define t_2 (if (zero? (jrandom 2)) t_1 (gen-wf-term c depth)))
+    (list t_1 t_2 (term ()) c (term ()) (term (label "t1")) (term (label "t2"))))
+
+  ;; Deterministic must-hit samples keep minimum-threshold checks stable.
+  (define (forced-success-sample)
+    (list (term (sym "forced-s"))
+          (term (sym "forced-s"))
+          (term ())
+          (term ())
+          (term ())
+          (term (label "forced"))
+          (term (label "forced"))))
+
+  (define (forced-failure-sample)
+    (list (term (sym "forced-left"))
+          (term (sym "forced-right"))
+          (term ())
+          (term ())
+          (term ())
+          (term (label "forced"))
+          (term (label "forced"))))
+
+  (define (forced-pair-sample)
+    (list (term ((sym "forced-a") : empty))
+          (term ((sym "forced-a") : empty))
+          (term ())
+          (term ())
+          (term ())
+          (term (label "forced"))
+          (term (label "forced"))))
 
   ;; walk is idempotent
-  (redex-check Core
-    (t sub)
-    (equal? (term (walk (walk t sub) sub)) (term (walk t sub))))
+  (for ([_ (in-range JUDGMENT-PROP-ATTEMPTS)])
+    (define t* (j-generate-t))
+    (define sub* (j-generate-sub))
+    (check-equal? (term (walk (walk ,t* ,sub*) ,sub*))
+                  (term (walk ,t* ,sub*))))
 
-  ;; if unify succeeds, the results walk to the same thing
-  (redex-check Core
-    (t_1 t_2 sub c trail tag_1 tag_2)
-    (implies
-     (judgment-holds (wf-tree? ((t_1 =? t_2 tag_1) (state sub c trail tag_2)) () ()))
-     (let ([sub^ (term (unify (walk t_1 sub) (walk t_2 sub) sub))])
-       (or (equal? sub^ (term #f))
-           (equal? (term (walk t_1 ,sub^))
-                   (term (walk t_2 ,sub^)))))))
+  ;; If unify succeeds on wf inputs, the results walk to the same thing.
+  ;; Also check triangular/occurs-free invariants on successful outputs.
+  (define wf-hits 0)
+  (define unify-successes 0)
+  (define unify-failures 0)
+  (define pair-cases 0)
+  (define max-c-size-seen 0)
 
-  ;; WF-guarded property: valid triangular subst property
-  ;; TODO
+  (define (vars-in t)
+    (cond
+      [(symbol? t) (list t)]
+      [(pair? t)   (append (vars-in (car t)) (vars-in (cdr t)))]
+      [else        '()]))
+
+  (define (triangular? pairs)
+    (define dom (map first pairs))
+    (define adj
+      (for/hash ([p pairs])
+        (values (first p)
+                (remove-duplicates
+                 (filter (lambda (v) (member v dom))
+                         (vars-in (second p)))))))
+    (define visiting (make-hash))
+    (define visited (make-hash))
+    (define (visit u)
+      (cond
+        [(hash-ref visited u #f) #t]
+        [(hash-ref visiting u #f) #f]
+        [else
+         (hash-set! visiting u #t)
+         (define ok
+           (for/and ([v (in-list (hash-ref adj u '()))])
+             (visit v)))
+         (hash-remove! visiting u)
+         (when ok (hash-set! visited u #t))
+         ok]))
+    (for/and ([u dom]) (visit u)))
+
+  (define (occurs-free? pairs)
+    (for/and ([p pairs])
+      (define u (first p))
+      (define t (second p))
+      (not (judgment-holds (occurs? ,u ,t ,pairs)))))
+
+  ;; Full walk over pair terms for testing unify equalization.
+  ;; The core walk metafunction is intentionally shallow.
+  (define (walk* t sub)
+    (define w (term (walk ,t ,sub)))
+    (match w
+      [`(,a : ,d) `(,(walk* a sub) : ,(walk* d sub))]
+      [_ w]))
+
+  (define (pair-term? t)
+    (match t
+      [`(,_ : ,_) #t]
+      [_ #f]))
+
+  (for ([i (in-range JUDGMENT-PROP-ATTEMPTS)])
+    (define sample
+      (cond
+        [(zero? i) (forced-success-sample)]
+        [(= i 1) (forced-failure-sample)]
+        [(= i 2) (forced-pair-sample)]
+        [else (generate-wf-eq-sample)]))
+    (define t_1 (first sample))
+    (define t_2 (second sample))
+    (define sub (third sample))
+    (define c (fourth sample))
+    (define trail (fifth sample))
+    (define tag_1 (sixth sample))
+    (define tag_2 (seventh sample))
+    (set! max-c-size-seen (max max-c-size-seen (length c)))
+    (when (or (pair-term? t_1) (pair-term? t_2))
+      (set! pair-cases (add1 pair-cases)))
+    (check-true
+     (judgment-holds
+      (wf-tree? ((,t_1 =? ,t_2 ,tag_1)
+                 (state ,sub ,c ,trail ,tag_2))
+                ()
+                ())))
+    (set! wf-hits (add1 wf-hits))
+    (define sub^ (term (unify (walk ,t_1 ,sub) (walk ,t_2 ,sub) ,sub)))
+    (unless (equal? sub^ (term #f))
+      (set! unify-successes (add1 unify-successes))
+      (check-true (equal? (walk* t_1 sub^)
+                          (walk* t_2 sub^))
+                  "Unify result does not equalize walked terms.")
+      (check-true (triangular? sub^)
+                  "Unify result is not triangular.")
+      (check-true (occurs-free? sub^)
+                  "Unify result violates occurs-check closure."))
+    (when (equal? sub^ (term #f))
+      (set! unify-failures (add1 unify-failures))))
+
+  (displayln
+   (format "[core-judgment-forms] wf-hits=~a unify-successes=~a unify-failures=~a pair-cases=~a max-c-size=~a seed=~a"
+           wf-hits
+           unify-successes
+           unify-failures
+           pair-cases
+           max-c-size-seen
+           JUDGMENT-PROP-SEED))
+
+  (check-true (> wf-hits 0)
+              "Unify properties had zero well-formed antecedent hits; test would be vacuous.")
+  (check-true (>= unify-successes JUDGMENT-MIN-UNIFY-SUCCESSES)
+              "Unify properties had too few successful unifications.")
+  (check-true (>= unify-failures JUDGMENT-MIN-UNIFY-FAILURES)
+              "Unify properties had too few failing unifications.")
+  (check-true (>= pair-cases JUDGMENT-MIN-PAIR-CASES)
+              "Unify properties had too few pair-term cases.")
 
 )

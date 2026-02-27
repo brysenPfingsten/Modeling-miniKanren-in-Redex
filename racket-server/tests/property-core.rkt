@@ -1,0 +1,356 @@
+#lang racket
+
+(require rackunit
+         rackunit/text-ui
+         racket/format
+         racket/list
+         redex/reduction-semantics
+         "../src/core-definitions.rkt"
+         "../src/core-judgment-forms.rkt"
+         "../src/reduction-relations/core-reduction-relations.rkt")
+
+;; Randomized test tuning constants.
+;; Edit these values directly when you want different pressure/coverage.
+(define PROPERTY-ATTEMPTS 200)
+(define PROPERTY-TERM-SIZE 8)
+(define PROPERTY-SEED 424242)
+(define PROPERTY-U-POOL-SIZE 24)
+(define PROPERTY-X-POOL-SIZE 16)
+(define PROPERTY-R-POOL-SIZE 16)
+(define PROPERTY-C-MAX 4)
+(define PROPERTY-C-EXTRA-MAX 2)
+(define PROPERTY-MIN-NONEMPTY-C-HITS 1)
+(define PROPERTY-MIN-EXISTS-HITS 1)
+(define PROPERTY-MIN-CONJ-HITS 1)
+
+(define PROPERTY-RNG (make-pseudo-random-generator))
+(parameterize ([current-pseudo-random-generator PROPERTY-RNG])
+  (random-seed PROPERTY-SEED))
+
+(define (prandom n)
+  (parameterize ([current-pseudo-random-generator PROPERTY-RNG])
+    (random n)))
+
+(define (final-config? cfg)
+  (redex-match? Core end-config cfg))
+
+(define (wf-config-term? cfg)
+  (judgment-holds (wf-config? ,cfg)))
+
+(define (unique-decomposition? cfg)
+  (define next* (apply-reduction-relation -->cfg cfg))
+  (cond
+    [(final-config? cfg) (null? next*)]
+    [else (null? (cdr next*))]))
+
+(define (progress? cfg)
+  (or (final-config? cfg)
+      (not (null? (apply-reduction-relation -->cfg cfg)))))
+
+(define (wf-preserved? cfg)
+  (for/and ([cfg^ (in-list (apply-reduction-relation -->cfg cfg))])
+    (wf-config-term? cfg^)))
+
+;; Pool sizes bound generated test-data diversity only; they do not bound the
+;; semantic logic-variable/name space of the language.
+(define U-POOL
+  (for/list ([i (in-range 0 PROPERTY-U-POOL-SIZE)])
+    (string->symbol (format "u:~a" i))))
+
+(define X-POOL
+  (for/list ([i (in-range 0 PROPERTY-X-POOL-SIZE)])
+    (string->symbol (format "x:~a" i))))
+
+(define R-POOL
+  (for/list ([i (in-range 0 PROPERTY-R-POOL-SIZE)])
+    (string->symbol (format "r:~a" i))))
+
+(define (remove-at xs idx)
+  (define-values (prefix suffix) (split-at xs idx))
+  (if (null? suffix) prefix (append prefix (cdr suffix))))
+
+(define (random-distinct xs k)
+  (let loop ([pool xs]
+             [need (min k (length xs))]
+             [acc '()])
+    (if (zero? need)
+        (reverse acc)
+        (let* ([idx (prandom (length pool))]
+               [picked (list-ref pool idx)])
+          (loop (remove-at pool idx)
+                (sub1 need)
+                (cons picked acc))))))
+
+(define (extend-c c max-extra)
+  (define unused
+    (filter (lambda (u) (not (member u c))) U-POOL))
+  (define room (max 0 (- PROPERTY-C-MAX (length c))))
+  (define extra-limit (min max-extra room (length unused)))
+  (define extra-count
+    (if (zero? extra-limit) 0 (prandom (add1 extra-limit))))
+  (append c (random-distinct unused extra-count)))
+
+(define (make-label prefix)
+  `(label ,(format "~a-~a" prefix (prandom 1000000))))
+
+(define (gen-primitive)
+  (case (prandom 5)
+    [(0) `(sym ,(format "sym-~a" (prandom 100)))]
+    [(1) `(nat ,(prandom 20))]
+    [(2) (if (zero? (prandom 2)) #t #f)]
+    [(3) `(str ,(format "str-~a" (prandom 100)))]
+    [else 'empty]))
+
+(define (pick-one xs)
+  (list-ref xs (prandom (length xs))))
+
+(define (gen-term x-env c depth)
+  (define options
+    (append '(primitive)
+            (if (null? c) '() '(logic-var))
+            (if (null? x-env) '() '(lex-var))
+            (if (zero? depth) '() '(pair))))
+  (case (pick-one options)
+    [(primitive) (gen-primitive)]
+    [(logic-var) (pick-one c)]
+    [(lex-var) (pick-one x-env)]
+    [(pair)
+     `(,(gen-term x-env c (sub1 depth))
+       :
+       ,(gen-term x-env c (sub1 depth)))]))
+
+(define (gen-eq-goal x-env c depth)
+  `(,(gen-term x-env c depth)
+    =?
+    ,(gen-term x-env c depth)
+    ,(make-label "eq")))
+
+(define (fresh-x-list x-env)
+  (define available (filter (lambda (x) (not (member x x-env))) X-POOL))
+  (random-distinct available
+                   (if (null? available)
+                       0
+                       (add1 (prandom (min 2 (length available)))))))
+
+(define (gen-goal x-env c depth)
+  (define options
+    (append '(succeed eq)
+            (if (zero? depth) '() '(conj exists))))
+  (case (pick-one options)
+    [(succeed) `(succeed ,(make-label "ok"))]
+    [(eq) (gen-eq-goal x-env c depth)]
+    [(conj)
+     `(,(gen-goal x-env c (sub1 depth))
+       ∧
+       ,(gen-goal x-env c (sub1 depth))
+       ,(make-label "and"))]
+    [(exists)
+     (define d (fresh-x-list x-env))
+     (define body
+       (if (null? d)
+           `(succeed ,(make-label "ok"))
+           `(,(car d)
+             =?
+             ,(gen-primitive)
+             ,(make-label "eq"))))
+     `(∃
+       ,d
+       ,body
+       ,(make-label "ex"))]))
+
+(define (gen-state c)
+  `(state () ,c () ,(make-label "st")))
+
+(define (max-depth)
+  (max 1 (min PROPERTY-TERM-SIZE 4)))
+
+(define (gen-tree c depth)
+  (define options
+    (append '(empty answer goal-state)
+            (if (zero? depth) '() '(conj-tree))))
+  (case (pick-one options)
+    [(empty) '(empty-tree)]
+    [(answer)
+     (define c^ (extend-c c PROPERTY-C-EXTRA-MAX))
+     `(⊤ ,(gen-state c^))]
+    [(goal-state)
+     (define c^ (extend-c c PROPERTY-C-EXTRA-MAX))
+     `(,(gen-goal '() c^ depth)
+       ,(gen-state c^))]
+    [(conj-tree)
+     (define c^ (extend-c c PROPERTY-C-EXTRA-MAX))
+     `(,(gen-tree c^ (sub1 depth))
+       ×
+       ,(gen-goal '() c^ (sub1 depth))
+       ,c^)]))
+
+(define (gen-rel-def r)
+  (define d (random-distinct X-POOL (prandom 3)))
+  `(,r
+    ,d
+    ,(gen-goal d '() (max-depth))))
+
+(define (gen-rel-env)
+  (define count (prandom 3))
+  (for/list ([r (in-list (random-distinct R-POOL count))])
+    (gen-rel-def r)))
+
+(define (gen-answers)
+  (define count (prandom 3))
+  (for/list ([_ (in-range count)])
+    (gen-state (extend-c '() PROPERTY-C-EXTRA-MAX))))
+
+(define (generate-wf-config/constructive)
+  (define cfg
+    `(,(gen-rel-env)
+      ,(gen-answers)
+      ,(gen-tree '() (max-depth))))
+  (unless (wf-config-term? cfg)
+    (error 'generate-wf-config/constructive
+           (format "constructed non-wf config: ~s" cfg)))
+  cfg)
+
+(define (state-c-size st)
+  (match st
+    [`(state ,_ ,c ,_ ,_) (length c)]
+    [_ 0]))
+
+(define (goal-flags g)
+  (match g
+    [`(∃ ,_ ,g2 ,_) (define-values (hex hconj) (goal-flags g2))
+                    (values #t hconj)]
+    [`(,g1 ∧ ,g2 ,_) (define-values (hex1 hconj1) (goal-flags g1))
+                     (define-values (hex2 hconj2) (goal-flags g2))
+                     (values (or hex1 hex2) #t)]
+    [_ (values #f #f)]))
+
+(define (tree-coverage s)
+  (match s
+    [`(empty-tree) (values #f #f #f 0)]
+    [`(⊤ ,st) (define csz (state-c-size st))
+              (values (> csz 0) #f #f csz)]
+    [`(,g ,st) (define csz (state-c-size st))
+               (define-values (hex hconj) (goal-flags g))
+               (values (> csz 0) hex hconj csz)]
+    [`(,s1 × ,g ,c)
+     (define-values (nonempty?1 hex1 hconj1 cmax1) (tree-coverage s1))
+     (define-values (hex2 hconj2) (goal-flags g))
+     (define csz (length c))
+     (values (or nonempty?1 (> csz 0))
+             (or hex1 hex2)
+             (or #t hconj1 hconj2)
+             (max cmax1 csz))]
+    [_ (values #f #f #f 0)]))
+
+(define (config-coverage cfg)
+  (match cfg
+    [`(,Gamma ,ans* ,s)
+     (define nonempty-c? #f)
+     (define has-exists? #f)
+     (define has-conj? #f)
+     (define max-c-size 0)
+
+     (for ([st (in-list ans*)])
+       (define csz (state-c-size st))
+       (set! max-c-size (max max-c-size csz))
+       (when (> csz 0) (set! nonempty-c? #t)))
+
+     (for ([rel (in-list Gamma)])
+       (match rel
+         [`(,_ ,_ ,g)
+          (define-values (hex hconj) (goal-flags g))
+          (when hex (set! has-exists? #t))
+          (when hconj (set! has-conj? #t))]
+         [_ (void)]))
+
+     (define-values (tree-nonempty tree-exists tree-conj tree-cmax)
+       (tree-coverage s))
+     (values (or nonempty-c? tree-nonempty)
+             (or has-exists? tree-exists)
+             (or has-conj? tree-conj)
+             (max max-c-size tree-cmax))]
+    [_ (values #f #f #f 0)]))
+
+(define (check-wf-guarded-property label pred)
+  (define wf-hits 0)
+  (define fail-count 0)
+  (define nonempty-c-hits 0)
+  (define exists-node-hits 0)
+  (define conj-node-hits 0)
+  (define max-c-size-seen 0)
+  (define fail-samples '())
+
+  (for ([_ (in-range PROPERTY-ATTEMPTS)])
+    (define cfg (generate-wf-config/constructive))
+    (set! wf-hits (add1 wf-hits))
+    (define-values (nonempty-c? has-exists? has-conj? cmax) (config-coverage cfg))
+    (when nonempty-c? (set! nonempty-c-hits (add1 nonempty-c-hits)))
+    (when has-exists? (set! exists-node-hits (add1 exists-node-hits)))
+    (when has-conj? (set! conj-node-hits (add1 conj-node-hits)))
+    (set! max-c-size-seen (max max-c-size-seen cmax))
+    (unless (pred cfg)
+      (set! fail-count (add1 fail-count))
+      ;; Store only the first three failures for readable output truncation.
+      (when (< (length fail-samples) 3)
+        (set! fail-samples (cons cfg fail-samples)))))
+
+  (displayln
+   (format "[property-core] ~a attempts=~a wf-hits=~a (~a%%) fails=~a nonempty-c=~a exists=~a conj=~a max-c=~a seed=~a"
+           label
+           PROPERTY-ATTEMPTS
+           wf-hits
+           (real->decimal-string (* 100.0
+                                    (if (zero? PROPERTY-ATTEMPTS)
+                                        0.0
+                                        (/ (exact->inexact wf-hits) PROPERTY-ATTEMPTS)))
+                                2)
+           fail-count
+           nonempty-c-hits
+           exists-node-hits
+           conj-node-hits
+           max-c-size-seen
+           PROPERTY-SEED))
+
+  (check-equal? wf-hits
+                PROPERTY-ATTEMPTS
+                (format "~a: constructive generator violated wf contract." label))
+
+  (check-true (>= nonempty-c-hits PROPERTY-MIN-NONEMPTY-C-HITS)
+              (format "~a: insufficient non-empty-c coverage (~a < ~a)."
+                      label nonempty-c-hits PROPERTY-MIN-NONEMPTY-C-HITS))
+  (check-true (>= exists-node-hits PROPERTY-MIN-EXISTS-HITS)
+              (format "~a: insufficient exists-node coverage (~a < ~a)."
+                      label exists-node-hits PROPERTY-MIN-EXISTS-HITS))
+  (check-true (>= conj-node-hits PROPERTY-MIN-CONJ-HITS)
+              (format "~a: insufficient conjunction-node coverage (~a < ~a)."
+                      label conj-node-hits PROPERTY-MIN-CONJ-HITS))
+
+  (check-equal? fail-count
+                0
+                (format "~a: counterexamples (up to 3): ~s"
+                        label
+                        (reverse fail-samples))))
+
+(define-test-suite CORE-PROPERTIES
+  (test-case "WF-guarded unique decomposition"
+    (check-wf-guarded-property "unique-decomposition" unique-decomposition?))
+  (test-case "WF-guarded progress"
+    (check-wf-guarded-property "progress" progress?))
+  (test-case "WF-guarded one-step preservation"
+    (check-wf-guarded-property "wf-preserved" wf-preserved?)))
+
+(define/provide-test-suite PROPERTY-CORE
+  #:before
+  (thunk
+   (displayln
+    (format "Running core property tests (attempts=~a, term-size=~a, seed=~a, pools u/x/r=~a/~a/~a, c-max=~a, c-extra-max=~a)..."
+            PROPERTY-ATTEMPTS
+            PROPERTY-TERM-SIZE
+            PROPERTY-SEED
+            PROPERTY-U-POOL-SIZE
+            PROPERTY-X-POOL-SIZE
+            PROPERTY-R-POOL-SIZE
+            PROPERTY-C-MAX
+            PROPERTY-C-EXTRA-MAX)))
+  #:after (thunk (displayln "Finished core property tests."))
+  CORE-PROPERTIES)

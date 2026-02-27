@@ -1,6 +1,5 @@
 #lang racket
-(require redex/reduction-semantics
-         redex/pict)
+(require redex/reduction-semantics)
 ;; Jason Hemann and Brysen Pfingsten
 ;; Initial redex lang setup from Ryan Jung
 ;; Unify &c metafunctions from Phil Nguyen
@@ -9,7 +8,7 @@
 
 #;(current-traced-metafunctions 'all)
 
-(provide Core unify walk extend occurs?)
+(provide Core unify walk extend occurs? fresh-substitution)
 
 (module+ test
   (require rackunit)
@@ -97,7 +96,7 @@
 (module+ test
   ;; matches to create a new variable not in a term
   (redex-define Core (name new-var u) (variable-not-in (term (u: u:1 u:2 u:3)) 'u:))
-  (term new-var)
+  (check-true (redex-match? Core u (term new-var)))
 
   ;; terms and primitives
   (check-equal? (term u:2) 'u:2)
@@ -132,6 +131,21 @@
   [(walk u (name sub (_ ... [u t] _ ...))) (walk t sub)]
   [(walk t _) t])
 
+;; Build ((x u) ...) where each u is fresh w.r.t. c and previously chosen u's.
+(define-metafunction Core
+  fresh-substitution : c d -> ((x u) ...)
+  [(fresh-substitution c (x ...))
+   ,(let ([xs (term (x ...))]
+          [used0 (term c)])
+      (define-values (rev-pairs _used)
+        (for/fold ([rev-pairs '()]
+                   [used used0])
+                  ([x (in-list xs)])
+          (define u (variable-not-in (cons 'u: used) 'u:))
+          (values (cons (list x u) rev-pairs)
+                  (cons u used))))
+      (reverse rev-pairs))])
+
 (module+ test
 
   (check-equal? (term (walk u:0 ((u:0 (sym "a"))))) (term (sym "a")))
@@ -145,6 +159,13 @@
 
   (check-equal? (term (walk (u:2 : (sym "q")) ((u:2 (sym "p")))))
                 (term (u:2 : (sym "q"))))
+
+  (define fs-pairs
+    (term (fresh-substitution (u:0 u:1) (x:0 x:1 x:2))))
+  (check-equal? (length fs-pairs) 3)
+  (check-equal? (map first fs-pairs) '(x:0 x:1 x:2))
+  (check-true (andmap (lambda (pr) (redex-match? Core u (second pr))) fs-pairs))
+  (check-false (ormap (lambda (pr) (member (second pr) '(u:0 u:1))) fs-pairs))
 
 )
 
@@ -233,4 +254,3 @@
    (term #f))
 
 )
-
