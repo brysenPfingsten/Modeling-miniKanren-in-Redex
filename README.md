@@ -57,6 +57,19 @@ Optional interactive visual check:
 racket racket-server/tests/visual-tests.rkt
 ```
 
+## **Backend Model Registry**
+
+The backend now exposes available stepping models through:
+
+```text
+GET /api/get/models
+```
+
+Each entry includes:
+- `id` (used by `POST /api/post/model`)
+- `label` (display name)
+- `parserProfile` (currently `"legacy"` for all registered models)
+
 ## **Configuration**
 
 The Docker images expect an amd64 platform. Users on Apple Silicon or other arm64 based architectures,

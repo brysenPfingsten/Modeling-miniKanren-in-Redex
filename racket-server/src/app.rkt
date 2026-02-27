@@ -5,17 +5,16 @@
          net/uri-codec
          json)
 
-(require (prefix-in mmk:    "reduction-relations/reduction-relations.rkt")
-         (prefix-in dmitry: "reduction-relations/dmitry-and-dmitry.rkt")
-         (prefix-in dfs:    "reduction-relations/dfs.rkt")
-         "metafunctions.rkt"
+(require "metafunctions.rkt"
          "transpiler.rkt"
          "syntax-checking.rkt"
-         "zipper.rkt")
+         "zipper.rkt"
+         "model-registry.rkt")
 
 (provide step! back! reset! init! init-session! 
          make-stepper step step-name 
-         session session-zipper session-stepper session-nqv)
+         session session-zipper session-stepper session-nqv
+         switch-model! list-models!)
 
 (define-struct step (name prog) #:transparent)
 (define-struct session 
@@ -161,12 +160,24 @@
 ;; Purpose: Switches the model that is being used to step with
 (define (switch-model! ses req)
   (define json-data (request-post-data/raw req))
-  (define new-model (hash-ref (bytes->jsexpr json-data) 'model))
-  (match new-model
-    ["microKanren" (set-session-stepper! ses (make-stepper mmk:step-once))]
-    ["dmitry"      (set-session-stepper! ses (make-stepper dmitry:step-once))]
-    ["dfs"         (set-session-stepper! ses (make-stepper dfs:step-once))])
-  (response/jsexpr (json-null) #:code 200))
+  (define new-model (hash-ref (bytes->jsexpr json-data) 'model #f))
+  (define maybe-step-once (lookup-model-step-once new-model))
+  (if maybe-step-once
+      (begin
+        (set-session-stepper! ses (make-stepper maybe-step-once))
+        (response/jsexpr (hasheq 'model new-model) #:code 200))
+      (response/jsexpr (hasheq 'error (format "Unknown model: ~a" new-model))
+                       #:code 400)))
+
+
+;; list-models!: -> response
+;; Purpose: Returns known backend model ids and metadata for UI dispatch.
+(define (list-models!)
+  (response/jsexpr
+   (for/list ([spec (in-list all-model-specs)])
+     (model-spec->jsexpr spec))
+   #:mime-type #"application/json; charset=utf-8"
+   #:code 200))
 
 
 ;; get-or-create-session-id: req -> string
@@ -185,8 +196,12 @@
 (define (get-session session-id)
   (hash-ref session-table session-id
             (lambda ()
+              (define default-step-once (lookup-model-step-once default-model-id))
+              (when (not default-step-once)
+                (error 'get-session
+                       (format "No default model found for id: ~a" default-model-id)))
               (define new-session (session (zipper '() #f '() 0) 
-                                           (make-stepper mmk:step-once)
+                                           (make-stepper default-step-once)
                                            1))
               (hash-set! session-table session-id new-session)
               new-session)))
@@ -203,6 +218,7 @@
   (let* ([session-id (get-or-create-session-id req)]
          [session (get-session session-id)])
     (match (get-path req)
+      ["get/models" (list-models!)]
       ["get/next"   (step! session)]
       ["post/init"  (init! session req session-id)]
       ["post/reset" (reset! session session-table session-id)]

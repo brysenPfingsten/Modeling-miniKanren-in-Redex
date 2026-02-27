@@ -6,7 +6,6 @@
          net/url-structs
          json
          "../src/app.rkt"
-         (prefix-in mmk: "../src/reduction-relations/reduction-relations.rkt")
          "../src/zipper.rkt")
 
 (define sample-tree
@@ -24,6 +23,21 @@
   (let ([out (open-output-string)])
     ((response-output response) out)
     (get-output-string out)))
+
+(define (make-post-model-request model)
+  (make-request
+   #"POST"
+   (make-url #f #f #f #f #t
+             (list (make-path/param "post" empty)
+                   (make-path/param "model" empty))
+             empty
+             #f)
+   (list (make-header #"content-type" #"application/json"))
+   (delay '())
+   (string->bytes/utf-8 (format "{\"model\":\"~a\"}" model))
+   "127.0.0.1"
+   5000
+   "127.0.0.1"))
 
 (define-test-suite STEP!
   #:before (thunk (displayln "Running tests for step!..."))
@@ -215,6 +229,47 @@
               (check-equal? (zipper-idx new-zipper) 1))
   )
 
+(define-test-suite SWITCH-MODEL!
+  #:before (thunk (displayln "Running tests for switch-model!..."))
+  #:after (thunk (displayln "Finished running tests for switch-model!."))
+
+  (test-case "switch-model! updates stepper for known model id"
+             (define zip (zipper '() (step "foo" sample-tree) '() 1))
+             (define old-stepper step/const-tree-output)
+             (define ses (session zip old-stepper 1))
+             (define req (make-post-model-request "dfs"))
+             (define response (switch-model! ses req))
+             (check-equal? (response-code response) 200)
+             (check-true (procedure? (session-stepper ses)))
+             (check-false (eq? (session-stepper ses) old-stepper))
+             (check-equal? (string->jsexpr (get-response-out response))
+                           (hasheq 'model "dfs")))
+
+  (test-case "switch-model! rejects unknown model id and keeps existing stepper"
+             (define zip (zipper '() (step "foo" sample-tree) '() 1))
+             (define old-stepper step/const-tree-output)
+             (define ses (session zip old-stepper 1))
+             (define req (make-post-model-request "nope"))
+             (define response (switch-model! ses req))
+             (check-equal? (response-code response) 400)
+             (check-true (eq? (session-stepper ses) old-stepper))
+             (check-true (hash-has-key? (string->jsexpr (get-response-out response)) 'error))))
+
+(define-test-suite LIST-MODELS!
+  #:before (thunk (displayln "Running tests for list-models!..."))
+  #:after (thunk (displayln "Finished running tests for list-models!."))
+
+  (test-case "list-models! returns known backend models with parser profile"
+             (define response (list-models!))
+             (check-equal? (response-code response) 200)
+             (define models (string->jsexpr (get-response-out response)))
+             (check-true (list? models))
+             (check-true (>= (length models) 3))
+             (check-true (for/or ([m (in-list models)])
+                           (equal? (hash-ref m 'id #f) "microKanren")))
+             (check-true (for/and ([m (in-list models)])
+                           (hash-has-key? m 'parserProfile)))))
+
 (define/provide-test-suite APP
   #:before (thunk (displayln "Running tests for app.rkt..."))
   #:after (thunk (displayln "Finished running tests for app.rkt"))
@@ -222,7 +277,8 @@
   INIT!
   RESET!
   BACK!
-  ;; TODO: switch-model!
+  SWITCH-MODEL!
+  LIST-MODELS!
 )
 
 (run-tests APP)
