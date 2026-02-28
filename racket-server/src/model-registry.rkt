@@ -1,8 +1,6 @@
 #lang racket
 
-(require (prefix-in mmk:    "reduction-relations/reduction-relations.rkt")
-         (prefix-in dmitry: "reduction-relations/dmitry-and-dmitry.rkt")
-         (prefix-in dfs:    "reduction-relations/dfs.rkt"))
+(require (prefix-in var: "reduction-relations/extensions/variant-relations.rkt"))
 
 (provide model-spec?
          model-spec-id
@@ -20,9 +18,9 @@
 ;; This is intentionally a backend-only source of truth for model dispatch.
 ;; Frontend option wiring can consume this later without changing stepping code.
 (define all-model-specs
-  (list (model-spec "microKanren" "microKanren (legacy)" "legacy" mmk:step-once)
-        (model-spec "dmitry" "Dmitry et al." "legacy" dmitry:step-once)
-        (model-spec "dfs" "DFS (legacy)" "legacy" dfs:step-once)))
+  (list (model-spec "microKanren" "microKanren (L4/Rrail-l)" "surface->l4" var:step-once/Rrail-l)
+        (model-spec "dmitry" "Dmitry et al. (L4/Rrail-e)" "surface->l4" var:step-once/Rrail-e)
+        (model-spec "dfs" "DFS (L4/Rrail-l)" "surface->l4" var:step-once/Rrail-l)))
 
 (define default-model-id "microKanren")
 

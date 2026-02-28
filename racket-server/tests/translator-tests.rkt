@@ -8,7 +8,9 @@
 
 (require "../src/definitions.rkt"
          "../src/judgment-forms.rkt"
-         "../src/transpiler.rkt")
+         "../src/transpiler.rkt"
+         "../src/extensions/l4-railroad-syntax.rkt"
+         "../src/legacy-variant-adapter.rkt")
 
 (define (read-all port)
   (let ([expr (read port)])
@@ -36,7 +38,17 @@
 (run* (q) (same q 'cat))"))
    (check-true (redex-match? L p model-2))
    (check-true (judgment-holds (closed-program? ,model-2)))
-   (check-true (string? html-2))))
+   (check-true (string? html-2)))
+
+  (test-case
+   "legacy surface translation lifts to L4 config syntax"
+   (define-values (legacy html)
+     (parse-src
+      "(defrel (same x y) (== x y))
+(run* (q) (same q 'cat))"))
+   (define lifted (legacy-program->l4-config legacy))
+   (check-true (redex-match? L4 config lifted))
+   (check-true (string? html))))
 
 (module+ test
   (run-tests TRANSLATOR-LEGACY))
