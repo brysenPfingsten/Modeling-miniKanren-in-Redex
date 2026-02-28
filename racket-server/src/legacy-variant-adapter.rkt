@@ -9,7 +9,17 @@
 (provide legacy-program->l4-config
          l4-config->legacy-program
          l4-config?
+         canonical-target-id
+         canonical-parser-profile
+         canonical-config?
+         legacy-program->canonical-config
+         canonical-config->legacy-program
          legacy-tag->label)
+
+;; Canonical backend target for parser/transpiler output.
+;; All current surface profiles normalize into this shape.
+(define canonical-target-id "L4/config")
+(define canonical-parser-profile "surface->l4")
 
 (define u-rx #px"^u:([0-9]+)$")
 (define r-rx #px"^r:")
@@ -241,3 +251,12 @@
 
 (define (l4-config? cfg)
   (redex-match? L4 config cfg))
+
+(define (canonical-config? cfg)
+  (l4-config? cfg))
+
+(define (legacy-program->canonical-config prog)
+  (legacy-program->l4-config prog))
+
+(define (canonical-config->legacy-program cfg)
+  (l4-config->legacy-program cfg))

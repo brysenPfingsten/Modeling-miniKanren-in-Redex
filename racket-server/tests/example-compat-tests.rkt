@@ -3,6 +3,8 @@
 (require rackunit
          rackunit/text-ui
          redex/reduction-semantics
+         racket/runtime-path
+         racket/match
          "../src/definitions.rkt"
          "../src/judgment-forms.rkt"
          "../src/transpiler.rkt"
@@ -11,89 +13,46 @@
 
 (provide EXAMPLE-COMPAT)
 
-;; Keep these programs aligned with frontend/src/utils/example_programs.js.
-(define EXAMPLE-PROGRAMS
-  (list
-   (cons "appendo"
-         "(defrel (appendo l s out)
-  (conde
-    [(== l '())
-    (== s out)]
-    [(fresh (a d res)
-      (== l (cons a d))
-      (== out (cons a res))
-      (appendo d s res))]
-  ))
+;; Source of truth lives in frontend; tests consume it directly.
+(define-runtime-path FRONTEND-EXAMPLES-PATH
+  "../../frontend/src/utils/example_programs.js")
 
-(run* (q) (appendo (list 'minikanren) (list 'visualizer) q))")
-   (cons "appendoh1"
-         "(defrel (appendoh l s out)
-  (conde
-   [(== l '()) (== s out)]
-   [(fresh (a d res)
-      (== l (cons a d))
-      (== out (cons a res))
-      (appendoh d s out))]))
+(define TEMPLATE-DEF-RX
+  #px"const\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*`((?:\\\\`|[^`])*)`\\s*;?")
 
-(run* (q) (appendoh '(dog) q '(dog cat)))")
-   (cons "appendoh2"
-         "(defrel (appendoh l s out)
-  (conde
-   [(== l '()) (== s out)]
-   [(fresh (a d res)
-      (appendoh d s res)
-      (== l (cons a d))
-      (== out (cons a res)))]))
+(define ARRAY-ENTRY-RX
+  #px"\\{\\s*value:\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*,\\s*label:\\s*\"([^\"]+)\"")
 
-(run* (q r s) (appendoh q r s))")
-   (cons "same"
-         "(defrel (same x y)
-  (== x y))
+(define (decode-template-literal s)
+  ;; Frontend examples currently use escaped backticks inside template literals.
+  (regexp-replace* #px"\\\\`" s "`"))
 
-(run* (q)
-  (conde
-    [(conde
-       [(same q 'turtle)]
-       [(same q 'cat)]
-       [(== q 'dog)])]
-    [(same q 'fish)]))")
-   (cons "div3o"
-         "(defrel (same-counto bn)
-  (conde
-   [(== bn `(1 1))]
-   [(fresh (a ad dd)
-      (== `(,a ,ad . ,dd) bn)
-      (conde
-       [(== a ad) (same-counto dd)]
-       [(== `(,a ,ad) '(1 0)) (mod+1o dd)]
-       [(== `(,a ,ad) '(0 1)) (mod+2o dd)]))]))
+(define (extract-template-map js-src)
+  (for/hash ([m (in-list (regexp-match* TEMPLATE-DEF-RX
+                                        js-src
+                                        #:match-select values))])
+    (define var-name (second m))
+    (define template-body (third m))
+    (values var-name (decode-template-literal template-body))))
 
-(defrel (mod+1o bn)
-  (conde
-   [(== bn `(0 1))]
-   [(fresh (a ad dd)
-      (== `(,a ,ad . ,dd) bn)
-      (conde
-       [(== a ad) (mod+1o dd)]
-       [(== `(,a ,ad) '(1 0)) (mod+2o dd)]
-       [(== `(,a ,ad) '(0 1)) (same-counto dd)]))]))
+(define (extract-example-refs js-src)
+  (for/list ([m (in-list (regexp-match* ARRAY-ENTRY-RX
+                                        js-src
+                                        #:match-select values))])
+    (list (second m) (third m))))
 
-(defrel (mod+2o bn)
-  (conde
-   [(== bn '(1))]
-   [(fresh (a ad dd)
-      (== `(,a ,ad . ,dd) bn)
-      (conde
-       [(== a ad) (mod+2o dd)]
-       [(== `(,a ,ad) '(1 0)) (same-counto dd)]
-       [(== `(,a ,ad) '(0 1)) (mod+1o dd)]))]))
-
-(defrel (multiple-of-threeo bn)
-  (conde
-   [(== bn '())]
-   [(same-counto bn)]))
-
-(run* (q) (multiple-of-threeo q))")))
+(define (frontend-example-programs)
+  (define js-src (file->string FRONTEND-EXAMPLES-PATH))
+  (define templates (extract-template-map js-src))
+  (for/list ([entry (in-list (extract-example-refs js-src))])
+    (match-define (list value-var label) entry)
+    (define maybe-src (hash-ref templates value-var #f))
+    (unless maybe-src
+      (error 'frontend-example-programs
+             (format "example value ~a (label ~a) has no matching template definition"
+                     value-var
+                     label)))
+    (cons label maybe-src)))
 
 (define (read-all port)
   (let ([expr (read port)])
@@ -110,29 +69,22 @@
   (check-true (redex-match? L p legacy) (format "~a should parse as legacy L program" name))
   (check-true (judgment-holds (closed-program? ,legacy))
               (format "~a should be closed in legacy judgments" name))
-  (define lifted (legacy-program->l4-config legacy))
+  (define lifted (legacy-program->canonical-config legacy))
   (check-true (redex-match? L4 config lifted)
               (format "~a should lift into L4 config syntax" name))
-  (check-true (l4-config? lifted)
-              (format "~a should satisfy adapter L4 predicate" name)))
-
-(define (lookup-example name)
-  (define maybe (assoc name EXAMPLE-PROGRAMS))
-  (if maybe
-      (cdr maybe)
-      (error 'lookup-example "missing example ~a" name)))
+  (check-true (canonical-config? lifted)
+              (format "~a should satisfy canonical target predicate (~a)"
+                      name
+                      canonical-target-id)))
 
 (define/provide-test-suite EXAMPLE-COMPAT
-  (test-case "frontend example appendo parses and lifts to L4"
-    (assert-example-compat! "appendo" (lookup-example "appendo")))
-  (test-case "frontend example appendoh1 parses and lifts to L4"
-    (assert-example-compat! "appendoh1" (lookup-example "appendoh1")))
-  (test-case "frontend example appendoh2 parses and lifts to L4"
-    (assert-example-compat! "appendoh2" (lookup-example "appendoh2")))
-  (test-case "frontend example same parses and lifts to L4"
-    (assert-example-compat! "same" (lookup-example "same")))
-  (test-case "frontend example div3o parses and lifts to L4"
-    (assert-example-compat! "div3o" (lookup-example "div3o"))))
+  (test-case "frontend examples parse and lift to canonical target"
+    (define examples (frontend-example-programs))
+    (check-true (pair? examples)
+                "frontend/src/utils/example_programs.js did not yield runnable examples")
+    (for ([pr (in-list examples)])
+      (match-define (cons label src) pr)
+      (assert-example-compat! label src))))
 
 (module+ test
   (run-tests EXAMPLE-COMPAT))

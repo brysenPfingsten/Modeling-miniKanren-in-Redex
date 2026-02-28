@@ -32,13 +32,13 @@
   (let ([z (session-zipper s)])
     (zipper-init! z)
     (zipper-add! z (step "Initialize Program" p))
-    (set-session-nqv! s (num-query-vars (l4-config->legacy-program p)))))
+    (set-session-nqv! s (num-query-vars (canonical-config->legacy-program p)))))
 
 
 ;; program->display-prog: program -> legacy-program
 ;; Purpose: Keep existing JSON/transpiler view logic while stepping L4 configs.
 (define (program->display-prog prog)
-  (l4-config->legacy-program prog))
+  (canonical-config->legacy-program prog))
 
 
 ;; step->response: step nat nat-> response
@@ -125,9 +125,10 @@
   (define sexpr-prog (read-all (open-input-string raw-prog)))         ;; Read the program into sexpressions
   (define-values (legacy-prog html-prog) (parse-prog sexpr-prog))      ;; Parse the sexpressions
   (check-well-formed legacy-prog)                                      ;; Legacy parser/wf gate
-  (define model-prog (legacy-program->l4-config legacy-prog))          ;; Target syntax migration
-  (unless (l4-config? model-prog)
-    (error 'init! "transpiler produced a program outside L4 syntax"))
+  (define model-prog (legacy-program->canonical-config legacy-prog))   ;; Target syntax migration
+  (unless (canonical-config? model-prog)
+    (error 'init! (format "transpiler produced a program outside canonical target ~a"
+                          canonical-target-id)))
   (init-session! ses model-prog)                                       ;; Initialize all state variables
   (match-define (session zip _ nqv) ses)                              ;; Get zipper and number query vars
   (define init-step (zipper-curr zip))                                ;; Get the initial program

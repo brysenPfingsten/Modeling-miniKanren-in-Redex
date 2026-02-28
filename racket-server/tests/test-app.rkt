@@ -6,7 +6,8 @@
          net/url-structs
          json
          "../src/app.rkt"
-         "../src/zipper.rkt")
+         "../src/zipper.rkt"
+         "../src/legacy-variant-adapter.rkt")
 
 (define sample-tree
   '(((∃
@@ -259,7 +260,7 @@
   #:before (thunk (displayln "Running tests for list-models!..."))
   #:after (thunk (displayln "Finished running tests for list-models!."))
 
-  (test-case "list-models! returns known backend models with parser profile"
+  (test-case "list-models! returns known backend models with parser contract"
              (define response (list-models!))
              (check-equal? (response-code response) 200)
              (define models (string->jsexpr (get-response-out response)))
@@ -268,7 +269,10 @@
              (check-true (for/or ([m (in-list models)])
                            (equal? (hash-ref m 'id #f) "microKanren")))
              (check-true (for/and ([m (in-list models)])
-                           (hash-has-key? m 'parserProfile)))))
+                           (and (hash-has-key? m 'parserProfile)
+                                (hash-has-key? m 'parserTarget)
+                                (equal? (hash-ref m 'parserTarget #f)
+                                        canonical-target-id))))))
 
 (define/provide-test-suite APP
   #:before (thunk (displayln "Running tests for app.rkt..."))

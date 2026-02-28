@@ -1,11 +1,13 @@
 #lang racket
 
-(require (prefix-in var: "reduction-relations/extensions/variant-relations.rkt"))
+(require (prefix-in var: "reduction-relations/extensions/variant-relations.rkt")
+         "legacy-variant-adapter.rkt")
 
 (provide model-spec?
          model-spec-id
          model-spec-label
          model-spec-parser-profile
+         model-spec-parser-target
          model-spec-step-once
          all-model-specs
          default-model-id
@@ -13,14 +15,26 @@
          lookup-model-step-once
          model-spec->jsexpr)
 
-(struct model-spec (id label parser-profile step-once) #:transparent)
+(struct model-spec (id label parser-profile parser-target step-once) #:transparent)
 
 ;; This is intentionally a backend-only source of truth for model dispatch.
 ;; Frontend option wiring can consume this later without changing stepping code.
 (define all-model-specs
-  (list (model-spec "microKanren" "microKanren (L4/Rrail-l)" "surface->l4" var:step-once/Rrail-l)
-        (model-spec "dmitry" "Dmitry et al. (L4/Rrail-e)" "surface->l4" var:step-once/Rrail-e)
-        (model-spec "dfs" "DFS (L4/Rrail-l)" "surface->l4" var:step-once/Rrail-l)))
+  (list (model-spec "microKanren"
+                    "microKanren (L4/Rrail-l)"
+                    canonical-parser-profile
+                    canonical-target-id
+                    var:step-once/Rrail-l)
+        (model-spec "dmitry"
+                    "Dmitry et al. (L4/Rrail-e)"
+                    canonical-parser-profile
+                    canonical-target-id
+                    var:step-once/Rrail-e)
+        (model-spec "dfs"
+                    "DFS (L4/Rrail-l)"
+                    canonical-parser-profile
+                    canonical-target-id
+                    var:step-once/Rrail-l)))
 
 (define default-model-id "microKanren")
 
@@ -39,4 +53,5 @@
 (define (model-spec->jsexpr spec)
   (hasheq 'id (model-spec-id spec)
           'label (model-spec-label spec)
-          'parserProfile (model-spec-parser-profile spec)))
+          'parserProfile (model-spec-parser-profile spec)
+          'parserTarget (model-spec-parser-target spec)))
