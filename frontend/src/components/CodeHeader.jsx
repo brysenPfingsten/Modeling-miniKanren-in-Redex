@@ -2,18 +2,12 @@ import React, { useEffect } from "react";
 import "../styles.css";
 import { examplesForModel } from "../utils/example_programs.js";
 
-
-const modelOptions = [
-  { value: "microKanren", label: "µKanren" },
-  { value: "dmitry",      label: "Dmitry et al." },
-  { value: "dfs",         label: "DFS"}
-];
-
 export default function CodeHeader({
   logoSrc,
   programText,
   onProgramChange,
   modelValue,
+  modelOptions = [],
   onModelChange,
   isFrozen,
 }) {
@@ -33,12 +27,18 @@ export default function CodeHeader({
 
   // TODO: Maybe add some error handling here
   const changeModel = async (newModel) => {
-    onModelChange(newModel);
-    fetch('api/post/model', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json'},
-      body: JSON.stringify({ model: newModel})
-    });
+    try {
+      const response = await fetch('api/post/model', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json'},
+        body: JSON.stringify({ model: newModel})
+      });
+      if (response.ok) {
+        onModelChange(newModel);
+      }
+    } catch (_) {
+      // Keep current model selection when request fails.
+    }
   }
 
   return (

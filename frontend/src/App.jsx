@@ -16,6 +16,11 @@ function App() {
   const originalCodeRef = useRef('');
   const [predefinedCodeText, setPredefinedCodeText] = useState('');
   const [model, setModel] = useState('microKanren');
+  const [modelOptions, setModelOptions] = useState([
+    { value: "microKanren", label: "µKanren" },
+    { value: "dmitry",      label: "Dmitry et al." },
+    { value: "dfs",         label: "DFS" }
+  ]);
   const [isFrozen, setFrozen] = useState(false);
   const [alert, setAlert] = useState({ isOpen: false, message: '' });
   const treeRef = useRef();
@@ -86,6 +91,31 @@ function App() {
       }
   }, [tree]);
 
+  useEffect(() => {
+    let active = true;
+    const loadModels = async () => {
+      try {
+        const response = await fetch('api/get/models');
+        if (!response.ok) return;
+        const models = await response.json();
+        if (!Array.isArray(models) || models.length === 0) return;
+        const nextOptions = models
+          .filter((m) => m && m.id && m.label)
+          .map((m) => ({ value: m.id, label: m.label }));
+        if (nextOptions.length === 0) return;
+        if (!active) return;
+        setModelOptions(nextOptions);
+        if (!nextOptions.some((opt) => opt.value === model)) {
+          setModel(nextOptions[0].value);
+        }
+      } catch (_) {
+        // Keep local fallback model options on fetch failure.
+      }
+    };
+    loadModels();
+    return () => { active = false; };
+  }, []);
+
   return (
     <div className="container">
       <Resizable>
@@ -95,6 +125,7 @@ function App() {
             programText={code}
             onProgramChange={setPredefinedCodeText}
             modelValue={model}
+            modelOptions={modelOptions}
             onModelChange={setModel}
             isFrozen={isFrozen}
            />
