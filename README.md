@@ -32,6 +32,8 @@ Use the lane that matches what you are validating.
 raco test racket-server/tests/test-all-headless.rkt
 ```
 
+Includes syntax-compat checks that frontend example programs parse and lift to `L4` target syntax.
+
 ### **2) App/API regression lane**
 
 ```sh
@@ -68,7 +70,7 @@ GET /api/get/models
 Each entry includes:
 - `id` (used by `POST /api/post/model`)
 - `label` (display name)
-- `parserProfile` (currently `"legacy"` for all registered models)
+- `parserProfile` (currently `"surface->l4"` for all registered models)
 
 ## **Configuration**
 
