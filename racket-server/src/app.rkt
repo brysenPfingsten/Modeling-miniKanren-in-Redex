@@ -192,14 +192,20 @@
 
 ;; get-or-create-session-id: req -> string
 ;; Purpose: Gets the session id from cookies or creates a new one
+(define (cookie-field->string v)
+  (cond
+    [(string? v) v]
+    [(bytes? v) (bytes->string/utf-8 v)]
+    [(symbol? v) (symbol->string v)]
+    [else (format "~a" v)]))
+
 (define (get-or-create-session-id req)
-  (let* ([cookies (map (λ (c) (cons (client-cookie-name c)
-                                    (client-cookie-value c)))
-                       (request-cookies req))]
-         [maybe-session (assoc "session-id" cookies)])
-    (if maybe-session
-        (cdr maybe-session)
-        (symbol->string (gensym 'sess-)))))
+  (or
+   (for/first ([c (in-list (request-cookies req))]
+               #:when (string=? (cookie-field->string (client-cookie-name c))
+                                "session-id"))
+     (cookie-field->string (client-cookie-value c)))
+   (symbol->string (gensym 'sess-))))
 
 
 ;; get-session: string -> session

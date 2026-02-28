@@ -12,7 +12,9 @@
   [K ::= hole
          (K × g c)
          (delay K)
-         (K <-+ s)]
+         (K <-+ s)
+         (K +-> s)
+         (s +-> K)]
   [K3 ::= K]
   [K4 ::= hole
           (K4 × g c)

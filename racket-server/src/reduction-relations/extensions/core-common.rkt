@@ -1,7 +1,8 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../../core-definitions.rkt")
+         "../../core-definitions.rkt"
+         "./common.rkt")
 
 (check-redundancy #t)
 
@@ -28,10 +29,13 @@
          (empty-tree)
          "core/conj-prune-fail"]
     [--> ((∃ d g tag) (state sub c trail tag_1))
-         ((subst-goal g ((x_1 u_1) ...))
+         (g_new
           (state sub (u_1 ... ,@(term c)) trail tag_1))
          (where ((x_1 u_1) ...)
                 (fresh-substitution c d))
+         (where g_new
+                ,(subst-goal-host (term g)
+                                  (term ((x_1 u_1) ...))))
          "core/fresh-substitute"]
     [--> ((t_1 =? t_2 tag) (state sub c ((t_3 =? t_4 tag_1) ...) tag_2))
          (⊤ (state sub_1 c ((t_3 =? t_4 tag_1) ... (t_1 =? t_2 tag)) tag_2))
