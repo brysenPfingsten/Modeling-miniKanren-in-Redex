@@ -110,6 +110,14 @@ This note is a restart map: what has been decided, what is provisional, and what
    - parser profile may differ by selected language/semantics,
    - example dropdown should be model-compatible rather than global.
 
+### 3.1) Legacy-to-Variant Migration Targets (working map)
+- `reduction-relations.rkt` (legacy "microKanren" backend) -> **`Rrail-l`** as closest lattice target.
+  - Rationale: lazy call expansion + railroad left/right delay transitions are the closest behavioral match.
+- `dfs.rkt` (legacy DFS backend) -> **`Rbase-l`** as closest current lattice target.
+  - Caveat: this is the closest available branch today; an exact "delay-free DFS + calls + disj" target is still a candidate sibling variant.
+- `dmitry-and-dmitry.rkt` -> **no 1:1 lattice target yet**.
+  - This remains an explicitly different semantics family pending transformation/embedding strategy.
+
 ## 4) Dependency Map (what constrains what)
 
 ### A. `c` discipline
