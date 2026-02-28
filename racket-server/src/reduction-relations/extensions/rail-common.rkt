@@ -9,16 +9,23 @@
 
 (define-extended-language L4/K
   L4
+  ;; Base stepping context in railroad syntax:
+  ;; - left branch for <-+
+  ;; - right branch for +-> (rail mode)
+  ;; - never descend through delay
   [K ::= hole
          (K × g c)
-         (delay K)
          (K <-+ s)
-         (K +-> s)
          (s +-> K)]
+  ;; Core staged contexts inherited from L3/K relations.
+  [Kcore ::= hole
+             (Kcore × g c)]
+  [Kleft ::= hole
+             (Kleft <-+ s)
+             (s +-> Kleft)]
+  [Kcall ::= hole
+             (Kcall × g c)]
+  [Kinvoke ::= hole
+               (Kinvoke × g c)]
   [K3 ::= K]
-  [K4 ::= hole
-          (K4 × g c)
-          (delay K4)
-          (K4 <-+ s)
-          (K4 +-> s)
-          (s +-> K4)])
+  [K4 ::= K])

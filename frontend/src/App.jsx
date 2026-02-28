@@ -122,7 +122,7 @@ function App() {
         <div className="input-container">
           <CodeHeader
             logoSrc={darkMode ? "/mk_logo_white.png" : "/mk_logo_black.png"}
-            programText={code}
+            programText={predefinedCodeText}
             onProgramChange={setPredefinedCodeText}
             modelValue={model}
             modelOptions={modelOptions}

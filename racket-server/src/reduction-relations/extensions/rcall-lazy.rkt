@@ -13,22 +13,18 @@
   (reduction-relation
     L1/K
     #:domain config
-    [--> (Γ ans* (in-hole K ((r t ... tag) σ)))
-         (Γ ans* (in-hole K (delay (proceed ((r t ... tag) σ)))))
+    [--> (Γ ans* (in-hole Kcall ((r t ... tag) σ)))
+         (Γ ans* (in-hole Kcall (delay (proceed ((r t ... tag) σ)))))
          "call/lazy-suspend-call"]
 
-    [--> (Γ ans* (in-hole K (delay (proceed ((r t ... tag) σ)))))
-         (Γ ans* (in-hole K (proceed ((r t ... tag) σ))))
+    [--> (Γ ans* (in-hole Kcall (delay (proceed ((r t ... tag) σ)))))
+         (Γ ans* (in-hole Kcall (proceed ((r t ... tag) σ))))
          "call/lazy-invoke-delay"]
 
-    [--> (Γ ans* (in-hole K (proceed ((r t ... tag) σ))))
-         (Γ ans* (in-hole K (g_new σ)))
+    [--> (Γ ans* (in-hole Kcall (proceed ((r t ... tag) σ))))
+         (Γ ans* (in-hole Kcall (g_new σ)))
          (where g_new ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
-         "call/lazy-expand-on-resume"]
-
-    [--> (Γ ans* (in-hole K (proceed (g σ))))
-         (Γ ans* (in-hole K (g σ)))
-         "call/lazy-resume-goal"]))
+         "call/lazy-expand-on-resume"]))
 
 (define base-l1/k
   (extend-reduction-relation
