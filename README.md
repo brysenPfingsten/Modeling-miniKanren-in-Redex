@@ -80,8 +80,8 @@ Use this if you are jumping in with no project history:
 - Canonical parser/transpiler target is **L4 config syntax**:
   - `parserProfile = "surface->l4"`
   - `parserTarget = "L4/config"`
-- Backend canonical adapter entry points live in:
-  - `racket-server/src/legacy-variant-adapter.rkt`
+- Backend canonical entry points live in:
+  - `racket-server/src/transpiler.rkt` (`parse-prog/canonical`)
   - `racket-server/src/app.rkt` (`init!` enforces canonical config shape)
   - `racket-server/src/model-registry.rkt` (exposes parser contract in `/api/get/models`)
 - Frontend examples are source-of-truth in:

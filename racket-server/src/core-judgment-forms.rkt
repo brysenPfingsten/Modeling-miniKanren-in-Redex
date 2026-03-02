@@ -544,8 +544,40 @@
 (module+ test
   (require rackunit
            redex/reduction-semantics
-           racket/list
-           (prefix-in h: "../tests/helpers.rkt"))
+           racket/list)
+
+  ;; Keep randomized helper utilities local to this test submodule so runtime
+  ;; module loading never depends on files under ../tests.
+  (define (make-seeded-rng seed)
+    (define rng (make-pseudo-random-generator))
+    (parameterize ([current-pseudo-random-generator rng])
+      (random-seed seed))
+    rng)
+
+  (define (rng-random rng n)
+    (parameterize ([current-pseudo-random-generator rng])
+      (random n)))
+
+  (define (remove-at xs i)
+    (define-values (prefix suffix) (split-at xs i))
+    (if (null? suffix) prefix (append prefix (cdr suffix))))
+
+  (define (random-distinct/rng rng pool n)
+    (define limit (min n (length pool)))
+    (let loop ([avail pool] [k limit] [acc '()])
+      (if (or (zero? k) (null? avail))
+          (reverse acc)
+          (let* ([idx (rng-random rng (length avail))]
+                 [pick (list-ref avail idx)])
+            (loop (remove-at avail idx) (sub1 k) (cons pick acc))))))
+
+  (define (gen-primitive/rng rng)
+    (case (rng-random rng 5)
+      [(0) `(sym ,(format "s~a" (rng-random rng 1000)))]
+      [(1) `(nat ,(rng-random rng 1000))]
+      [(2) (if (zero? (rng-random rng 2)) #t #f)]
+      [(3) `(str ,(format "str~a" (rng-random rng 1000)))]
+      [else 'empty]))
 
   ;; Randomized test tuning constants.
   ;; Edit these values directly when you want different pressure/coverage.
@@ -559,10 +591,10 @@
   (define JUDGMENT-MIN-UNIFY-FAILURES 1)
   (define JUDGMENT-MIN-PAIR-CASES 1)
 
-  (define JUDGMENT-RNG (h:make-seeded-rng JUDGMENT-PROP-SEED))
+  (define JUDGMENT-RNG (make-seeded-rng JUDGMENT-PROP-SEED))
 
   (define (jrandom n)
-    (h:rng-random JUDGMENT-RNG n))
+    (rng-random JUDGMENT-RNG n))
 
   (displayln
    (format "[core-judgment-forms] randomized checks attempts=~a size=~a seed=~a"
@@ -598,7 +630,7 @@
               (if (null? c) '() '(logic-var))
               (if (zero? depth) '() '(pair))))
     (case (list-ref choices (jrandom (length choices)))
-      [(primitive) (h:gen-primitive/rng JUDGMENT-RNG)]
+      [(primitive) (gen-primitive/rng JUDGMENT-RNG)]
       [(logic-var) (list-ref c (jrandom (length c)))]
       [(pair) `(,(gen-wf-term c (sub1 depth)) : ,(gen-wf-term c (sub1 depth)))]))
 
@@ -606,7 +638,7 @@
   ;; the wf-tree antecedent used by the randomized unify checks.
   (define (generate-wf-eq-sample)
     (define c-size (add1 (jrandom JUDGMENT-C-MAX)))
-    (define c (h:random-distinct/rng JUDGMENT-RNG U-POOL c-size))
+    (define c (random-distinct/rng JUDGMENT-RNG U-POOL c-size))
     (define depth JUDGMENT-MAX-DEPTH)
     (define t_1 (gen-wf-term c depth))
     ;; Bias half the time to guaranteed unification success.
@@ -617,14 +649,14 @@
   ;; all bindings map to primitive terms only.
   (define (generate-walk-sample)
     (define c-size (add1 (jrandom JUDGMENT-C-MAX)))
-    (define c (h:random-distinct/rng JUDGMENT-RNG U-POOL c-size))
+    (define c (random-distinct/rng JUDGMENT-RNG U-POOL c-size))
     (define depth JUDGMENT-MAX-DEPTH)
     (define t* (gen-wf-term c depth))
     (define binding-count (jrandom (add1 c-size)))
-    (define dom (h:random-distinct/rng JUDGMENT-RNG c binding-count))
+    (define dom (random-distinct/rng JUDGMENT-RNG c binding-count))
     (define sub*
       (for/list ([u (in-list dom)])
-        (list u (h:gen-primitive/rng JUDGMENT-RNG))))
+        (list u (gen-primitive/rng JUDGMENT-RNG))))
     (list t* sub*))
 
   ;; Deterministic must-hit samples keep minimum-threshold checks stable.
