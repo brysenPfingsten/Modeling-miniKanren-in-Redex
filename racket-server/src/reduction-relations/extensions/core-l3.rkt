@@ -27,9 +27,6 @@
   ;; Call-step base context; left-disjunction lifting is applied separately.
   [Kcall ::= hole
              (Kcall × g c)]
-  ;; Administrative delay invocation context (no disjunction descent).
-  [Kinvoke ::= hole
-               (Kinvoke × g c)]
   [K3 ::= K])
 
 (define core-step/base-l3 (context-closure core-redex/l3 L3/K Kcore))

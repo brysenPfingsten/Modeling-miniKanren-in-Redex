@@ -14,9 +14,10 @@ export default function CodeHeader({
   const availableExamples = examplesForModel(modelValue);
 
   useEffect(() => {
+    if (isFrozen) return;
     const stillAvailable = availableExamples.some((opt) => opt.value === programText);
     if (!stillAvailable) onProgramChange("");
-  }, [availableExamples, programText, onProgramChange]);
+  }, [availableExamples, programText, onProgramChange, isFrozen]);
 
   const renderOptions = (opts) =>
     opts.map(({ value, label }) => (

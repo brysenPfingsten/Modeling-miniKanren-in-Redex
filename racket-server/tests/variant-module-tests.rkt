@@ -79,12 +79,62 @@
        next
        (term (() () (delay ((⊤ (state () () () (label "b"))) <-+ (empty-tree))))))))
 
+  (test-case "Rflip-e and Rflip-l propagate delay over left disjunction before resuming proceed"
+    (define cfg
+      (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
+             ()
+             ((delay
+               (proceed
+                ((r:id (sym "ok") (label "call"))
+                 (state () () () (label "s")))))
+              <-+
+              (⊤ (state () () () (label "b")))))))
+    (for ([rel (in-list (list fe:Rflip-e fl:Rflip-l))])
+      (define named-next* (apply-reduction-relation/tag-with-names rel cfg))
+      (check-equal? (length named-next*) 1)
+      (check-equal? (first (first named-next*)) "flip/delay-swap-left")
+      (check-equal?
+       (second (first named-next*))
+       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
+              ()
+              (delay
+               ((⊤ (state () () () (label "b")))
+                <-+
+                (proceed
+                 ((r:id (sym "ok") (label "call"))
+                  (state () () () (label "s")))))))))))
+
   (test-case "Rrail-e and Rrail-l introduce right-pointing disjunction"
     (for ([rel (in-list (list re:Rrail-e rl:Rrail-l))])
       (define next (first (apply-reduction-relation rel cfg-rail)))
       (check-equal?
        next
        (term (() () (delay ((empty-tree) +-> (⊤ (state () () () (label "b")))))))))))
+
+  (test-case "Rrail-e and Rrail-l propagate delay into railroad branch before resuming proceed"
+    (define cfg
+      (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
+             ()
+             ((delay
+               (proceed
+                ((r:id (sym "ok") (label "call"))
+                 (state () () () (label "s")))))
+              <-+
+              (⊤ (state () () () (label "b")))))))
+    (for ([rel (in-list (list re:Rrail-e rl:Rrail-l))])
+      (define named-next* (apply-reduction-relation/tag-with-names rel cfg))
+      (check-equal? (length named-next*) 1)
+      (check-equal? (first (first named-next*)) "rail/enter-right")
+      (check-equal?
+       (second (first named-next*))
+       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
+              ()
+              (delay
+               ((proceed
+                 ((r:id (sym "ok") (label "call"))
+                  (state () () () (label "s"))))
+                +->
+                (⊤ (state () () () (label "b"))))))))))
 
 (define/provide-test-suite VARIANT-MODULES
   LANGUAGE-MODULES

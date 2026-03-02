@@ -37,6 +37,10 @@
       (string->number (second m))
       0))
 
+(define (relation-symbol? s)
+  (and (symbol? s)
+       (regexp-match? r-rx (symbol->string s))))
+
 (define (legacy-tag->label o)
   (match o
     [`(label ,_) o]
@@ -167,8 +171,10 @@
     [`(,s1 <-+ ,s2) (or (first-c-in-core-tree s1) (first-c-in-core-tree s2))]
     [`(,s1 +-> ,s2) (or (first-c-in-core-tree s1) (first-c-in-core-tree s2))]
     [`(delay ,s1) (first-c-in-core-tree s1)]
+    [`(proceed ((,r ,_t ... ,_tag) (state ,_sub ,c ,_trail ,_tag2)))
+     #:when (relation-symbol? r)
+     c]
     [`(proceed (,g ,_σ)) (if (equal? g 'empty-tree) '() '())]
-    [`(proceed ((,r ,_t ... ,_tag) (state ,_sub ,c ,_trail ,_tag2))) c]
     [_ #f]))
 
 (define (legacy-tree->core s)
@@ -199,6 +205,7 @@
     [`(,s1 +-> ,s2) `(,(core-tree->legacy s1) +-> ,(core-tree->legacy s2))]
     [`(,s1 × ,g ,_c) `(,(core-tree->legacy s1) × ,(core-goal->legacy g))]
     [`(proceed ((,r ,ts ... ,tag) ,σ))
+     #:when (relation-symbol? r)
      `(proceed ((,r ,@(map core-term->legacy ts) ,(label->legacy-tag tag))
                 ,(core-state->legacy σ)))]
     [`(proceed (,g ,σ))

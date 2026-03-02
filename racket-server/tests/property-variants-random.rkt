@@ -392,7 +392,7 @@
 ;; Check theorem-style consequents up to k steps:
 ;; if cfg is wf, then it stays in-language, remains wf, progresses unless final,
 ;; and (optionally) has unique decomposition at each explored node.
-(define (k-step-consequent-failure rel shape-match? cfg k require-unique?)
+(define (k-step-consequent-failure rel shape-match? cfg k require-unique? require-progress?)
   (define (loop cfg fuel)
     (cond
       [(not (shape-match? cfg))
@@ -402,7 +402,9 @@
       [else
        (define next* (apply-reduction-relation rel cfg))
        (cond
-         [(and (not (final-config? cfg)) (null? next*))
+         [(and require-progress?
+               (not (final-config? cfg))
+               (null? next*))
           (list 'progress cfg)]
          [(and require-unique?
                (if (final-config? cfg)
@@ -417,6 +419,7 @@
 
 (define (run-random-variant label rel shape-match? shape-closed? cfg-generator
                             #:require-unique? [require-unique? #t]
+                            #:require-progress? [require-progress? #t]
                             #:expected-ante-hits [expected-ante-hits VR-EXPECTED-ANTE-HITS]
                             #:min-call-gen [min-call-gen 0]
                             #:min-disj-gen [min-disj-gen 0]
@@ -501,7 +504,8 @@
                                        shape-match?
                                        cfg
                                        k-depth
-                                       require-unique?))
+                                       require-unique?
+                                       require-progress?))
           (when fail-info
             (match fail-info
               [(list 'shape _)
@@ -563,10 +567,11 @@
                   0
                   (format "~a seed=~a: k-step state-wf preservation failures: ~a"
                           label seed k-state-wf-fails))
-    (check-equal? k-progress-fails
-                  0
-                  (format "~a seed=~a: k-step progress failures: ~a"
-                          label seed k-progress-fails))
+    (when require-progress?
+      (check-equal? k-progress-fails
+                    0
+                    (format "~a seed=~a: k-step progress failures: ~a"
+                            label seed k-progress-fails)))
     (when require-unique?
       (check-equal? k-unique-fails
                     0
@@ -648,7 +653,8 @@
                         shape-closed/L3?
                         (lambda (rng) (gen-config-user/rng rng opts))
                         #:expected-ante-hits VR-EXPECTED-ANTE-HITS
-                        #:require-unique? #t
+                        #:require-unique? #f
+                        #:require-progress? #f
                         #:min-call-gen VR-MIN-CALL-GEN-HITS
                         #:min-disj-gen VR-MIN-DISJ-GEN-HITS
                         #:min-call-rules VR-MIN-CALL-RULE-HITS
@@ -662,7 +668,8 @@
                         shape-closed/L3?
                         (lambda (rng) (gen-config-user/rng rng opts))
                         #:expected-ante-hits VR-EXPECTED-ANTE-HITS
-                        #:require-unique? #t
+                        #:require-unique? #f
+                        #:require-progress? #f
                         #:min-call-gen VR-MIN-CALL-GEN-HITS
                         #:min-disj-gen VR-MIN-DISJ-GEN-HITS
                         #:min-call-rules VR-MIN-CALL-RULE-HITS

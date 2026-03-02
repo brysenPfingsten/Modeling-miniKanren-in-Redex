@@ -18,13 +18,22 @@
          (where g_new ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
          "call/eager-suspend-expanded"]
 
-    [--> (Γ ans* (in-hole Kcall (delay (proceed (g σ)))))
-         (Γ ans* (in-hole Kcall (proceed (g σ))))
+    [--> (Γ ans* (delay (proceed (g σ))))
+         (Γ ans* (proceed (g σ)))
          "call/eager-invoke-delay"]
+
+    [--> (Γ ans* (delay s_1))
+         (Γ ans* s_1)
+         (side-condition (not (redex-match? L1/K (proceed pr) (term s_1))))
+         "call/invoke-delay"]
 
     [--> (Γ ans* (in-hole Kcall (proceed (g σ))))
          (Γ ans* (in-hole Kcall (g σ)))
-         "call/eager-resume-goal"]))
+         "call/eager-resume-goal"]
+
+    [--> (Γ ans* (in-hole Kcall ((delay s_1) × g c)))
+         (Γ ans* (in-hole Kcall (delay (s_1 × g c))))
+         "call/delay-through-conj"]))
 
 (define base-l1/k
   (extend-reduction-relation

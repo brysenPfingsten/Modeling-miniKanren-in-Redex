@@ -6,6 +6,7 @@
          "./rdisj-left.rkt"
          "./rbase-e.rkt"
          "./rbase-l.rkt"
+         "./rbase-l4.rkt"
          "./rflip-e.rkt"
          "./rflip-l.rkt"
          "./rrail-e.rkt"
@@ -16,6 +17,7 @@
          Rdisj-left
          Rbase-e
          Rbase-l
+         Rbase-l4
          Rflip-e
          Rflip-l
          Rrail-e
@@ -25,6 +27,7 @@
          step-once/Rdisj-left
          step-once/Rbase-e
          step-once/Rbase-l
+         step-once/Rbase-l4
          step-once/Rflip-e
          step-once/Rflip-l
          step-once/Rrail-e
@@ -45,6 +48,9 @@
 
 (define (step-once/Rbase-l prog)
   (apply-reduction-relation/tag-with-names Rbase-l (term ,prog)))
+
+(define (step-once/Rbase-l4 prog)
+  (apply-reduction-relation/tag-with-names Rbase-l4 (term ,prog)))
 
 (define (step-once/Rflip-e prog)
   (apply-reduction-relation/tag-with-names Rflip-e (term ,prog)))

@@ -78,13 +78,45 @@ const div3o = `(defrel (same-counto bn)
 
 (run* (q) (multiple-of-threeo q))`
 
-const ALL_MODELS = ["microKanren", "dmitry", "dfs"];
+const fivesFours = `(defrel (fives x)
+  (conde
+    [(fives x)]
+    [(== x 'five)]))
+
+(defrel (fours x)
+  (conde
+    [(fours x)]
+    [(== x 'four)]))
+
+(run 8 (q)
+  (conde
+    [(fives q)]
+    [(fours q)]))`
+
+const callTiming = `(defrel (id x y)
+  (== x y))
+
+(run 3 (q)
+  (id q 'ok))`
+
+const ALL_MODELS = [
+  "microKanren",
+  "microKanren-rail",
+  "microKanren-noi-flip",
+  "microKanren-rail-eager",
+  "microKanren-flip",
+  "microKanren-flip-eager",
+  "dmitry",
+  "dfs",
+];
 
 export const exampleProgs = [
   { value: "", label: "Examples", models: ALL_MODELS },
   { value: appendo, label: "appendo", models: ALL_MODELS },
   { value: appendoh1, label: "appendoh 1", models: ALL_MODELS },
   { value: appendoh2, label: "appendoh 2", models: ALL_MODELS },
+  { value: fivesFours, label: "fives/fours", models: ALL_MODELS },
+  { value: callTiming, label: "call timing", models: ALL_MODELS },
   { value: same, label: "same", models: ALL_MODELS },
   { value: div3o, label: "div3o", models: ALL_MODELS },
 ];

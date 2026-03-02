@@ -20,13 +20,17 @@
          (where g_new ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
          "call/eager-suspend-expanded"]
 
-    [--> (Γ ans* (in-hole Kleft (in-hole Kcall (delay (proceed (g σ))))))
-         (Γ ans* (in-hole Kleft (in-hole Kcall (proceed (g σ)))))
+    [--> (Γ ans* (delay (proceed (g σ))))
+         (Γ ans* (proceed (g σ)))
          "call/eager-invoke-delay"]
 
     [--> (Γ ans* (in-hole Kleft (in-hole Kcall (proceed (g σ)))))
          (Γ ans* (in-hole Kleft (in-hole Kcall (g σ))))
-         "call/eager-resume-goal"]))
+         "call/eager-resume-goal"]
+
+    [--> (Γ ans* (in-hole Kleft (in-hole Kcall ((delay s_1) × g c))))
+         (Γ ans* (in-hole Kleft (in-hole Kcall (delay (s_1 × g c)))))
+         "call/delay-through-conj"]))
 
 (define disj-extra/l3
   (reduction-relation

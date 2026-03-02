@@ -40,6 +40,41 @@
    5000
    "127.0.0.1"))
 
+(define (make-post-init-request program-text)
+  (make-request
+   #"POST"
+   (make-url #f #f #f #f #t
+             (list (make-path/param "post" empty)
+                   (make-path/param "init" empty))
+             empty
+             #f)
+   (list (make-header #"content-type" #"application/json"))
+   (delay '())
+   (string->bytes/utf-8 (jsexpr->string (hasheq 'text program-text)))
+   "127.0.0.1"
+   5000
+   "127.0.0.1"))
+
+(define disj-delay-program
+  "(defrel (same x y)
+     (== x y))
+
+   (run 2 (q)
+     (conde
+       [(same q 'cat)]
+       [(same q 'dog)]))")
+
+(define (collect-step-names ses limit)
+  (let loop ([i 0] [acc '()])
+    (if (>= i limit)
+        (reverse acc)
+        (let* ([response (step! ses)]
+               [out (get-response-out response)])
+          (if (string=? out "null")
+              (reverse acc)
+              (loop (add1 i)
+                    (cons (hash-ref (string->jsexpr out) 'stepName #f) acc)))))))
+
 (define-test-suite STEP!
   #:before (thunk (displayln "Running tests for step!..."))
   #:after  (thunk (displayln "Finished running tests for step!"))
@@ -239,10 +274,12 @@
              (define old-stepper step/const-tree-output)
              (define ses (session zip old-stepper 1))
              (define req (make-post-model-request "dfs"))
-             (define response (switch-model! ses req))
+             (define response (switch-model! ses req 'testid))
              (check-equal? (response-code response) 200)
              (check-true (procedure? (session-stepper ses)))
              (check-false (eq? (session-stepper ses) old-stepper))
+             (check-equal? (response-headers response)
+                           (list (header #"Set-Cookie" #"session-id=testid; Path=/; SameSite=Lax")))
              (check-equal? (string->jsexpr (get-response-out response))
                            (hasheq 'model "dfs")))
 
@@ -251,10 +288,40 @@
              (define old-stepper step/const-tree-output)
              (define ses (session zip old-stepper 1))
              (define req (make-post-model-request "nope"))
-             (define response (switch-model! ses req))
+             (define response (switch-model! ses req 'testid))
              (check-equal? (response-code response) 400)
              (check-true (eq? (session-stepper ses) old-stepper))
-             (check-true (hash-has-key? (string->jsexpr (get-response-out response)) 'error))))
+             (check-true (hash-has-key? (string->jsexpr (get-response-out response)) 'error)))
+
+  (test-case "flip model emits flip delay/disjunction rules (no railroad disjunction rules)"
+             (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
+             (check-equal? (response-code (switch-model! ses (make-post-model-request "microKanren-flip") 'testid)) 200)
+             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program) 'testid)) 200)
+             (define names (collect-step-names ses 24))
+             (check-not-false (member "flip/delay-swap-left" names))
+             (check-not-false (member "flip/invoke-delay" names))
+             (check-false (member "rail/enter-right" names))
+             (check-false (member "rail/return-left" names)))
+
+  (test-case "rail model emits railroad delay/disjunction rules (no flip disjunction rule)"
+             (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
+             (check-equal? (response-code (switch-model! ses (make-post-model-request "microKanren-rail") 'testid)) 200)
+             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program) 'testid)) 200)
+             (define names (collect-step-names ses 24))
+             (check-not-false (member "rail/enter-right" names))
+             (check-not-false (member "rail/return-left" names))
+             (check-not-false (member "rail/invoke-delay" names))
+             (check-false (member "flip/delay-swap-left" names)))
+
+  (test-case "rail eager model emits eager call rules after init"
+             (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
+             (check-equal? (response-code (switch-model! ses (make-post-model-request "microKanren-rail-eager") 'testid)) 200)
+             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program) 'testid)) 200)
+             (define names (collect-step-names ses 24))
+             (check-not-false (member "call/eager-suspend-expanded" names))
+             (check-not-false (member "call/eager-resume-goal" names))
+             (check-false (member "call/lazy-suspend-call" names))
+             (check-false (member "call/lazy-expand-on-resume" names))))
 
 (define-test-suite LIST-MODELS!
   #:before (thunk (displayln "Running tests for list-models!..."))
@@ -265,9 +332,14 @@
              (check-equal? (response-code response) 200)
              (define models (string->jsexpr (get-response-out response)))
              (check-true (list? models))
-             (check-true (>= (length models) 3))
-             (check-true (for/or ([m (in-list models)])
-                           (equal? (hash-ref m 'id #f) "microKanren")))
+             (check-true (>= (length models) 6))
+             (define ids (for/list ([m (in-list models)])
+                           (hash-ref m 'id #f)))
+             (check-not-false (member "microKanren-rail" ids))
+             (check-not-false (member "microKanren-noi-flip" ids))
+             (check-not-false (member "microKanren-rail-eager" ids))
+             (check-not-false (member "microKanren-flip" ids))
+             (check-not-false (member "microKanren-flip-eager" ids))
              (check-true (for/and ([m (in-list models)])
                            (and (hash-has-key? m 'parserProfile)
                                 (hash-has-key? m 'parserTarget)

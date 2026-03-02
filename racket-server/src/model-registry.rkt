@@ -20,11 +20,31 @@
 ;; This is intentionally a backend-only source of truth for model dispatch.
 ;; Frontend option wiring can consume this later without changing stepping code.
 (define all-model-specs
-  (list (model-spec "microKanren"
-                    "microKanren (L4/Rrail-l)"
+  (list (model-spec "microKanren-rail"
+                    "microKanren (Interleave + Railroad, Lazy)"
                     canonical-parser-profile
                     canonical-target-id
                     var:step-once/Rrail-l)
+        (model-spec "microKanren-noi-flip"
+                    "microKanren (No Interleave + Flip Syntax, Lazy)"
+                    canonical-parser-profile
+                    canonical-target-id
+                    var:step-once/Rbase-l)
+        (model-spec "microKanren-flip"
+                    "microKanren (Interleave + Flip-Flop, Lazy)"
+                    canonical-parser-profile
+                    canonical-target-id
+                    var:step-once/Rflip-l)
+        (model-spec "microKanren-rail-eager"
+                    "microKanren (Interleave + Railroad, Eager)"
+                    canonical-parser-profile
+                    canonical-target-id
+                    var:step-once/Rrail-e)
+        (model-spec "microKanren-flip-eager"
+                    "microKanren (Interleave + Flip-Flop, Eager)"
+                    canonical-parser-profile
+                    canonical-target-id
+                    var:step-once/Rflip-e)
         (model-spec "dmitry"
                     "Dmitry et al. (L4/Rrail-e)"
                     canonical-parser-profile
@@ -36,15 +56,19 @@
                     canonical-target-id
                     var:step-once/Rrail-l)))
 
-(define default-model-id "microKanren")
+(define default-model-id "microKanren-rail")
 
 (define spec-by-id
   (for/hash ([spec (in-list all-model-specs)])
     (values (model-spec-id spec) spec)))
 
 (define (lookup-model-spec model-id)
-  (and (string? model-id)
-       (hash-ref spec-by-id model-id #f)))
+  (define canonical-id
+    (cond
+      [(equal? model-id "microKanren") "microKanren-rail"]
+      [else model-id]))
+  (and (string? canonical-id)
+       (hash-ref spec-by-id canonical-id #f)))
 
 (define (lookup-model-step-once model-id)
   (define maybe-spec (lookup-model-spec model-id))

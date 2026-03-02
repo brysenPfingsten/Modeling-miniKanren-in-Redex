@@ -17,14 +17,23 @@
          (Γ ans* (in-hole Kcall (delay (proceed ((r t ... tag) σ)))))
          "call/lazy-suspend-call"]
 
-    [--> (Γ ans* (in-hole Kcall (delay (proceed ((r t ... tag) σ)))))
-         (Γ ans* (in-hole Kcall (proceed ((r t ... tag) σ))))
+    [--> (Γ ans* (delay (proceed ((r t ... tag) σ))))
+         (Γ ans* (proceed ((r t ... tag) σ)))
          "call/lazy-invoke-delay"]
+
+    [--> (Γ ans* (delay s_1))
+         (Γ ans* s_1)
+         (side-condition (not (redex-match? L1/K (proceed pr) (term s_1))))
+         "call/invoke-delay"]
 
     [--> (Γ ans* (in-hole Kcall (proceed ((r t ... tag) σ))))
          (Γ ans* (in-hole Kcall (g_new σ)))
          (where g_new ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
-         "call/lazy-expand-on-resume"]))
+         "call/lazy-expand-on-resume"]
+
+    [--> (Γ ans* (in-hole Kcall ((delay s_1) × g c)))
+         (Γ ans* (in-hole Kcall (delay (s_1 × g c))))
+         "call/delay-through-conj"]))
 
 (define base-l1/k
   (extend-reduction-relation

@@ -20,15 +20,18 @@
                  )
          "call/lazy-suspend-call"]
 
-    [--> (Γ ans* (in-hole Kleft (in-hole Kcall (delay (proceed ((r t ... tag) σ))))))
-         (Γ ans* (in-hole Kleft (in-hole Kcall (proceed ((r t ... tag) σ))))
-                 )
+    [--> (Γ ans* (delay (proceed ((r t ... tag) σ))))
+         (Γ ans* (proceed ((r t ... tag) σ)))
          "call/lazy-invoke-delay"]
 
     [--> (Γ ans* (in-hole Kleft (in-hole Kcall (proceed ((r t ... tag) σ)))))
          (Γ ans* (in-hole Kleft (in-hole Kcall (g_new σ))))
          (where g_new ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
-         "call/lazy-expand-on-resume"]))
+         "call/lazy-expand-on-resume"]
+
+    [--> (Γ ans* (in-hole Kleft (in-hole Kcall ((delay s_1) × g c))))
+         (Γ ans* (in-hole Kleft (in-hole Kcall (delay (s_1 × g c)))))
+         "call/delay-through-conj"]))
 
 (define disj-extra/l3
   (reduction-relation

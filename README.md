@@ -71,6 +71,29 @@ Each entry includes:
 - `id` (used by `POST /api/post/model`)
 - `label` (display name)
 - `parserProfile` (currently `"surface->l4"` for all registered models)
+- `parserTarget` (currently `"L4/config"` for all registered models)
+
+## **LLM Orientation (Minimal)**
+
+Use this if you are jumping in with no project history:
+
+- Canonical parser/transpiler target is **L4 config syntax**:
+  - `parserProfile = "surface->l4"`
+  - `parserTarget = "L4/config"`
+- Backend canonical adapter entry points live in:
+  - `racket-server/src/legacy-variant-adapter.rkt`
+  - `racket-server/src/app.rkt` (`init!` enforces canonical config shape)
+  - `racket-server/src/model-registry.rkt` (exposes parser contract in `/api/get/models`)
+- Frontend examples are source-of-truth in:
+  - `frontend/src/utils/example_programs.js`
+- Integration test auto-loads all frontend examples and checks parse + lift to canonical target:
+  - `racket-server/tests/example-compat-tests.rkt`
+
+Fast validation command:
+
+```sh
+raco test racket-server/tests/test-all-headless.rkt
+```
 
 ## **Configuration**
 

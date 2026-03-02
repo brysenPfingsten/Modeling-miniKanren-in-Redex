@@ -131,6 +131,14 @@
   [(walk u (name sub (_ ... [u t] _ ...))) (walk t sub)]
   [(walk t _) t])
 
+;; Pick the least-indexed u:n not already present in `used`.
+(define (fresh-u-symbol used)
+  (let loop ([n 0])
+    (define u (string->symbol (format "u:~a" n)))
+    (if (member u used)
+        (loop (add1 n))
+        u)))
+
 ;; Build ((x u) ...) where each u is fresh w.r.t. c and previously chosen u's.
 (define-metafunction Core
   fresh-substitution : c d -> ((x u) ...)
@@ -141,7 +149,7 @@
         (for/fold ([rev-pairs '()]
                    [used used0])
                   ([x (in-list xs)])
-          (define u (variable-not-in (cons 'u: used) 'u:))
+          (define u (fresh-u-symbol used))
           (values (cons (list x u) rev-pairs)
                   (cons u used))))
       (reverse rev-pairs))])
@@ -204,6 +212,10 @@
 
   (check-equal? (term (walk (u:2 : (sym "q")) ((u:2 (sym "p")))))
                 (term (u:2 : (sym "q"))))
+
+  (check-equal?
+   (term (fresh-substitution () (x:0)))
+   (term ((x:0 u:0))))
 
   (define fs-pairs
     (term (fresh-substitution (u:0 u:1) (x:0 x:1 x:2))))

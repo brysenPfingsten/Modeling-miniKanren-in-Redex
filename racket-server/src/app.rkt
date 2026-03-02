@@ -167,16 +167,24 @@
       [_ (step->response maybe-back idx nqv)])))
 
 
-;; switch-model!: session request -> response
-;; Purpose: Switches the model that is being used to step with
-(define (switch-model! ses req)
+;; switch-model!: session request string -> response
+;; Purpose: Switches the model used by this session and refreshes cookie binding.
+(define (switch-model! ses req ses-id)
   (define json-data (request-post-data/raw req))
   (define new-model (hash-ref (bytes->jsexpr json-data) 'model #f))
   (define maybe-step-once (lookup-model-step-once new-model))
   (if maybe-step-once
       (begin
         (set-session-stepper! ses (make-stepper maybe-step-once))
-        (response/jsexpr (hasheq 'model new-model) #:code 200))
+        (response/jsexpr
+         (hasheq 'model new-model)
+         #:code 200
+         #:headers
+         (list
+          (make-header
+           #"Set-Cookie"
+           (string->bytes/utf-8
+            (format "session-id=~a; Path=/; SameSite=Lax" ses-id))))))
       (response/jsexpr (hasheq 'error (format "Unknown model: ~a" new-model))
                        #:code 400)))
 
@@ -240,7 +248,7 @@
       ["post/init"  (init! session req session-id)]
       ["post/reset" (reset! session session-table session-id)]
       ["post/back"  (back! session)]
-      ["post/model" (switch-model! session req)])))
+      ["post/model" (switch-model! session req session-id)])))
 
 (define (handled-dispatcher req)
   (with-handlers

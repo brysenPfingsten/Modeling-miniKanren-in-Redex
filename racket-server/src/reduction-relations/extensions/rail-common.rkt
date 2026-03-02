@@ -25,7 +25,5 @@
              (s +-> Kleft)]
   [Kcall ::= hole
              (Kcall × g c)]
-  [Kinvoke ::= hole
-               (Kinvoke × g c)]
   [K3 ::= K]
   [K4 ::= K])

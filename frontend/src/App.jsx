@@ -15,9 +15,13 @@ function App() {
   const [code, setCode] = useState('');
   const originalCodeRef = useRef('');
   const [predefinedCodeText, setPredefinedCodeText] = useState('');
-  const [model, setModel] = useState('microKanren');
+  const [model, setModel] = useState('microKanren-rail');
   const [modelOptions, setModelOptions] = useState([
-    { value: "microKanren", label: "µKanren" },
+    { value: "microKanren-rail", label: "µKanren (Interleave + Railroad, Lazy)" },
+    { value: "microKanren-noi-flip", label: "µKanren (No Interleave + Flip, Lazy)" },
+    { value: "microKanren-flip", label: "µKanren (Interleave + Flip-Flop, Lazy)" },
+    { value: "microKanren-rail-eager", label: "µKanren (Interleave + Railroad, Eager)" },
+    { value: "microKanren-flip-eager", label: "µKanren (Interleave + Flip-Flop, Eager)" },
     { value: "dmitry",      label: "Dmitry et al." },
     { value: "dfs",         label: "DFS" }
   ]);
@@ -92,6 +96,12 @@ function App() {
   }, [tree]);
 
   useEffect(() => {
+    if (!isFrozen) {
+      setCode(predefinedCodeText);
+    }
+  }, [predefinedCodeText, isFrozen]);
+
+  useEffect(() => {
     let active = true;
     const loadModels = async () => {
       try {
@@ -137,7 +147,6 @@ function App() {
               isDark={darkMode}
               goalId={goalId}
               onTagClick={setGoalId}
-              predefinedCodeText={predefinedCodeText}
             />
           </div>
           <Toolbar

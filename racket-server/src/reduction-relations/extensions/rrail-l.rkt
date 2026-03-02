@@ -17,19 +17,17 @@
   (extend-reduction-relation
     base-l/l4
     L4/K
-    [--> (Γ ans* (in-hole Kinvoke (delay s_1)))
-         (Γ ans* (in-hole Kinvoke s_1))
+    [--> (Γ ans* (delay s_1))
+         (Γ ans* s_1)
          (side-condition (not (redex-match? L4/K (proceed pr) (term s_1))))
          "rail/invoke-delay"]
 
     [--> (Γ ans* (in-hole K4 ((delay s_1) <-+ s_2)))
          (Γ ans* (in-hole K4 (delay (s_1 +-> s_2))))
-         (side-condition (not (redex-match? L4/K (proceed pr) (term s_1))))
          "rail/enter-right"]
 
     [--> (Γ ans* (in-hole K4 (s_2 +-> (delay s_1))))
          (Γ ans* (in-hole K4 (delay (s_2 <-+ s_1))))
-         (side-condition (not (redex-match? L4/K (proceed pr) (term s_1))))
          "rail/return-left"]
 
     [--> (Γ (σ ...) (s_left +-> (⊤ σ_new)))

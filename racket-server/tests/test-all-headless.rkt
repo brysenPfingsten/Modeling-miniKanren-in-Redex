@@ -3,6 +3,7 @@
 (require rackunit
          rackunit/text-ui
          "./helpers-tests.rkt"
+         "./judgment-parity.rkt"
          "./property-core.rkt"
          "./example-compat-tests.rkt"
          "./variant-module-tests.rkt"
@@ -11,6 +12,7 @@
 
 (define-test-suite HEADLESS
   HELPERS-TESTS
+  JUDGMENT-PARITY
   PROPERTY-CORE
   EXAMPLE-COMPAT
   VARIANT-MODULES
