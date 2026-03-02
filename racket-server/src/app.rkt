@@ -130,7 +130,7 @@
                           canonical-target-id)))
   ;; Canonical gate is primary for core-shape programs; legacy remains
   ;; as a compatibility fallback while non-core wf judgments are staged in.
-  (check-canonical-or-legacy-well-formed legacy-prog model-prog)
+  (check-canonical-or-legacy-well-formed legacy-prog model-prog canonical-target-id)
   (init-session! ses model-prog)                                       ;; Initialize all state variables
   (match-define (session zip _ nqv) ses)                              ;; Get zipper and number query vars
   (define init-step (zipper-curr zip))                                ;; Get the initial program

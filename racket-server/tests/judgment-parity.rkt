@@ -76,6 +76,28 @@
               canonical-ok?
               class))
 
+(define (analyze-source/target label src target-id)
+  (check-syntax-capture-error src)
+  (define forms (source->forms src))
+  (define-values (legacy _html) (parse-prog forms))
+  (define canonical (legacy-program->canonical-config legacy))
+  (define legacy-in-domain? (redex-match? L p legacy))
+  (define target-in-domain? (canonical-target-in-domain? canonical target-id))
+  (define legacy-ok? (and legacy-in-domain? (judgment-holds (closed-program? ,legacy))))
+  (define target-ok? (and target-in-domain? (canonical-target-well-formed? canonical target-id)))
+  (define class
+    (cond
+      [(not legacy-in-domain?) 'L-OD]
+      [(not target-in-domain?) 'T-OD]
+      [else (classify legacy-ok? target-ok?)]))
+  (parity-row label
+              src
+              legacy
+              canonical
+              legacy-ok?
+              target-ok?
+              class))
+
 (define frontend-fixed-sources
   (list
    (cons "core-eq"
@@ -150,6 +172,47 @@
          "(defrel (foo x y)
             (== x 'x))
           (run* (q r s t) (foo q r s t))")))
+
+(define featureful-l4-sources
+  (list
+   (cons "l4-appendo"
+         "(defrel (appendo l s out)
+            (conde
+              [(== l '())
+               (== s out)]
+              [(fresh (a d res)
+                 (== l (cons a d))
+                 (== out (cons a res))
+                 (appendo d s res))]))
+          (run* (q) (appendo (list 'minikanren) (list 'visualizer) q))")
+   (cons "l4-same"
+         "(defrel (same x y)
+            (== x y))
+          (run* (q)
+            (conde
+              [(conde
+                 [(same q 'turtle)]
+                 [(same q 'cat)]
+                 [(== q 'dog)])]
+              [(same q 'fish)]))")
+   (cons "l4-fives-fours"
+         "(defrel (fives x)
+            (conde
+              [(fives x)]
+              [(== x 'five)]))
+          (defrel (fours x)
+            (conde
+              [(fours x)]
+              [(== x 'four)]))
+          (run 8 (q)
+            (conde
+              [(fives q)]
+              [(fours q)]))")
+   (cons "l4-call-timing"
+         "(defrel (id x y)
+            (== x y))
+          (run 3 (q)
+            (id q 'ok))")))
 
 (define symbols-pool '(cat dog fish turtle owl fox ant bee elk yak))
 
@@ -248,6 +311,34 @@
      0
      (string-append
       "found legacy/canonical judgment disagreements\n"
+      (mismatch-report mismatches))))
+
+  (test-case "legacy closed-program? and canonical L4/config parity on featureful corpus"
+    (define rows
+      (for/list ([entry (in-list featureful-l4-sources)])
+        (match-define (cons label src) entry)
+        (analyze-source/target label src "L4/config")))
+    (define tt (count-by rows 'TT))
+    (define tf (count-by rows 'TF))
+    (define ft (count-by rows 'FT))
+    (define ff (count-by rows 'FF))
+    (define l-od (count-by rows 'L-OD))
+    (define t-od (count-by rows 'T-OD))
+
+    (printf "[judgment-parity/l4] samples=~a classes(TT/TF/FT/FF/L-OD/T-OD)=~a/~a/~a/~a/~a/~a\n"
+            (length rows) tt tf ft ff l-od t-od)
+
+    (check-true (> (length rows) 0) "expected at least one analyzed featureful sample")
+    (check-equal? l-od 0 "unexpected legacy domain misses in featureful corpus")
+    (check-equal? t-od 0 "unexpected L4 domain misses in featureful corpus")
+
+    (define mismatches
+      (filter (lambda (r) (memq (parity-row-class r) '(TF FT))) rows))
+    (check-equal?
+     (length mismatches)
+     0
+     (string-append
+      "found legacy/L4 judgment disagreements\n"
       (mismatch-report mismatches)))))
 
 (module+ test

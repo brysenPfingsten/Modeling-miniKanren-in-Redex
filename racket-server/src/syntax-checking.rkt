@@ -5,11 +5,14 @@
          racket/sandbox)
 (require "judgment-forms.rkt"
          "core-judgment-forms.rkt"
+         "variant-judgment-forms.rkt"
          (only-in "core-definitions.rkt" Core))
 (provide check-well-formed
          legacy-well-formed?
          canonical-core-shape?
          canonical-well-formed?
+         canonical-target-well-formed?
+         canonical-target-in-domain?
          check-canonical-or-legacy-well-formed
          check-syntax-capture-error)
 
@@ -36,15 +39,25 @@
   (and (redex-match? Core config canonical-config)
        (judgment-holds (wf-config? ,canonical-config))))
 
+;; Canonical-config String -> boolean
+;; Purpose: True when canonical config is in the selected target language domain.
+(define (canonical-target-in-domain? canonical-config [target-id "L4/config"])
+  (config-in-target-domain? target-id canonical-config))
+
+;; Canonical-config String -> boolean
+;; Purpose: True when canonical config is wf under the selected target judgment.
+(define (canonical-target-well-formed? canonical-config [target-id "L4/config"])
+  (wf-config/target? target-id canonical-config))
+
 ;; Legacy-program Canonical-config -> String or Error
-;; Purpose: Prefer canonical core wf gate, fallback to legacy gate for
-;; non-core-shape programs during transition.
-(define (check-canonical-or-legacy-well-formed legacy-prog canonical-config)
+;; Purpose: Prefer canonical target-specific wf gate; fallback to legacy gate
+;; only when the transpiled term is outside that target's domain.
+(define (check-canonical-or-legacy-well-formed legacy-prog canonical-config [target-id "L4/config"])
   (cond
-    [(canonical-core-shape? canonical-config)
-     (if (canonical-well-formed? canonical-config)
+    [(canonical-target-in-domain? canonical-config target-id)
+     (if (canonical-target-well-formed? canonical-config target-id)
          ""
-         (error "Program failed canonical wf-config? check."))]
+         (error (format "Program failed canonical ~a wf check." target-id)))]
     [(legacy-well-formed? legacy-prog)
      ""]
     [else

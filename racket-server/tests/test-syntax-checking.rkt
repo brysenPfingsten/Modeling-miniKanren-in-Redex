@@ -44,9 +44,11 @@
              (check-exn exn:fail?
                         (λ () (check-canonical-or-legacy-well-formed WELL-FORMED-PROG bad-canonical))))
 
-  (test-case "Non-core canonical shape falls back to legacy well-formedness"
+  (test-case "Canonical L4 gate accepts non-core shape directly"
              (define non-core-canonical '(() () (delay (empty-tree))))
              (check-false (canonical-core-shape? non-core-canonical))
+             (check-true (canonical-target-in-domain? non-core-canonical "L4/config"))
+             (check-true (canonical-target-well-formed? non-core-canonical "L4/config"))
              (check-not-exn
               (λ () (check-canonical-or-legacy-well-formed WELL-FORMED-PROG non-core-canonical)))))
 

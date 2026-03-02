@@ -5,6 +5,7 @@
          redex/reduction-semantics
          "./variant-test-support.rkt"
          (prefix-in lang: "../src/extensions/variant-languages.rkt")
+         (prefix-in j: "../src/variant-judgment-forms.rkt")
          (prefix-in e: "../src/reduction-relations/extensions/rcall-eager.rkt")
          (prefix-in l: "../src/reduction-relations/extensions/rcall-lazy.rkt")
          (prefix-in d: "../src/reduction-relations/extensions/rdisj-left.rkt")
@@ -49,7 +50,51 @@
     (check-true
      (redex-match? lang:L4 s
                    (term ((empty-tree)
-                          +-> (⊤ (state () () () (label "b")))))))))
+                          +-> (⊤ (state () () () (label "b"))))))))
+
+  (test-case "Variant wf judgments cover L1/L2/L3/L4 syntax"
+    (define cfg-l1
+      (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
+             ()
+             (delay (proceed ((r:id (sym "ok") (label "call"))
+                              (state () () () (label "s"))))))))
+
+    (define cfg-l2
+      (term (() ()
+                (((succeed (label "a")) (state () () () (label "sa")))
+                 <-+
+                 ((succeed (label "b")) (state () () () (label "sb")))))))
+
+    (define cfg-l3
+      (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
+             ()
+             ((delay (proceed ((r:id (sym "ok") (label "call"))
+                               (state () () () (label "s")))))
+              <-+
+              ((succeed (label "b")) (state () () () (label "sb")))))))
+
+    (define cfg-l4
+      (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
+             ()
+             (((delay (proceed ((r:id (sym "ok") (label "call"))
+                                (state () () () (label "s")))))
+               <-+
+               ((succeed (label "b")) (state () () () (label "sb"))))
+              +-> (empty-tree)))))
+
+    (define cfg-bad-arity
+      (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
+             ()
+             ((r:id (sym "ok") (sym "extra") (label "call"))
+              (state () () () (label "s"))))))
+
+    (check-true (judgment-holds (j:wf-config/L1? ,cfg-l1)))
+    (check-true (judgment-holds (j:wf-config/L2? ,cfg-l2)))
+    (check-true (judgment-holds (j:wf-config/L3? ,cfg-l3)))
+    (check-true (judgment-holds (j:wf-config/L4? ,cfg-l4)))
+    (check-false (judgment-holds (j:wf-config/L4? ,cfg-bad-arity)))
+    (check-true (j:wf-config/target? "L4/config" cfg-l4))
+    (check-false (j:wf-config/target? "L4/config" cfg-bad-arity))))
 
 (define-test-suite RELATION-MODULES
   (test-case "Rcall-eager expands relation body before proceed resume"
