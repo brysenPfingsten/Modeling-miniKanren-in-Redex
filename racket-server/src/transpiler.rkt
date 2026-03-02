@@ -469,7 +469,7 @@
 ;; defrels run -> model program
 ;; Translate the relation definitions and run query of a minikanren
 ;; program into our redex syntax
-(define (parse-prog lst)
+(define (parse-prog->ast lst)
   (define-values (defrels run)
     (let ([result
            (foldl
@@ -485,176 +485,172 @@
             lst)])
       (values (reverse (car result)) (cdr result))))
 
+  (prog (parse-relation-defs defrels)
+        (parse-run run)))
+
+(define (parse-prog lst)
   ;; Parse AST
-  (define AST
-    (prog (parse-relation-defs defrels)
-          (parse-run run)))
+  (define ast (parse-prog->ast lst))
 
   ;; Transpile AST to redex program and collect generated GUIDs
   (define-values (REDEX-PROG counter guid-list)
-    (transpile AST 0))
+    (transpile ast 0))
 
   ;; Tag AST with guids
-  (define-values (GUID-PROG _) (add-guids AST 0 guid-list))
+  (define-values (GUID-PROG _) (add-guids ast 0 guid-list))
 
   ;; Return both programs
   (values REDEX-PROG GUID-PROG))
 
 ;; ---------- Canonical parser projection ----------
 
-(define u-rx #px"^u:([0-9]+)$")
-(define r-rx #px"^r:")
+(define (id->label id)
+  `(label ,id))
 
-(define (u-symbol n)
-  (string->symbol (format "u:~a" n)))
+(define (konst->canonical-term const)
+  (match const
+    [(konst s) #:when (symbol? s) `(sym ,(symbol->string s))]
+    [(konst s) #:when (string? s) `(str ,s)]
+    [(konst b) #:when (boolean? b) b]
+    [(konst n) #:when (number? n) `(nat ,n)]))
 
-(define (u-symbol? s)
-  (and (symbol? s)
-       (regexp-match? u-rx (symbol->string s))))
-
-(define (u->natural u)
-  (define m (and (symbol? u) (regexp-match u-rx (symbol->string u))))
-  (if m
-      (string->number (second m))
-      #f))
-
-(define (relation-symbol? s)
-  (and (symbol? s)
-       (regexp-match? r-rx (symbol->string s))))
-
-(define (tag->label o)
-  (match o
-    [`(label ,_) o]
-    [`(sym ,s) `(label ,s)]
-    [`(nat ,n) `(label ,(number->string n))]
-    [(? boolean? b) `(label ,(if b "true" "false"))]
-    [(? string? s) `(label ,s)]
-    [(? symbol? s) `(label ,(symbol->string s))]
-    [_ `(label ,(format "~a" o))]))
-
-(define (legacy-term->core t)
-  (match t
-    ['empty 'empty]
-    [`(,a : ,d) `(,(legacy-term->core a) : ,(legacy-term->core d))]
-    [`(sym ,s) `(sym ,s)]
-    [`(nat ,n) `(nat ,n)]
-    [(? boolean? b) b]
-    [(? number? n) (u-symbol n)]
-    [(? string? s) `(str ,s)]
-    [(? symbol? s) s]
-    [_ (error 'legacy-term->core "unhandled transpiled term ~a" t)]))
-
-(define (legacy-c->core c)
+(define (unwrap-symbolish v who)
   (cond
-    [(number? c) (for/list ([i (in-range c)]) (u-symbol i))]
-    [(list? c) (for/list ([u (in-list c)])
-                 (cond
-                   [(number? u) (u-symbol u)]
-                   [(u-symbol? u) u]
-                   [else (error 'legacy-c->core "bad legacy c entry ~a" u)]))]
-    [else '()]))
+    [(symbol? v) v]
+    [(var? v) (unwrap-symbolish (var-v v) who)]
+    [else (error who "expected symbol-like value, got ~a" v)]))
 
-(define (legacy-goal->core g)
-  (match g
-    ['⊤ `(succeed (label "legacy-top"))]
-    [`(,t1 =? ,t2 ,o)
-     `(,(legacy-term->core t1) =? ,(legacy-term->core t2) ,(tag->label o))]
-    [`(,g1 ∨ ,g2 ,o)
-     `(,(legacy-goal->core g1) ∨ ,(legacy-goal->core g2) ,(tag->label o))]
-    [`(,g1 ∧ ,g2 ,o)
-     `(,(legacy-goal->core g1) ∧ ,(legacy-goal->core g2) ,(tag->label o))]
-    [`(∃ ,d ,g1 ,o)
-     `(∃ ,d ,(legacy-goal->core g1) ,(tag->label o))]
-    [(list* r rest)
-     #:when (and (symbol? r)
-                 (relation-symbol? r)
-                 (pair? rest))
-     (define o (last rest))
-     (define ts (drop-right rest 1))
-     `(,r ,@(map legacy-term->core ts) ,(tag->label o))]
-    [_ (error 'legacy-goal->core "unhandled transpiled goal ~a" g)]))
+(define (transpile-canonical expr count)
+  (match expr
+    [(prog rels q)
+     #:when (prog? expr)
+     (define-values (trs count1 guids1)
+       (map/fold-with-guids transpile-canonical rels count))
+     (define-values (tq count2 guids2)
+       (transpile-canonical q count1))
+     (values `(,trs () ,tq) count2 (append guids1 guids2))]
 
-(define (legacy-state->core st)
-  (match st
-    [`(state ,sub ,c ,trail ,o)
-     `(state ,(for/list ([pr (in-list sub)])
-                (match pr
-                  [`(,u ,t)
-                   (define u*
-                     (cond
-                       [(number? u) (u-symbol u)]
-                       [(u-symbol? u) u]
-                       [else (error 'legacy-state->core "bad sub lhs ~a" u)]))
-                   (list u* (legacy-term->core t))]
-                  [_ (error 'legacy-state->core "bad substitution pair ~a" pr)]))
-             ,(legacy-c->core c)
-             ,(for/list ([eq (in-list trail)])
-                (match eq
-                  [`(,t1 =? ,t2 ,o1)
-                   `(,(legacy-term->core t1) =? ,(legacy-term->core t2) ,(tag->label o1))]
-                  [_ (error 'legacy-state->core "bad trail eq ~a" eq)]))
-             ,(tag->label o))]
-    [_ (error 'legacy-state->core "unhandled transpiled state ~a" st)]))
+    [(fresh vars goal)
+     #:when (fresh? expr)
+     (define-values (id count1) (next-g-id "f" count))
+     (define-values (tvars count2 guids1)
+       (map/fold-with-guids transpile-canonical vars count1))
+     (define-values (tgoal count3 guids2)
+       (transpile-canonical goal count2))
+     (values `(∃ ,tvars ,tgoal ,(id->label id))
+             count3
+             (cons id (append guids1 guids2)))]
 
-(define (first-c-in-core-tree s)
-  (match s
-    [`(,g (state ,_sub ,c ,_trail ,_tag)) c]
-    [`(⊤ (state ,_sub ,c ,_trail ,_tag)) c]
-    [`(,s1 × ,_g ,_c) (first-c-in-core-tree s1)]
-    [`(,s1 <-+ ,s2) (or (first-c-in-core-tree s1) (first-c-in-core-tree s2))]
-    [`(,s1 +-> ,s2) (or (first-c-in-core-tree s1) (first-c-in-core-tree s2))]
-    [`(delay ,s1) (first-c-in-core-tree s1)]
-    [`(proceed ((,r ,_t ... ,_tag) (state ,_sub ,c ,_trail ,_tag2)))
-     #:when (relation-symbol? r)
-     c]
-    [_ #f]))
+    [(conde clauses)
+     #:when (conde? expr)
+     (define-values (id count1) (next-g-id "d" count))
+     (struct acc (expr count guids))
+     (define final-acc
+       (foldr
+        (λ (clause accum)
+          (define-values (t-clause new-count new-guids)
+            (transpile-canonical clause (acc-count accum)))
+          (acc (if (null? (acc-expr accum))
+                   t-clause
+                   `(,t-clause ∨ ,(acc-expr accum) ,(id->label id)))
+               new-count
+               (append new-guids (acc-guids accum))))
+        (acc '() count1 '())
+        clauses))
+     (define final-expr (acc-expr final-acc))
+     (define final-count (acc-count final-acc))
+     (define final-guids (acc-guids final-acc))
+     (values final-expr final-count (cons id final-guids))]
 
-(define (legacy-tree->core s)
-  (match s
-    ['() '(empty-tree)]
-    ['(empty-tree) '(empty-tree)]
-    [`(⊤ ,σ) `(⊤ ,(legacy-state->core σ))]
-    [`(∂ ,s1 ,_maybe-state) (legacy-tree->core s1)]
-    [`(,s1 <-+ ,s2) `(,(legacy-tree->core s1) <-+ ,(legacy-tree->core s2))]
-    [`(,s1 +-> ,s2) `(,(legacy-tree->core s1) +-> ,(legacy-tree->core s2))]
-    [`((⊤ ,σ) + ,s1) `((⊤ ,(legacy-state->core σ)) <-+ ,(legacy-tree->core s1))]
-    [`(,s1 × ,g)
-     (define s1* (legacy-tree->core s1))
-     (define captured-c (or (first-c-in-core-tree s1*) '()))
-     `(,s1* × ,(legacy-goal->core g) ,captured-c)]
-    [`(proceed ((,r ,ts ... ,o) ,σ))
-     `(proceed ((,r ,@(map legacy-term->core ts) ,(tag->label o))
-                ,(legacy-state->core σ)))]
-    [`(delay ,s1) `(delay ,(legacy-tree->core s1))]
-    [`(,g ,σ) `(,(legacy-goal->core g) ,(legacy-state->core σ))]
-    [_ (error 'legacy-tree->core "unhandled transpiled tree ~a" s)]))
+    [(conj g1 g2)
+     #:when (conj? expr)
+     (define-values (id count1) (next-g-id "c" count))
+     (define-values (tg1 count2 guids1) (transpile-canonical g1 count1))
+     (define-values (tg2 count3 guids2) (transpile-canonical g2 count2))
+     (values `(,tg1 ∧ ,tg2 ,(id->label id))
+             count3
+             (cons id (append guids1 guids2)))]
 
-(define (legacy-env->core gamma)
-  (for/list ([defn (in-list gamma)])
-    (match defn
-      [`(,r ,d ,g) `(,r ,d ,(legacy-goal->core g))]
-      [_ (error 'legacy-env->core "bad relation def ~a" defn)])))
+    [(unify t1 t2)
+     #:when (unify? expr)
+     (define-values (id count1) (next-g-id "u" count))
+     (define-values (tt1 count2 guids1) (transpile-canonical t1 count1))
+     (define-values (tt2 count3 guids2) (transpile-canonical t2 count2))
+     (values `(,tt1 =? ,tt2 ,(id->label id))
+             count3
+             (cons id (append guids1 guids2)))]
 
-(define (legacy-e->ans+tree e)
-  (match e
-    ['() (values '() '(empty-tree))]
-    [`((⊤ ,σ) + ,e2)
-     (define-values (ans tail-tree) (legacy-e->ans+tree e2))
-     (values (cons (legacy-state->core σ) ans) tail-tree)]
-    [_ (values '() (legacy-tree->core e))]))
+    [(succeed)
+     #:when (succeed? expr)
+     (values `(succeed (label "succeed")) count '())]
 
-(define (legacy-program->canonical-config prog)
-  (match prog
-    [`(,e ,gamma)
-     (define-values (ans* s) (legacy-e->ans+tree e))
-     `(,(legacy-env->core gamma) ,ans* ,s)]
-    [_ (error 'legacy-program->canonical-config
-              "expected transpiled legacy program (e Γ), got ~a"
-              prog)]))
+    [(fail)
+     #:when (fail? expr)
+     (error 'transpile-canonical "unsupported goal: fail")]
+
+    [(relcall name terms)
+     #:when (relcall? expr)
+     (define-values (id count1) (next-g-id "r" count))
+     (define-values (tname count2 guids1) (transpile-canonical name count1))
+     (define-values (tterms count3 guids2)
+       (map/fold-with-guids transpile-canonical terms count2))
+     (values `(,tname ,@tterms ,(id->label id))
+             count3
+             (cons id (append guids1 guids2)))]
+
+    [(nil) #:when (nil? expr) (values 'empty count '())]
+
+    [(konst _)
+     #:when (konst? expr)
+     (values (konst->canonical-term expr) count '())]
+
+    [(kons a d)
+     #:when (kons? expr)
+     (define-values (ta count1 guids1) (transpile-canonical a count))
+     (define-values (td count2 guids2) (transpile-canonical d count1))
+     (values `(,ta : ,td) count2 (append guids1 guids2))]
+
+    [(var v)
+     #:when (var? expr)
+     (define v* (unwrap-symbolish v 'transpile-canonical))
+     (values (string->symbol (string-append "x:" (symbol->string v*)))
+             count
+             '())]
+
+    [(relname name)
+     #:when (relname? expr)
+     (define name* (unwrap-symbolish name 'transpile-canonical))
+     (values (string->symbol (string-append "r:" (symbol->string name*)))
+             count
+             '())]
+
+    [(defrel name lop goal)
+     #:when (defrel? expr)
+     (define-values (tname count1 guids1) (transpile-canonical name count))
+     (define-values (tlop count2 guids2)
+       (map/fold-with-guids transpile-canonical lop count1))
+     (define-values (tgoal count3 guids3) (transpile-canonical goal count2))
+     (values `(,tname ,tlop ,tgoal)
+             count3
+             (append guids1 guids2 guids3))]
+
+    [(run _n qs goal)
+     #:when (run? expr)
+     (define-values (id count1) (next-g-id "f" count))
+     (define-values (tq count2 guids1)
+       (map/fold-with-guids transpile-canonical qs count1))
+     (define-values (tg count3 guids2) (transpile-canonical goal count2))
+     (values `((∃ ,tq ,tg ,(id->label id))
+               (state () () () (label "s")))
+             count3
+             (cons id (append guids1 guids2)))]))
 
 (define (parse-prog/canonical lst)
-  (define-values (legacy-prog html-prog) (parse-prog lst))
-  (values (legacy-program->canonical-config legacy-prog) html-prog))
+  (define ast (parse-prog->ast lst))
+  (define-values (canonical-prog _counter guid-list)
+    (transpile-canonical ast 0))
+  (define-values (html-prog _rest) (add-guids ast 0 guid-list))
+  (values canonical-prog html-prog))
 
  
 #;(parse-prog
