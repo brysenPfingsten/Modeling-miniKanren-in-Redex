@@ -2,7 +2,8 @@
 
 (require "../src/definitions.rkt"
          "../src/syntax-checking.rkt"
-         "../src/judgment-forms.rkt")
+         "../src/judgment-forms.rkt"
+         "../src/legacy-variant-adapter.rkt")
 (require redex/reduction-semantics
          rackunit
          rackunit/text-ui)
@@ -21,7 +22,33 @@
              (check-false (judgment-holds (closed-program? ,BAD-FORMED-PROG)))
              (check-exn exn:fail?
                         (λ () (check-well-formed BAD-FORMED-PROG))
-                        "Program is not well formed!")))
+                        "Program is not well formed!"))
+
+  (test-case "Canonical core gate accepts converted well-formed legacy program"
+             (define legacy-prog
+               (term ((((sym "abc") =? (sym "abc") (sym "u"))
+                       (state () 0 () (sym "s")))
+                      ())))
+             (define canonical (legacy-program->canonical-config legacy-prog))
+             (check-true (canonical-core-shape? canonical))
+             (check-true (canonical-well-formed? canonical))
+             (check-not-exn
+              (λ () (check-canonical-or-legacy-well-formed legacy-prog canonical))))
+
+  (test-case "Canonical core gate rejects malformed canonical core program"
+             (define bad-canonical
+               '(() () ((u:1 =? (sym "a") (label "t"))
+                        (state () () () (label "s")))))
+             (check-true (canonical-core-shape? bad-canonical))
+             (check-false (canonical-well-formed? bad-canonical))
+             (check-exn exn:fail?
+                        (λ () (check-canonical-or-legacy-well-formed WELL-FORMED-PROG bad-canonical))))
+
+  (test-case "Non-core canonical shape falls back to legacy well-formedness"
+             (define non-core-canonical '(() () (delay (empty-tree))))
+             (check-false (canonical-core-shape? non-core-canonical))
+             (check-not-exn
+              (λ () (check-canonical-or-legacy-well-formed WELL-FORMED-PROG non-core-canonical)))))
 
 (define GOOD-SYNTAX-PROG 
   "

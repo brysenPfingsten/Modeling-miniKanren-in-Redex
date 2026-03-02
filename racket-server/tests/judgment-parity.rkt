@@ -36,6 +36,17 @@
 (define (forms->source forms)
   (string-join (map ~s forms) "\n\n"))
 
+(define (datum-has-symbol? d sym)
+  (cond
+    [(symbol? d) (eq? d sym)]
+    [(pair? d) (or (datum-has-symbol? (car d) sym)
+                   (datum-has-symbol? (cdr d) sym))]
+    [else #f]))
+
+(define (source-has-symbol? src sym)
+  (for/or ([f (in-list (source->forms src))])
+    (datum-has-symbol? f sym)))
+
 (define (classify legacy-ok? canonical-ok?)
   (cond
     [(and legacy-ok? canonical-ok?) 'TT]
@@ -91,7 +102,54 @@
                 (== q y))))")))
 
 (define targeted-sources
-  '())
+  (list
+   (cons "target-shadowed-fresh"
+         "(run* (q)
+            (fresh (x)
+              (== x 'cat)
+              (fresh (x)
+                (== x 'dog)
+                (== q 'cat))))")
+   (cons "target-deep-conj"
+         "(run* (q)
+            (fresh (x y z)
+              (== x 'cat)
+              (== y x)
+              (== z y)
+              (== q z)))")
+   (cons "target-rel-env-core-only"
+         "(defrel (shape x y)
+            (fresh (z)
+              (== z x)
+              (== y z)))
+          (defrel (same x y)
+            (== x y))
+          (run* (q) (== q 'cat))")
+   (cons "target-pair-structure"
+         "(run* (q)
+            (fresh (x y)
+              (== x (cons 'cat '()))
+              (== y (cons x '()))
+              (== q y)))")
+   (cons "target-run-bound"
+         "(run 3 (q)
+            (fresh (x)
+              (== x 'owl)
+              (== q x)))")))
+
+(define syntax-invalid-sources
+  (list
+   (cons "bad-free-lexical"
+         "(run* (q) (== q x))")
+   (cons "bad-unbound-in-defrel"
+         "(defrel (same x) (== x y))
+          (run* (q) (== q 'cat))")
+   (cons "bad-run-shape"
+         "(run* (same q))")
+   (cons "bad-arity-mismatch"
+         "(defrel (foo x y)
+            (== x 'x))
+          (run* (q r s t) (foo q r s t))")))
 
 (define symbols-pool '(cat dog fish turtle owl fox ant bee elk yak))
 
@@ -134,6 +192,12 @@
    "\n---\n"))
 
 (define-test-suite JUDGMENT-PARITY
+  (test-case "syntax-invalid samples fail before parity analysis"
+    (check-true (> (length syntax-invalid-sources) 0) "expected at least one syntax-invalid sample")
+    (for ([entry (in-list syntax-invalid-sources)])
+      (match-define (cons _label src) entry)
+      (check-exn exn:fail? (lambda () (check-syntax-capture-error src)))))
+
   (test-case "legacy closed-program? and canonical wf-config? parity"
     (define tier-a frontend-fixed-sources)
     (define tier-c targeted-sources)
@@ -150,17 +214,30 @@
     (define ff (count-by rows 'FF))
     (define l-od (count-by rows 'L-OD))
     (define c-od (count-by rows 'C-OD))
+    (define defrel-hits
+      (for/sum ([entry (in-list all-sources)])
+        (if (source-has-symbol? (cdr entry) 'defrel) 1 0)))
+    (define fresh-hits
+      (for/sum ([entry (in-list all-sources)])
+        (if (source-has-symbol? (cdr entry) 'fresh) 1 0)))
+    (define eq-hits
+      (for/sum ([entry (in-list all-sources)])
+        (if (source-has-symbol? (cdr entry) '==) 1 0)))
 
-    (printf "[judgment-parity] samples=~a fixed=~a targeted=~a random=~a seed=~a classes(TT/TF/FT/FF/L-OD/C-OD)=~a/~a/~a/~a/~a/~a\n"
+    (printf "[judgment-parity] samples=~a fixed=~a targeted=~a random=~a seed=~a classes(TT/TF/FT/FF/L-OD/C-OD)=~a/~a/~a/~a/~a/~a coverage(defrel/fresh/eq)=~a/~a/~a\n"
             (length rows)
             (length tier-a)
             (length tier-c)
             (length tier-b)
             JP-SEED
-            tt tf ft ff l-od c-od)
+            tt tf ft ff l-od c-od
+            defrel-hits fresh-hits eq-hits)
 
     (check-true (> (length rows) 0) "expected at least one analyzed sample")
     (check-true (> tt 0) "expected at least one jointly accepted sample (TT)")
+    (check-true (> defrel-hits 0) "expected parity corpus to include relation definitions")
+    (check-true (> fresh-hits 0) "expected parity corpus to include fresh binders")
+    (check-true (> eq-hits 0) "expected parity corpus to include equality goals")
     (check-equal? l-od 0 "unexpected legacy domain misses in parity corpus")
     (check-equal? c-od 0 "unexpected canonical domain misses in parity corpus")
 
