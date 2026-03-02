@@ -120,10 +120,7 @@
   (unless (canonical-target-in-domain? model-prog default-parser-target-id)
     (error 'init! (format "transpiler produced a program outside canonical target ~a"
                           default-parser-target-id)))
-  (check-canonical-or-legacy-well-formed
-   #f
-   model-prog
-   default-parser-target-id)
+  (check-canonical-well-formed model-prog default-parser-target-id)
   (init-session! ses model-prog)                                       ;; Initialize all state variables
   (match-define (session zip _ nqv) ses)                              ;; Get zipper and number query vars
   (define init-step (zipper-curr zip))                                ;; Get the initial program

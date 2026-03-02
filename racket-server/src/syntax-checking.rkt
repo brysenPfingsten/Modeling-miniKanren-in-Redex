@@ -8,24 +8,12 @@
          "variant-judgment-forms.rkt"
          (only-in "core-definitions.rkt" Core))
 (provide check-well-formed
-         legacy-well-formed?
          canonical-core-shape?
          canonical-well-formed?
          canonical-target-well-formed?
          canonical-target-in-domain?
-         check-canonical-or-legacy-well-formed
+         check-canonical-well-formed
          check-syntax-capture-error)
-
-;; Prog -> String
-;; Purpose: Checks if the given program satisfies the closed-program? judgment.
-;; Returns: Empty string if well-formed, else error message.
-(define (legacy-well-formed? model-prog)
-  (judgment-holds (closed-program? ,model-prog)))
-
-(define (check-well-formed model-prog)
-  (if (legacy-well-formed? model-prog)
-      ""
-      (error "Program is not well formed!")))
 
 ;; Canonical-config -> boolean
 ;; Purpose: True when config is in the core judgment fragment shape.
@@ -49,14 +37,16 @@
 (define (canonical-target-well-formed? canonical-config [target-id "L4/config"])
   (wf-config/target? target-id canonical-config))
 
-;; Legacy-program Canonical-config -> String or Error
-;; Purpose: Canonical target-specific gate. Legacy judgment remains available
-;; for legacy-only tests, but runtime acceptance is canonical-only.
-(define (check-canonical-or-legacy-well-formed legacy-prog canonical-config [target-id "L4/config"])
+;; Canonical-config String -> String or Error
+;; Purpose: Canonical target-specific wf gate used by runtime and tests.
+(define (check-canonical-well-formed canonical-config [target-id "L4/config"])
   (if (and (canonical-target-in-domain? canonical-config target-id)
            (canonical-target-well-formed? canonical-config target-id))
       ""
       (error (format "Program failed canonical ~a wf check." target-id))))
+
+(define (check-well-formed canonical-config [target-id "L4/config"])
+  (check-canonical-well-formed canonical-config target-id))
 
 
 ;; read-all: port -> ListOf sexpression
