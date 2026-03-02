@@ -1,7 +1,7 @@
 #lang racket
 
 (require (prefix-in var: "reduction-relations/extensions/variant-relations.rkt")
-         "legacy-variant-adapter.rkt")
+         "transpiler.rkt")
 
 (provide model-spec?
          model-spec-id
@@ -11,6 +11,7 @@
          model-spec-step-once
          all-model-specs
          default-model-id
+         default-parser-target-id
          lookup-model-spec
          lookup-model-step-once
          model-spec->jsexpr)
@@ -23,40 +24,46 @@
   (list (model-spec "microKanren-rail"
                     "microKanren (Interleave + Railroad, Lazy)"
                     canonical-parser-profile
-                    canonical-target-id
+                    canonical-parser-target-id
                     var:step-once/Rrail-l)
         (model-spec "microKanren-noi-flip"
                     "microKanren (No Interleave + Flip Syntax, Lazy)"
                     canonical-parser-profile
-                    canonical-target-id
+                    canonical-parser-target-id
                     var:step-once/Rbase-l)
+        (model-spec "microKanren-dfs-nodelay"
+                    "microKanren (DFS, No Delay/Proceed, Left Disjunction)"
+                    canonical-parser-profile
+                    canonical-parser-target-id
+                    var:step-once/Rdfs-nodelay)
         (model-spec "microKanren-flip"
                     "microKanren (Interleave + Flip-Flop, Lazy)"
                     canonical-parser-profile
-                    canonical-target-id
+                    canonical-parser-target-id
                     var:step-once/Rflip-l)
         (model-spec "microKanren-rail-eager"
                     "microKanren (Interleave + Railroad, Eager)"
                     canonical-parser-profile
-                    canonical-target-id
+                    canonical-parser-target-id
                     var:step-once/Rrail-e)
         (model-spec "microKanren-flip-eager"
                     "microKanren (Interleave + Flip-Flop, Eager)"
                     canonical-parser-profile
-                    canonical-target-id
+                    canonical-parser-target-id
                     var:step-once/Rflip-e)
         (model-spec "dmitry"
-                    "Dmitry et al. (L4/Rrail-e)"
+                    "Dmitry et al. (provisional alias: L4/Rrail-e)"
                     canonical-parser-profile
-                    canonical-target-id
+                    canonical-parser-target-id
                     var:step-once/Rrail-e)
         (model-spec "dfs"
                     "DFS (L4/Rrail-l)"
                     canonical-parser-profile
-                    canonical-target-id
+                    canonical-parser-target-id
                     var:step-once/Rrail-l)))
 
 (define default-model-id "microKanren-rail")
+(define default-parser-target-id canonical-parser-target-id)
 
 (define spec-by-id
   (for/hash ([spec (in-list all-model-specs)])

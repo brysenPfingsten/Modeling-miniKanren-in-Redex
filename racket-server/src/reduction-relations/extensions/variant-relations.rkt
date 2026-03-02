@@ -4,6 +4,7 @@
          "./rcall-eager.rkt"
          "./rcall-lazy.rkt"
          "./rdisj-left.rkt"
+         "./rdfs-nodelay.rkt"
          "./rbase-e.rkt"
          "./rbase-l.rkt"
          "./rbase-l4.rkt"
@@ -15,6 +16,7 @@
 (provide Rcall-eager
          Rcall-lazy
          Rdisj-left
+         Rdfs-nodelay
          Rbase-e
          Rbase-l
          Rbase-l4
@@ -25,6 +27,7 @@
          step-once/Rcall-eager
          step-once/Rcall-lazy
          step-once/Rdisj-left
+         step-once/Rdfs-nodelay
          step-once/Rbase-e
          step-once/Rbase-l
          step-once/Rbase-l4
@@ -42,6 +45,9 @@
 
 (define (step-once/Rdisj-left prog)
   (apply-reduction-relation/tag-with-names Rdisj-left (term ,prog)))
+
+(define (step-once/Rdfs-nodelay prog)
+  (apply-reduction-relation/tag-with-names Rdfs-nodelay (term ,prog)))
 
 (define (step-once/Rbase-e prog)
   (apply-reduction-relation/tag-with-names Rbase-e (term ,prog)))

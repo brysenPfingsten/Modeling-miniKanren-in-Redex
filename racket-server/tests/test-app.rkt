@@ -7,15 +7,15 @@
          json
          "../src/app.rkt"
          "../src/zipper.rkt"
-         "../src/legacy-variant-adapter.rkt")
+         "../src/transpiler.rkt")
 
 (define sample-tree
-  '(((∃
-      (x:q)
-      ((sym "tree1") =? (sym "horse") "u5")
-      "f0")
-     (state () 0 () "s"))
-    ()))
+  '(() ()
+       ((∃
+          (x:q)
+          ((sym "tree1") =? (sym "horse") (label "u5"))
+          (label "f0"))
+        (state () () () (label "s")))))
 
 (define step/const-tree-output
   (make-stepper (lambda (_) (list (list "foo" sample-tree)))))
@@ -337,6 +337,7 @@
                            (hash-ref m 'id #f)))
              (check-not-false (member "microKanren-rail" ids))
              (check-not-false (member "microKanren-noi-flip" ids))
+             (check-not-false (member "microKanren-dfs-nodelay" ids))
              (check-not-false (member "microKanren-rail-eager" ids))
              (check-not-false (member "microKanren-flip" ids))
              (check-not-false (member "microKanren-flip-eager" ids))
@@ -344,7 +345,7 @@
                            (and (hash-has-key? m 'parserProfile)
                                 (hash-has-key? m 'parserTarget)
                                 (equal? (hash-ref m 'parserTarget #f)
-                                        canonical-target-id))))))
+                                        canonical-parser-target-id))))))
 
 (define/provide-test-suite APP
   #:before (thunk (displayln "Running tests for app.rkt..."))

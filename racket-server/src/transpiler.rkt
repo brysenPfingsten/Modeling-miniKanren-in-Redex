@@ -6,7 +6,10 @@
          racket/pretty
          "definitions.rkt")
 
-(provide parse-prog)
+(provide parse-prog
+         parse-prog/canonical
+         canonical-parser-profile
+         canonical-parser-target-id)
 
 ;-----------------Structures-------------------
 (struct prog (relations query) #:transparent)
@@ -26,6 +29,10 @@
 (struct defrel (name lop goal) #:transparent)
 (struct run (n q goal) #:transparent)
 ;-----------------------------------------------
+
+;; Canonical parser target for backend stepping.
+(define canonical-parser-profile "surface->l4")
+(define canonical-parser-target-id "L4/config")
 
 ;; map/fold: (T A -> (values R A)) (listof T) A -> (values (listof R) A)
 ;; Purpose: Like map, but threads an accumulator state through each call.
@@ -493,6 +500,162 @@
   ;; Return both programs
   (values REDEX-PROG GUID-PROG))
 
+;; ---------- Canonical parser projection ----------
+
+(define u-rx #px"^u:([0-9]+)$")
+(define r-rx #px"^r:")
+
+(define (u-symbol n)
+  (string->symbol (format "u:~a" n)))
+
+(define (u-symbol? s)
+  (and (symbol? s)
+       (regexp-match? u-rx (symbol->string s))))
+
+(define (u->natural u)
+  (define m (and (symbol? u) (regexp-match u-rx (symbol->string u))))
+  (if m
+      (string->number (second m))
+      #f))
+
+(define (relation-symbol? s)
+  (and (symbol? s)
+       (regexp-match? r-rx (symbol->string s))))
+
+(define (tag->label o)
+  (match o
+    [`(label ,_) o]
+    [`(sym ,s) `(label ,s)]
+    [`(nat ,n) `(label ,(number->string n))]
+    [(? boolean? b) `(label ,(if b "true" "false"))]
+    [(? string? s) `(label ,s)]
+    [(? symbol? s) `(label ,(symbol->string s))]
+    [_ `(label ,(format "~a" o))]))
+
+(define (legacy-term->core t)
+  (match t
+    ['empty 'empty]
+    [`(,a : ,d) `(,(legacy-term->core a) : ,(legacy-term->core d))]
+    [`(sym ,s) `(sym ,s)]
+    [`(nat ,n) `(nat ,n)]
+    [(? boolean? b) b]
+    [(? number? n) (u-symbol n)]
+    [(? string? s) `(str ,s)]
+    [(? symbol? s) s]
+    [_ (error 'legacy-term->core "unhandled transpiled term ~a" t)]))
+
+(define (legacy-c->core c)
+  (cond
+    [(number? c) (for/list ([i (in-range c)]) (u-symbol i))]
+    [(list? c) (for/list ([u (in-list c)])
+                 (cond
+                   [(number? u) (u-symbol u)]
+                   [(u-symbol? u) u]
+                   [else (error 'legacy-c->core "bad legacy c entry ~a" u)]))]
+    [else '()]))
+
+(define (legacy-goal->core g)
+  (match g
+    ['⊤ `(succeed (label "legacy-top"))]
+    [`(,t1 =? ,t2 ,o)
+     `(,(legacy-term->core t1) =? ,(legacy-term->core t2) ,(tag->label o))]
+    [`(,g1 ∨ ,g2 ,o)
+     `(,(legacy-goal->core g1) ∨ ,(legacy-goal->core g2) ,(tag->label o))]
+    [`(,g1 ∧ ,g2 ,o)
+     `(,(legacy-goal->core g1) ∧ ,(legacy-goal->core g2) ,(tag->label o))]
+    [`(∃ ,d ,g1 ,o)
+     `(∃ ,d ,(legacy-goal->core g1) ,(tag->label o))]
+    [(list* r rest)
+     #:when (and (symbol? r)
+                 (relation-symbol? r)
+                 (pair? rest))
+     (define o (last rest))
+     (define ts (drop-right rest 1))
+     `(,r ,@(map legacy-term->core ts) ,(tag->label o))]
+    [_ (error 'legacy-goal->core "unhandled transpiled goal ~a" g)]))
+
+(define (legacy-state->core st)
+  (match st
+    [`(state ,sub ,c ,trail ,o)
+     `(state ,(for/list ([pr (in-list sub)])
+                (match pr
+                  [`(,u ,t)
+                   (define u*
+                     (cond
+                       [(number? u) (u-symbol u)]
+                       [(u-symbol? u) u]
+                       [else (error 'legacy-state->core "bad sub lhs ~a" u)]))
+                   (list u* (legacy-term->core t))]
+                  [_ (error 'legacy-state->core "bad substitution pair ~a" pr)]))
+             ,(legacy-c->core c)
+             ,(for/list ([eq (in-list trail)])
+                (match eq
+                  [`(,t1 =? ,t2 ,o1)
+                   `(,(legacy-term->core t1) =? ,(legacy-term->core t2) ,(tag->label o1))]
+                  [_ (error 'legacy-state->core "bad trail eq ~a" eq)]))
+             ,(tag->label o))]
+    [_ (error 'legacy-state->core "unhandled transpiled state ~a" st)]))
+
+(define (first-c-in-core-tree s)
+  (match s
+    [`(,g (state ,_sub ,c ,_trail ,_tag)) c]
+    [`(⊤ (state ,_sub ,c ,_trail ,_tag)) c]
+    [`(,s1 × ,_g ,_c) (first-c-in-core-tree s1)]
+    [`(,s1 <-+ ,s2) (or (first-c-in-core-tree s1) (first-c-in-core-tree s2))]
+    [`(,s1 +-> ,s2) (or (first-c-in-core-tree s1) (first-c-in-core-tree s2))]
+    [`(delay ,s1) (first-c-in-core-tree s1)]
+    [`(proceed ((,r ,_t ... ,_tag) (state ,_sub ,c ,_trail ,_tag2)))
+     #:when (relation-symbol? r)
+     c]
+    [_ #f]))
+
+(define (legacy-tree->core s)
+  (match s
+    ['() '(empty-tree)]
+    ['(empty-tree) '(empty-tree)]
+    [`(⊤ ,σ) `(⊤ ,(legacy-state->core σ))]
+    [`(∂ ,s1 ,_maybe-state) (legacy-tree->core s1)]
+    [`(,s1 <-+ ,s2) `(,(legacy-tree->core s1) <-+ ,(legacy-tree->core s2))]
+    [`(,s1 +-> ,s2) `(,(legacy-tree->core s1) +-> ,(legacy-tree->core s2))]
+    [`((⊤ ,σ) + ,s1) `((⊤ ,(legacy-state->core σ)) <-+ ,(legacy-tree->core s1))]
+    [`(,s1 × ,g)
+     (define s1* (legacy-tree->core s1))
+     (define captured-c (or (first-c-in-core-tree s1*) '()))
+     `(,s1* × ,(legacy-goal->core g) ,captured-c)]
+    [`(proceed ((,r ,ts ... ,o) ,σ))
+     `(proceed ((,r ,@(map legacy-term->core ts) ,(tag->label o))
+                ,(legacy-state->core σ)))]
+    [`(delay ,s1) `(delay ,(legacy-tree->core s1))]
+    [`(,g ,σ) `(,(legacy-goal->core g) ,(legacy-state->core σ))]
+    [_ (error 'legacy-tree->core "unhandled transpiled tree ~a" s)]))
+
+(define (legacy-env->core gamma)
+  (for/list ([defn (in-list gamma)])
+    (match defn
+      [`(,r ,d ,g) `(,r ,d ,(legacy-goal->core g))]
+      [_ (error 'legacy-env->core "bad relation def ~a" defn)])))
+
+(define (legacy-e->ans+tree e)
+  (match e
+    ['() (values '() '(empty-tree))]
+    [`((⊤ ,σ) + ,e2)
+     (define-values (ans tail-tree) (legacy-e->ans+tree e2))
+     (values (cons (legacy-state->core σ) ans) tail-tree)]
+    [_ (values '() (legacy-tree->core e))]))
+
+(define (legacy-program->canonical-config prog)
+  (match prog
+    [`(,e ,gamma)
+     (define-values (ans* s) (legacy-e->ans+tree e))
+     `(,(legacy-env->core gamma) ,ans* ,s)]
+    [_ (error 'legacy-program->canonical-config
+              "expected transpiled legacy program (e Γ), got ~a"
+              prog)]))
+
+(define (parse-prog/canonical lst)
+  (define-values (legacy-prog html-prog) (parse-prog lst))
+  (values (legacy-program->canonical-config legacy-prog) html-prog))
+
  
 #;(parse-prog
    '(defrel (assoco key table value)
@@ -565,18 +728,18 @@
 
   (check-equal?
    model-prog
-   '(prog ()
-          ((∃ (x:q)
-              (∃ ()
-                 (((((sym "dog1") =? (sym "cat") "u5")
-                    ∧ ((sym "bear1") =? x:lion "u6") "c4")
-                   ∧ ((sym "dog") =? (sym "cat") "u7") "c3")
-                  ∧ ((sym "bear") =? (sym "lion") "u8") "c2") "f1") "f0")
-           (state () 0 () "s"))))
+   '(((∃ (x:q)
+       (∃ ()
+          (((((sym "dog1") =? (sym "cat") "u5")
+             ∧ ((sym "bear1") =? x:lion "u6") "c4")
+            ∧ ((sym "dog") =? (sym "cat") "u7") "c3")
+           ∧ ((sym "bear") =? (sym "lion") "u8") "c2") "f1") "f0")
+      (state () 0 () "s"))
+     ()))
 
   (check-equal?
    html-prog
-   "\n\n[[f0]](run* (q) [[f1]](fresh ()\n  [[c2]]  [[c3]][[c4]][[u5]](== dog1 cat)[[/u5]]\n  [[u6]](== bear1 lion)[[/u6]][[/c4]]\n  [[u7]](== dog cat)[[/u7]][[/c3]]\n  [[u8]](== bear lion)[[/u8]][[/c2]])[[/f1]])[[/f0]]"
+   "\n\n[[f0]](run* (q) [[f1]](fresh ()\n  [[c2]]  [[c3]][[c4]][[u5]](== 'dog1 'cat)[[/u5]]\n  [[u6]](== 'bear1 lion)[[/u6]][[/c4]]\n  [[u7]](== 'dog 'cat)[[/u7]][[/c3]]\n  [[u8]](== 'bear 'lion)[[/u8]][[/c2]])[[/f1]])[[/f0]]"
    )
 
   )

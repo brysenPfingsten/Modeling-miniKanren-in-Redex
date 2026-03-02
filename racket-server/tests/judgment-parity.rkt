@@ -8,8 +8,7 @@
          "../src/transpiler.rkt"
          "../src/syntax-checking.rkt"
          "../src/judgment-forms.rkt"
-         "../src/core-judgment-forms.rkt"
-         "../src/legacy-variant-adapter.rkt")
+         "../src/core-judgment-forms.rkt")
 
 (provide JUDGMENT-PARITY)
 
@@ -58,7 +57,7 @@
   (check-syntax-capture-error src)
   (define forms (source->forms src))
   (define-values (legacy _html) (parse-prog forms))
-  (define canonical (legacy-program->canonical-config legacy))
+  (define-values (canonical _html2) (parse-prog/canonical forms))
   (define legacy-in-domain? (redex-match? L p legacy))
   (define canonical-in-domain? (redex-match? Core config canonical))
   (define legacy-ok? (and legacy-in-domain? (judgment-holds (closed-program? ,legacy))))
@@ -80,7 +79,7 @@
   (check-syntax-capture-error src)
   (define forms (source->forms src))
   (define-values (legacy _html) (parse-prog forms))
-  (define canonical (legacy-program->canonical-config legacy))
+  (define-values (canonical _html2) (parse-prog/canonical forms))
   (define legacy-in-domain? (redex-match? L p legacy))
   (define target-in-domain? (canonical-target-in-domain? canonical target-id))
   (define legacy-ok? (and legacy-in-domain? (judgment-holds (closed-program? ,legacy))))

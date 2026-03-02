@@ -50,18 +50,13 @@
   (wf-config/target? target-id canonical-config))
 
 ;; Legacy-program Canonical-config -> String or Error
-;; Purpose: Prefer canonical target-specific wf gate; fallback to legacy gate
-;; only when the transpiled term is outside that target's domain.
+;; Purpose: Canonical target-specific gate. Legacy judgment remains available
+;; for legacy-only tests, but runtime acceptance is canonical-only.
 (define (check-canonical-or-legacy-well-formed legacy-prog canonical-config [target-id "L4/config"])
-  (cond
-    [(canonical-target-in-domain? canonical-config target-id)
-     (if (canonical-target-well-formed? canonical-config target-id)
-         ""
-         (error (format "Program failed canonical ~a wf check." target-id)))]
-    [(legacy-well-formed? legacy-prog)
-     ""]
-    [else
-     (error "Program is not well formed!")]))
+  (if (and (canonical-target-in-domain? canonical-config target-id)
+           (canonical-target-well-formed? canonical-config target-id))
+      ""
+      (error (format "Program failed canonical ~a wf check." target-id))))
 
 
 ;; read-all: port -> ListOf sexpression

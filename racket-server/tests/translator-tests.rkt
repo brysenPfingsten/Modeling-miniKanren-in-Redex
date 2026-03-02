@@ -9,8 +9,7 @@
 (require "../src/definitions.rkt"
          "../src/judgment-forms.rkt"
          "../src/transpiler.rkt"
-         "../src/extensions/l4-railroad-syntax.rkt"
-         "../src/legacy-variant-adapter.rkt")
+         "../src/extensions/l4-railroad-syntax.rkt")
 
 (define (read-all port)
   (let ([expr (read port)])
@@ -20,6 +19,9 @@
 
 (define (parse-src src)
   (parse-prog (read-all (open-input-string src))))
+
+(define (parse-src/canonical src)
+  (parse-prog/canonical (read-all (open-input-string src))))
 
 (define/provide-test-suite TRANSLATOR-LEGACY
   (test-case
@@ -42,12 +44,11 @@
 
   (test-case
    "legacy surface translation lifts to L4 config syntax"
-   (define-values (legacy html)
-     (parse-src
+   (define-values (canonical html)
+     (parse-src/canonical
       "(defrel (same x y) (== x y))
 (run* (q) (same q 'cat))"))
-   (define lifted (legacy-program->l4-config legacy))
-   (check-true (redex-match? L4 config lifted))
+   (check-true (redex-match? L4 config canonical))
    (check-true (string? html))))
 
 (module+ test

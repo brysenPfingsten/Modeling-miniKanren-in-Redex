@@ -50,7 +50,30 @@
              (check-true (canonical-target-in-domain? non-core-canonical "L4/config"))
              (check-true (canonical-target-well-formed? non-core-canonical "L4/config"))
              (check-not-exn
-              (λ () (check-canonical-or-legacy-well-formed WELL-FORMED-PROG non-core-canonical)))))
+              (λ () (check-canonical-or-legacy-well-formed WELL-FORMED-PROG non-core-canonical))))
+
+  (test-case "Canonical gate rejects out-of-target-domain term (no legacy fallback)"
+             (define out-of-domain-canonical '(bogus))
+             (check-false (canonical-target-in-domain? out-of-domain-canonical "L4/config"))
+             (check-exn exn:fail?
+                        (λ () (check-canonical-or-legacy-well-formed WELL-FORMED-PROG out-of-domain-canonical))))
+
+  (test-case "Malformed legacy/internal term is repaired to parser-image shape before canonical lift"
+             (define malformed-legacy
+               '((((0 =? (sym "a") (sym "u"))
+                   (state ((0 (sym "a")) (0 (sym "b")))
+                          0
+                          (((0 =? (sym "a") (sym "u"))) bad-eq)
+                          (sym "s"))))
+                 ((same (x) (x =? (sym "a") (sym "u"))))))
+             (define repaired (repair-legacy-program malformed-legacy))
+             (check-true (redex-match? L p repaired))
+             (check-true (judgment-holds (closed-program? ,repaired)))
+             (define canonical (legacy-program->canonical-config malformed-legacy))
+             (check-true (canonical-target-in-domain? canonical "L4/config"))
+             (check-true (canonical-target-well-formed? canonical "L4/config"))
+             (check-not-exn
+              (λ () (check-canonical-or-legacy-well-formed repaired canonical)))))
 
 (define GOOD-SYNTAX-PROG 
   "

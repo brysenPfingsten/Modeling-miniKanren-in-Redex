@@ -14,6 +14,7 @@
          canonical-config?
          legacy-program->canonical-config
          canonical-config->legacy-program
+         repair-legacy-program
          legacy-tag->label)
 
 ;; Canonical backend target for parser/transpiler output.
@@ -23,6 +24,234 @@
 
 (define u-rx #px"^u:([0-9]+)$")
 (define r-rx #px"^r:")
+(define x-rx #px"^x:")
+
+(define (nonneg-integer? n)
+  (and (exact-integer? n) (>= n 0)))
+
+(define (unwrap-singleton x)
+  (match x
+    [(list y) (unwrap-singleton y)]
+    [_ x]))
+
+(define (legacy-lvar->natural u)
+  (cond
+    [(nonneg-integer? u) u]
+    [(and (symbol? u)
+          (regexp-match u-rx (symbol->string u)))
+     => (lambda (m) (string->number (second m)))]
+    [else #f]))
+
+(define (normalize-relation-name r)
+  (cond
+    [(relation-symbol? r) r]
+    [(symbol? r) (string->symbol (format "r:~a" r))]
+    [else 'r:repaired]))
+
+(define (normalize-lexical-name x)
+  (cond
+    [(and (symbol? x) (regexp-match? x-rx (symbol->string x))) x]
+    [(symbol? x) (string->symbol (format "x:~a" x))]
+    [else (string->symbol (format "x:~a" x))]))
+
+(define (normalize-legacy-tag o)
+  (match o
+    [`(sym ,s) `(sym ,(if (string? s) s (format "~a" s)))]
+    [`(nat ,n) `(nat ,(if (number? n) n 0))]
+    [(? boolean? b) b]
+    [(? string? s) s]
+    [(? symbol? s) `(sym ,(symbol->string s))]
+    [_ `(sym ,(format "~a" o))]))
+
+(define (legacy-lvars-in-datum d)
+  (match d
+    [(? nonneg-integer? n) (list n)]
+    [`(nat ,_) '()]
+    [`(sym ,_) '()]
+    [(cons a t) (append (legacy-lvars-in-datum a) (legacy-lvars-in-datum t))]
+    [_ '()]))
+
+(define (normalize-legacy-term t)
+  (match (unwrap-singleton t)
+    ['empty 'empty]
+    [`(,a : ,d) `(,(normalize-legacy-term a) : ,(normalize-legacy-term d))]
+    [`(sym ,s) `(sym ,(if (string? s) s (format "~a" s)))]
+    [`(nat ,n) `(nat ,(if (number? n) n 0))]
+    [(? boolean? b) b]
+    [(? nonneg-integer? n) n]
+    [(? string? s) s]
+    [(? symbol? s) s]
+    [_ `(sym ,(format "~a" t))]))
+
+(define (normalize-legacy-sub sub)
+  (define raw-list
+    (if (list? sub) sub '()))
+  (define normalized
+    (for/list ([pr (in-list raw-list)]
+               #:do [(define candidate
+                       (match (unwrap-singleton pr)
+                         [`(,u ,t)
+                          (define u* (legacy-lvar->natural u))
+                          (and u* (list u* (normalize-legacy-term t)))]
+                         [`(,u . ,t)
+                          (define u* (legacy-lvar->natural u))
+                          (and u* (list u* (normalize-legacy-term t)))]
+                         [_ #f]))]
+               #:when candidate)
+      candidate))
+  ;; Keep the leftmost binding only; legacy lookup uses first hit.
+  (define seen (make-hash))
+  (for/list ([pr (in-list normalized)]
+             #:unless (hash-has-key? seen (first pr))
+             #:do [(hash-set! seen (first pr) #t)])
+    pr))
+
+(define (normalize-legacy-trail trail)
+  (define raw-list
+    (if (list? trail) trail '()))
+  (for/list ([eq (in-list raw-list)]
+             #:do [(define maybe
+                     (match (unwrap-singleton eq)
+                       [`(,t1 =? ,t2 ,o)
+                        `(,(normalize-legacy-term t1)
+                          =?
+                          ,(normalize-legacy-term t2)
+                          ,(normalize-legacy-tag o))]
+                       [_ #f]))]
+             #:when maybe)
+    maybe))
+
+(define (normalize-legacy-c c sub trail)
+  (define base-vars
+    (cond
+      [(nonneg-integer? c) (for/list ([i (in-range c)]) i)]
+      [(list? c)
+       (for/list ([u (in-list c)]
+                  #:do [(define n (legacy-lvar->natural u))]
+                  #:when n)
+         n)]
+      [else '()]))
+  (define sub-vars
+    (append (map first sub)
+            (for/fold ([acc '()]) ([pr (in-list sub)])
+              (append acc (legacy-lvars-in-datum (second pr))))))
+  (define trail-vars
+    (for/fold ([acc '()]) ([eq (in-list trail)])
+      (match eq
+        [`(,t1 =? ,t2 ,_) (append acc
+                                  (legacy-lvars-in-datum t1)
+                                  (legacy-lvars-in-datum t2))]
+        [_ acc])))
+  (define all-vars (remove-duplicates (append base-vars sub-vars trail-vars)))
+  (if (null? all-vars)
+      0
+      (add1 (apply max all-vars))))
+
+(define (normalize-legacy-state st)
+  (match (unwrap-singleton st)
+    [`(state ,sub ,c ,trail ,o)
+     (define sub* (normalize-legacy-sub sub))
+     (define trail* (normalize-legacy-trail trail))
+     (define c* (normalize-legacy-c c sub* trail*))
+     `(state ,sub* ,c* ,trail* ,(normalize-legacy-tag o))]
+    [`(state ,sub ,c ,trail)
+     (normalize-legacy-state `(state ,sub ,c ,trail (sym "s")))]
+    [`(state ,sub ,c)
+     (normalize-legacy-state `(state ,sub ,c () (sym "s")))]
+    [_ `(state () 0 () (sym "s"))]))
+
+(define (normalize-legacy-d d)
+  (define raw-list
+    (if (list? d) d '()))
+  (define seen (make-hash))
+  (for/list ([x (in-list raw-list)]
+             #:do [(define x* (normalize-lexical-name x))]
+             #:unless (hash-has-key? seen x*)
+             #:do [(hash-set! seen x* #t)])
+    x*))
+
+(define (normalize-legacy-goal g)
+  (match (unwrap-singleton g)
+    ['⊤ '⊤]
+    [`(,t1 =? ,t2 ,o)
+     `(,(normalize-legacy-term t1) =? ,(normalize-legacy-term t2) ,(normalize-legacy-tag o))]
+    [`(,g1 ∨ ,g2 ,o)
+     `(,(normalize-legacy-goal g1) ∨ ,(normalize-legacy-goal g2) ,(normalize-legacy-tag o))]
+    [`(,g1 ∧ ,g2 ,o)
+     `(,(normalize-legacy-goal g1) ∧ ,(normalize-legacy-goal g2) ,(normalize-legacy-tag o))]
+    [`(∃ ,d ,g1 ,o)
+     `(∃ ,(normalize-legacy-d d) ,(normalize-legacy-goal g1) ,(normalize-legacy-tag o))]
+    [(list* r rest)
+     #:when (pair? rest)
+     (define o (last rest))
+     (define ts (drop-right rest 1))
+     `(,(normalize-relation-name r)
+       ,@(map normalize-legacy-term ts)
+       ,(normalize-legacy-tag o))]
+    [_ '⊤]))
+
+(define (normalize-legacy-tree s)
+  (match (unwrap-singleton s)
+    ['() '()]
+    ['(empty-tree) '()]
+    [`(⊤ ,σ) `(⊤ ,(normalize-legacy-state σ))]
+    [`(∂ ,s1 ,maybe-state)
+     `(∂ ,(normalize-legacy-tree s1)
+         ,(match maybe-state
+            [#f #f]
+            [_ (normalize-legacy-state maybe-state)]))]
+    [`(,s1 <-+ ,s2) `(,(normalize-legacy-tree s1) <-+ ,(normalize-legacy-tree s2))]
+    [`(,s1 +-> ,s2) `(,(normalize-legacy-tree s1) +-> ,(normalize-legacy-tree s2))]
+    [`((⊤ ,σ) + ,s1) `((⊤ ,(normalize-legacy-state σ)) + ,(normalize-legacy-tree s1))]
+    [`(,s1 × ,g) `(,(normalize-legacy-tree s1) × ,(normalize-legacy-goal g))]
+    [`(,s1 × ,g ,_c) `(,(normalize-legacy-tree s1) × ,(normalize-legacy-goal g))]
+    [`(proceed ((,r ,ts ... ,o) ,σ))
+     `(proceed ((,(normalize-relation-name r)
+                 ,@(map normalize-legacy-term ts)
+                 ,(normalize-legacy-tag o))
+                ,(normalize-legacy-state σ)))]
+    [`(proceed (,g ,σ))
+     `(proceed (,(normalize-legacy-goal g) ,(normalize-legacy-state σ)))]
+    [`(delay ,s1) `(delay ,(normalize-legacy-tree s1))]
+    [`(,g ,σ) `(,(normalize-legacy-goal g) ,(normalize-legacy-state σ))]
+    [_ '()]))
+
+(define (normalize-legacy-e e)
+  (match (unwrap-singleton e)
+    ['() '()]
+    [`((⊤ ,σ) + ,e2)
+     `((⊤ ,(normalize-legacy-state σ)) + ,(normalize-legacy-e e2))]
+    [_ (normalize-legacy-tree e)]))
+
+(define (normalize-legacy-env gamma)
+  (define raw-list
+    (if (list? gamma) gamma '()))
+  (define normalized
+    (for/list ([defn (in-list raw-list)]
+               #:do [(define maybe
+                       (match (unwrap-singleton defn)
+                         [`(,r ,d ,g)
+                          `(,(normalize-relation-name r)
+                            ,(normalize-legacy-d d)
+                            ,(normalize-legacy-goal g))]
+                         [_ #f]))]
+               #:when maybe)
+      maybe))
+  (define seen (make-hash))
+  (for/list ([defn (in-list normalized)]
+             #:unless (hash-has-key? seen (first defn))
+             #:do [(hash-set! seen (first defn) #t)])
+    defn))
+
+;; Repair malformed legacy/internal terms into the nearest
+;; parser-image legacy program shape `(e Γ)`.
+(define (repair-legacy-program prog)
+  (match (unwrap-singleton prog)
+    [`(,e ,gamma)
+     `(,(normalize-legacy-e e) ,(normalize-legacy-env gamma))]
+    [`(prog ,gamma ,e)
+     `(,(normalize-legacy-e e) ,(normalize-legacy-env gamma))]
+    [_ `(,(normalize-legacy-e prog) ())]))
 
 (define (u-symbol n)
   (string->symbol (format "u:~a" n)))
@@ -240,13 +469,14 @@
     `((⊤ ,(core-state->legacy σ)) + ,e)))
 
 (define (legacy-program->l4-config prog)
-  (match prog
-    [`(,e ,gamma)
-     (define-values (ans* s) (legacy-e->ans+tree e))
-     `(,(legacy-env->core gamma) ,ans* ,s)]
-    [_ (if (redex-match? L4 config prog)
-           prog
-           (error 'legacy-program->l4-config "expected legacy program p, got ~a" prog))]))
+  (cond
+    [(redex-match? L4 config prog) prog]
+    [else
+     (match (repair-legacy-program prog)
+       [`(,e ,gamma)
+        (define-values (ans* s) (legacy-e->ans+tree e))
+        `(,(legacy-env->core gamma) ,ans* ,s)]
+       [_ (error 'legacy-program->l4-config "expected legacy program p, got ~a" prog)])]))
 
 (define (l4-config->legacy-program cfg)
   (match cfg

@@ -9,6 +9,7 @@
          (prefix-in e: "../src/reduction-relations/extensions/rcall-eager.rkt")
          (prefix-in l: "../src/reduction-relations/extensions/rcall-lazy.rkt")
          (prefix-in d: "../src/reduction-relations/extensions/rdisj-left.rkt")
+         (prefix-in dn: "../src/reduction-relations/extensions/rdfs-nodelay.rkt")
          (prefix-in be: "../src/reduction-relations/extensions/rbase-e.rkt")
          (prefix-in bl: "../src/reduction-relations/extensions/rbase-l.rkt")
          (prefix-in fe: "../src/reduction-relations/extensions/rflip-e.rkt")
@@ -107,6 +108,13 @@
 
   (test-case "Rdisj-left is left-biased deterministic on first answer"
     (define next (first (apply-reduction-relation d:Rdisj-left cfg-disj)))
+    (check-equal?
+     next
+     (term (() ((state () () () (label "a")))
+               (⊤ (state () () () (label "b")))))))
+
+  (test-case "Rdfs-nodelay matches left-biased DFS behavior without delay/proceed machinery"
+    (define next (first (apply-reduction-relation dn:Rdfs-nodelay cfg-disj)))
     (check-equal?
      next
      (term (() ((state () () () (label "a")))

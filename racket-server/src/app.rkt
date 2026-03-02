@@ -9,8 +9,7 @@
          "transpiler.rkt"
          "syntax-checking.rkt"
          "zipper.rkt"
-         "model-registry.rkt"
-         "legacy-variant-adapter.rkt")
+         "model-registry.rkt")
 
 (provide step! back! reset! init! init-session! 
          make-stepper step step-name 
@@ -32,13 +31,7 @@
   (let ([z (session-zipper s)])
     (zipper-init! z)
     (zipper-add! z (step "Initialize Program" p))
-    (set-session-nqv! s (num-query-vars (canonical-config->legacy-program p)))))
-
-
-;; program->display-prog: program -> legacy-program
-;; Purpose: Keep existing JSON/transpiler view logic while stepping L4 configs.
-(define (program->display-prog prog)
-  (canonical-config->legacy-program prog))
+    (set-session-nqv! s (num-query-vars/canonical p))))
 
 
 ;; step->response: step nat nat-> response
@@ -47,7 +40,7 @@
   (match-let ([(step name prog) a-step])
     (let ([response (hasheq 'stepName name
                             'step a-idx
-                            'program (to-json (program->display-prog prog) nqv))])
+                            'program (to-json/canonical prog nqv))])
       (response/jsexpr response #:mime-type #"application/json; charset=utf-8"))))
 
 
@@ -57,7 +50,7 @@
   (match-let ([(step name prog) a-step])
     (let ([response (hasheq 'stepName name
                             'step 0
-                            'program (to-json (program->display-prog prog) nqv))])
+                            'program (to-json/canonical prog nqv))])
       (response/jsexpr response
                        #:mime-type #"application/json; charset=utf-8"
                        #:headers (list (make-header #"X-Is-Last" #"true"))))))
@@ -69,7 +62,7 @@
   (match-let ([(step name prog) a-step])
     (let ([response (hasheq 'stepName name
                             'step 0
-                            'program (to-json (program->display-prog prog) nqv)
+                            'program (to-json/canonical prog nqv)
                             'htmlGuids tagged-prog)])
       (response/jsexpr response
                        #:mime-type #"application/json; charset=utf-8"
@@ -123,14 +116,14 @@
   (define raw-prog (hash-ref (bytes->jsexpr json-data) 'text))        ;; Get the program from that JSON
   (check-syntax-capture-error raw-prog)                               ;; Check for syntax errors
   (define sexpr-prog (read-all (open-input-string raw-prog)))         ;; Read the program into sexpressions
-  (define-values (legacy-prog html-prog) (parse-prog sexpr-prog))      ;; Parse the sexpressions
-  (define model-prog (legacy-program->canonical-config legacy-prog))   ;; Target syntax migration
-  (unless (canonical-config? model-prog)
+  (define-values (model-prog html-prog) (parse-prog/canonical sexpr-prog)) ;; Parse directly to canonical target
+  (unless (canonical-target-in-domain? model-prog default-parser-target-id)
     (error 'init! (format "transpiler produced a program outside canonical target ~a"
-                          canonical-target-id)))
-  ;; Canonical gate is primary for core-shape programs; legacy remains
-  ;; as a compatibility fallback while non-core wf judgments are staged in.
-  (check-canonical-or-legacy-well-formed legacy-prog model-prog canonical-target-id)
+                          default-parser-target-id)))
+  (check-canonical-or-legacy-well-formed
+   #f
+   model-prog
+   default-parser-target-id)
   (init-session! ses model-prog)                                       ;; Initialize all state variables
   (match-define (session zip _ nqv) ses)                              ;; Get zipper and number query vars
   (define init-step (zipper-curr zip))                                ;; Get the initial program
