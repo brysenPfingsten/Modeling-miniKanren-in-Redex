@@ -95,24 +95,20 @@ const fivesFours = `(defrel (fives x)
     [(fives q)]
     [(fours q)]))`
 
-const callTiming = `(defrel (id x y)
-  (== x y))
-
-(run 3 (q)
-  (id q 'ok))`
-
-const unifyOnly = `(run* (q)
-  (fresh ()
-    (== q 'ok)))`
+const coreFreshConjUnify = `(run* (q)
+  (fresh (x y)
+    (== x (cons 'ok '()))
+    (== y (cons 'ok '()))
+    (== q x)
+    (== q y)))`
 
 export const exampleProgs = [
   { value: "", label: "Examples", models: ALL_MODEL_IDS },
-  { value: unifyOnly, label: "unify-only", models: ALL_MODEL_IDS },
+  { value: coreFreshConjUnify, label: "core/fresh+conj+unify", models: ALL_MODEL_IDS },
   { value: appendo, label: "appendo", models: ALL_MODEL_IDS },
   { value: appendoh1, label: "appendoh 1", models: ALL_MODEL_IDS },
   { value: appendoh2, label: "appendoh 2", models: ALL_MODEL_IDS },
   { value: fivesFours, label: "fives/fours", models: ALL_MODEL_IDS },
-  { value: callTiming, label: "call timing", models: ALL_MODEL_IDS },
   { value: same, label: "same", models: ALL_MODEL_IDS },
   { value: div3o, label: "div3o", models: ALL_MODEL_IDS },
 ];

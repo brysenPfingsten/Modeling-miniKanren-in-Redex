@@ -115,11 +115,11 @@
                            (hash-ref row 'last-rule)
                            (hash-ref row 'steps))))
 
-    ;; Bounded run query should always complete quickly in compatible models.
+    ;; Core L0-safe baseline should always complete quickly in compatible models.
     (for ([r (in-list rows)]
-          #:when (equal? (hash-ref r 'label) "call timing"))
+          #:when (equal? (hash-ref r 'label) "core/fresh+conj+unify"))
       (check-equal? (hash-ref r 'status) 'value
-                    (format "call timing should finish for ~a (got ~a)"
+                    (format "core/fresh+conj+unify should finish for ~a (got ~a)"
                             (hash-ref r 'model)
                             (hash-ref r 'status))))
 
