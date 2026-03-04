@@ -273,7 +273,7 @@
              (define zip (zipper '() (step "foo" sample-tree) '() 1))
              (define old-stepper step/const-tree-output)
              (define ses (session zip old-stepper 1))
-             (define req (make-post-model-request "dfs"))
+             (define req (make-post-model-request "mk-l3-dfs-lazy"))
              (define response (switch-model! ses req 'testid))
              (check-equal? (response-code response) 200)
              (check-true (procedure? (session-stepper ses)))
@@ -281,7 +281,7 @@
              (check-equal? (response-headers response)
                            (list (header #"Set-Cookie" #"session-id=testid; Path=/; SameSite=Lax")))
              (check-equal? (string->jsexpr (get-response-out response))
-                           (hasheq 'model "dfs")))
+                           (hasheq 'model "mk-l3-dfs-lazy")))
 
   (test-case "switch-model! rejects unknown model id and keeps existing stepper"
              (define zip (zipper '() (step "foo" sample-tree) '() 1))
@@ -295,7 +295,7 @@
 
   (test-case "flip model emits flip delay/disjunction rules (no railroad disjunction rules)"
              (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
-             (check-equal? (response-code (switch-model! ses (make-post-model-request "microKanren-flip") 'testid)) 200)
+             (check-equal? (response-code (switch-model! ses (make-post-model-request "mk-l3-flip-lazy") 'testid)) 200)
              (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program) 'testid)) 200)
              (define names (collect-step-names ses 24))
              (check-not-false (member "flip/delay-swap-left" names))
@@ -305,7 +305,7 @@
 
   (test-case "rail model emits railroad delay/disjunction rules (no flip disjunction rule)"
              (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
-             (check-equal? (response-code (switch-model! ses (make-post-model-request "microKanren-rail") 'testid)) 200)
+             (check-equal? (response-code (switch-model! ses (make-post-model-request "mk-l4-rail-lazy") 'testid)) 200)
              (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program) 'testid)) 200)
              (define names (collect-step-names ses 24))
              (check-not-false (member "rail/enter-right" names))
@@ -315,7 +315,7 @@
 
   (test-case "rail eager model emits eager call rules after init"
              (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
-             (check-equal? (response-code (switch-model! ses (make-post-model-request "microKanren-rail-eager") 'testid)) 200)
+             (check-equal? (response-code (switch-model! ses (make-post-model-request "mk-l4-rail-eager") 'testid)) 200)
              (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program) 'testid)) 200)
              (define names (collect-step-names ses 24))
              (check-not-false (member "call/eager-suspend-expanded" names))
@@ -332,15 +332,14 @@
              (check-equal? (response-code response) 200)
              (define models (string->jsexpr (get-response-out response)))
              (check-true (list? models))
-             (check-true (>= (length models) 6))
+             (check-true (>= (length models) 5))
              (define ids (for/list ([m (in-list models)])
                            (hash-ref m 'id #f)))
-             (check-not-false (member "microKanren-rail" ids))
-             (check-not-false (member "microKanren-noi-flip" ids))
-             (check-not-false (member "microKanren-rail-eager" ids))
-             (check-not-false (member "microKanren-flip" ids))
-             (check-not-false (member "microKanren-flip-eager" ids))
-             (check-not-false (member "dfs" ids))
+             (check-not-false (member "mk-l4-rail-lazy" ids))
+             (check-not-false (member "mk-l3-dfs-lazy" ids))
+             (check-not-false (member "mk-l4-rail-eager" ids))
+             (check-not-false (member "mk-l3-flip-lazy" ids))
+             (check-not-false (member "mk-l3-flip-eager" ids))
              (check-true (for/and ([m (in-list models)])
                            (and (hash-has-key? m 'parserProfile)
                                 (hash-has-key? m 'parserTarget)

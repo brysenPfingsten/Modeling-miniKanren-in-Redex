@@ -13,7 +13,7 @@
 (define MATRIX-STEP-CAP 25)
 
 (define PRIMARY-RAIL-MODELS
-  '("microKanren-rail" "microKanren-rail-eager" "dfs"))
+  '("mk-l4-rail-lazy" "mk-l4-rail-eager" "mk-l3-dfs-lazy"))
 
 (define (read-all port)
   (let ([expr (read port)])

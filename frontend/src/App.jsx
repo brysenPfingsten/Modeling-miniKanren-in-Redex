@@ -9,21 +9,20 @@ import CustomAlert     from './components/CustomAlert';
 import useStepper      from './hooks/useStepper';
 import Resizable       from './components/Resizable';
 import Sidebar from './components/Sidebar';
+import { MODEL_IDS } from './utils/model_ids.js';
 import './styles.css'
 
 function App() {
   const [code, setCode] = useState('');
   const originalCodeRef = useRef('');
   const [predefinedCodeText, setPredefinedCodeText] = useState('');
-  const [model, setModel] = useState('microKanren-rail');
+  const [model, setModel] = useState(MODEL_IDS.L4_RAIL_LAZY);
   const [modelOptions, setModelOptions] = useState([
-    { value: "microKanren-rail", label: "µKanren (Interleave + Railroad, Lazy)" },
-    { value: "microKanren-noi-flip", label: "µKanren (No Interleave + Flip, Lazy)" },
-    { value: "microKanren-flip", label: "µKanren (Interleave + Flip-Flop, Lazy)" },
-    { value: "microKanren-rail-eager", label: "µKanren (Interleave + Railroad, Eager)" },
-    { value: "microKanren-flip-eager", label: "µKanren (Interleave + Flip-Flop, Eager)" },
-    { value: "dmitry",      label: "Dmitry et al." },
-    { value: "dfs",         label: "DFS" }
+    { value: MODEL_IDS.L4_RAIL_LAZY, label: "µKanren (Interleave + Railroad, Lazy)" },
+    { value: MODEL_IDS.L3_DFS_LAZY, label: "µKanren (No Interleave, Lazy)" },
+    { value: MODEL_IDS.L3_FLIP_LAZY, label: "µKanren (Interleave + Flip-Flop, Lazy)" },
+    { value: MODEL_IDS.L4_RAIL_EAGER, label: "µKanren (Interleave + Railroad, Eager)" },
+    { value: MODEL_IDS.L3_FLIP_EAGER, label: "µKanren (Interleave + Flip-Flop, Eager)" }
   ]);
   const [isFrozen, setFrozen] = useState(false);
   const [alert, setAlert] = useState({ isOpen: false, message: '' });

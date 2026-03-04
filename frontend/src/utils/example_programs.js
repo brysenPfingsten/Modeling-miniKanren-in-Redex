@@ -1,3 +1,5 @@
+import { ALL_MODEL_IDS } from "./model_ids.js";
+
 const appendo = `(defrel (appendo l s out)
   (conde
     [(== l '())
@@ -103,26 +105,16 @@ const unifyOnly = `(run* (q)
   (fresh ()
     (== q 'ok)))`
 
-const ALL_MODELS = [
-  "microKanren",
-  "microKanren-rail",
-  "microKanren-noi-flip",
-  "microKanren-rail-eager",
-  "microKanren-flip",
-  "microKanren-flip-eager",
-  "dfs",
-];
-
 export const exampleProgs = [
-  { value: "", label: "Examples", models: ALL_MODELS },
-  { value: unifyOnly, label: "unify-only", models: ALL_MODELS },
-  { value: appendo, label: "appendo", models: ALL_MODELS },
-  { value: appendoh1, label: "appendoh 1", models: ALL_MODELS },
-  { value: appendoh2, label: "appendoh 2", models: ALL_MODELS },
-  { value: fivesFours, label: "fives/fours", models: ALL_MODELS },
-  { value: callTiming, label: "call timing", models: ALL_MODELS },
-  { value: same, label: "same", models: ALL_MODELS },
-  { value: div3o, label: "div3o", models: ALL_MODELS },
+  { value: "", label: "Examples", models: ALL_MODEL_IDS },
+  { value: unifyOnly, label: "unify-only", models: ALL_MODEL_IDS },
+  { value: appendo, label: "appendo", models: ALL_MODEL_IDS },
+  { value: appendoh1, label: "appendoh 1", models: ALL_MODEL_IDS },
+  { value: appendoh2, label: "appendoh 2", models: ALL_MODEL_IDS },
+  { value: fivesFours, label: "fives/fours", models: ALL_MODEL_IDS },
+  { value: callTiming, label: "call timing", models: ALL_MODEL_IDS },
+  { value: same, label: "same", models: ALL_MODEL_IDS },
+  { value: div3o, label: "div3o", models: ALL_MODEL_IDS },
 ];
 
 export function examplesForModel(model) {

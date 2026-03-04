@@ -21,38 +21,33 @@
 ;; This is intentionally a backend-only source of truth for model dispatch.
 ;; Frontend option wiring can consume this later without changing stepping code.
 (define all-model-specs
-  (list (model-spec "microKanren-rail"
-                    "microKanren (Interleave + Railroad, Lazy)"
+  (list (model-spec "mk-l4-rail-lazy"
+                    "µKanren (Interleave + Railroad, Lazy)"
                     canonical-parser-profile
                     canonical-parser-target-id
-                    var:step-once/Rrail-l)
-        (model-spec "microKanren-noi-flip"
-                    "microKanren (No Interleave + Flip Syntax, Lazy)"
+                    var:step-once/Rl4-rail-lazy)
+        (model-spec "mk-l3-dfs-lazy"
+                    "µKanren (No Interleave, Lazy)"
                     canonical-parser-profile
                     canonical-parser-target-id
-                    var:step-once/Rbase-l)
-        (model-spec "microKanren-flip"
-                    "microKanren (Interleave + Flip-Flop, Lazy)"
+                    var:step-once/Rl3-dfs-lazy)
+        (model-spec "mk-l3-flip-lazy"
+                    "µKanren (Interleave + Flip-Flop, Lazy)"
                     canonical-parser-profile
                     canonical-parser-target-id
-                    var:step-once/Rflip-l)
-        (model-spec "microKanren-rail-eager"
-                    "microKanren (Interleave + Railroad, Eager)"
+                    var:step-once/Rl3-flip-lazy)
+        (model-spec "mk-l4-rail-eager"
+                    "µKanren (Interleave + Railroad, Eager)"
                     canonical-parser-profile
                     canonical-parser-target-id
-                    var:step-once/Rrail-e)
-        (model-spec "microKanren-flip-eager"
-                    "microKanren (Interleave + Flip-Flop, Eager)"
+                    var:step-once/Rl4-rail-eager)
+        (model-spec "mk-l3-flip-eager"
+                    "µKanren (Interleave + Flip-Flop, Eager)"
                     canonical-parser-profile
                     canonical-parser-target-id
-                    var:step-once/Rflip-e)
-        (model-spec "dfs"
-                    "DFS (L4/Rrail-l)"
-                    canonical-parser-profile
-                    canonical-parser-target-id
-                    var:step-once/Rrail-l)))
+                    var:step-once/Rl3-flip-eager)))
 
-(define default-model-id "microKanren-rail")
+(define default-model-id "mk-l4-rail-lazy")
 (define default-parser-target-id canonical-parser-target-id)
 
 (define spec-by-id
@@ -62,7 +57,15 @@
 (define (lookup-model-spec model-id)
   (define canonical-id
     (cond
-      [(equal? model-id "microKanren") "microKanren-rail"]
+      ;; Legacy id aliases for compatibility with older URLs/saved state.
+      [(equal? model-id "microKanren") "mk-l4-rail-lazy"]
+      [(equal? model-id "microKanren-rail") "mk-l4-rail-lazy"]
+      [(equal? model-id "microKanren-noi-flip") "mk-l3-dfs-lazy"]
+      [(equal? model-id "microKanren-flip") "mk-l3-flip-lazy"]
+      [(equal? model-id "microKanren-rail-eager") "mk-l4-rail-eager"]
+      [(equal? model-id "microKanren-flip-eager") "mk-l3-flip-eager"]
+      [(equal? model-id "dfs") "mk-l3-dfs-lazy"]
+      [(equal? model-id "mk-l4-dfs-lazy") "mk-l3-dfs-lazy"]
       [else model-id]))
   (and (string? canonical-id)
        (hash-ref spec-by-id canonical-id #f)))
