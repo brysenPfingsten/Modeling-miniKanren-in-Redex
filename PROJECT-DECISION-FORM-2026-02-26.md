@@ -109,19 +109,20 @@ Use this as a working sheet. Mark one option per decision (or mark `DEFER`) and 
 - Rationale:
 
 ## D11) Interleaving Semantics Family (`DECIDE-NEXT`)
-- Status: `OPEN`
+- Status: `DEFERRED`
 - Choose:
   - [ ] Keep only the currently implemented interleaving branches (`flip` and `railroad`)
   - [ ] Add Dmitri-style deterministic interleaving that rotates at every disjunction node
-  - [ ] `DEFER`
+  - [x] `DEFER`
 - Rationale:
   - This is a distinct semantics axis (scheduler policy), not just syntax.
   - It should be represented as its own relation variant so comparisons are explicit.
+  - Current operational choice: hide `dmitry` from active model dispatch until the extension is implemented cleanly.
 
 ## D12) Disequality Constraints (`DECIDE-NEXT`)
-- Status: `OPEN`
+- Status: `DECIDED (for now)`
 - Choose:
-  - [ ] Keep equality-only for this paper iteration
+  - [x] Keep equality-only for this paper iteration
   - [ ] Add disequality constraints as an extension family
   - [ ] `DEFER`
 - If adding disequality, choose rollout policy:
@@ -130,16 +131,21 @@ Use this as a working sheet. Mark one option per decision (or mark `DEFER`) and 
 - Rationale:
   - Disequality is valuable but introduces another binary axis.
   - Full matrix expansion can become combinatorial; phase-gating limits complexity while preserving comparison value.
+  - Current choice: do not add disequality in this cycle; revisit later.
 
 ## D13) Frontend/Backend Variant Dispatch (`DECIDE-NEXT`)
-- Status: `OPEN`
+- Status: `DECIDED`
 - Choose:
   - [ ] Keep one parser and one shared example set for all selectable models
-  - [ ] Add model registry with explicit parser profile + example compatibility per model
+  - [x] Add model registry with explicit parser profile + example compatibility per model
   - [ ] `DEFER`
 - Rationale:
   - Multiple semantics/languages require explicit dispatch to avoid invalid parser/example/model combinations.
   - This is mostly orthogonal to semantic correctness, but blocks robust JS-side UX.
+  - Implemented:
+    - backend model registry (`/api/get/models`) provides parser profile/target metadata.
+    - frontend example metadata tracks model compatibility (`models` per example).
+    - `microKanren-dfs-nodelay` and `dmitry` are currently hidden from active model dispatch.
 
 ## Milestone Gate
 - Before coding next semantic layer, decisions required: `D1-D6`.

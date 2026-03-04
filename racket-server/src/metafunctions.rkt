@@ -329,6 +329,7 @@
     ['(empty-tree)
      (hasheq 'name "Empty")]
     [`(,g (state ,sub ,c ,trail ,tag))
+     #:when (not (equal? g '⊤))
      (hash-union (goal->json/canonical g)
                  (hasheq 'stateId (label->id tag)
                          'sub (sub->json/canonical sub)

@@ -30,10 +30,10 @@
          (Γ ans* (in-hole K4 (delay (s_2 <-+ s_1))))
          "rail/return-left"]
 
-    [--> (Γ (σ ...) (s_left +-> (⊤ σ_new)))
-         (Γ (σ ... σ_new) s_left)
+    [--> (Γ (σ ...) (in-hole K4 (s_left +-> (⊤ σ_new))))
+         (Γ (σ ... σ_new) (in-hole K4 s_left))
          "rail/collect-right-answer"]
 
-    [--> (Γ ans* (s_left +-> (empty-tree)))
-         (Γ ans* s_left)
+    [--> (Γ ans* (in-hole K4 (s_left +-> (empty-tree))))
+         (Γ ans* (in-hole K4 s_left))
          "rail/skip-right-fail"]))

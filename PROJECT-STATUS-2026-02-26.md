@@ -265,12 +265,16 @@ Dependencies:
 9. `OPEN`: **Interleaving policy coverage**
    - current implemented branches: `flip`, `railroad`.
    - candidate additional branch: Dmitri-style "interleave at every disjunction node."
-10. `OPEN`: **Disequality constraints**
-   - add as extension family or defer.
-   - if added, choose full-lattice rollout vs phased rollout (recommended).
-11. `OPEN`: **Frontend/backend variant dispatch**
-   - one shared parser/example set vs model registry with parser+example compatibility.
-   - currently: partial guardrails on frontend example filtering; full parser-profile dispatch still open.
+   - current operational policy: `dmitry` model is hidden from active dispatch until extension work resumes.
+10. `DECIDED (for now)`: **Disequality constraints**
+   - do not add disequality in this cycle.
+   - revisit as a later extension axis.
+11. `DECIDED`: **Frontend/backend variant dispatch**
+   - model registry + parser metadata + model-compatible example filtering.
+   - implemented baseline:
+     - backend `/api/get/models` registry metadata,
+     - frontend example compatibility lists (`models` per example),
+     - DFS-nodelay-compatible sample (`unify-only`).
 
 ## 6) Testing Quality Upgrade Plan (concrete)
 - Add a "property inventory" doc: each property, intended bug class, generator assumptions.
@@ -287,3 +291,31 @@ Dependencies:
 - Railroad-specific implementation details.
 
 None of these need to block settling the semantics roadmap and theorem priorities first.
+
+## 8) Latest Audit + Fix Cycle (2026-03-02)
+
+### 8.1) Matrix audit snapshots (saved)
+- Baseline snapshot:
+  - `Misc/audit-logs/20260302-123523-matrix-step-audit`
+- Post-fix snapshot:
+  - `Misc/audit-logs/20260302-141247-matrix-step-audit-after-rail-fix`
+
+Both include runner scripts, 25-step matrix outputs, deeper (400-step) outputs, and manifest/checksums.
+
+### 8.2) Fix implemented
+- Railroad right-branch answer/fail collection is now lifted through `K4` context:
+  - `racket-server/src/reduction-relations/extensions/rrail-l.rkt`
+  - `racket-server/src/reduction-relations/extensions/rrail-e.rkt`
+- Added regression test for collecting `+->` right answers under `<-+` context:
+  - `racket-server/tests/variant-module-tests.rkt`
+
+### 8.3) Regression lane added
+- New model/example matrix test (25-step classifier):
+  - `racket-server/tests/model-example-matrix-tests.rkt`
+- Included in headless lane:
+  - `racket-server/tests/test-all-headless.rkt`
+
+### 8.4) Residual issues after fix
+- `fives/fours` rail-family moved from `stuck` to non-terminating (`cap`) in bounded runs.
+- `microKanren-noi-flip` still has known `stuck` classifications for several examples.
+- `microKanren-dfs-nodelay` is hidden from active model dispatch (tabled with `dmitry`) pending extension work.

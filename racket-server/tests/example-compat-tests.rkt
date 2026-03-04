@@ -8,7 +8,8 @@
          "../src/transpiler.rkt"
          "../src/extensions/l4-railroad-syntax.rkt")
 
-(provide EXAMPLE-COMPAT)
+(provide EXAMPLE-COMPAT
+         frontend-example-programs)
 
 ;; Source of truth lives in frontend; tests consume it directly.
 (define-runtime-path FRONTEND-EXAMPLES-PATH

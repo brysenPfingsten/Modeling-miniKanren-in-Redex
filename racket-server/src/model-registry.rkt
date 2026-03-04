@@ -31,11 +31,6 @@
                     canonical-parser-profile
                     canonical-parser-target-id
                     var:step-once/Rbase-l)
-        (model-spec "microKanren-dfs-nodelay"
-                    "microKanren (DFS, No Delay/Proceed, Left Disjunction)"
-                    canonical-parser-profile
-                    canonical-parser-target-id
-                    var:step-once/Rdfs-nodelay)
         (model-spec "microKanren-flip"
                     "microKanren (Interleave + Flip-Flop, Lazy)"
                     canonical-parser-profile
@@ -51,11 +46,6 @@
                     canonical-parser-profile
                     canonical-parser-target-id
                     var:step-once/Rflip-e)
-        (model-spec "dmitry"
-                    "Dmitry et al. (provisional alias: L4/Rrail-e)"
-                    canonical-parser-profile
-                    canonical-parser-target-id
-                    var:step-once/Rrail-e)
         (model-spec "dfs"
                     "DFS (L4/Rrail-l)"
                     canonical-parser-profile

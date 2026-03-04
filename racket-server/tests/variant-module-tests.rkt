@@ -178,16 +178,31 @@
       (define named-next* (apply-reduction-relation/tag-with-names rel cfg))
       (check-equal? (length named-next*) 1)
       (check-equal? (first (first named-next*)) "rail/enter-right")
+	      (check-equal?
+	       (second (first named-next*))
+	       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
+	              ()
+	              (delay
+	               ((proceed
+	                 ((r:id (sym "ok") (label "call"))
+	                  (state () () () (label "s"))))
+	                +->
+	                (⊤ (state () () () (label "b"))))))))))
+
+  (test-case "Rrail-e and Rrail-l collect +-> right answer inside <-+ context"
+    (define cfg
+      (term (() ()
+                (((empty-tree) +-> (⊤ (state () () () (label "ra"))))
+                 <-+
+                 (empty-tree)))))
+    (for ([rel (in-list (list re:Rrail-e rl:Rrail-l))])
+      (define named-next* (apply-reduction-relation/tag-with-names rel cfg))
+      (check-equal? (length named-next*) 1)
+      (check-equal? (first (first named-next*)) "rail/collect-right-answer")
       (check-equal?
        (second (first named-next*))
-       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-              ()
-              (delay
-               ((proceed
-                 ((r:id (sym "ok") (label "call"))
-                  (state () () () (label "s"))))
-                +->
-                (⊤ (state () () () (label "b"))))))))))
+       (term (() ((state () () () (label "ra")))
+                 ((empty-tree) <-+ (empty-tree)))))))
 
 (define/provide-test-suite VARIANT-MODULES
   LANGUAGE-MODULES

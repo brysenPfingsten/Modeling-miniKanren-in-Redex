@@ -6,6 +6,7 @@
          "./judgment-parity.rkt"
          "./property-core.rkt"
          "./example-compat-tests.rkt"
+         "./model-example-matrix-tests.rkt"
          "./variant-module-tests.rkt"
          "./property-variants.rkt"
          "./property-variants-random.rkt")
@@ -15,6 +16,7 @@
   JUDGMENT-PARITY
   PROPERTY-CORE
   EXAMPLE-COMPAT
+  MODEL-EXAMPLE-MATRIX
   VARIANT-MODULES
   PROPERTY-VARIANTS
   PROPERTY-VARIANTS-RANDOM)

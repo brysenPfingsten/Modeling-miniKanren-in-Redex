@@ -99,6 +99,10 @@ const callTiming = `(defrel (id x y)
 (run 3 (q)
   (id q 'ok))`
 
+const unifyOnly = `(run* (q)
+  (fresh ()
+    (== q 'ok)))`
+
 const ALL_MODELS = [
   "microKanren",
   "microKanren-rail",
@@ -106,12 +110,12 @@ const ALL_MODELS = [
   "microKanren-rail-eager",
   "microKanren-flip",
   "microKanren-flip-eager",
-  "dmitry",
   "dfs",
 ];
 
 export const exampleProgs = [
   { value: "", label: "Examples", models: ALL_MODELS },
+  { value: unifyOnly, label: "unify-only", models: ALL_MODELS },
   { value: appendo, label: "appendo", models: ALL_MODELS },
   { value: appendoh1, label: "appendoh 1", models: ALL_MODELS },
   { value: appendoh2, label: "appendoh 2", models: ALL_MODELS },
