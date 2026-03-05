@@ -11,6 +11,7 @@ import Resizable       from './components/Resizable';
 import Sidebar from './components/Sidebar';
 import { MODEL_IDS } from './utils/model_ids.js';
 import { exampleProgs } from './utils/example_programs.js';
+import { analysisStatusForModel, isStartBlockedByAnalysis } from './utils/compatibility.js';
 import './styles.css'
 
 const ANALYSIS_DEBOUNCE_MS = 450;
@@ -111,13 +112,9 @@ function App() {
 
   const applyAnalysisStatus = (analysis, modelId = model) => {
     setAnalysisResult(analysis);
-    if (!analysis?.validSyntax) {
-      setAnalysisStatus("syntax-error");
-      return false;
-    }
-    const compatibleIds = analysis.compatibleModelIds || [];
-    const isCompatible = compatibleIds.includes(modelId);
-    setAnalysisStatus(isCompatible ? "ok" : "incompatible");
+    const nextStatus = analysisStatusForModel(analysis, modelId);
+    setAnalysisStatus(nextStatus);
+    const isCompatible = nextStatus === "ok";
     return isCompatible;
   };
 
@@ -311,11 +308,11 @@ function App() {
       }
     : null;
 
-  const startBlockedByAnalysis = (!isFrozen
-    && (code.trim() === ""
-        || analysisStatus === "analyzing"
-        || analysisStatus === "syntax-error"
-        || analysisStatus === "incompatible"));
+  const startBlockedByAnalysis = isStartBlockedByAnalysis({
+    isFrozen,
+    code,
+    analysisStatus,
+  });
   const toolbarDisabled = {
     ...disabled,
     start: disabled.start || startBlockedByAnalysis,

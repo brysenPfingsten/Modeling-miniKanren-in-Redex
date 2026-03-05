@@ -40,6 +40,12 @@ Includes syntax-compat checks that frontend example programs parse and lift to `
 raco test racket-server/tests/test-all.rkt
 ```
 
+### **3) Frontend compatibility-gating lane**
+
+```sh
+npm --prefix frontend test
+```
+
 ## **Backend Model Registry**
 
 The backend now exposes available stepping models through:

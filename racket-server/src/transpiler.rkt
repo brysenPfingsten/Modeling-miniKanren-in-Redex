@@ -1,6 +1,7 @@
 #lang racket
 (require racket/struct
          racket/generic
+         racket/set
          redex/reduction-semantics
          syntax/to-string
          racket/pretty
@@ -9,6 +10,11 @@
 (provide parse-prog
          parse-prog/canonical
          parse-prog->ast
+         REQ-CORE
+         REQ-RELCALL
+         REQ-DISJUNCTION
+         REQ-FRESH
+         ast->requirements
          canonical-parser-profile
          canonical-parser-target-id)
 
@@ -34,6 +40,44 @@
 ;; Canonical parser target for backend stepping.
 (define canonical-parser-profile "surface->l4")
 (define canonical-parser-target-id "L4/config")
+
+;; Capability requirements (used for model compatibility checks).
+(define REQ-CORE "req/core")
+(define REQ-RELCALL "req/relcall")
+(define REQ-DISJUNCTION "req/disjunction")
+(define REQ-FRESH "req/fresh")
+
+(define (goal->requirements g)
+  (match g
+    [(fresh _ goal)
+     (set-add (goal->requirements goal) REQ-FRESH)]
+    [(conde clauses)
+     (for/fold ([acc (set REQ-DISJUNCTION)])
+               ([clause (in-list clauses)])
+       (set-union acc (goal->requirements clause)))]
+    [(disj g1 g2)
+     (set-union (set REQ-DISJUNCTION)
+                (goal->requirements g1)
+                (goal->requirements g2))]
+    [(conj g1 g2)
+     (set-union (goal->requirements g1)
+                (goal->requirements g2))]
+    [(relcall _ _)
+     (set REQ-RELCALL)]
+    [_ (set)]))
+
+(define (ast->requirements ast)
+  (match ast
+    [(prog rels (run _ _ query-goal))
+     (define reqs-from-rels
+       (for/fold ([acc (set REQ-CORE)])
+                 ([rel (in-list rels)])
+         (match rel
+           [(defrel _ _ goal) (set-union acc (goal->requirements goal))]
+           [_ acc])))
+     (sort (set->list (set-union reqs-from-rels (goal->requirements query-goal)))
+           string<?)]
+    [_ (list REQ-CORE)]))
 
 ;; map/fold: (T A -> (values R A)) (listof T) A -> (values (listof R) A)
 ;; Purpose: Like map, but threads an accumulator state through each call.

@@ -23,6 +23,14 @@ Runs the app-level test suite used for server behavior regression checks.
 raco test racket-server/tests/test-all.rkt
 ```
 
+## Lane C: Frontend Compatibility-Gating Logic
+
+Runs pure frontend logic tests for compatibility analysis status + Start-button gating behavior.
+
+```sh
+npm --prefix frontend test
+```
+
 ## Notes
 
 - Legacy/manual test files still exist in-tree for reference, but they are not part of supported test lanes.
