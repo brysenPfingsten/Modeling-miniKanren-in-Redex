@@ -79,6 +79,11 @@ Use this as a working sheet. Mark one option per decision (or mark `DEFER`) and 
   - [ ] In-tree answers + hidden marker nodes
   - [ ] `DEFER`
 - Rationale:
+  - Decision should be made together with D8 (fresh markers) and D10 (theorem claim surface).
+  - Current implementation remains `external ans*` while this is unresolved.
+  - Use this criterion:
+    - if paper claim priority is stronger locality/provenance theorems, favor `in-tree` (`G2/G3`);
+    - if priority is minimizing semantic churn this cycle, keep `external ans*` (`G1`).
 
 ## D8) Fresh-History Markers
 - Status: `OPEN (DEFERRED FOR NOW)`
@@ -107,6 +112,7 @@ Use this as a working sheet. Mark one option per decision (or mark `DEFER`) and 
   - [ ] No theorem; only empirical comparison
   - [ ] `DEFER`
 - Rationale:
+  - This should be decided after D7 because theorem scope/shape depends on answer representation and marker choices.
 
 ## D11) Interleaving Semantics Family (`DECIDE-NEXT`)
 - Status: `DEFERRED (future work; not active now)`
@@ -145,7 +151,8 @@ Use this as a working sheet. Mark one option per decision (or mark `DEFER`) and 
   - This is mostly orthogonal to semantic correctness, but blocks robust JS-side UX.
   - Implemented:
     - backend model registry (`/api/get/models`) provides parser profile/target metadata.
-    - frontend example metadata tracks model compatibility (`models` per example).
+    - backend capability analyzer (`/api/post/analyze`) computes compatibility from source AST requirements.
+    - frontend enforces compatibility through warnings and Start-button gating.
     - `microKanren-dfs-nodelay` and `dmitry` are currently hidden from active model dispatch.
 
 ## Milestone Gate

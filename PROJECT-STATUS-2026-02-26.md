@@ -21,6 +21,12 @@ This note is a restart map: what has been decided, what is provisional, and what
   - non-railroad variants, and
   - railroad variants.
 - Important clarification: once disjunction tree nodes exist in syntax, semantics must include a concrete scheduling/stepping choice for those nodes (deterministic policy is acceptable; "syntax only" is not enough for progress/preservation claims).
+- Active surfaced model lattice now includes:
+  - `mk-l0-core`
+  - `mk-l1-call-{lazy,eager}`
+  - `mk-l2-disj-left`
+  - `mk-l3-{dfs,flip}-{lazy,eager}`
+  - `mk-l4-rail-{lazy,eager}`
 
 ### 1.1) Testing Hardening Progress (completed)
 - Shared helper extraction completed for randomized test mechanics:
@@ -45,6 +51,30 @@ This note is a restart map: what has been decided, what is provisional, and what
   - metafunction sanity (`walk`/`unify`): `racket-server/tests/test-metafunctions.rkt`
 - Archived for explicit future extension work only:
   - `racket-server/tests/archive/legacy-deprecated/test-dmitry-and-dmitry.rkt`
+
+### 1.3) Compatibility Dispatch + Gating (implemented)
+- Backend model registry is now source-of-truth for selectable semantics:
+  - `GET /api/get/models` via `racket-server/src/model-registry.rkt`
+- Backend capability analysis is implemented:
+  - `racket-server/src/capability-analysis.rkt`
+  - `POST /api/post/analyze` in `racket-server/src/app.rkt`
+- `init!` now enforces model/program compatibility before execution.
+- Frontend behavior:
+  - debounced source analysis,
+  - explicit compatibility warning panel,
+  - Start-button gating for syntax-error/incompatible cases.
+  - note: compatibility badges in dropdown options were intentionally removed; compatibility is shown through warning + Start gating instead.
+
+### 1.4) Test-Lane Expansion (implemented)
+- Active lanes are now:
+  - headless aggregate: `racket-server/tests/test-all-headless.rkt`
+  - app/API regression: `racket-server/tests/test-all.rkt`
+  - frontend gating logic: `npm --prefix frontend test`
+  - model/example API-flow matrix:
+    - `racket-server/tests/model-example-matrix-tests.rkt`
+- Matrix API-flow lane validates, for all `model × example` pairs:
+  - analyze -> switch-model -> init -> step (up to 25 or termination),
+  - payload shape invariants (`step`, `stepName`, JSON `program`) at each step.
 
 ## 2) Simple Definitions (for context)
 - `global c`: treat `c` as one broad "set of extant logic vars" for the whole current computation region; easier invariants, less precision.
@@ -121,9 +151,9 @@ This note is a restart map: what has been decided, what is provisional, and what
 8. **Disequality constraints axis**:
    - whether to add disequality constraints as an extension family in this paper cycle,
    - and whether to phase-gate it to selected variants vs full lattice cross-product.
-9. **JS dispatch architecture**:
-   - parser profile may differ by selected language/semantics,
-   - example dropdown should be model-compatible rather than global.
+9. **JS dispatch architecture (advanced phase)**:
+   - current baseline is implemented (capability analyzer + start gating + model registry),
+   - open future work is multi-surface parser/profile support beyond the current canonical target path.
 
 ### 3.1) Legacy-to-Variant Migration Targets (working map)
 - `reduction-relations.rkt` (legacy "microKanren" backend) -> **`Rrail-l`** as closest lattice target.
@@ -289,8 +319,9 @@ Dependencies:
    - model registry + parser metadata + model-compatible example filtering.
    - implemented baseline:
      - backend `/api/get/models` registry metadata,
-     - frontend example compatibility lists (`models` per example),
-     - DFS-nodelay-compatible sample (`unify-only`).
+     - backend capability analyzer (`/api/post/analyze`) drives compatibility,
+     - frontend compatibility warnings + Start-button gating,
+     - preliminary/deprecated variants (`dmitry`, `dfs-nodelay`) remain hidden.
 
 ## 6) Testing Quality Upgrade Plan (concrete)
 - Add a "property inventory" doc: each property, intended bug class, generator assumptions.
@@ -308,7 +339,7 @@ Dependencies:
 
 None of these need to block settling the semantics roadmap and theorem priorities first.
 
-## 8) Latest Audit + Fix Cycle (2026-03-02)
+## 8) Latest Audit + Fix Cycle (2026-03-05)
 
 ### 8.1) Matrix audit snapshots (saved)
 - Baseline snapshot:
@@ -331,7 +362,46 @@ Both include runner scripts, 25-step matrix outputs, deeper (400-step) outputs, 
 - Included in headless lane:
   - `racket-server/tests/test-all-headless.rkt`
 
-### 8.4) Residual issues after fix
-- `fives/fours` rail-family moved from `stuck` to non-terminating (`cap`) in bounded runs.
-- `microKanren-noi-flip` still has known `stuck` classifications for several examples.
-- `microKanren-dfs-nodelay` is hidden from active model dispatch (tabled with `dmitry`) pending extension work.
+### 8.4) Current status after matrix+API-flow hardening
+- No known failing model/example pairs in active surfaced models under the current 25-step matrix audit.
+- Some rows intentionally classify as `cap` (bounded-run non-termination/long-run behavior), not as `stuck`.
+- Hidden/deferred variants remain out of active dispatch:
+  - `dmitry`
+  - `dfs-nodelay`
+
+## 9) Next Decision Packet: Answer Placement + Theorem Surface
+
+This is the next meaningful design/theory blocker.
+
+### 9.1) Answer placement options (D7)
+- `G1` external `ans*` list (current):
+  - simplest runtime/UI model,
+  - weaker locality/provenance statements.
+- `G2` in-tree answers:
+  - stronger local structural invariants,
+  - more tree constructors and reduction plumbing.
+- `G3` in-tree answers + hidden provenance markers:
+  - strongest local reasoning story (especially with subset-`c`),
+  - highest complexity and proof/test overhead.
+
+### 9.2) Fresh marker coupling (D8)
+- If D7 moves toward `G2/G3`, marker nodes become much more compelling.
+- If D7 stays `G1`, marker nodes are optional and can remain deferred.
+
+### 9.3) Theorem surface coupling (D10 + testing)
+- Immediate theorem/testing target (independent of D7 final choice):
+  - tighten and document invariant claims for current lattice:
+    - WF preservation,
+    - progress (fragment-scoped),
+    - deterministic one-step decomposition in intended fragments.
+- If D7 picks `G2/G3`, add locality/provenance theorem candidates:
+  - branch-local variable-origin alignment,
+  - no-cross-branch contamination beyond shared-prefix `c`.
+
+### 9.4) Recommended near-term sequence
+1. Write a short "property inventory" doc mapping each claim to:
+   - bug class prevented,
+   - current test coverage,
+   - missing generator/lemma support.
+2. Decide D7 explicitly (pick one of `G1/G2/G3`).
+3. Resolve D8/D10 based on D7 choice.
