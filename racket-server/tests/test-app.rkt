@@ -427,7 +427,36 @@
              (for ([id (in-list (hash-ref body 'compatibleModelIds '()))])
                (check-true (set-member? known-ids id)))
              (for ([id (in-list (hash-ref body 'incompatibleModelIds '()))])
-               (check-true (set-member? known-ids id)))))
+               (check-true (set-member? known-ids id))))
+
+  (test-case "analyze! returns mixed compatible/incompatible payload for appendo"
+             (define req
+               (make-post-analyze-request
+                "(defrel (appendo l s out)
+                   (conde
+                     [(== l '()) (== s out)]
+                     [(fresh (a d res)
+                        (== l (cons a d))
+                        (== out (cons a res))
+                        (appendo d s res))]))
+                 (run* (q) (appendo (list 'mini) (list 'kanren) q))"))
+             (define response (analyze! #f req))
+             (check-equal? (response-code response) 200)
+             (define body (string->jsexpr (get-response-out response)))
+             (check-true (hash-ref body 'validSyntax #f))
+             (check-not-false (member "mk-l3-dfs-lazy"
+                                      (hash-ref body 'compatibleModelIds '())))
+             (check-not-false (member "mk-l0-core"
+                                      (hash-ref body 'incompatibleModelIds '())))
+             (define reasons-by-model (hash-ref body 'incompatReasonsByModel #hash()))
+             (define reasons-l0
+               (or (hash-ref reasons-by-model "mk-l0-core" #f)
+                   (hash-ref reasons-by-model 'mk-l0-core #f)
+                   '()))
+             (check-true (pair? reasons-l0))
+             (check-not-false
+              (member "missing cap/relcall (required by req/relcall)"
+                      reasons-l0))))
 
 (define/provide-test-suite APP
   #:before (thunk (displayln "Running tests for app.rkt..."))

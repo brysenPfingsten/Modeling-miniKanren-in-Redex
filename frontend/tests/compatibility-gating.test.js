@@ -30,14 +30,22 @@ test("isStartBlockedByAnalysis blocks on empty program", () => {
   }), true);
 });
 
-test("isStartBlockedByAnalysis blocks on analyzing/syntax-error/incompatible", () => {
-  for (const status of ["analyzing", "syntax-error", "incompatible"]) {
+test("isStartBlockedByAnalysis blocks on syntax-error/incompatible", () => {
+  for (const status of ["syntax-error", "incompatible"]) {
     assert.equal(isStartBlockedByAnalysis({
       isFrozen: false,
       code: "(run* (q) (== q 'ok))",
       analysisStatus: status,
     }), true);
   }
+});
+
+test("isStartBlockedByAnalysis does not block on analyzing", () => {
+  assert.equal(isStartBlockedByAnalysis({
+    isFrozen: false,
+    code: "(run* (q) (== q 'ok))",
+    analysisStatus: "analyzing",
+  }), false);
 });
 
 test("isStartBlockedByAnalysis allows start on ok + non-empty + unfrozen", () => {

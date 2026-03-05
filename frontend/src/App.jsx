@@ -10,7 +10,6 @@ import useStepper      from './hooks/useStepper';
 import Resizable       from './components/Resizable';
 import Sidebar from './components/Sidebar';
 import { MODEL_IDS } from './utils/model_ids.js';
-import { exampleProgs } from './utils/example_programs.js';
 import { analysisStatusForModel, isStartBlockedByAnalysis } from './utils/compatibility.js';
 import './styles.css'
 
@@ -56,7 +55,6 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState("idle");
   const [analysisResult, setAnalysisResult] = useState(null);
-  const [exampleCompatibility, setExampleCompatibility] = useState({});
   
   const [ darkMode, setDarkMode ] = useState(false);
   const analysisCacheRef = useRef(new Map());
@@ -102,7 +100,10 @@ function App() {
       const failData = (payload && typeof payload === "object")
         ? payload
         : { validSyntax: false, error: `Analyze failed (${response.status})` };
-      analysisCacheRef.current.set(source, failData);
+      // Only cache deterministic syntax failures; avoid pinning transient backend errors.
+      if (response.status === 400 && failData.validSyntax === false) {
+        analysisCacheRef.current.set(source, failData);
+      }
       return failData;
     }
 
@@ -240,34 +241,6 @@ function App() {
   }, [code, model, isFrozen]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const analyzeExamples = async () => {
-      const next = {};
-      for (const option of exampleProgs) {
-        if (!option.value) continue;
-        try {
-          const analysis = await analyzeSource(option.value);
-          if (!analysis.validSyntax) {
-            next[option.value] = { compatible: false, reasons: [analysis.error || "syntax error"] };
-            continue;
-          }
-          const reasonsByModel = analysis.incompatReasonsByModel || {};
-          const reasons = reasonsByModel[model] || [];
-          const compatible = (analysis.compatibleModelIds || []).includes(model);
-          next[option.value] = { compatible, reasons };
-        } catch (_) {
-          next[option.value] = { compatible: true, reasons: [] };
-        }
-      }
-      if (!cancelled) setExampleCompatibility(next);
-    };
-
-    analyzeExamples();
-    return () => { cancelled = true; };
-  }, [model]);
-
-  useEffect(() => {
     let active = true;
     const loadModels = async () => {
       try {
@@ -295,16 +268,12 @@ function App() {
   const compatibleModelIds = analysisResult?.compatibleModelIds || [];
   const currentModelReasons = (analysisResult?.incompatReasonsByModel || {})[model] || [];
   const firstCompatibleModel = compatibleModelIds[0] || null;
-  const firstCompatibleExample = exampleProgs
-    .filter((opt) => opt.value)
-    .find((opt) => exampleCompatibility[opt.value]?.compatible && opt.value !== predefinedCodeText);
 
   const compatWarning = (!isFrozen && analysisStatus === "incompatible")
     ? {
         message: "Current program is incompatible with the selected model.",
         reasons: currentModelReasons,
         canSwitchModel: Boolean(firstCompatibleModel),
-        canSwitchExample: Boolean(firstCompatibleExample),
       }
     : null;
 
@@ -323,11 +292,6 @@ function App() {
     await requestModelChange(firstCompatibleModel);
   };
 
-  const switchCompatibleExample = () => {
-    if (!firstCompatibleExample) return;
-    setPredefinedCodeText(firstCompatibleExample.value);
-  };
-
   return (
     <div className="container">
       <Resizable>
@@ -342,9 +306,7 @@ function App() {
             isFrozen={isFrozen}
             analysisStatus={analysisStatus}
             compatWarning={compatWarning}
-            exampleCompatibility={exampleCompatibility}
             onSwitchCompatibleModel={switchCompatibleModel}
-            onSwitchCompatibleExample={switchCompatibleExample}
            />
           <div className="editor-area">
             <CodeEditor 

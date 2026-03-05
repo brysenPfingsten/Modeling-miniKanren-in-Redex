@@ -22,7 +22,8 @@
     Core
 
     [--> (Γ (σ ...) (⊤ σ_new))
-         (Γ (σ ... σ_new) (empty-tree))]))
+         (Γ (σ ... σ_new) (empty-tree))
+         "Collect Answer"]))
 
 (define -->e
   (reduction-relation

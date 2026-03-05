@@ -221,7 +221,8 @@
     (define incompatible-ids (map model-spec-id incompatible-specs))
     (define incompat-reasons
       (for/hash ([spec (in-list incompatible-specs)])
-        (values (model-spec-id spec)
+        ;; Use symbol keys so response/jsexpr can encode object fields reliably.
+        (values (string->symbol (model-spec-id spec))
                 (incompatible-reasons requirements
                                       (model-spec-capabilities spec)))))
     (response/jsexpr

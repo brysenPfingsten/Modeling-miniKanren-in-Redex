@@ -7,6 +7,7 @@
          "./judgment-parity.rkt"
          "./property-core.rkt"
          "./example-compat-tests.rkt"
+         "./confidence-gates-tests.rkt"
          "./model-example-matrix-tests.rkt"
          "./variant-module-tests.rkt"
          "./property-variants.rkt"
@@ -18,6 +19,7 @@
   JUDGMENT-PARITY
   PROPERTY-CORE
   EXAMPLE-COMPAT
+  CONFIDENCE-GATES
   MODEL-EXAMPLE-MATRIX
   VARIANT-MODULES
   PROPERTY-VARIANTS

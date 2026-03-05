@@ -12,22 +12,21 @@ export default function CodeHeader({
   isFrozen,
   analysisStatus = "idle",
   compatWarning = null,
-  exampleCompatibility = {},
   onSwitchCompatibleModel = () => {},
-  onSwitchCompatibleExample = () => {},
 }) {
   const availableExamples = examplesForModel(modelValue);
 
-  const renderOptions = (opts) =>
+  const renderExampleOptions = (opts) =>
     opts.map(({ value, label }) => (
       <option key={value} value={value}>
-        {value === ""
-          ? label
-          : (() => {
-              const compat = exampleCompatibility[value];
-              if (!compat || compat.compatible) return label;
-              return `${label} (incompatible)`;
-            })()}
+        {label}
+      </option>
+    ));
+
+  const renderModelOptions = (opts) =>
+    opts.map(({ value, label }) => (
+      <option key={value} value={value}>
+        {label}
       </option>
     ));
 
@@ -51,7 +50,7 @@ export default function CodeHeader({
         onChange={(e) => onProgramChange(e.target.value)}
         disabled={isFrozen}
       >
-        {renderOptions(availableExamples)}
+        {renderExampleOptions(availableExamples)}
       </select>
 
       <select
@@ -60,7 +59,7 @@ export default function CodeHeader({
         onChange={(e) => changeModel(e.target.value)}
         disabled={isFrozen}
       >
-        {renderOptions(modelOptions)}
+        {renderModelOptions(modelOptions)}
       </select>
 
       {analysisStatus === "analyzing" && !isFrozen ? (
@@ -94,13 +93,6 @@ export default function CodeHeader({
               disabled={isFrozen || !compatWarning.canSwitchModel}
             >
               Switch to Compatible Model
-            </button>
-            <button
-              type="button"
-              onClick={onSwitchCompatibleExample}
-              disabled={isFrozen || !compatWarning.canSwitchExample}
-            >
-              Switch to Compatible Example
             </button>
           </div>
         </div>
