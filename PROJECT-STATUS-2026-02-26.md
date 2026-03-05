@@ -9,7 +9,7 @@ This note is a restart map: what has been decided, what is provisional, and what
 - Where possible, keep syntax fixed and vary only reduction relation to demonstrate semantic choices (eager vs lazy, DFS vs interleaving, etc.).
 
 ## 1) Current Snapshot
-- Branch: `language-refactor`, ahead of `origin/language-refactor` by 4 commits.
+- Branch: `language-refactor`, synced with `origin/language-refactor` (2026-03-05).
 - Semantic work has been split into `core-*` files:
   - `racket-server/src/core-definitions.rkt`
   - `racket-server/src/core-judgment-forms.rkt`
@@ -31,6 +31,20 @@ This note is a restart map: what has been decided, what is provisional, and what
 - Deterministic non-random regression checks added for substitution-graph invariants (`triangular?`, `occurs-free?`) in `core-judgment-forms`.
 - Current headless execution command remains:
   - `raco test racket-server/tests/test-all-headless.rkt`
+
+### 1.2) Legacy Test Migration Status (2026-03-05)
+- Fully squeezed and removed (`git rm`):
+  - `test-reduction-relations.rkt`
+  - `unit-tests.rkt`
+  - `translator-tests.rkt`
+  - `visual-tests.rkt`
+- Squeezed coverage is now in active suites:
+  - canonical/transpiler checks: `racket-server/tests/test-transpiler.rkt`
+  - relation/rule lifecycle checks: `racket-server/tests/variant-module-tests.rkt`
+  - legacy syntax/judgment baseline checks: `racket-server/tests/test-well-formed.rkt`
+  - metafunction sanity (`walk`/`unify`): `racket-server/tests/test-metafunctions.rkt`
+- Archived for explicit future extension work only:
+  - `racket-server/tests/archive/legacy-deprecated/test-dmitry-and-dmitry.rkt`
 
 ## 2) Simple Definitions (for context)
 - `global c`: treat `c` as one broad "set of extant logic vars" for the whole current computation region; easier invariants, less precision.
@@ -103,6 +117,7 @@ This note is a restart map: what has been decided, what is provisional, and what
 7. **Interleaving policy family coverage**:
    - whether to add Dmitri-style deterministic interleaving (rotate at every disjunction node)
    - as a first-class relation variant, alongside current `flip` and `railroad` branches.
+   - status: **future work (explicitly not in current implementation batch)**.
 8. **Disequality constraints axis**:
    - whether to add disequality constraints as an extension family in this paper cycle,
    - and whether to phase-gate it to selected variants vs full lattice cross-product.
@@ -266,6 +281,7 @@ Dependencies:
    - current implemented branches: `flip`, `railroad`.
    - candidate additional branch: Dmitri-style "interleave at every disjunction node."
    - current operational policy: `dmitry` model is hidden from active dispatch until extension work resumes.
+   - execution status: tracked for future work, not currently scheduled.
 10. `DECIDED (for now)`: **Disequality constraints**
    - do not add disequality in this cycle.
    - revisit as a later extension axis.

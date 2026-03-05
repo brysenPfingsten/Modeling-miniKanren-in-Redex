@@ -109,7 +109,7 @@ Use this as a working sheet. Mark one option per decision (or mark `DEFER`) and 
 - Rationale:
 
 ## D11) Interleaving Semantics Family (`DECIDE-NEXT`)
-- Status: `DEFERRED`
+- Status: `DEFERRED (future work; not active now)`
 - Choose:
   - [ ] Keep only the currently implemented interleaving branches (`flip` and `railroad`)
   - [ ] Add Dmitri-style deterministic interleaving that rotates at every disjunction node
@@ -118,6 +118,7 @@ Use this as a working sheet. Mark one option per decision (or mark `DEFER`) and 
   - This is a distinct semantics axis (scheduler policy), not just syntax.
   - It should be represented as its own relation variant so comparisons are explicit.
   - Current operational choice: hide `dmitry` from active model dispatch until the extension is implemented cleanly.
+  - Planning note (2026-03-05): keep this explicitly on the TODO roadmap, but do not execute it in the current batch.
 
 ## D12) Disequality Constraints (`DECIDE-NEXT`)
 - Status: `DECIDED (for now)`
