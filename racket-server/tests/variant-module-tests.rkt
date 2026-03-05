@@ -98,6 +98,38 @@
     (check-false (j:wf-config/target? "L4/config" cfg-bad-arity))))
 
 (define-test-suite RELATION-MODULES
+  (test-case "Rcall-lazy relation call lifecycle emits deterministic suspend/invoke/expand sequence"
+    (define step1* (apply-reduction-relation/tag-with-names l:Rcall-lazy cfg-call))
+    (check-equal? (length step1*) 1)
+    (check-equal? (caar step1*) "call/lazy-suspend-call")
+    (define cfg1 (cadar step1*))
+
+    (define step2* (apply-reduction-relation/tag-with-names l:Rcall-lazy cfg1))
+    (check-equal? (length step2*) 1)
+    (check-equal? (caar step2*) "call/lazy-invoke-delay")
+    (define cfg2 (cadar step2*))
+
+    (define step3* (apply-reduction-relation/tag-with-names l:Rcall-lazy cfg2))
+    (check-equal? (length step3*) 1)
+    (check-equal? (caar step3*) "call/lazy-expand-on-resume")
+    (check-false (member 'r:id (symbols-in (tree-of (cadar step3*))))))
+
+  (test-case "Rcall-eager relation call lifecycle emits deterministic suspend/invoke/resume sequence"
+    (define step1* (apply-reduction-relation/tag-with-names e:Rcall-eager cfg-call))
+    (check-equal? (length step1*) 1)
+    (check-equal? (caar step1*) "call/eager-suspend-expanded")
+    (define cfg1 (cadar step1*))
+
+    (define step2* (apply-reduction-relation/tag-with-names e:Rcall-eager cfg1))
+    (check-equal? (length step2*) 1)
+    (check-equal? (caar step2*) "call/eager-invoke-delay")
+    (define cfg2 (cadar step2*))
+
+    (define step3* (apply-reduction-relation/tag-with-names e:Rcall-eager cfg2))
+    (check-equal? (length step3*) 1)
+    (check-equal? (caar step3*) "call/eager-resume-goal")
+    (check-false (member 'r:id (symbols-in (tree-of (cadar step3*))))))
+
   (test-case "Rcall-eager expands relation body before proceed resume"
     (define next (first (apply-reduction-relation e:Rcall-eager cfg-call)))
     (check-false (member 'r:id (symbols-in (tree-of next)))))
