@@ -163,105 +163,15 @@ This note is a restart map: what has been decided, what is provisional, and what
 - `dmitry-and-dmitry.rkt` -> **no 1:1 lattice target yet**.
   - This remains an explicitly different semantics family pending transformation/embedding strategy.
 
-## 4) Dependency Map (what constrains what)
+## 4) Dependency Map (condensed)
 
-### A. `c` discipline
-- `A1 = global-c`
-- `A2 = subset-c` (current core implementation)
-
-Implications:
-- If `A1`: simpler WF/proofs/tests; weaker locality/frame statements.
-- If `A2`: more syntax/judgment plumbing; enables stronger branch-local and scoping claims.
-
-### B. Conjunction representation
-- `B1 = plain (s × g)` (no captured c)
-- `B2 = (s × g c)` (current core implementation)
-
-Dependencies:
-- If `A2` then `B2` is effectively required.
-- If `A1` either `B1` or `B2` can work.
-
-### C. Search strategy layering
-- `C1 = deterministic DFS-style base`
-- `C2 = deterministic + fair/interleaving extension`
-- `C3 = railroad extension`
-
-Dependencies:
-- `C3` depends on decisions about delay and disjunction orientation.
-- Keeping `C1` clean first reduces proof/test complexity.
-
-### D. Disjunction design
-- `D1 = single disjunction form in base`
-- `D2 = dual orientation / railroad-specific forms`
-- `D3 = chosen deterministic scheduler semantics for disjunction nodes`
-
-Dependencies:
-- If disjunction nodes are in syntax, `D3` is required to keep progress/preservation statements meaningful.
-- `C3` likely requires `D2` (or an equivalent explicit scheduler mechanism).
-- `C1` is easiest with `D1`.
-
-### E. Relation-call expansion
-- `E1 = direct call expansion` (DFS-friendly)
-- `E2 = call introduces delay/proceed` (railroad/interleave-friendly)
-
-Dependencies:
-- `E2` interacts strongly with `C2/C3` and delay semantics.
-- `A2` requires explicit WF argument that substitution/call expansion does not violate captured `c` invariants.
-
-### E2. Delay + call timing policy
-- `E2a = eager (expand under delay immediately)`
-- `E2b = lazy (expand only when resumed/proceed is selected)`
-- `E2c = unified syntax, alternate reduction relations (same AST, different stepping discipline)`
-
-Dependencies:
-- `E2b` usually requires suspended-call syntax (`proceed`/thunk-like node).
-- `E2a` can often avoid extra suspension syntax but may do extra administrative work.
-- `E2c` is the preferred comparison style when the paper goal is "same language, different operational interpretation."
-
-### F. Feature-composition pathway
-- `F1 = Core + Disjunction (no relcalls/recursion)`
-- `F2 = Core + RelCalls/recursion (no disjunction)`
-- `F3 = Combined (Disjunction + RelCalls/recursion)`
-
-Dependencies:
-- `F3` requires conflict resolution between disjunction scheduling (`D*`) and call expansion policy (`E*`).
-- This split reduces design risk by validating each extension independently before composition.
-
-### J. Constraint-store expressivity
-- `J1 = equality-only`
-- `J2 = equality + disequality`
-
-Dependencies:
-- `J2` adds a new semantic/testing/proof axis (constraint-store behavior and WF invariants).
-- If combined with every scheduler/call-timing branch, matrix size grows quickly (cross-product effect).
-- Recommended containment: stage `J2` on a selected baseline branch first, then widen only if needed.
-
-### G. Answer-stream placement
-- `G1 = external ans* list` (current core)
-- `G2 = answers kept inside tree`
-- `G3 = in-tree answers + hidden marker/scope nodes (e.g., freshening-origin markers)`
-
-Dependencies:
-- `G1` is simpler operationally and matches current implementation.
-- `G2/G3` may support stronger local structural theorems (scope/origin tracking without recomputation).
-
-### I. Variant expression style
-- `I1 = strict per-variant syntax (only forms that execute in that variant)`
-- `I2 = shared superset syntax + per-variant WF fragment`
-
-Dependencies:
-- `I2` can make extension deltas cleaner and side-by-side comparisons clearer.
-- `I1` keeps each variant semantically minimal but can increase duplication and weaken visible inheritance story.
-- If using `I2` while some constructors are not handled by a given variant relation, you need an explicit **fragment-closure / non-generation** result:
-  - starting from a variant-well-formed term, excluded constructors are never generated,
-  - therefore progress/preservation are proved over that variant fragment rather than over all raw syntax.
-
-### H. UI syntax support (orthogonal)
-- `H1 = miniKanren only`
-- `H2 = miniKanren + microKanren frontends, shared backend`
-
-Dependencies:
-- Mostly parser/transpiler/UI work, low coupling to core semantic correctness, but affects test surface.
+High-value dependency edges (trimmed from earlier detailed map):
+- `subset-c` -> requires captured conjunction context (`(s × g c)`) and branch-aware WF arguments.
+- Disjunction syntax -> requires explicit deterministic scheduler semantics (cannot stay syntax-only).
+- Call timing (`eager` vs `lazy`) is intentionally expressed as relation variants over shared syntax.
+- `L3` composition requires combining both call-timing and disjunction stepping policies cleanly.
+- Answer placement (`external ans*` vs in-tree) directly controls theorem surface and marker-node value.
+- Disequality and Dmitri-style interleaving are separate axes and remain intentionally deferred.
 
 ## 5) Recommended Roadmap (short)
 1. **(Completed) Freeze semantic kernel contract**:
@@ -284,44 +194,21 @@ Dependencies:
    - keep on roadmap, do not block semantic decisions.
 
 ## 5.1) Outstanding Decisions Tracker (explicit)
-- Status legend:
-  - `OPEN` = not committed.
-  - `DECIDE-NEXT` = should be decided before adding the next semantic layer.
+Status legend:
+- `OPEN` = not committed.
+- `DECIDE-NEXT` = should be decided before adding the next semantic layer.
 
-1. `DECIDED`: **Variant expression style**
-   - `I2`: shared/superset syntax + fragment discipline.
-2. `DECIDED`: **Baseline family after Core**
-   - deterministic left-biased branch first.
-3. `DECIDED`: **Disjunction representation**
-   - single-arrow base first; right-arrow only in railroad extension.
-4. `DECIDED (current path)`: **Delay in DFS-family variants**
-   - delayful path first (`L1`); delay-free DFS remains optional later sibling.
-5. `DECIDED`: **Delay-call timing (same syntax, different relations)**
-   - eager and lazy both first-class.
-6. `OPEN`: **Answer placement**
-   - external `ans*`,
-   - in-tree answers (+ optional hidden marker nodes).
-7. `OPEN`: **Fresh-history markers**
-   - keep explicit "fresh happened here" markers after step,
-   - do not keep markers.
-   - current handling: deferred as an extension issue (not a blocker for core path).
-8. `DECIDED`: **`c` discipline for paper-primary metatheory**
-   - **subset-`c` primary** (global-`c` as simplification baseline only).
-9. `OPEN`: **Interleaving policy coverage**
-   - current implemented branches: `flip`, `railroad`.
-   - candidate additional branch: Dmitri-style "interleave at every disjunction node."
-   - current operational policy: `dmitry` model is hidden from active dispatch until extension work resumes.
-   - execution status: tracked for future work, not currently scheduled.
-10. `DECIDED (for now)`: **Disequality constraints**
-   - do not add disequality in this cycle.
-   - revisit as a later extension axis.
-11. `DECIDED`: **Frontend/backend variant dispatch**
-   - model registry + parser metadata + model-compatible example filtering.
-   - implemented baseline:
-     - backend `/api/get/models` registry metadata,
-     - backend capability analyzer (`/api/post/analyze`) drives compatibility,
-     - frontend compatibility warnings + Start-button gating,
-     - preliminary/deprecated variants (`dmitry`, `dfs-nodelay`) remain hidden.
+Current priorities:
+1. `OPEN`: **Answer placement (D7)**.
+2. `OPEN`: **Fresh-history markers (D8)**.
+3. `OPEN`: **Theorem comparison claim for delayful vs delay-free DFS (D10)**.
+
+Deferred (explicitly not current batch):
+1. Dmitri-style interleaving axis (D11).
+2. Disequality extension axis (D12 remains "not in this cycle").
+
+For full per-decision checklist and rationale, use:
+- `PROJECT-DECISION-FORM-2026-02-26.md`
 
 ## 6) Testing Quality Upgrade Plan (concrete)
 - Add a "property inventory" doc: each property, intended bug class, generator assumptions.
@@ -339,35 +226,15 @@ Dependencies:
 
 None of these need to block settling the semantics roadmap and theorem priorities first.
 
-## 8) Latest Audit + Fix Cycle (2026-03-05)
+## 8) Latest Audit + Fix Cycle (2026-03-05, condensed)
 
-### 8.1) Matrix audit snapshots (saved)
-- Baseline snapshot:
-  - `Misc/audit-logs/20260302-123523-matrix-step-audit`
-- Post-fix snapshot:
-  - `Misc/audit-logs/20260302-141247-matrix-step-audit-after-rail-fix`
+What we keep from the historical trail:
+- Known rail-context answer-collection bug was fixed and covered by regression tests.
+- Cross-product model/example matrix audit now runs as an explicit lane.
+- Active surfaced models currently pass matrix + API-flow checks in bounded runs.
+- Deferred variants (`dmitry`, `dfs-nodelay`) remain hidden by design.
 
-Both include runner scripts, 25-step matrix outputs, deeper (400-step) outputs, and manifest/checksums.
-
-### 8.2) Fix implemented
-- Railroad right-branch answer/fail collection is now lifted through `K4` context:
-  - `racket-server/src/reduction-relations/extensions/rrail-l.rkt`
-  - `racket-server/src/reduction-relations/extensions/rrail-e.rkt`
-- Added regression test for collecting `+->` right answers under `<-+` context:
-  - `racket-server/tests/variant-module-tests.rkt`
-
-### 8.3) Regression lane added
-- New model/example matrix test (25-step classifier):
-  - `racket-server/tests/model-example-matrix-tests.rkt`
-- Included in headless lane:
-  - `racket-server/tests/test-all-headless.rkt`
-
-### 8.4) Current status after matrix+API-flow hardening
-- No known failing model/example pairs in active surfaced models under the current 25-step matrix audit.
-- Some rows intentionally classify as `cap` (bounded-run non-termination/long-run behavior), not as `stuck`.
-- Hidden/deferred variants remain out of active dispatch:
-  - `dmitry`
-  - `dfs-nodelay`
+Older detailed exploratory logs are intentionally left to git history and `Misc/audit-logs`.
 
 ## 9) Next Decision Packet: Answer Placement + Theorem Surface
 
