@@ -4,7 +4,6 @@ These test files are archived and no longer part of the supported test lanes.
 
 Archived files:
 - `test-dmitry-and-dmitry.rkt`
-- `visual-tests.rkt`
 
 Active replacement suites:
 - Core + variant semantics checks: `racket-server/tests/test-all-headless.rkt`
