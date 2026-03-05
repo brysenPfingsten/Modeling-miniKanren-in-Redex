@@ -33,4 +33,5 @@ npm --prefix frontend test
 
 ## Notes
 
-- Legacy/manual test files still exist in-tree for reference, but they are not part of supported test lanes.
+- Deprecated legacy suites are archived under `racket-server/tests/archive/legacy-deprecated/`.
+- Supported lanes are only the three listed above.
