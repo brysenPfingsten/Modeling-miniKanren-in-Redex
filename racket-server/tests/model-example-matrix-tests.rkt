@@ -4,6 +4,7 @@
          rackunit/text-ui
          racket/match
          racket/string
+         "../src/capability-analysis.rkt"
          "../src/model-registry.rkt"
          "../src/transpiler.rkt"
          "./example-compat-tests.rkt")
@@ -35,37 +36,41 @@
   (and (exn:fail? e)
        (regexp-match? #px"not in domain" (exn-message e))))
 
-(define (classify-pair model-id src)
+(define (classify-pair model-id src should-compat?)
   (define maybe-step-once (lookup-model-step-once model-id))
   (unless maybe-step-once
     (error 'classify-pair (format "unknown model: ~a" model-id)))
 
-  (define sexprs (read-all (open-input-string src)))
-  (define-values (cfg0 _html) (parse-prog/canonical sexprs))
-
-  (with-handlers ([domain-error?
-                   (lambda (_e)
-                     (hasheq 'status 'incompatible
-                             'steps 0
-                             'last-rule ""))])
-    (let loop ([cfg cfg0] [steps 0] [last-rule ""])
-      (define next* (maybe-step-once cfg))
-      (cond
-        [(null? next*)
-         (hasheq 'status (if (final-config? cfg) 'value 'stuck)
-                 'steps steps
-                 'last-rule last-rule)]
-        [(> (length next*) 1)
-         (hasheq 'status 'nondeterministic
-                 'steps steps
-                 'last-rule last-rule)]
-        [(>= steps MATRIX-STEP-CAP)
-         (hasheq 'status 'cap
-                 'steps steps
-                 'last-rule last-rule)]
-        [else
-         (define-values (nm cfg1) (step1-name+cfg (first next*)))
-         (loop cfg1 (add1 steps) nm)]))))
+  (if (not should-compat?)
+      (hasheq 'status 'incompatible
+              'steps 0
+              'last-rule "")
+      (let ()
+        (define sexprs (read-all (open-input-string src)))
+        (define-values (cfg0 _html) (parse-prog/canonical sexprs))
+        (with-handlers ([domain-error?
+                         (lambda (_e)
+                           (hasheq 'status 'incompatible
+                                   'steps 0
+                                   'last-rule ""))])
+          (let loop ([cfg cfg0] [steps 0] [last-rule ""])
+            (define next* (maybe-step-once cfg))
+            (cond
+              [(null? next*)
+               (hasheq 'status (if (final-config? cfg) 'value 'stuck)
+                       'steps steps
+                       'last-rule last-rule)]
+              [(> (length next*) 1)
+               (hasheq 'status 'nondeterministic
+                       'steps steps
+                       'last-rule last-rule)]
+              [(>= steps MATRIX-STEP-CAP)
+               (hasheq 'status 'cap
+                       'steps steps
+                       'last-rule last-rule)]
+              [else
+               (define-values (nm cfg1) (step1-name+cfg (first next*)))
+               (loop cfg1 (add1 steps) nm)]))))))
 
 (define (summarize rows)
   (for/fold ([h (hash)])
@@ -80,9 +85,15 @@
       (for*/list ([spec (in-list all-model-specs)]
                   [ex (in-list examples)])
         (match-define (cons label src) ex)
-        (define result (classify-pair (model-spec-id spec) src))
+        (define reqs (hash-ref (analyze-source-capabilities src) 'requirements))
+        (define should-compat?
+          (member (model-spec-id spec)
+                  (compatible-model-ids reqs all-model-specs)))
+        (define result
+          (classify-pair (model-spec-id spec) src should-compat?))
         (hasheq 'model (model-spec-id spec)
                 'label label
+                'should-compat? should-compat?
                 'status (hash-ref result 'status)
                 'steps (hash-ref result 'steps)
                 'last-rule (hash-ref result 'last-rule))))
@@ -94,12 +105,22 @@
                            (hash-ref r 'model)
                            (hash-ref r 'label))))
 
-    ;; Compatibility guard: visible models should accept visible examples.
+    ;; Compatibility guard: compatible pairs should not be marked incompatible.
     (for ([r (in-list rows)])
-      (check-false (eq? (hash-ref r 'status) 'incompatible)
-                   (format "unexpected incompatible pair ~a / ~a"
-                           (hash-ref r 'model)
-                           (hash-ref r 'label))))
+      (when (hash-ref r 'should-compat? #f)
+        (check-false (eq? (hash-ref r 'status) 'incompatible)
+                     (format "unexpected incompatible pair ~a / ~a"
+                             (hash-ref r 'model)
+                             (hash-ref r 'label)))))
+
+    ;; Incompatibility guard: incompatible pairs should be rejected early.
+    (for ([r (in-list rows)])
+      (when (not (hash-ref r 'should-compat? #t))
+        (check-equal? (hash-ref r 'status) 'incompatible
+                      (format "expected incompatible pair for ~a / ~a, got ~a"
+                              (hash-ref r 'model)
+                              (hash-ref r 'label)
+                              (hash-ref r 'status)))))
 
     ;; Regression guard: fives/fours should not get stuck in rail-family semantics.
     (for ([mid (in-list PRIMARY-RAIL-MODELS)])

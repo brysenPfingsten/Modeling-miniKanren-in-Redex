@@ -8,6 +8,7 @@
 
 (provide parse-prog
          parse-prog/canonical
+         parse-prog->ast
          canonical-parser-profile
          canonical-parser-target-id)
 

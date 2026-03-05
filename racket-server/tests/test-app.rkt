@@ -55,6 +55,21 @@
    5000
    "127.0.0.1"))
 
+(define (make-post-analyze-request program-text)
+  (make-request
+   #"POST"
+   (make-url #f #f #f #f #t
+             (list (make-path/param "post" empty)
+                   (make-path/param "analyze" empty))
+             empty
+             #f)
+   (list (make-header #"content-type" #"application/json"))
+   (delay '())
+   (string->bytes/utf-8 (jsexpr->string (hasheq 'text program-text)))
+   "127.0.0.1"
+   5000
+   "127.0.0.1"))
+
 (define disj-delay-program
   "(defrel (same x y)
      (== x y))
@@ -183,6 +198,16 @@
               (define stepper identity)
               (define ses (session zip stepper 1))
               (check-exn exn:fail:syntax? (thunk (init! ses sample-req 'testid))))
+
+  (test-case "init! rejects program incompatible with currently selected model"
+              (define sample-req (make-post-init-request disj-delay-program))
+              (define zip (zipper '() #f '() 0))
+              (define stepper identity)
+              (define ses (session zip stepper 1))
+              (check-equal? (response-code (switch-model! ses (make-post-model-request "mk-l0-core") 'incompat-id))
+                            200)
+              (check-exn exn:fail?
+                         (thunk (init! ses sample-req 'incompat-id))))
   )
 
 (define-test-suite RESET!
@@ -283,6 +308,18 @@
              (check-equal? (string->jsexpr (get-response-out response))
                            (hasheq 'model "mk-l3-dfs-lazy")))
 
+  (test-case "switch-model! supports core-only model id"
+             (define zip (zipper '() (step "foo" sample-tree) '() 1))
+             (define old-stepper step/const-tree-output)
+             (define ses (session zip old-stepper 1))
+             (define req (make-post-model-request "mk-l0-core"))
+             (define response (switch-model! ses req 'testid))
+             (check-equal? (response-code response) 200)
+             (check-true (procedure? (session-stepper ses)))
+             (check-false (eq? (session-stepper ses) old-stepper))
+             (check-equal? (string->jsexpr (get-response-out response))
+                           (hasheq 'model "mk-l0-core")))
+
   (test-case "switch-model! rejects unknown model id and keeps existing stepper"
              (define zip (zipper '() (step "foo" sample-tree) '() 1))
              (define old-stepper step/const-tree-output)
@@ -332,19 +369,65 @@
              (check-equal? (response-code response) 200)
              (define models (string->jsexpr (get-response-out response)))
              (check-true (list? models))
-             (check-true (>= (length models) 5))
+             (check-true (>= (length models) 10))
              (define ids (for/list ([m (in-list models)])
                            (hash-ref m 'id #f)))
+             (check-not-false (member "mk-l0-core" ids))
+             (check-not-false (member "mk-l1-call-lazy" ids))
+             (check-not-false (member "mk-l1-call-eager" ids))
+             (check-not-false (member "mk-l2-disj-left" ids))
              (check-not-false (member "mk-l4-rail-lazy" ids))
              (check-not-false (member "mk-l3-dfs-lazy" ids))
              (check-not-false (member "mk-l4-rail-eager" ids))
+             (check-not-false (member "mk-l3-dfs-eager" ids))
              (check-not-false (member "mk-l3-flip-lazy" ids))
              (check-not-false (member "mk-l3-flip-eager" ids))
              (check-true (for/and ([m (in-list models)])
                            (and (hash-has-key? m 'parserProfile)
                                 (hash-has-key? m 'parserTarget)
+                                (hash-has-key? m 'capabilities)
                                 (equal? (hash-ref m 'parserTarget #f)
                                         canonical-parser-target-id))))))
+
+(define-test-suite ANALYZE!
+  #:before (thunk (displayln "Running tests for analyze!..."))
+  #:after (thunk (displayln "Finished running tests for analyze!."))
+
+  (test-case "analyze! returns capability payload for valid source"
+             (define req (make-post-analyze-request "(run* (q) (fresh (x) (== q x)))"))
+             (define response (analyze! #f req))
+             (check-equal? (response-code response) 200)
+             (define body (string->jsexpr (get-response-out response)))
+             (check-true (hash-ref body 'validSyntax #f))
+             (check-true (list? (hash-ref body 'requirements '())))
+             (check-true (list? (hash-ref body 'compatibleModelIds '())))
+             (check-true (list? (hash-ref body 'incompatibleModelIds '())))
+             (check-true (hash? (hash-ref body 'incompatReasonsByModel #hash())))
+             (check-true (string? (hash-ref body 'analysisVersion ""))))
+
+  (test-case "analyze! returns 400 on syntax error"
+             (define req (make-post-analyze-request "(run* (== 'a 'a))"))
+             (define response (analyze! #f req))
+             (check-equal? (response-code response) 400)
+             (define body (string->jsexpr (get-response-out response)))
+             (check-false (hash-ref body 'validSyntax #t))
+             (check-true (hash-has-key? body 'error)))
+
+  (test-case "analyze! compatibility ids are known model ids"
+             (define req
+               (make-post-analyze-request
+                "(run* (q) (fresh (x) (== q x)))"))
+             (define response (analyze! #f req))
+             (check-equal? (response-code response) 200)
+             (define body (string->jsexpr (get-response-out response)))
+             (define models-res (string->jsexpr (get-response-out (list-models!))))
+             (define known-ids
+               (for/set ([m (in-list models-res)])
+                 (hash-ref m 'id #f)))
+             (for ([id (in-list (hash-ref body 'compatibleModelIds '()))])
+               (check-true (set-member? known-ids id)))
+             (for ([id (in-list (hash-ref body 'incompatibleModelIds '()))])
+               (check-true (set-member? known-ids id)))))
 
 (define/provide-test-suite APP
   #:before (thunk (displayln "Running tests for app.rkt..."))
@@ -355,6 +438,7 @@
   BACK!
   SWITCH-MODEL!
   LIST-MODELS!
+  ANALYZE!
 )
 
 (run-tests APP)

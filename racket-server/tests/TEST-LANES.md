@@ -23,26 +23,6 @@ Runs the app-level test suite used for server behavior regression checks.
 raco test racket-server/tests/test-all.rkt
 ```
 
-## Lane C: Legacy Semantics (manual host lane)
-
-Runs legacy Redex semantics and visual smoke tests.
-
-```sh
-raco test \
-  racket-server/tests/test-reduction-relations.rkt \
-  racket-server/tests/unit-tests.rkt \
-  racket-server/tests/translator-tests.rkt \
-  racket-server/tests/visual-tests.rkt \
-  racket-server/tests/test-dmitry-and-dmitry.rkt
-```
-
-Optional interactive stepper:
-
-```sh
-racket racket-server/tests/visual-tests.rkt
-```
-
 ## Notes
 
-- `translator-tests.rkt` now executes a real suite (`TRANSLATOR-LEGACY`) instead of reporting "No tests run."
-- Keep GUI/manual lane failures separate from headless lane failures when triaging.
+- Legacy/manual test files still exist in-tree for reference, but they are not part of supported test lanes.

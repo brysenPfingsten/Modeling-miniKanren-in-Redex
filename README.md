@@ -40,25 +40,6 @@ Includes syntax-compat checks that frontend example programs parse and lift to `
 raco test racket-server/tests/test-all.rkt
 ```
 
-### **3) Legacy semantics lane (manual host lane)**
-
-This lane exercises legacy Redex models and visual smoke tests:
-
-```sh
-raco test \
-  racket-server/tests/test-reduction-relations.rkt \
-  racket-server/tests/unit-tests.rkt \
-  racket-server/tests/translator-tests.rkt \
-  racket-server/tests/visual-tests.rkt \
-  racket-server/tests/test-dmitry-and-dmitry.rkt
-```
-
-Optional interactive visual check:
-
-```sh
-racket racket-server/tests/visual-tests.rkt
-```
-
 ## **Backend Model Registry**
 
 The backend now exposes available stepping models through:

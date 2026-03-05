@@ -114,6 +114,7 @@ export const exampleProgs = [
 ];
 
 export function examplesForModel(model) {
-  if (!model) return exampleProgs;
-  return exampleProgs.filter((opt) => (opt.models || []).includes(model));
+  // Compatibility is computed dynamically via backend analysis.
+  // Keep all examples selectable so users can choose model-first or example-first.
+  return exampleProgs;
 }

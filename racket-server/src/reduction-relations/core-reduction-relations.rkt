@@ -15,7 +15,7 @@
 
 ;; Term -> [Listof [List String Term]]
 (define (step-once prog)
-  (apply-reduction-relation/tag-with-names -->cfg/whole (term ,prog)))
+  (apply-reduction-relation/tag-with-names -->cfg (term ,prog)))
 
 (define -->cfg/whole
   (reduction-relation

@@ -10,7 +10,10 @@ import useStepper      from './hooks/useStepper';
 import Resizable       from './components/Resizable';
 import Sidebar from './components/Sidebar';
 import { MODEL_IDS } from './utils/model_ids.js';
+import { exampleProgs } from './utils/example_programs.js';
 import './styles.css'
+
+const ANALYSIS_DEBOUNCE_MS = 450;
 
 function App() {
   const [code, setCode] = useState('');
@@ -18,10 +21,15 @@ function App() {
   const [predefinedCodeText, setPredefinedCodeText] = useState('');
   const [model, setModel] = useState(MODEL_IDS.L4_RAIL_LAZY);
   const [modelOptions, setModelOptions] = useState([
+    { value: MODEL_IDS.L0_CORE, label: "µKanren Core (No RelCall/No Disjunction)" },
+    { value: MODEL_IDS.L1_CALL_LAZY, label: "µKanren L1 Calls (Lazy, No Disjunction)" },
+    { value: MODEL_IDS.L1_CALL_EAGER, label: "µKanren L1 Calls (Eager, No Disjunction)" },
+    { value: MODEL_IDS.L2_DISJ_LEFT, label: "µKanren L2 Disjunction (No RelCall)" },
     { value: MODEL_IDS.L4_RAIL_LAZY, label: "µKanren (Interleave + Railroad, Lazy)" },
     { value: MODEL_IDS.L3_DFS_LAZY, label: "µKanren (No Interleave, Lazy)" },
     { value: MODEL_IDS.L3_FLIP_LAZY, label: "µKanren (Interleave + Flip-Flop, Lazy)" },
     { value: MODEL_IDS.L4_RAIL_EAGER, label: "µKanren (Interleave + Railroad, Eager)" },
+    { value: MODEL_IDS.L3_DFS_EAGER, label: "µKanren (No Interleave, Eager)" },
     { value: MODEL_IDS.L3_FLIP_EAGER, label: "µKanren (Interleave + Flip-Flop, Eager)" }
   ]);
   const [isFrozen, setFrozen] = useState(false);
@@ -45,10 +53,102 @@ function App() {
   const [goalId, setGoalId] = useState(null);
   const [stateId, setStateId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [analysisStatus, setAnalysisStatus] = useState("idle");
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [exampleCompatibility, setExampleCompatibility] = useState({});
   
   const [ darkMode, setDarkMode ] = useState(false);
+  const analysisCacheRef = useRef(new Map());
+  const analysisAbortRef = useRef(null);
+  const analysisTokenRef = useRef(0);
+
+  const requestModelChange = async (newModel) => {
+    try {
+      const response = await fetch('api/post/model', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json'},
+        body: JSON.stringify({ model: newModel}),
+        credentials: "include",
+      });
+      if (!response.ok) return false;
+      setModel(newModel);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const analyzeSource = async (source, { signal } = {}) => {
+    const cached = analysisCacheRef.current.get(source);
+    if (cached) return cached;
+
+    const response = await fetch('api/post/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json'},
+      body: JSON.stringify({ text: source }),
+      credentials: "include",
+      signal,
+    });
+    const text = await response.text();
+    let payload;
+    try {
+      payload = JSON.parse(text);
+    } catch (_) {
+      payload = { validSyntax: false, error: "invalid analysis response" };
+    }
+
+    if (!response.ok) {
+      const failData = (payload && typeof payload === "object")
+        ? payload
+        : { validSyntax: false, error: `Analyze failed (${response.status})` };
+      analysisCacheRef.current.set(source, failData);
+      return failData;
+    }
+
+    analysisCacheRef.current.set(source, payload);
+    return payload;
+  };
+
+  const applyAnalysisStatus = (analysis, modelId = model) => {
+    setAnalysisResult(analysis);
+    if (!analysis?.validSyntax) {
+      setAnalysisStatus("syntax-error");
+      return false;
+    }
+    const compatibleIds = analysis.compatibleModelIds || [];
+    const isCompatible = compatibleIds.includes(modelId);
+    setAnalysisStatus(isCompatible ? "ok" : "incompatible");
+    return isCompatible;
+  };
 
   const handleInit = async () => {
+    const trimmed = code.trim();
+    if (!trimmed) {
+      setAlert({ isOpen: true, message: "Program is empty." });
+      return;
+    }
+
+    try {
+      const analysis = await analyzeSource(code);
+      const isCompatible = applyAnalysisStatus(analysis);
+      if (!analysis.validSyntax) {
+        setAlert({ isOpen: true, message: analysis.error || "Program has syntax errors." });
+        return;
+      }
+      if (!isCompatible) {
+        const reasons = (analysis.incompatReasonsByModel || {})[model] || [];
+        const details = reasons.length > 0 ? ` ${reasons.join("; ")}` : "";
+        setAlert({
+          isOpen: true,
+          message: `Program is incompatible with selected model.${details}`,
+        });
+        return;
+      }
+    } catch (err) {
+      setAlert({ isOpen: true, message: err?.message || "Unable to analyze program." });
+      return;
+    }
+
     originalCodeRef.current = code;
     const [success, progOrError] = await init(code);
     if (success) {
@@ -101,6 +201,76 @@ function App() {
   }, [predefinedCodeText, isFrozen]);
 
   useEffect(() => {
+    if (isFrozen) return undefined;
+    const trimmed = code.trim();
+    if (!trimmed) {
+      setAnalysisStatus("idle");
+      setAnalysisResult(null);
+      return undefined;
+    }
+
+    if (analysisAbortRef.current) {
+      analysisAbortRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    analysisAbortRef.current = controller;
+    const token = analysisTokenRef.current + 1;
+    analysisTokenRef.current = token;
+
+    setAnalysisStatus("analyzing");
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        const analysis = await analyzeSource(code, { signal: controller.signal });
+        if (token !== analysisTokenRef.current) return;
+
+        applyAnalysisStatus(analysis);
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        if (token !== analysisTokenRef.current) return;
+        applyAnalysisStatus({
+          validSyntax: false,
+          error: err?.message || "analysis failed",
+        });
+      }
+    }, ANALYSIS_DEBOUNCE_MS);
+
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [code, model, isFrozen]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const analyzeExamples = async () => {
+      const next = {};
+      for (const option of exampleProgs) {
+        if (!option.value) continue;
+        try {
+          const analysis = await analyzeSource(option.value);
+          if (!analysis.validSyntax) {
+            next[option.value] = { compatible: false, reasons: [analysis.error || "syntax error"] };
+            continue;
+          }
+          const reasonsByModel = analysis.incompatReasonsByModel || {};
+          const reasons = reasonsByModel[model] || [];
+          const compatible = (analysis.compatibleModelIds || []).includes(model);
+          next[option.value] = { compatible, reasons };
+        } catch (_) {
+          next[option.value] = { compatible: true, reasons: [] };
+        }
+      }
+      if (!cancelled) setExampleCompatibility(next);
+    };
+
+    analyzeExamples();
+    return () => { cancelled = true; };
+  }, [model]);
+
+  useEffect(() => {
     let active = true;
     const loadModels = async () => {
       try {
@@ -125,6 +295,42 @@ function App() {
     return () => { active = false; };
   }, []);
 
+  const compatibleModelIds = analysisResult?.compatibleModelIds || [];
+  const currentModelReasons = (analysisResult?.incompatReasonsByModel || {})[model] || [];
+  const firstCompatibleModel = compatibleModelIds[0] || null;
+  const firstCompatibleExample = exampleProgs
+    .filter((opt) => opt.value)
+    .find((opt) => exampleCompatibility[opt.value]?.compatible && opt.value !== predefinedCodeText);
+
+  const compatWarning = (!isFrozen && analysisStatus === "incompatible")
+    ? {
+        message: "Current program is incompatible with the selected model.",
+        reasons: currentModelReasons,
+        canSwitchModel: Boolean(firstCompatibleModel),
+        canSwitchExample: Boolean(firstCompatibleExample),
+      }
+    : null;
+
+  const startBlockedByAnalysis = (!isFrozen
+    && (code.trim() === ""
+        || analysisStatus === "analyzing"
+        || analysisStatus === "syntax-error"
+        || analysisStatus === "incompatible"));
+  const toolbarDisabled = {
+    ...disabled,
+    start: disabled.start || startBlockedByAnalysis,
+  };
+
+  const switchCompatibleModel = async () => {
+    if (!firstCompatibleModel) return;
+    await requestModelChange(firstCompatibleModel);
+  };
+
+  const switchCompatibleExample = () => {
+    if (!firstCompatibleExample) return;
+    setPredefinedCodeText(firstCompatibleExample.value);
+  };
+
   return (
     <div className="container">
       <Resizable>
@@ -135,8 +341,13 @@ function App() {
             onProgramChange={setPredefinedCodeText}
             modelValue={model}
             modelOptions={modelOptions}
-            onModelChange={setModel}
+            onModelChangeRequest={requestModelChange}
             isFrozen={isFrozen}
+            analysisStatus={analysisStatus}
+            compatWarning={compatWarning}
+            exampleCompatibility={exampleCompatibility}
+            onSwitchCompatibleModel={switchCompatibleModel}
+            onSwitchCompatibleExample={switchCompatibleExample}
            />
           <div className="editor-area">
             <CodeEditor 
@@ -148,12 +359,12 @@ function App() {
               onTagClick={setGoalId}
             />
           </div>
-          <Toolbar
+          <Toolbar 
             onStart={handleInit}
             onStep={handleStep}
             onBack={handleBack}
             onReset={handleReset}
-            disabled={disabled}
+            disabled={toolbarDisabled}
           />
         </div>
         
