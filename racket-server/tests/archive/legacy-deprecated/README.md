@@ -4,9 +4,6 @@ These test files are archived and no longer part of the supported test lanes.
 
 Archived files:
 - `test-dmitry-and-dmitry.rkt`
-- `test-reduction-relations.rkt`
-- `unit-tests.rkt`
-- `translator-tests.rkt`
 - `visual-tests.rkt`
 
 Active replacement suites:

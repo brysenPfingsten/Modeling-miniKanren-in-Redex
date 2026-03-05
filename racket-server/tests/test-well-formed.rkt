@@ -53,3 +53,27 @@
 (test-case "Relation Call Inorrect Arity Is Not Closed"
   (judgment-holds (closed-program? (((r:testo "a" "dog") (state () 0 () "s")) ((r:testo (x:a x:b) (x:a =? x:b "u"))))))
   )
+
+(test-case "Legacy syntax/judgment sanity baseline"
+  (check-true (redex-match? L t (term 5)))
+  (check-true (redex-match? L t (term #t)))
+  (check-true (redex-match? L t (term "cat")))
+  (check-true
+   (redex-match? L g (term (∃ (x:x) (x:x =? (sym "abc") (sym "u1")) (sym "f0")))))
+  (check-true
+   (redex-match? L σ (term (state () 0 () (sym "s")))))
+  (check-true
+   (redex-match? L s
+                 (term (((sym "abc") =? (sym "abc") (sym "u"))
+                        (state () 0 () (sym "s"))))))
+  (check-true
+   (redex-match? L p
+                 (term ((((sym "abc") =? (sym "abc") (sym "u"))
+                         (state () 0 () (sym "s")))
+                        ()))))
+  (check-true
+   (judgment-holds
+    (closed-program?
+     ((((sym "abc") =? (sym "abc") (sym "u"))
+       (state () 0 () (sym "s")))
+      ())))))
