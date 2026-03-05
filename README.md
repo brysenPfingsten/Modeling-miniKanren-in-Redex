@@ -22,6 +22,12 @@ docker compose -f docker-compose.dev.yml up --build
 ```
 Finally, visit [localhost:5173](http://localhost:5173).
 
+### Docker Compose Notes
+
+- `docker-compose.dev.yml` is the supported dev stack (`frontend` on `5173`, backend servlet on `5000`).
+- In the dev frontend container, API calls are expected to go through the Vite proxy (`/api -> racket-server:5000`).
+- `docker-compose.yaml` binds frontend on `8080`; if that port is in use, startup will fail with an "address already in use" error.
+
 ## **Test Lanes**
 
 Use the lane that matches what you are validating.
@@ -44,6 +50,15 @@ raco test racket-server/tests/test-all.rkt
 
 ```sh
 npm --prefix frontend test
+```
+
+### **4) Model×Example API-flow matrix lane**
+
+Automates model selection + example execution checks across the full cross-product
+using backend endpoints (analyze/model/init/step), up to 25 steps or termination.
+
+```sh
+raco test racket-server/tests/model-example-matrix-tests.rkt
 ```
 
 ## **Backend Model Registry**

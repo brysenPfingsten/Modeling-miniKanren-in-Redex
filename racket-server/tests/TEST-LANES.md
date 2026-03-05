@@ -31,6 +31,19 @@ Runs pure frontend logic tests for compatibility analysis status + Start-button 
 npm --prefix frontend test
 ```
 
+## Lane D: Model×Example API-Flow Matrix (automated GUI-proxy)
+
+Runs full model/example compatibility and stepping audit without manual clicking:
+- analyze source (`POST /api/post/analyze`)
+- switch model (`POST /api/post/model`)
+- init (`POST /api/post/init`)
+- step up to 25 or termination (`GET /api/get/next`)
+- assert payload shape each step (`step`, `stepName`, JSON `program`)
+
+```sh
+raco test racket-server/tests/model-example-matrix-tests.rkt
+```
+
 ## Notes
 
 - Deprecated legacy suites are archived under `racket-server/tests/archive/legacy-deprecated/`.
