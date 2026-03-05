@@ -79,7 +79,8 @@ Use this as a working sheet. Mark one option per decision (or mark `DEFER`) and 
   - [ ] In-tree answers + hidden marker nodes
   - [ ] `DEFER`
 - Rationale:
-  - Decision should be made together with D8 (fresh markers) and D10 (theorem claim surface).
+  - Decision should be made together with D8 (fresh markers).
+  - D10 is now explicitly deferred; keep D7 scoped to current theorem/testing work.
   - Current implementation remains `external ans*` while this is unresolved.
   - Use this criterion:
     - if paper claim priority is stronger locality/provenance theorems, favor `in-tree` (`G2/G3`);
@@ -106,15 +107,16 @@ Use this as a working sheet. Mark one option per decision (or mark `DEFER`) and 
   - Aligns with current implementation direction (`(s × g c)` + subset-aware WF judgments) and intended stronger locality/scoping claims.
 
 ## D10) Paper Comparison Claim (delayful vs delay-free DFS)
-- Status: `OPEN`
+- Status: `DEFERRED (future work; not active now)`
 - Choose:
   - [ ] Add administrative-step correspondence theorem
   - [ ] No theorem; only empirical comparison
-  - [ ] `DEFER`
+  - [x] `DEFER`
 - Rationale:
-  - This should be decided after D7 because theorem scope/shape depends on answer representation and marker choices.
+  - Keep this out of the current implementation/theorem batch.
+  - Revisit after D7/D8 are settled and the primary theorem surface is stabilized.
 
-## D11) Interleaving Semantics Family (`DECIDE-NEXT`)
+## D11) Interleaving Semantics Family
 - Status: `DEFERRED (future work; not active now)`
 - Choose:
   - [ ] Keep only the currently implemented interleaving branches (`flip` and `railroad`)
@@ -126,19 +128,19 @@ Use this as a working sheet. Mark one option per decision (or mark `DEFER`) and 
   - Current operational choice: hide `dmitry` from active model dispatch until the extension is implemented cleanly.
   - Planning note (2026-03-05): keep this explicitly on the TODO roadmap, but do not execute it in the current batch.
 
-## D12) Disequality Constraints (`DECIDE-NEXT`)
-- Status: `DECIDED (for now)`
+## D12) Disequality Constraints
+- Status: `DEFERRED (future work; not active now)`
 - Choose:
-  - [x] Keep equality-only for this paper iteration
+  - [ ] Keep equality-only for this paper iteration
   - [ ] Add disequality constraints as an extension family
-  - [ ] `DEFER`
+  - [x] `DEFER`
 - If adding disequality, choose rollout policy:
   - [ ] Full cross-product with all existing variants
   - [ ] Phase-gated subset (core + selected branch only), then widen
 - Rationale:
   - Disequality is valuable but introduces another binary axis.
   - Full matrix expansion can become combinatorial; phase-gating limits complexity while preserving comparison value.
-  - Current choice: do not add disequality in this cycle; revisit later.
+  - Current operational choice remains equality-only in this cycle; treat disequality as explicit future work.
 
 ## D13) Frontend/Backend Variant Dispatch (`DECIDE-NEXT`)
 - Status: `DECIDED`
@@ -157,4 +159,4 @@ Use this as a working sheet. Mark one option per decision (or mark `DEFER`) and 
 
 ## Milestone Gate
 - Before coding next semantic layer, decisions required: `D1-D6`.
-- Before theorem/proof write-up, decisions required: `D7-D13`.
+- For current theorem/proof batch, decisions required: `D7-D8` (with `D10-D12` deferred).

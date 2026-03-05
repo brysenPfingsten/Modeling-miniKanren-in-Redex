@@ -201,11 +201,11 @@ Status legend:
 Current priorities:
 1. `OPEN`: **Answer placement (D7)**.
 2. `OPEN`: **Fresh-history markers (D8)**.
-3. `OPEN`: **Theorem comparison claim for delayful vs delay-free DFS (D10)**.
 
 Deferred (explicitly not current batch):
-1. Dmitri-style interleaving axis (D11).
-2. Disequality extension axis (D12 remains "not in this cycle").
+1. Theorem comparison claim for delayful vs delay-free DFS (D10).
+2. Dmitri-style interleaving axis (D11).
+3. Disequality extension axis (D12).
 
 For full per-decision checklist and rationale, use:
 - `PROJECT-DECISION-FORM-2026-02-26.md`
@@ -255,12 +255,14 @@ This is the next meaningful design/theory blocker.
 - If D7 moves toward `G2/G3`, marker nodes become much more compelling.
 - If D7 stays `G1`, marker nodes are optional and can remain deferred.
 
-### 9.3) Theorem surface coupling (D10 + testing)
+### 9.3) Theorem surface coupling (current batch vs deferred)
 - Immediate theorem/testing target (independent of D7 final choice):
   - tighten and document invariant claims for current lattice:
     - WF preservation,
     - progress (fragment-scoped),
     - deterministic one-step decomposition in intended fragments.
+- Deferred:
+  - D10-style delayful-vs-delay-free correspondence claims are explicitly out of the current batch.
 - If D7 picks `G2/G3`, add locality/provenance theorem candidates:
   - branch-local variable-origin alignment,
   - no-cross-branch contamination beyond shared-prefix `c`.
@@ -271,4 +273,45 @@ This is the next meaningful design/theory blocker.
    - current test coverage,
    - missing generator/lemma support.
 2. Decide D7 explicitly (pick one of `G1/G2/G3`).
-3. Resolve D8/D10 based on D7 choice.
+3. Resolve D8 based on D7 choice.
+
+### 9.5) D7 decision rubric (maximal WF/theorem leverage)
+
+Use this to choose answer placement with explicit theorem/testing tradeoffs.
+
+- `G1` external `ans*` (current):
+  - WF/theorem upside:
+    - easiest to keep existing progress/preservation checks stable.
+    - minimal semantic churn and smallest proof delta.
+  - WF/theorem downside:
+    - weaker local structural claims about provenance/origin of answers.
+    - fresh-history markers add limited value unless separately encoded.
+  - Test impact:
+    - mostly incremental hardening of current lanes.
+    - fastest route to "more confidence now."
+
+- `G2` in-tree answers:
+  - WF/theorem upside:
+    - stronger local invariants over one unified search-tree object.
+    - clearer statements about branch-local evolution and answer emergence.
+  - WF/theorem downside:
+    - requires additional tree WF rules + preservation cases.
+    - moderate rewrite of stepping/collection invariants.
+  - Test impact:
+    - expand matrix/property tests to tree-answer constructors.
+    - medium implementation and theorem effort.
+
+- `G3` in-tree answers + fresh-history markers:
+  - WF/theorem upside (maximal):
+    - strongest provenance story for subset-`c`.
+    - enables marker-alignment theorems (origin/scope consistency) directly over syntax.
+  - WF/theorem downside:
+    - highest semantic complexity and proof burden.
+    - risk of slowing near-term stabilization.
+  - Test impact:
+    - requires new marker-specific invariants and regression suites.
+    - largest implementation/theory surface.
+
+Recommendation for current phase:
+- If goal is immediate theorem-test confidence with low churn: choose `G1`.
+- If goal is stronger subset-`c` provenance story this cycle: choose `G2` now, stage `G3` later.
