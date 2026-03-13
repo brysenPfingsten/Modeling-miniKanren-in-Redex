@@ -4,8 +4,7 @@
          racket/set
          redex/reduction-semantics
          syntax/to-string
-         racket/pretty
-         "definitions.rkt")
+         racket/pretty)
 
 (provide parse-prog
          parse-prog/canonical
@@ -191,8 +190,8 @@
      (define-values (tt2 count3 guids2) (transpile t2 count2))
      (values `(,tt1 =? ,tt2 ,id) count3 (cons id (append guids1 guids2)))]
 
-    [(succeed) #:when (succeed? expr) (values (term ⊤) count '())]
-    [(fail)    #:when (fail? expr)    (values (term ⊥) count '())]
+    [(succeed) #:when (succeed? expr) (values '⊤ count '())]
+    [(fail)    #:when (fail? expr)    (values '⊥ count '())]
 
     [(relcall name terms)
      #:when (relcall? expr)
@@ -202,7 +201,7 @@
        (map/fold-with-guids transpile terms count2))
      (values `(,tname ,@tterms ,id) count3 (cons id (append guids1 guids2)))]
 
-    [(nil) #:when (nil? expr) (values (term empty) count '())]
+    [(nil) #:when (nil? expr) (values 'empty count '())]
     
     [(konst k) #:when (konst? expr) (values (konst->term expr) count '())]
     

@@ -2,7 +2,7 @@
 
 (require "../src/syntax-checking.rkt"
          "../src/core-definitions.rkt"
-         "../src/core-judgment-forms.rkt"
+         "../src/wf-core.rkt"
          "../src/transpiler.rkt")
 (require redex/reduction-semantics
          rackunit

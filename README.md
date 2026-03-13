@@ -86,6 +86,10 @@ Use this if you are jumping in with no project history:
   - `racket-server/src/transpiler.rkt` (`parse-prog/canonical`)
   - `racket-server/src/app.rkt` (`init!` enforces canonical config shape)
   - `racket-server/src/model-registry.rkt` (exposes parser contract in `/api/get/models`)
+- Canonical WF stack is split by layer:
+  - `racket-server/src/wf-kernel.rkt` (shared term/state/substitution checks)
+  - `racket-server/src/wf-core.rkt` (core judgments/shapes)
+  - `racket-server/src/wf-variants.rkt` (L1/L2/L3/L4 judgments)
 - Frontend examples are source-of-truth in:
   - `frontend/src/utils/example_programs.js`
 - Integration test auto-loads all frontend examples and checks parse + lift to canonical target:

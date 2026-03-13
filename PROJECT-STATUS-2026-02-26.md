@@ -27,6 +27,10 @@ This note is a restart map: what has been decided, what is provisional, and what
   - `mk-l2-disj-left`
   - `mk-l3-{dfs,flip}-{lazy,eager}`
   - `mk-l4-rail-{lazy,eager}`
+- WF/generator refactor direction is now locked:
+  - WF stack unification into `wf-kernel` -> `wf-core` -> `wf-variants`.
+  - Shared randomized generator mechanics in dedicated kernel/support modules.
+  - Active-lane retirement of legacy `closed-*` judgment dependencies.
 
 ### 1.1) Testing Hardening Progress (completed)
 - Shared helper extraction completed for randomized test mechanics:
@@ -75,6 +79,23 @@ This note is a restart map: what has been decided, what is provisional, and what
 - Matrix API-flow lane validates, for all `model × example` pairs:
   - analyze -> switch-model -> init -> step (up to 25 or termination),
   - payload shape invariants (`step`, `stepName`, JSON `program`) at each step.
+- Active-lane legacy retirement status:
+  - `test-all-headless` no longer depends on `judgment-parity`/`closed-*` checks.
+  - `test-all` no longer pulls `test-reification` or `test-metafunctions`.
+  - app/API path now uses canonical renderer module (`canonical-json.rkt`) instead of legacy renderer entry points.
+
+### 1.5) Active Refactor Packet (in progress)
+- Canonical module targets:
+  - `racket-server/src/wf-kernel.rkt`
+  - `racket-server/src/wf-core.rkt`
+  - `racket-server/src/wf-variants.rkt`
+  - `racket-server/src/canonical-json.rkt`
+  - `racket-server/src/random-test-support.rkt`
+  - `racket-server/tests/generator-kernel.rkt`
+- Current policy:
+  - no permanent compatibility shims,
+  - no requirement to preserve prior internal module names/signatures,
+  - preserve documented README run/test lanes.
 
 ## 2) Simple Definitions (for context)
 - `global c`: treat `c` as one broad "set of extant logic vars" for the whole current computation region; easier invariants, less precision.
@@ -153,7 +174,11 @@ This note is a restart map: what has been decided, what is provisional, and what
    - and whether to phase-gate it to selected variants vs full lattice cross-product.
 9. **JS dispatch architecture (advanced phase)**:
    - current baseline is implemented (capability analyzer + start gating + model registry),
-   - open future work is multi-surface parser/profile support beyond the current canonical target path.
+  - open future work is multi-surface parser/profile support beyond the current canonical target path.
+10. **Answer placement (D7)**:
+  - still open and coupled to fresh-history marker scope.
+11. **Fresh-history markers (D8)**:
+  - still deferred pending theorem/provenance scope choice.
 
 ### 3.1) Legacy-to-Variant Migration Targets (working map)
 - `reduction-relations.rkt` (legacy "microKanren" backend) -> **`Rrail-l`** as closest lattice target.

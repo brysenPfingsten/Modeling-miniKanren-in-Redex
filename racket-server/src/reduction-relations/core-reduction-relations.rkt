@@ -1,7 +1,7 @@
 #lang racket
 (require redex/reduction-semantics
          "../core-definitions.rkt"
-         "../core-judgment-forms.rkt")
+         "../wf-core.rkt")
 
 (check-redundancy #t)
 

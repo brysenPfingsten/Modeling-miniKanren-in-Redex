@@ -157,6 +157,37 @@ Use this as a working sheet. Mark one option per decision (or mark `DEFER`) and 
     - frontend enforces compatibility through warnings and Start-button gating.
     - `microKanren-dfs-nodelay` and `dmitry` are currently hidden from active model dispatch.
 
+## D14) WF Architecture Unification
+- Status: `DECIDED`
+- Choose:
+  - [x] Unified WF stack with extension-based layering (`wf-kernel` -> `wf-core` -> `wf-variants`)
+  - [ ] Keep duplicated core/variant WF definitions
+  - [ ] `DEFER`
+- Rationale:
+  - Reduces duplicated judgment logic.
+  - Makes language-level inheritance visible in judgments, not only syntax/reductions.
+  - Uses extension-style layering (`wf-kernel`/`wf-core`/`wf-variants`) with shared invariants.
+
+## D15) Randomized Generator Unification
+- Status: `DECIDED`
+- Choose:
+  - [x] Shared generator kernel + shared RNG/list helpers
+  - [ ] Keep separate constructive generators per file
+  - [ ] `DEFER`
+- Rationale:
+  - Removes duplicated generation/coverage plumbing across core and variant property suites.
+  - Keeps per-suite thresholds/constants local, while sharing mechanics.
+
+## D16) Legacy Judgment Path Retirement
+- Status: `DECIDED`
+- Choose:
+  - [x] Remove active-lane dependence on legacy `closed-*` judgment path
+  - [ ] Keep legacy closed-judgment path in active lanes
+  - [ ] `DEFER`
+- Rationale:
+  - Active execution/testing should rely on canonical core/variant stack.
+  - Legacy modules may remain only as explicit deprecated/archive context until fully removed.
+
 ## Milestone Gate
 - Before coding next semantic layer, decisions required: `D1-D6`.
 - For current theorem/proof batch, decisions required: `D7-D8` (with `D10-D12` deferred).

@@ -5,7 +5,8 @@
          racket/format
          racket/list
          redex/reduction-semantics
-         (prefix-in h: "./helpers.rkt")
+         (prefix-in rt: "../src/random-test-support.rkt")
+         (prefix-in gk: "./generator-kernel.rkt")
          "./variant-test-support.rkt"
          "../src/extensions/variant-languages.rkt"
          "../src/reduction-relations/extensions/variant-relations.rkt")
@@ -34,23 +35,15 @@
 (define VR-MIN-FLIP-RULE-HITS 2)
 (define VR-MIN-RAIL-RULE-HITS 2)
 
-(define (require-positive who n)
-  (unless (positive? n)
-    (error 'property-variants-random (format "~a must be >= 1, got ~a" who n))))
-
-(define (require-nonnegative who n)
-  (unless (>= n 0)
-    (error 'property-variants-random (format "~a must be >= 0, got ~a" who n))))
-
-(require-positive 'VR-ATTEMPTS VR-ATTEMPTS)
-(require-positive 'VR-MAX-DEPTH VR-MAX-DEPTH)
-(require-positive 'VR-U-POOL-SIZE VR-U-POOL-SIZE)
-(require-positive 'VR-X-POOL-SIZE VR-X-POOL-SIZE)
-(require-positive 'VR-R-POOL-SIZE VR-R-POOL-SIZE)
-(require-positive 'VR-C-MAX VR-C-MAX)
-(require-positive 'VR-EXPECTED-ANTE-HITS VR-EXPECTED-ANTE-HITS)
-(require-positive 'VR-K-STEP-DEPTH VR-K-STEP-DEPTH)
-(require-nonnegative 'VR-C-EXTRA-MAX VR-C-EXTRA-MAX)
+(gk:require-positive 'VR-ATTEMPTS VR-ATTEMPTS 'property-variants-random)
+(gk:require-positive 'VR-MAX-DEPTH VR-MAX-DEPTH 'property-variants-random)
+(gk:require-positive 'VR-U-POOL-SIZE VR-U-POOL-SIZE 'property-variants-random)
+(gk:require-positive 'VR-X-POOL-SIZE VR-X-POOL-SIZE 'property-variants-random)
+(gk:require-positive 'VR-R-POOL-SIZE VR-R-POOL-SIZE 'property-variants-random)
+(gk:require-positive 'VR-C-MAX VR-C-MAX 'property-variants-random)
+(gk:require-positive 'VR-EXPECTED-ANTE-HITS VR-EXPECTED-ANTE-HITS 'property-variants-random)
+(gk:require-positive 'VR-K-STEP-DEPTH VR-K-STEP-DEPTH 'property-variants-random)
+(gk:require-nonnegative 'VR-C-EXTRA-MAX VR-C-EXTRA-MAX 'property-variants-random)
 (unless (<= VR-C-MAX VR-U-POOL-SIZE)
   (error 'property-variants-random
          (format "VR-C-MAX must be <= VR-U-POOL-SIZE, got ~a > ~a"
@@ -61,50 +54,30 @@
                  VR-EXPECTED-ANTE-HITS VR-ATTEMPTS)))
 
 (define U-POOL
-  (for/list ([i (in-range VR-U-POOL-SIZE)])
-    (string->symbol (format "u:~a" i))))
+  (gk:make-u-pool VR-U-POOL-SIZE))
 
 (define X-POOL
-  (for/list ([i (in-range VR-X-POOL-SIZE)])
-    (string->symbol (format "x:~a" i))))
+  (gk:make-x-pool VR-X-POOL-SIZE))
 
 (define R-POOL
-  (for/list ([i (in-range VR-R-POOL-SIZE)])
-    (string->symbol (format "r:~a" i))))
+  (gk:make-r-pool VR-R-POOL-SIZE))
 
 (struct gopts (calls? disj-goal? left-tree? exists?) #:transparent)
 
 (define (vrandom rng n)
-  (h:rng-random rng n))
+  (rt:rng-random rng n))
 
 (define (pick-one rng xs)
-  (list-ref xs (vrandom rng (length xs))))
+  (gk:pick-one/rng rng xs))
 
 (define (make-label rng prefix)
-  `(label ,(format "~a-~a" prefix (vrandom rng 1000000))))
+  (gk:make-label/rng rng prefix))
 
 (define (extend-c/rng rng c max-extra)
-  (define unused
-    (filter (lambda (u) (not (member u c))) U-POOL))
-  (define room (- VR-C-MAX (length c)))
-  (define extra-limit (min max-extra room (length unused)))
-  (define extra-count (vrandom rng (add1 extra-limit)))
-  (append c (h:random-distinct/rng rng unused extra-count)))
+  (gk:extend-c/rng rng c U-POOL VR-C-MAX max-extra))
 
 (define (gen-term/rng rng x-env c depth)
-  (define options
-    (append '(primitive)
-            (if (null? c) '() '(logic-var))
-            (if (null? x-env) '() '(lex-var))
-            (if (zero? depth) '() '(pair))))
-  (case (pick-one rng options)
-    [(primitive) (h:gen-primitive/rng rng)]
-    [(logic-var) (pick-one rng c)]
-    [(lex-var) (pick-one rng x-env)]
-    [(pair)
-     `(,(gen-term/rng rng x-env c (sub1 depth))
-       :
-       ,(gen-term/rng rng x-env c (sub1 depth)))]))
+  (gk:gen-term/rng rng x-env c depth))
 
 (define (gen-eq-goal/rng rng x-env c depth)
   `(,(gen-term/rng rng x-env c depth)
@@ -113,10 +86,7 @@
     ,(make-label rng "eq")))
 
 (define (fresh-x-list/rng rng x-env)
-  (define available (filter (lambda (x) (not (member x x-env))) X-POOL))
-  (h:random-distinct/rng rng
-                         available
-                         (vrandom rng (add1 (min 2 (length available))))))
+  (gk:fresh-x-list/rng rng x-env X-POOL))
 
 (define (gen-goal/rng rng x-env c depth rel-sig opts)
   (define call-enabled? (and (gopts-calls? opts) (pair? rel-sig)))
@@ -141,7 +111,7 @@
            `(succeed ,(make-label rng "ok"))
            `(,(car d)
              =?
-             ,(h:gen-primitive/rng rng)
+             ,(rt:gen-primitive/rng rng)
              ,(make-label rng "eq"))))
      `(∃
        ,d
@@ -194,14 +164,14 @@
     (if calls?
         (add1 (vrandom rng 3))
         (vrandom rng 3)))
-  (for/list ([r (in-list (h:random-distinct/rng rng R-POOL count))])
+  (for/list ([r (in-list (rt:random-distinct/rng rng R-POOL count))])
     (cons r (vrandom rng 3))))
 
 (define (gen-rel-def/rng rng rel-ar rel-sig opts)
   (define r (car rel-ar))
   (define arity (cdr rel-ar))
   (define d
-    (take (h:random-distinct/rng rng X-POOL arity) arity))
+    (take (rt:random-distinct/rng rng X-POOL arity) arity))
   ;; Relation bodies are restricted to core-goal forms because subst-goal in
   ;; core-definitions currently covers succeed/eq/conj/exists only.
   (define core-opts (gopts #f #f #f #t))
@@ -433,7 +403,7 @@
                             #:min-rail-rules [min-rail-rules 0]
                             #:k-depth [k-depth VR-K-STEP-DEPTH])
   (for ([seed (in-list VR-SEEDS)])
-    (define rng (h:make-seeded-rng seed))
+    (define rng (rt:make-seeded-rng seed))
     (define fail-count 0)
     (define fail-samples '())
     (define ante-hits 0)

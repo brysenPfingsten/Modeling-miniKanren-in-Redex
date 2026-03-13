@@ -6,7 +6,7 @@
          json
          racket/string)
 
-(require "metafunctions.rkt"
+(require "canonical-json.rkt"
          "transpiler.rkt"
          "capability-analysis.rkt"
          "syntax-checking.rkt"

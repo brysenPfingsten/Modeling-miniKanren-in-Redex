@@ -5,7 +5,7 @@
          redex/reduction-semantics
          "./variant-test-support.rkt"
          (prefix-in lang: "../src/extensions/variant-languages.rkt")
-         (prefix-in j: "../src/variant-judgment-forms.rkt")
+         (prefix-in j: "../src/wf-variants.rkt")
          (prefix-in e: "../src/reduction-relations/extensions/rcall-eager.rkt")
          (prefix-in l: "../src/reduction-relations/extensions/rcall-lazy.rkt")
          (prefix-in d: "../src/reduction-relations/extensions/rdisj-left.rkt")

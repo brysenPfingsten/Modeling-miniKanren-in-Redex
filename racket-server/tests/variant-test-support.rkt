@@ -2,7 +2,7 @@
 
 (require redex/reduction-semantics
          "../src/core-definitions.rkt"
-         "../src/core-judgment-forms.rkt"
+         "../src/wf-core.rkt"
          "../src/extensions/variant-languages.rkt")
 
 (provide final-config?

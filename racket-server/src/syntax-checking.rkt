@@ -3,9 +3,8 @@
 (require redex/reduction-semantics
          racket/port
          racket/sandbox)
-(require "judgment-forms.rkt"
-         "core-judgment-forms.rkt"
-         "variant-judgment-forms.rkt"
+(require "wf-core.rkt"
+         "wf-variants.rkt"
          (only-in "core-definitions.rkt" Core))
 (provide check-well-formed
          canonical-core-shape?

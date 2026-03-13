@@ -4,7 +4,6 @@
          rackunit/text-ui
          "./helpers-tests.rkt"
          "./capability-analysis-tests.rkt"
-         "./judgment-parity.rkt"
          "./property-core.rkt"
          "./example-compat-tests.rkt"
          "./confidence-gates-tests.rkt"
@@ -16,7 +15,6 @@
 (define-test-suite HEADLESS
   HELPERS-TESTS
   CAPABILITY-ANALYSIS
-  JUDGMENT-PARITY
   PROPERTY-CORE
   EXAMPLE-COMPAT
   CONFIDENCE-GATES
