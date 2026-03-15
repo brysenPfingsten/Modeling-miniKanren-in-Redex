@@ -660,10 +660,10 @@
                         label seed rail-rule-hits min-rail-rules))))
 
 (define-test-suite VARIANT-RANDOM-PROPERTIES
-  (test-case "L1 Rcall-eager randomized"
+  (test-case "L1 Rl1-call-eager randomized"
     (define opts (gopts #t #f #f #t))
-    (run-random-variant "Rcall-eager"
-                        Rcall-eager
+    (run-random-variant "Rl1-call-eager"
+                        Rl1-call-eager
                         (lambda (cfg) (redex-match? L1 config cfg))
                         shape-closed/L1?
                         (lambda (rng) (gen-config-user/rng rng opts))
@@ -672,10 +672,10 @@
                         #:min-call-gen VR-MIN-CALL-GEN-HITS
                         #:min-call-rules VR-MIN-CALL-RULE-HITS))
 
-  (test-case "L1 Rcall-lazy randomized"
+  (test-case "L1 Rl1-call-lazy randomized"
     (define opts (gopts #t #f #f #t))
-    (run-random-variant "Rcall-lazy"
-                        Rcall-lazy
+    (run-random-variant "Rl1-call-lazy"
+                        Rl1-call-lazy
                         (lambda (cfg) (redex-match? L1 config cfg))
                         shape-closed/L1?
                         (lambda (rng) (gen-config-user/rng rng opts))
@@ -684,10 +684,10 @@
                         #:min-call-gen VR-MIN-CALL-GEN-HITS
                         #:min-call-rules VR-MIN-CALL-RULE-HITS))
 
-  (test-case "L2 Rdisj-left randomized"
+  (test-case "L2 Rl2-disj-left randomized"
     (define opts (gopts #f #t #f #f))
-    (run-random-variant "Rdisj-left"
-                        Rdisj-left
+    (run-random-variant "Rl2-disj-left"
+                        Rl2-disj-left
                         (lambda (cfg) (redex-match? L2 config cfg))
                         shape-closed/L2?
                         (lambda (rng) (gen-config-user/rng rng opts))
@@ -696,10 +696,10 @@
                         #:min-disj-gen VR-MIN-DISJ-GEN-HITS
                         #:min-disj-rules VR-MIN-DISJ-RULE-HITS))
 
-  (test-case "L3 Rbase-e randomized"
+  (test-case "L3 Rl3-pre-eager randomized"
     (define opts (gopts #t #t #f #t))
-    (run-random-variant "Rbase-e"
-                        Rbase-e
+    (run-random-variant "Rl3-pre-eager"
+                        Rl3-pre-eager
                         (lambda (cfg) (redex-match? L3 config cfg))
                         shape-closed/L3?
                         (lambda (rng) (gen-config-user/rng rng opts))
@@ -711,10 +711,10 @@
                         #:min-call-rules VR-MIN-CALL-RULE-HITS
                         #:min-disj-rules VR-MIN-DISJ-RULE-HITS))
 
-  (test-case "L3 Rbase-l randomized"
+  (test-case "L3 Rl3-pre-lazy randomized"
     (define opts (gopts #t #t #f #t))
-    (run-random-variant "Rbase-l"
-                        Rbase-l
+    (run-random-variant "Rl3-pre-lazy"
+                        Rl3-pre-lazy
                         (lambda (cfg) (redex-match? L3 config cfg))
                         shape-closed/L3?
                         (lambda (rng) (gen-config-user/rng rng opts))
@@ -726,9 +726,9 @@
                         #:min-call-rules VR-MIN-CALL-RULE-HITS
                         #:min-disj-rules VR-MIN-DISJ-RULE-HITS))
 
-  (test-case "L3 Rflip-e randomized admin-fragment"
-    (run-random-variant "Rflip-e"
-                        Rflip-e
+  (test-case "L3 Rl3-flip-eager randomized admin-fragment"
+    (run-random-variant "Rl3-flip-eager"
+                        Rl3-flip-eager
                         (lambda (cfg) (redex-match? L3 config cfg))
                         shape-closed/L3?
                         gen-config-delay-left-disj-admin/rng
@@ -739,9 +739,9 @@
                         #:min-delay VR-MIN-DELAY-HITS
                         #:min-flip-rules VR-MIN-FLIP-RULE-HITS))
 
-  (test-case "L3 Rflip-l randomized admin-fragment"
-    (run-random-variant "Rflip-l"
-                        Rflip-l
+  (test-case "L3 Rl3-flip-lazy randomized admin-fragment"
+    (run-random-variant "Rl3-flip-lazy"
+                        Rl3-flip-lazy
                         (lambda (cfg) (redex-match? L3 config cfg))
                         shape-closed/L3?
                         gen-config-delay-left-disj-admin/rng
@@ -752,9 +752,9 @@
                         #:min-delay VR-MIN-DELAY-HITS
                         #:min-flip-rules VR-MIN-FLIP-RULE-HITS))
 
-  (test-case "L4 Rrail-e randomized admin-fragment"
-    (run-random-variant "Rrail-e"
-                        Rrail-e
+  (test-case "L4 Rl4-rail-eager randomized admin-fragment"
+    (run-random-variant "Rl4-rail-eager"
+                        Rl4-rail-eager
                         (lambda (cfg) (redex-match? L4 config cfg))
                         shape-closed/L4?
                         gen-config-delay-left-disj-admin/rng
@@ -767,9 +767,9 @@
                         #:min-right-next VR-MIN-RIGHT-TREE-HITS
                         #:min-rail-rules VR-MIN-RAIL-RULE-HITS))
 
-  (test-case "L4 Rrail-l randomized admin-fragment"
-    (run-random-variant "Rrail-l"
-                        Rrail-l
+  (test-case "L4 Rl4-rail-lazy randomized admin-fragment"
+    (run-random-variant "Rl4-rail-lazy"
+                        Rl4-rail-lazy
                         (lambda (cfg) (redex-match? L4 config cfg))
                         shape-closed/L4?
                         gen-config-delay-left-disj-admin/rng
