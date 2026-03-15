@@ -16,29 +16,35 @@
   (reduction-relation
     L2/K
     #:domain config
-    [--> (Γ ans* (in-hole Kleft (in-hole Kcore ((g_1 ∨ g_2 tag) σ))))
-         (Γ ans* (in-hole Kleft (in-hole Kcore ((g_1 σ) <-+ (g_2 σ)))))
+    [--> (Γ (in-hole Kleft (in-hole Kcore ((g_1 ∨ g_2 tag) σ))))
+         (Γ (in-hole Kleft (in-hole Kcore ((g_1 σ) <-+ (g_2 σ)))))
          "dfsn/goal-to-tree"]
 
-    [--> (Γ ans* (in-hole Kleft (in-hole Kcore ((s_1 <-+ s_2) × g c))))
-         (Γ ans* (in-hole Kleft (in-hole Kcore ((s_1 × g c) <-+ (s_2 × g c)))))
+    [--> (Γ (in-hole Kleft (in-hole Kcore ((s_1 <-+ s_2) × g c))))
+         (Γ (in-hole Kleft (in-hole Kcore ((s_1 × g c) <-+ (s_2 × g c)))))
          "dfsn/distribute-over-conj"]
 
-    [--> (Γ (σ ...) (in-hole Kleft ((⊤ σ_new) <-+ s_right)))
-         (Γ (σ ... σ_new) (in-hole Kleft s_right))
-         "dfsn/collect-left-answer"]
+    [--> (Γ (in-hole Kleft (((⊤ σ_new) + s_left_tail) <-+ s_right)))
+         (Γ (in-hole Kleft ((⊤ σ_new) + (s_left_tail <-+ s_right))))
+         (side-condition
+          (null? (apply-reduction-relation core-cfg/l2
+                                           (term (Γ s_left_tail)))))
+         (side-condition (not (redex-match? L2/K (empty-tree) (term s_left_tail))))
+         "dfsn/promote-left-stream"]
 
-    [--> (Γ ans* (in-hole Kleft ((empty-tree) <-+ s_right)))
-         (Γ ans* (in-hole Kleft s_right))
+    [--> (Γ (in-hole Kleft (((⊤ σ_new) + (empty-tree)) <-+ s_right)))
+         (Γ (in-hole Kleft ((⊤ σ_new) + s_right)))
+         "dfsn/promote-left-singleton-stream"]
+
+    [--> (Γ (in-hole Kleft ((⊤ σ_new) <-+ s_right)))
+         (Γ (in-hole Kleft ((⊤ σ_new) + s_right)))
+         "dfsn/promote-left-answer"]
+
+    [--> (Γ (in-hole Kleft ((empty-tree) <-+ s_right)))
+         (Γ (in-hole Kleft s_right))
          "dfsn/skip-left-fail"]))
-
-(define base-l2/k
-  (extend-reduction-relation
-    core-base-l2
-    L2/K))
 
 (define Rdfs-nodelay
   (union-reduction-relations
    disj-extra/dfs-nodelay
-   base-l2/k))
-
+   core-cfg/l2))

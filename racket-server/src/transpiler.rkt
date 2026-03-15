@@ -572,7 +572,7 @@
        (map/fold-with-guids transpile-canonical rels count))
      (define-values (tq count2 guids2)
        (transpile-canonical q count1))
-     (values `(,trs () ,tq) count2 (append guids1 guids2))]
+     (values `(,trs ,tq) count2 (append guids1 guids2))]
 
     [(fresh vars goal)
      #:when (fresh? expr)

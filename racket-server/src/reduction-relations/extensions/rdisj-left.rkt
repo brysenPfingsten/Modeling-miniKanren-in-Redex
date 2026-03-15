@@ -33,7 +33,7 @@
     [--> (Γ (in-hole Kleft (((⊤ σ_new) + s_left_tail) <-+ s_right)))
          (Γ (in-hole Kleft ((⊤ σ_new) + (s_left_tail <-+ s_right))))
          (side-condition
-          (null? (apply-reduction-relation core-base-l2
+          (null? (apply-reduction-relation core-cfg/l2
                                            (term (Γ s_left_tail)))))
          (side-condition
           (null? (apply-reduction-relation disj-distribute-only/l2
@@ -53,12 +53,7 @@
          (Γ (in-hole Kleft s_right))
          "disj/skip-left-fail"]))
 
-(define base-l2/k
-  (extend-reduction-relation
-    core-base-l2
-    L2/K))
-
 (define Rdisj-left
   (union-reduction-relations
    disj-extra/l2
-   base-l2/k))
+   core-cfg/l2))

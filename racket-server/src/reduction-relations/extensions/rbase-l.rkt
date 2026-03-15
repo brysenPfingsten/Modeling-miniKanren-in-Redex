@@ -20,8 +20,8 @@
                  )
          "call/lazy-suspend-call"]
 
-    [--> (Γ (in-hole Kcall (delay (proceed ((r t ... tag) σ)))))
-         (Γ (in-hole Kcall (proceed ((r t ... tag) σ))))
+    [--> (Γ (in-hole Kdelay (delay (proceed ((r t ... tag) σ)))))
+         (Γ (in-hole Kdelay (proceed ((r t ... tag) σ))))
          "call/lazy-invoke-delay"]
 
     [--> (Γ (in-hole Kleft (in-hole Kcall (proceed ((r t ... tag) σ)))))
@@ -36,7 +36,7 @@
 (define call+core-l3/lazy
   (union-reduction-relations
    call-lazy-extra/l3
-   core-base-extra-l3))
+   core-cfg/l3))
 
 (define disj-distribute-only/l3
   (reduction-relation
@@ -87,4 +87,4 @@
   (union-reduction-relations
    call-lazy-extra/l3
    disj-extra/l3
-   core-base-extra-l3))
+   core-cfg/l3))

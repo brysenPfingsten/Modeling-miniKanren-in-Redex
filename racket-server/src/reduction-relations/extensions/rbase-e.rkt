@@ -20,8 +20,8 @@
          (where g_new ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
          "call/eager-suspend-expanded"]
 
-    [--> (Γ (delay (proceed (g σ))))
-         (Γ (proceed (g σ)))
+    [--> (Γ (in-hole Kdelay (delay (proceed (g σ)))))
+         (Γ (in-hole Kdelay (proceed (g σ))))
          "call/eager-invoke-delay"]
 
     [--> (Γ (in-hole Kleft (in-hole Kcall (proceed (g σ)))))
@@ -35,7 +35,7 @@
 (define call+core-l3/eager
   (union-reduction-relations
    call-eager-extra/l3
-   core-base-extra-l3))
+   core-cfg/l3))
 
 (define disj-distribute-only/l3
   (reduction-relation
@@ -86,4 +86,4 @@
   (union-reduction-relations
    call-eager-extra/l3
    disj-extra/l3
-   core-base-extra-l3))
+   core-cfg/l3))

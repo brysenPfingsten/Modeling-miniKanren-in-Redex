@@ -209,7 +209,11 @@
   [(core-tree-shape? s)
    (core-goal-shape? g)
    ------------------- "core-conj-tree-shape"
-   (core-tree-shape? (s × g c))])
+   (core-tree-shape? (s × g c))]
+
+  [(core-tree-shape? s_tail)
+   ------------------- "core-answer-stream-shape"
+   (core-tree-shape? ((⊤ σ) + s_tail))])
 
 (define-judgment-form
   Core
@@ -218,7 +222,7 @@
   [(core-goal-shape? g) ...
    (core-tree-shape? s)
    ------------------- "core-config-shape"
-   (core-shape? (((r d g) ...) (σ ...) s))])
+   (core-shape? (((r d g) ...) s))])
 
 (module+ test
   ;; succeed
@@ -352,7 +356,13 @@
    (wf-tree? s ((r d) ...) c_i)
    (wf-goal? g ((r d) ...) () c_i)
    -------------------"conj wf"
-   (wf-tree? (s × g c_i) ((r d) ...) c)])
+   (wf-tree? (s × g c_i) ((r d) ...) c)]
+
+  [(lvars-subset? c c_i)
+   (wf-sub/wf+equiv-trail? sub c_i trail)
+   (wf-tree? s_tail ((r d) ...) c)
+   -------------------"answer stream wf"
+   (wf-tree? ((⊤ (state sub c_i trail tag)) + s_tail) ((r d) ...) c)])
 
 (define-judgment-form
   Core
@@ -367,10 +377,9 @@
   #:contract (wf-config? config)
   #:mode (wf-config? I)
   [(wf-rel-env? ((r d g) ...))
-   (wf-state? σ) ...
    (wf-tree? s ((r d) ...) ())
    ----------------------- "program-wf"
-   (wf-config? (((r d g) ...) (σ ...) s))]
+   (wf-config? (((r d g) ...) s))]
   )
 
   #;[(wf-tree? s ((r (x ...)) ...))
@@ -492,15 +501,16 @@
   ;; whole program: no states and empty relations
   (check-true
    (judgment-holds
-    (wf-config? (() () (empty-tree)))))
+    (wf-config? (() (empty-tree)))))
 
   ;; whole program: one state and empty relations
   (check-true
    (judgment-holds
     (wf-config?
      (()  ; Γ
-      ((state ((u:0 (sym "a"))) (u:0) (((sym "a") =? u:0 (label "g1"))) (label "σ"))) ; ans*
-      (empty-tree)))))                                ; s
+      ((⊤ (state ((u:0 (sym "a"))) (u:0) (((sym "a") =? u:0 (label "g1"))) (label "σ")))
+       +
+       (empty-tree))))))                                ; s
 
   ;; relation environment well-formedness
   (check-true
@@ -515,14 +525,14 @@
 
   (check-true
    (judgment-holds
-    (core-shape? (() () (empty-tree)))))
+    (core-shape? (() (empty-tree)))))
 
   (check-true
    (judgment-holds
     (core-shape?
-     (() ((state () () () (label "a")))
-         (((succeed (label "ok")) ∧ (succeed (label "ok2")) (label "c"))
-          (state () () () (label "s")))))))
+     (()
+      (((succeed (label "ok")) ∧ (succeed (label "ok2")) (label "c"))
+       (state () () () (label "s")))))))
 
   (define (core-tree-shape-holds? st)
     (with-handlers ([exn:fail? (lambda (_) #f)])
@@ -537,8 +547,8 @@
 
   (check-false
    (core-config-shape-holds?
-    '(() () (proceed ((r:foo (sym "x") (label "t"))
-                      (state () () () (label "s")))))))
+    '(() (proceed ((r:foo (sym "x") (label "t"))
+                   (state () () () (label "s")))))))
 )
 
 (module+ test

@@ -12,6 +12,7 @@
          "../src/zipper.rkt"
          "../src/transpiler.rkt"
          "../src/model-registry.rkt"
+         "./variant-test-support.rkt"
          "./example-compat-tests.rkt")
 
 (provide CONFIDENCE-GATES)
@@ -29,11 +30,6 @@
               #:when (equal? (car pr) label))
     (cdr pr)))
 
-(define (final-config? cfg)
-  (match cfg
-    [`(,_ ,_ (empty-tree)) #t]
-    [_ #f]))
-
 (define (trace-steps model-id label)
   (define src (example-src label))
   (unless src
@@ -47,9 +43,9 @@
     (define next* (step-once cfg))
     (cond
       [(null? next*)
-       (values (reverse acc) (if (final-config? cfg) 'value 'stuck))]
+       (values (reverse acc) (if (final-config? cfg) 'value 'stuck) cfg)]
       [(>= i TRACE-STEP-CAP)
-       (values (reverse acc) 'cap)]
+       (values (reverse acc) 'cap cfg)]
       [else
        (match-define (list nm cfg1) (first next*))
        (loop cfg1 (add1 i) (cons nm acc))])))
@@ -57,6 +53,12 @@
 (define (named-step? nm)
   (and (string? nm)
        (> (string-length (string-trim nm)) 0)))
+
+(define (length+last steps)
+  (for/fold ([count 0]
+             [last-step "<none>"])
+            ([nm (in-list steps)])
+    (values (add1 count) nm)))
 
 (define GOLDEN-PREFIXES
   (list
@@ -117,7 +119,7 @@
            "dfs/invoke-delay"
            "call/lazy-expand-on-resume"
            "core/unify-success"
-           "disj/collect-left-answer"))))
+           "disj/promote-left-answer"))))
 
 (define (get-response-body resp)
   (define out (open-output-string))
@@ -173,18 +175,27 @@
   (test-case "golden trace prefixes stay stable and step names are always named"
     (for ([entry (in-list GOLDEN-PREFIXES)])
       (match-define (list model-id label expected-prefix) entry)
-      (define-values (steps status) (trace-steps model-id label))
+      (define-values (steps status final-cfg) (trace-steps model-id label))
+      (define-values (step-count last-step) (length+last steps))
       (check-true (or (eq? status 'value) (eq? status 'cap))
-                  (format "~a / ~a unexpectedly stuck" model-id label))
-      (check-true (>= (length steps) (length expected-prefix))
-                  (format "~a / ~a produced too few steps: got ~a, expected >= ~a"
-                          model-id label (length steps) (length expected-prefix)))
+                  (format "~a / ~a unexpectedly ~a (steps=~a last=~a cfg=~s)"
+                          model-id
+                          label
+                          status
+                          step-count
+                          last-step
+                          final-cfg))
       (for ([nm (in-list steps)]
             [idx (in-naturals 1)])
         (check-true (named-step? nm)
                     (format "~a / ~a has unnamed step at position ~a: ~v"
                             model-id label idx nm)))
-      (check-equal? (take steps (length expected-prefix))
+
+      (define expected-count (length expected-prefix))
+      (check-true (>= step-count expected-count)
+                  (format "~a / ~a produced too few steps: got ~a, expected >= ~a"
+                          model-id label step-count expected-count))
+      (check-equal? (take steps expected-count)
                     expected-prefix
                     (format "~a / ~a prefix drifted" model-id label))))
 

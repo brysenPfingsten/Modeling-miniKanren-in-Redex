@@ -78,7 +78,11 @@
   [(core-tree-shape? s)
    (core-goal-shape? g)
    ------------------- "core-conj-tree-shape"
-   (core-tree-shape? (s × g c))])
+   (core-tree-shape? (s × g c))]
+
+  [(core-tree-shape? s_tail)
+   ------------------- "core-answer-stream-shape"
+   (core-tree-shape? ((⊤ σ) + s_tail))])
 
 (define-judgment-form
   Core
@@ -87,7 +91,7 @@
   [(core-goal-shape? g) ...
    (core-tree-shape? s)
    ------------------- "core-config-shape"
-   (core-shape? (((r d g) ...) (σ ...) s))])
+   (core-shape? (((r d g) ...) s))])
 
 (define-judgment-form
   Core
@@ -112,7 +116,13 @@
    (wf-tree? s ((r d g_env) ...) c_i)
    (wf-goal? g ((r d g_env) ...) () c_i)
    ------------------- "conj wf"
-   (wf-tree? (s × g c_i) ((r d g_env) ...) c)])
+   (wf-tree? (s × g c_i) ((r d g_env) ...) c)]
+
+  [(lvars-subset? c c_i)
+   (wf-sub/wf+equiv-trail? sub c_i trail)
+   (wf-tree? s_tail ((r d g_env) ...) c)
+   ------------------- "answer stream wf"
+   (wf-tree? ((⊤ (state sub c_i trail tag)) + s_tail) ((r d g_env) ...) c)])
 
 (define-judgment-form
   Core
@@ -127,10 +137,9 @@
   #:contract (wf-config? config)
   #:mode (wf-config? I)
   [(wf-rel-env? ((r d g) ...))
-   (wf-state? σ) ...
    (wf-tree? s ((r d g) ...) ())
    ----------------------- "program-wf"
-   (wf-config? (((r d g) ...) (σ ...) s))])
+   (wf-config? (((r d g) ...) s))])
 
 (module+ test
   (check-true (judgment-holds (wf-goal? (succeed (label "fish")) () () ())))
@@ -193,14 +202,17 @@
               ()
               ())))
 
-  (check-true (judgment-holds (wf-config? (() () (empty-tree)))))
+  (check-true (judgment-holds (wf-config? (() (empty-tree)))))
 
   (check-true
    (judgment-holds
     (wf-config?
      (()
-      ((state ((u:0 (sym "a"))) (u:0) (((sym "a") =? u:0 (label "g1"))) (label "σ")))
-      (empty-tree)))))
+      ((⊤ (state ((u:0 (sym "a")))
+                 (u:0)
+                 (((sym "a") =? u:0 (label "g1")))
+                 (label "σ")))
+       + (empty-tree))))))
 
   (check-true
    (judgment-holds
@@ -212,15 +224,24 @@
     (wf-rel-env?
      ((r:bad () (x:0 =? x:0 (label "eq")))))))
 
-  (check-true (judgment-holds (core-shape? (() () (empty-tree)))))
+  (check-true (judgment-holds (core-shape? (() (empty-tree)))))
 
   (check-true
    (judgment-holds
     (core-shape?
      (()
-      ((state () () () (label "a")))
       (((succeed (label "ok")) ∧ (succeed (label "ok2")) (label "c"))
        (state () () () (label "s")))))))
+
+  (check-true
+   (judgment-holds
+    (core-shape?
+     (()
+      ((⊤ (state () () () (label "a")))
+       +
+       ((⊤ (state () () () (label "b")))
+        +
+        (empty-tree)))))))
 
   (define (core-tree-shape-holds? st)
     (with-handlers ([exn:fail? (lambda (_) #f)])
@@ -234,5 +255,5 @@
 
   (check-false
    (core-config-shape-holds?
-    '(() () (proceed ((r:foo (sym "x") (label "t"))
-                      (state () () () (label "s"))))))))
+    '(() (proceed ((r:foo (sym "x") (label "t"))
+                   (state () () () (label "s"))))))))

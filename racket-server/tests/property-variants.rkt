@@ -22,41 +22,34 @@
     (define next1 (first (apply-reduction-relation Rdisj-left cfg-disj)))
     (check-equal?
      next1
-     (term (() ((state () () () (label "a")))
-               (⊤ (state () () () (label "b"))))))
-    (define next2 (first (apply-reduction-relation Rdisj-left next1)))
-    (check-equal?
-     next2
-     (term (() ((state () () () (label "a"))
-                (state () () () (label "b")))
-               (empty-tree)))))
+     (term (() ((⊤ (state () () () (label "a")))
+               +
+               (⊤ (state () () () (label "b")))))))
+    (check-true (null? (apply-reduction-relation Rdisj-left next1))))
 
   (test-case "Rbase variants can step call and disjunction configs"
     (check-false (null? (apply-reduction-relation Rbase-e cfg-call)))
     (check-false (null? (apply-reduction-relation Rbase-l cfg-call)))
-    (check-false (null? (apply-reduction-relation Rbase-e (term (() () ((⊤ ,sigma-a) <-+ (⊤ ,sigma-b)))))))
-    (check-false (null? (apply-reduction-relation Rbase-l (term (() () ((⊤ ,sigma-a) <-+ (⊤ ,sigma-b))))))))
+    (check-false (null? (apply-reduction-relation Rbase-e (term (() ((⊤ ,sigma-a) <-+ (⊤ ,sigma-b)))))))
+    (check-false (null? (apply-reduction-relation Rbase-l (term (() ((⊤ ,sigma-a) <-+ (⊤ ,sigma-b))))))))
 
   (test-case "flip branch keeps left-only disjunction syntax"
     (define flipped (first (apply-reduction-relation Rflip-e cfg-flip)))
-    (check-true
-     (redex-match? L3 config
-                   (term (() () (delay ((⊤ ,sigma-b) <-+ (empty-tree))))))
-     "expected flip step to swap left-only disjunction branches")
+    (check-equal? flipped
+                  (term (() (delay ((⊤ ,sigma-b) <-+ (empty-tree)))))
+                  "expected flip step to swap left-only disjunction branches")
     (check-true (redex-match? L3 config flipped)))
 
   (test-case "railroad branch introduces right-pointing syntax"
     (define railed (first (apply-reduction-relation Rrail-e cfg-rail)))
-    (check-true
-     (redex-match? L4 config
-                   (term (() () (delay ((empty-tree) +-> (⊤ ,sigma-b))))))
-     "expected railroad step to introduce +->")
+    (check-equal? railed
+                  (term (() (delay ((empty-tree) +-> (⊤ ,sigma-b)))))
+                  "expected railroad step to introduce +->")
     (check-true (redex-match? L4 config railed)))
 
   (test-case "delay(proceed(call)) boundary remains deterministic in final variants"
     (define cfg-delay-proceed-call
       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-             ()
              (delay
               (proceed
                ((r:id (sym "ok") (label "call"))
@@ -72,7 +65,6 @@
   (test-case "delay(proceed(call)) boundary deterministic in Rflip-l"
     (define cfg-delay-proceed-call
       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-             ()
              (delay
               (proceed
                ((r:id (sym "ok") (label "call"))
@@ -88,7 +80,6 @@
   (test-case "delay(proceed(call)) boundary deterministic in Rrail-e"
     (define cfg-delay-proceed-call
       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-             ()
              (delay
               (proceed
                ((r:id (sym "ok") (label "call"))
@@ -104,7 +95,6 @@
   (test-case "delay(proceed(call)) boundary deterministic in Rrail-l"
     (define cfg-delay-proceed-call
       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-             ()
              (delay
               (proceed
                ((r:id (sym "ok") (label "call"))

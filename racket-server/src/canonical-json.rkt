@@ -268,17 +268,18 @@
              'children (list (tree->json/canonical s_1 num-query-variables)))]
     [`(⊤ ,σ)
      (state->answer-json/canonical σ num-query-variables)]
+    [`((⊤ ,σ) + ,s_tail)
+     (define tail-json (tree->json/canonical s_tail num-query-variables))
+     (define tail-empty? (equal? (hash-ref tail-json 'name #f) "Empty"))
+     (state->answer-json/canonical σ
+                                   num-query-variables
+                                   (and (not tail-empty?) tail-json))]
     [_ (hasheq 'name "Unknown")]))
 
 (define (config->tree-json/canonical cfg num-query-variables)
   (match cfg
-    [`(,_gamma ,ans* ,s)
-     (for/fold ([acc (tree->json/canonical s num-query-variables)])
-               ([σ (in-list (reverse ans*))])
-       (define empty? (equal? (hash-ref acc 'name #f) "Empty"))
-       (state->answer-json/canonical σ
-                                     num-query-variables
-                                     (and (not empty?) acc)))]
+    [`(,_gamma ,s)
+     (tree->json/canonical s num-query-variables)]
     [_ (hasheq 'name "Empty")]))
 
 (define (to-json/canonical cfg num-query-variables)
@@ -295,18 +296,20 @@
 
 (define (num-query-vars/canonical cfg)
   (match cfg
-    [`(,_gamma ,_ans* (,g ,_σ)) (goal-query-vars/canonical g)]
-    [`(,_gamma ,_ans* (,s_1 × ,g ,_c))
-     (max (num-query-vars/canonical `(() () ,s_1))
+    [`(,_gamma (,g ,_σ)) (goal-query-vars/canonical g)]
+    [`(,_gamma (,s_1 × ,g ,_c))
+     (max (num-query-vars/canonical `(() ,s_1))
           (goal-query-vars/canonical g))]
-    [`(,_gamma ,_ans* (,s_1 <-+ ,s_2))
-     (max (num-query-vars/canonical `(() () ,s_1))
-          (num-query-vars/canonical `(() () ,s_2)))]
-    [`(,_gamma ,_ans* (,s_1 +-> ,s_2))
-     (max (num-query-vars/canonical `(() () ,s_1))
-          (num-query-vars/canonical `(() () ,s_2)))]
-    [`(,_gamma ,_ans* (delay ,s_1))
-     (num-query-vars/canonical `(() () ,s_1))]
-    [`(,_gamma ,_ans* (proceed (,g ,_σ)))
+    [`(,_gamma (,s_1 <-+ ,s_2))
+     (max (num-query-vars/canonical `(() ,s_1))
+          (num-query-vars/canonical `(() ,s_2)))]
+    [`(,_gamma (,s_1 +-> ,s_2))
+     (max (num-query-vars/canonical `(() ,s_1))
+          (num-query-vars/canonical `(() ,s_2)))]
+    [`(,_gamma ((⊤ ,_σ) + ,s_1))
+     (num-query-vars/canonical `(() ,s_1))]
+    [`(,_gamma (delay ,s_1))
+     (num-query-vars/canonical `(() ,s_1))]
+    [`(,_gamma (proceed (,g ,_σ)))
      (goal-query-vars/canonical g)]
     [_ 0]))

@@ -3,6 +3,7 @@
 (require rackunit
          redex/reduction-semantics
          "../src/transpiler.rkt"
+         "../src/core-definitions.rkt"
          "../src/extensions/variant-languages.rkt"
          "../src/wf-core.rkt"
          "../src/wf-variants.rkt")
@@ -33,7 +34,7 @@
 
 (test-case "Core config is accepted by core wf judgment"
   (define core-cfg
-    (term (() () ((succeed (label "ok"))
+    (term (() ((succeed (label "ok"))
                   (state () () () (label "s"))))))
   (check-true (redex-match? Core config core-cfg))
   (check-true (judgment-holds (wf-config? ,core-cfg)))
@@ -42,7 +43,6 @@
 (test-case "Relation call arity mismatch is rejected by L4 wf"
   (define bad-arity
     (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-           ()
            ((r:id (sym "ok") (sym "extra") (label "call"))
             (state () () () (label "s"))))))
   (check-true (redex-match? L4 config bad-arity))

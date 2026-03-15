@@ -10,8 +10,7 @@
          "../src/transpiler.rkt")
 
 (define sample-tree
-  '(() ()
-       ((∃
+  '(() ((∃
           (x:q)
           ((sym "tree1") =? (sym "horse") (label "u5"))
           (label "f0"))

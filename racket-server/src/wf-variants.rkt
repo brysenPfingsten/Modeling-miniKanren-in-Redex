@@ -96,6 +96,12 @@
    ------------------- "conj wf/L4"
    (wf-tree/L4? (s × g c_i) ((r d g_env) ...) c)]
 
+  [(lvars-subset? c c_i)
+   (wf-sub/wf+equiv-trail? sub c_i trail)
+   (wf-tree/L4? s_tail ((r d g_env) ...) c)
+   ------------------- "answer stream wf/L4"
+   (wf-tree/L4? ((⊤ (state sub c_i trail tag)) + s_tail) ((r d g_env) ...) c)]
+
   [(wf-tree/L4? s_1 ((r d g_env) ...) c)
    (wf-tree/L4? s_2 ((r d g_env) ...) c)
    ------------------- "left disj wf/L4"
@@ -142,10 +148,9 @@
   #:contract (wf-config/L4? config)
   #:mode (wf-config/L4? I)
   [(wf-rel-env/L4? ((r d g) ...))
-   (wf-state? σ) ...
    (wf-tree/L4? s ((r d g) ...) ())
    ----------------------- "program-wf/L4"
-   (wf-config/L4? (((r d g) ...) (σ ...) s))])
+   (wf-config/L4? (((r d g) ...) s))])
 
 ;; L1/L2/L3 are syntax subsets of L4; reuse the L4 wf judgment while
 ;; keeping language-specific contracts at each layer.
@@ -198,19 +203,17 @@
 
   (define cfg-l1
     (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-           ()
            (delay (proceed ((r:id (sym "ok") (label "call"))
                             (state () () () (label "s"))))))))
 
   (define cfg-l2
-    (term (() ()
-              (((succeed (label "a")) (state () () () (label "sa")))
-               <-+
-               ((succeed (label "b")) (state () () () (label "sb")))))))
+    (term (()
+           (((succeed (label "a")) (state () () () (label "sa")))
+            <-+
+            ((succeed (label "b")) (state () () () (label "sb")))))))
 
   (define cfg-l3
     (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-           ()
            ((delay (proceed ((r:id (sym "ok") (label "call"))
                              (state () () () (label "s")))))
             <-+
@@ -218,7 +221,6 @@
 
   (define cfg-l4
     (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-           ()
            (((delay (proceed ((r:id (sym "ok") (label "call"))
                               (state () () () (label "s")))))
              <-+
@@ -227,7 +229,6 @@
 
   (define cfg-bad-arity
     (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-           ()
            ((r:id (sym "ok") (sym "extra") (label "call"))
             (state () () () (label "s"))))))
 

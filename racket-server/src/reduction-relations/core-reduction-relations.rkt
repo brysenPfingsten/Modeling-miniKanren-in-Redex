@@ -1,11 +1,12 @@
 #lang racket
 (require redex/reduction-semantics
          "../core-definitions.rkt"
-         "../wf-core.rkt")
+         "../wf-core.rkt"
+         "./step-utils.rkt")
 
 (check-redundancy #t)
 
-(provide -->cfg -->cfg/base -->cfg/whole step-once -->*e)
+(provide -->cfg -->cfg/base step-once -->*e)
 
 (module+ examples)
 
@@ -15,15 +16,8 @@
 
 ;; Term -> [Listof [List String Term]]
 (define (step-once prog)
-  (apply-reduction-relation/tag-with-names -->cfg (term ,prog)))
-
-(define -->cfg/whole
-  (reduction-relation
-    Core
-
-    [--> (Γ (σ ...) (⊤ σ_new))
-         (Γ (σ ... σ_new) (empty-tree))
-         "Collect Answer"]))
+  (dedupe-tagged-successors
+   (apply-reduction-relation/tag-with-names -->cfg (term ,prog))))
 
 (define -->e
   (reduction-relation
@@ -45,6 +39,10 @@
          (empty-tree)
          "Prune Failed Conjuncts"]
 
+    [--> (((⊤ σ_head) + s_tail) × g c)
+         (((⊤ σ_head) × g c) + (s_tail × g c))
+         "Distribute Conjunction Over Answer Stream"]
+
     [--> ((∃ d g tag) (state sub c trail tag_1))
          ((subst-goal g ((x_1 u_1) ...))
           (state sub (u_1 ... ,@(term c)) trail tag_1))
@@ -61,11 +59,12 @@
          (empty-tree)
          (where #f (unify (walk t_1 sub) (walk t_2 sub) sub))
           "Unification Fails"]
+
     ))
 
 (define -->*e (compatible-closure -->e Core s))
-(define -->cfg/base (context-closure -->*e Core (Γ ans* hole)))
-(define -->cfg (union-reduction-relations -->cfg/base -->cfg/whole))
+(define -->cfg/base (context-closure -->*e Core (Γ hole)))
+(define -->cfg -->cfg/base)
 
 (module+ examples
   (provide trivial-conjunction-tree)

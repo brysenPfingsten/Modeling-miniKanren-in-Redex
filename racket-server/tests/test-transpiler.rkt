@@ -11,7 +11,7 @@
     (define PROG '((run* (q) (== 1 1) (== 2 2) (== 3 3))))
     (define-values (cfg _) (parse-prog/canonical PROG))
     (match cfg
-      [`(,_ ,_ ((∃ ,_ ,goal ,_) ,_))
+      [`(,_ ((∃ ,_ ,goal ,_) ,_))
        (check-true (redex-match? l4:L4 g (term ,goal)))
        (check-true (redex-match? l4:L4 g (term ((g_1 ∧ g_2 tag_1) ∧ g_3 tag_2))))]
       [_ (fail "unexpected canonical cfg shape")]))
@@ -26,7 +26,7 @@
                       [(same q 'fish)]))))
     (define-values (cfg _) (parse-prog/canonical PROG))
     (match cfg
-      [`(,_ ,_ ((∃ ,_ ,goal ,_) ,_))
+      [`(,_ ((∃ ,_ ,goal ,_) ,_))
        (check-true (redex-match? l4:L4 g (term ,goal)))
        (check-true (redex-match? l4:L4 g (term ((g_1 ∨ (g_2 ∨ g_3 tag_1) tag_2) ∨ g_4 tag_3))))]
       [_ (fail "unexpected canonical cfg shape")])
@@ -41,7 +41,7 @@
                             ((same q 'fish))))))
     (define-values (cfg1 _1) (parse-prog/canonical PROG1))
     (match cfg1
-      [`(,_ ,_ ((∃ ,_ ,goal ,_) ,_))
+      [`(,_ ((∃ ,_ ,goal ,_) ,_))
        (check-true (redex-match? l4:L4 g (term ((g_1 ∨ (g_2 ∨ g_3 tag_1) tag_2) ∨ g_4 tag_3))))]
       [_ (fail "unexpected canonical cfg shape")])
 
@@ -53,7 +53,7 @@
                       [(same q 'fish)]))))
     (define-values (cfg2 _2) (parse-prog/canonical PROG2))
     (match cfg2
-      [`(,_ ,_ ((∃ ,_ ,goal ,_) ,_))
+      [`(,_ ((∃ ,_ ,goal ,_) ,_))
        (check-true (redex-match? l4:L4 g (term (g_1 ∨ (g_2 ∨ (g_3 ∨ g_4 tag_1) tag_2) tag_3))))]
       [_ (fail "unexpected canonical cfg shape")])
     ))

@@ -6,6 +6,7 @@
          "../src/extensions/variant-languages.rkt")
 
 (provide final-config?
+         trace-stop-config?
          wf-config-term?
          progress?
          unique-decomposition?
@@ -26,6 +27,11 @@
 (define (final-config? cfg)
   (redex-match? Core end-config cfg))
 
+;; Trace harnesses should only classify true semantic finals as `value`.
+;; This keeps regressions visible (instead of masking non-final stuck states).
+(define (trace-stop-config? cfg)
+  (final-config? cfg))
+
 (define (wf-config-term? cfg)
   (judgment-holds (wf-config? ,cfg)))
 
@@ -39,31 +45,39 @@
       (null? next*)
       (= (length next*) 1)))
 
-(define (states-in datum)
+(define (states-in datum [acc '()])
   (match datum
-    [`(state ,_sub ,_c ,_trail ,_tag) (list datum)]
-    [(cons a d) (append (states-in a) (states-in d))]
-    [_ '()]))
+    [`(state ,_sub ,_c ,_trail ,_tag) (cons datum acc)]
+    ['() acc]
+    [(cons a d) (states-in a (states-in d acc))]
+    [_ acc]))
 
 (define (states-wf? cfg)
   (for/and ([st (in-list (states-in cfg))])
     (judgment-holds (wf-state? ,st))))
 
-(define (shape-closed/L1? rel cfg)
+(define (shape-closed? lang-id rel cfg)
+  (define cfg-in-lang?
+    (case lang-id
+      [(L1) (lambda (cfg^) (redex-match? L1 config cfg^))]
+      [(L2) (lambda (cfg^) (redex-match? L2 config cfg^))]
+      [(L3) (lambda (cfg^) (redex-match? L3 config cfg^))]
+      [(L4) (lambda (cfg^) (redex-match? L4 config cfg^))]
+      [else (lambda (_cfg^) #f)]))
   (for/and ([cfg^ (in-list (apply-reduction-relation rel cfg))])
-    (redex-match? L1 config cfg^)))
+    (cfg-in-lang? cfg^)))
+
+(define (shape-closed/L1? rel cfg)
+  (shape-closed? 'L1 rel cfg))
 
 (define (shape-closed/L2? rel cfg)
-  (for/and ([cfg^ (in-list (apply-reduction-relation rel cfg))])
-    (redex-match? L2 config cfg^)))
+  (shape-closed? 'L2 rel cfg))
 
 (define (shape-closed/L3? rel cfg)
-  (for/and ([cfg^ (in-list (apply-reduction-relation rel cfg))])
-    (redex-match? L3 config cfg^)))
+  (shape-closed? 'L3 rel cfg))
 
 (define (shape-closed/L4? rel cfg)
-  (for/and ([cfg^ (in-list (apply-reduction-relation rel cfg))])
-    (redex-match? L4 config cfg^)))
+  (shape-closed? 'L4 rel cfg))
 
 (define (symbols-in d)
   (match d
@@ -73,7 +87,7 @@
     [_ '()]))
 
 (define (tree-of cfg)
-  (third cfg))
+  (second cfg))
 
 (define sigma-a
   (term (state () () () (label "a"))))
@@ -83,21 +97,20 @@
 
 (define cfg-call
   (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-         ()
          ((r:id (sym "ok") (label "call"))
           (state () () () (label "s"))))))
 
 (define cfg-disj
-  (term (() () ((⊤ (state () () () (label "a")))
-                <-+
-                (⊤ (state () () () (label "b")))))))
+  (term (() ((⊤ (state () () () (label "a")))
+             <-+
+             (⊤ (state () () () (label "b")))))))
 
 (define cfg-flip
-  (term (() () ((delay (empty-tree))
-                <-+
-                (⊤ (state () () () (label "b")))))))
+  (term (() ((delay (empty-tree))
+             <-+
+             (⊤ (state () () () (label "b")))))))
 
 (define cfg-rail
-  (term (() () ((delay (empty-tree))
-                <-+
-                (⊤ (state () () () (label "b")))))))
+  (term (() ((delay (empty-tree))
+             <-+
+             (⊤ (state () () () (label "b")))))))

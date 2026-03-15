@@ -1,6 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
+         "../step-utils.rkt"
          "./rcall-eager.rkt"
          "./rcall-lazy.rkt"
          "./rdisj-left.rkt"
@@ -33,29 +34,52 @@
 (define Rl4-rail-eager Rrail-e)
 (define Rl4-rail-lazy  Rrail-l)
 
-(define Rl3-dfs-eager
+(define (step-priority name)
+  (if (member name
+              '("disj/promote-left-stream"
+                "dfsn/promote-left-stream"
+                "rail/promote-right-stream"))
+      5
+      0))
+
+(define (determinize-tagged-successors succ*)
+  (match succ*
+    ['() '()]
+    [(list _) succ*]
+    [_ (define max-pr
+         (for/fold ([best -inf.0])
+                   ([succ (in-list succ*)])
+           (match succ
+             [(list name _cfg) (max best (step-priority name))]
+             [_ best])))
+       (for/first ([succ (in-list succ*)]
+                   #:when (match succ
+                            [(list name _cfg) (= (step-priority name) max-pr)]
+                            [_ #f]))
+         (list succ))]))
+
+(define (step-once/by rel prog)
+  (determinize-tagged-successors
+   (dedupe-tagged-successors
+    (apply-reduction-relation/tag-with-names rel (term ,prog)))))
+
+(define (extend-with-dfs-rules base-rel)
   (extend-reduction-relation
-   Rl3-pre-eager
+   base-rel
    L3/K
-   [--> (Γ ans* (in-hole K3 ((delay s_1) <-+ s_2)))
-        (Γ ans* (in-hole K3 (delay (s_1 <-+ s_2))))
+   [--> (Γ (in-hole K ((delay s_1) <-+ s_2)))
+        (Γ (in-hole K (delay (s_1 <-+ s_2))))
         "dfs/delay-through-left"]
-   [--> (Γ ans* (delay s_1))
-        (Γ ans* s_1)
+   [--> (Γ (in-hole Kdelay (delay s_1)))
+        (Γ (in-hole Kdelay s_1))
         (side-condition (not (redex-match? L3/K (proceed pr) (term s_1))))
         "dfs/invoke-delay"]))
 
+(define Rl3-dfs-eager
+  (extend-with-dfs-rules Rl3-pre-eager))
+
 (define Rl3-dfs-lazy
-  (extend-reduction-relation
-   Rl3-pre-lazy
-   L3/K
-   [--> (Γ ans* (in-hole K3 ((delay s_1) <-+ s_2)))
-        (Γ ans* (in-hole K3 (delay (s_1 <-+ s_2))))
-        "dfs/delay-through-left"]
-   [--> (Γ ans* (delay s_1))
-        (Γ ans* s_1)
-        (side-condition (not (redex-match? L3/K (proceed pr) (term s_1))))
-        "dfs/invoke-delay"]))
+  (extend-with-dfs-rules Rl3-pre-lazy))
 
 (provide
  ;; Canonical exports
@@ -109,37 +133,37 @@
 
 ;; Canonical step wrappers.
 (define (step-once/Rl1-call-eager prog)
-  (apply-reduction-relation/tag-with-names Rl1-call-eager (term ,prog)))
+  (step-once/by Rl1-call-eager prog))
 
 (define (step-once/Rl1-call-lazy prog)
-  (apply-reduction-relation/tag-with-names Rl1-call-lazy (term ,prog)))
+  (step-once/by Rl1-call-lazy prog))
 
 (define (step-once/Rl2-disj-left prog)
-  (apply-reduction-relation/tag-with-names Rl2-disj-left (term ,prog)))
+  (step-once/by Rl2-disj-left prog))
 
 (define (step-once/Rl3-pre-eager prog)
-  (apply-reduction-relation/tag-with-names Rl3-pre-eager (term ,prog)))
+  (step-once/by Rl3-pre-eager prog))
 
 (define (step-once/Rl3-pre-lazy prog)
-  (apply-reduction-relation/tag-with-names Rl3-pre-lazy (term ,prog)))
+  (step-once/by Rl3-pre-lazy prog))
 
 (define (step-once/Rl3-dfs-eager prog)
-  (apply-reduction-relation/tag-with-names Rl3-dfs-eager (term ,prog)))
+  (step-once/by Rl3-dfs-eager prog))
 
 (define (step-once/Rl3-dfs-lazy prog)
-  (apply-reduction-relation/tag-with-names Rl3-dfs-lazy (term ,prog)))
+  (step-once/by Rl3-dfs-lazy prog))
 
 (define (step-once/Rl3-flip-eager prog)
-  (apply-reduction-relation/tag-with-names Rl3-flip-eager (term ,prog)))
+  (step-once/by Rl3-flip-eager prog))
 
 (define (step-once/Rl3-flip-lazy prog)
-  (apply-reduction-relation/tag-with-names Rl3-flip-lazy (term ,prog)))
+  (step-once/by Rl3-flip-lazy prog))
 
 (define (step-once/Rl4-rail-eager prog)
-  (apply-reduction-relation/tag-with-names Rl4-rail-eager (term ,prog)))
+  (step-once/by Rl4-rail-eager prog))
 
 (define (step-once/Rl4-rail-lazy prog)
-  (apply-reduction-relation/tag-with-names Rl4-rail-lazy (term ,prog)))
+  (step-once/by Rl4-rail-lazy prog))
 
 ;; Legacy wrappers.
 (define step-once/Rcall-eager step-once/Rl1-call-eager)
@@ -147,11 +171,11 @@
 (define step-once/Rdisj-left  step-once/Rl2-disj-left)
 (define step-once/Rdfs-nodelay
   (lambda (prog)
-    (apply-reduction-relation/tag-with-names Rdfs-nodelay (term ,prog))))
+    (step-once/by Rdfs-nodelay prog)))
 (define step-once/Rbase-e step-once/Rl3-pre-eager)
 (define step-once/Rbase-l step-once/Rl3-pre-lazy)
 (define (step-once/Rbase-l4 prog)
-  (apply-reduction-relation/tag-with-names Rbase-l4 (term ,prog)))
+  (step-once/by Rbase-l4 prog))
 (define step-once/Rflip-e step-once/Rl3-flip-eager)
 (define step-once/Rflip-l step-once/Rl3-flip-lazy)
 (define step-once/Rrail-e step-once/Rl4-rail-eager)

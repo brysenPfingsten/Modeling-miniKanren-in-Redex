@@ -8,10 +8,10 @@
          rackunit
          rackunit/text-ui)
 
-(define WELL-FORMED-CONFIG (term (() () (empty-tree))))
+(define WELL-FORMED-CONFIG (term (() (empty-tree))))
 (define BAD-FORMED-CONFIG
-  (term (() () ((u:1 =? (sym "a") (label "t"))
-                (state () () () (label "s"))))))
+  (term (() ((u:1 =? (sym "a") (label "t"))
+             (state () () () (label "s"))))))
 
 (define (read-all port)
   (let ([expr (read port)])
@@ -35,15 +35,15 @@
 
   (test-case "Canonical core gate rejects malformed canonical core program"
              (define bad-canonical
-               '(() () ((u:1 =? (sym "a") (label "t"))
-                        (state () () () (label "s")))))
+               '(() ((u:1 =? (sym "a") (label "t"))
+                     (state () () () (label "s")))))
              (check-true (canonical-core-shape? bad-canonical))
              (check-false (canonical-well-formed? bad-canonical))
              (check-exn exn:fail?
                         (λ () (check-canonical-well-formed bad-canonical))))
 
   (test-case "Canonical L4 gate accepts non-core shape directly"
-             (define non-core-canonical '(() () (delay (empty-tree))))
+             (define non-core-canonical '(() (delay (empty-tree))))
              (check-false (canonical-core-shape? non-core-canonical))
              (check-true (canonical-target-in-domain? non-core-canonical "L4/config"))
              (check-true (canonical-target-well-formed? non-core-canonical "L4/config"))

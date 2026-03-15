@@ -8,32 +8,6 @@
 
 (provide Rrail-l)
 
-(define base-l/l4
-  (extend-reduction-relation
-    Rbase-l
-    L4/K))
-
 (define Rrail-l
-  (extend-reduction-relation
-    base-l/l4
-    L4/K
-    [--> (Γ ans* (delay s_1))
-         (Γ ans* s_1)
-         (side-condition (not (redex-match? L4/K (proceed pr) (term s_1))))
-         "rail/invoke-delay"]
-
-    [--> (Γ ans* (in-hole K4 ((delay s_1) <-+ s_2)))
-         (Γ ans* (in-hole K4 (delay (s_1 +-> s_2))))
-         "rail/enter-right"]
-
-    [--> (Γ ans* (in-hole K4 (s_2 +-> (delay s_1))))
-         (Γ ans* (in-hole K4 (delay (s_2 <-+ s_1))))
-         "rail/return-left"]
-
-    [--> (Γ (σ ...) (in-hole K4 (s_left +-> (⊤ σ_new))))
-         (Γ (σ ... σ_new) (in-hole K4 s_left))
-         "rail/collect-right-answer"]
-
-    [--> (Γ ans* (in-hole K4 (s_left +-> (empty-tree))))
-         (Γ ans* (in-hole K4 s_left))
-         "rail/skip-right-fail"]))
+  (extend-with-rail-rules
+   (lift-l3-to-l4 Rbase-l)))

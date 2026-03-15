@@ -13,34 +13,29 @@
   (reduction-relation
     L1/K
     #:domain config
-    [--> (Γ ans* (in-hole Kcall ((r t ... tag) σ)))
-         (Γ ans* (in-hole Kcall (delay (proceed ((r t ... tag) σ)))))
+    [--> (Γ (in-hole Kcall ((r t ... tag) σ)))
+         (Γ (in-hole Kcall (delay (proceed ((r t ... tag) σ)))))
          "call/lazy-suspend-call"]
 
-    [--> (Γ ans* (delay (proceed ((r t ... tag) σ))))
-         (Γ ans* (proceed ((r t ... tag) σ)))
+    [--> (Γ (delay (proceed ((r t ... tag) σ))))
+         (Γ (proceed ((r t ... tag) σ)))
          "call/lazy-invoke-delay"]
 
-    [--> (Γ ans* (delay s_1))
-         (Γ ans* s_1)
+    [--> (Γ (delay s_1))
+         (Γ s_1)
          (side-condition (not (redex-match? L1/K (proceed pr) (term s_1))))
          "call/invoke-delay"]
 
-    [--> (Γ ans* (in-hole Kcall (proceed ((r t ... tag) σ))))
-         (Γ ans* (in-hole Kcall (g_new σ)))
+    [--> (Γ (in-hole Kcall (proceed ((r t ... tag) σ))))
+         (Γ (in-hole Kcall (g_new σ)))
          (where g_new ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
          "call/lazy-expand-on-resume"]
 
-    [--> (Γ ans* (in-hole Kcall ((delay s_1) × g c)))
-         (Γ ans* (in-hole Kcall (delay (s_1 × g c))))
+    [--> (Γ (in-hole Kcall ((delay s_1) × g c)))
+         (Γ (in-hole Kcall (delay (s_1 × g c))))
          "call/delay-through-conj"]))
-
-(define base-l1/k
-  (extend-reduction-relation
-    core-base-l1
-    L1/K))
 
 (define Rcall-lazy
   (union-reduction-relations
    call-lazy-extra/l1
-   base-l1/k))
+   core-cfg/l1))

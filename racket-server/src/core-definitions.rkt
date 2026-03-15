@@ -18,19 +18,17 @@
 
 (define-language Core
   ;--------------------Top Level-------------------------
-  [config (Γ ans* s)]    ; Program
+  [config (Γ s)]    ; Program
 
   [Γ ((r_!_ d g) ...)]  ; Relation Environment w/ distinct relation names
   [d (x_!_ ...)]        ; Distinct variable declarations
-  [ans* (σ ...)]
 
   ;-------------------Search Trees------------------------
   [s (empty-tree)               ; Empty Tree / Failure
      (g σ)                      ; Goal-State
      (s × g c)                  ; Conjunction, w/vars used so far.
      (⊤ σ)
-
-     ;; ((⊤ σ) + s)                ; Answer Stream
+     ((⊤ σ) + s)
 
      ;; (s +-> s)                  ; Right Disjunciton
      ;; (s <-+ s)                  ; Left Disjunction
@@ -76,13 +74,17 @@
   [sub ((u_!_ t) ...)]        ; Substitution, make the vars definitionally distinct
   [maybe-sub sub #f]
   [trail (eq ...)]
-  [end-config (Γ ans* (empty-tree))]
+  [s-final (empty-tree)
+           (⊤ σ)
+           ((⊤ σ) + s-final)]
+  [end-config (Γ s-final)]
   [c (u_!_ ...)]
   ;-----------------Evaluation Contexts------------------
 
   ; Search Tree
   [Es hole
       (Es × g)
+      ((⊤ σ) + Es)
       ;; (Es <-+ s)
       ;; (s +-> Es)
   ]
@@ -121,7 +123,7 @@
   (check-true (redex-match? Core s (term (⊤ (state () () () (label "Om"))))))
   (check-true (redex-match? Core s (term ((u:0 =? (sym "a") (label "t")) (state ((u:0 (sym "a"))) (u:0) () (label "σ"))))))
 
-  (check-true (redex-match? Core config (term (() () (empty-tree)))))
+  (check-true (redex-match? Core config (term (() (empty-tree)))))
 
 )
 

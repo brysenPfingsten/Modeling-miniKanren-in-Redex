@@ -56,19 +56,17 @@
   (test-case "Variant wf judgments cover L1/L2/L3/L4 syntax"
     (define cfg-l1
       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-             ()
              (delay (proceed ((r:id (sym "ok") (label "call"))
                               (state () () () (label "s"))))))))
 
     (define cfg-l2
-      (term (() ()
-                (((succeed (label "a")) (state () () () (label "sa")))
-                 <-+
-                 ((succeed (label "b")) (state () () () (label "sb")))))))
+      (term (()
+             (((succeed (label "a")) (state () () () (label "sa")))
+              <-+
+              ((succeed (label "b")) (state () () () (label "sb")))))))
 
     (define cfg-l3
       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-             ()
              ((delay (proceed ((r:id (sym "ok") (label "call"))
                                (state () () () (label "s")))))
               <-+
@@ -76,7 +74,6 @@
 
     (define cfg-l4
       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-             ()
              (((delay (proceed ((r:id (sym "ok") (label "call"))
                                 (state () () () (label "s")))))
                <-+
@@ -85,7 +82,6 @@
 
     (define cfg-bad-arity
       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-             ()
              ((r:id (sym "ok") (sym "extra") (label "call"))
               (state () () () (label "s"))))))
 
@@ -142,32 +138,33 @@
     (define next (first (apply-reduction-relation d:Rdisj-left cfg-disj)))
     (check-equal?
      next
-     (term (() ((state () () () (label "a")))
-               (⊤ (state () () () (label "b")))))))
+     (term (() ((⊤ (state () () () (label "a")))
+                +
+                (⊤ (state () () () (label "b"))))))))
 
   (test-case "Rdfs-nodelay matches left-biased DFS behavior without delay/proceed machinery"
     (define next (first (apply-reduction-relation dn:Rdfs-nodelay cfg-disj)))
     (check-equal?
      next
-     (term (() ((state () () () (label "a")))
-               (⊤ (state () () () (label "b")))))))
+     (term (() ((⊤ (state () () () (label "a")))
+                +
+                (⊤ (state () () () (label "b"))))))))
 
   (test-case "Rbase-e and Rbase-l both step call and disjunction configs"
     (for ([rel (in-list (list be:Rbase-e bl:Rbase-l))])
       (check-false (null? (apply-reduction-relation rel cfg-call)))
-      (check-false (null? (apply-reduction-relation rel (term (() () ((⊤ ,sigma-a) <-+ (⊤ ,sigma-b)))))))))
+      (check-false (null? (apply-reduction-relation rel (term (() ((⊤ ,sigma-a) <-+ (⊤ ,sigma-b)))))))))
 
   (test-case "Rflip-e and Rflip-l perform left-only delay swap"
     (for ([rel (in-list (list fe:Rflip-e fl:Rflip-l))])
       (define next (first (apply-reduction-relation rel cfg-flip)))
       (check-equal?
        next
-       (term (() () (delay ((⊤ (state () () () (label "b"))) <-+ (empty-tree))))))))
+       (term (() (delay ((⊤ (state () () () (label "b"))) <-+ (empty-tree))))))))
 
   (test-case "Rflip-e and Rflip-l propagate delay over left disjunction before resuming proceed"
     (define cfg
       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-             ()
              ((delay
                (proceed
                 ((r:id (sym "ok") (label "call"))
@@ -181,7 +178,6 @@
       (check-equal?
        (second (first named-next*))
        (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-              ()
               (delay
                ((⊤ (state () () () (label "b")))
                 <-+
@@ -194,12 +190,11 @@
       (define next (first (apply-reduction-relation rel cfg-rail)))
       (check-equal?
        next
-       (term (() () (delay ((empty-tree) +-> (⊤ (state () () () (label "b")))))))))))
+       (term (() (delay ((empty-tree) +-> (⊤ (state () () () (label "b"))))))))))
 
   (test-case "Rrail-e and Rrail-l propagate delay into railroad branch before resuming proceed"
     (define cfg
       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-             ()
              ((delay
                (proceed
                 ((r:id (sym "ok") (label "call"))
@@ -210,31 +205,31 @@
       (define named-next* (apply-reduction-relation/tag-with-names rel cfg))
       (check-equal? (length named-next*) 1)
       (check-equal? (first (first named-next*)) "rail/enter-right")
-	      (check-equal?
-	       (second (first named-next*))
-	       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-	              ()
-	              (delay
-	               ((proceed
-	                 ((r:id (sym "ok") (label "call"))
-	                  (state () () () (label "s"))))
-	                +->
-	                (⊤ (state () () () (label "b"))))))))))
+      (check-equal?
+       (second (first named-next*))
+       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
+              (delay
+               ((proceed
+                 ((r:id (sym "ok") (label "call"))
+                  (state () () () (label "s"))))
+                +->
+                (⊤ (state () () () (label "b"))))))))))
 
-  (test-case "Rrail-e and Rrail-l collect +-> right answer inside <-+ context"
+  (test-case "Rrail-e and Rrail-l promote +-> right answer inside <-+ context"
     (define cfg
-      (term (() ()
-                (((empty-tree) +-> (⊤ (state () () () (label "ra"))))
-                 <-+
-                 (empty-tree)))))
+      (term (()
+             (((empty-tree) +-> (⊤ (state () () () (label "ra"))))
+              <-+
+              (empty-tree)))))
     (for ([rel (in-list (list re:Rrail-e rl:Rrail-l))])
       (define named-next* (apply-reduction-relation/tag-with-names rel cfg))
       (check-equal? (length named-next*) 1)
-      (check-equal? (first (first named-next*)) "rail/collect-right-answer")
+      (check-equal? (first (first named-next*)) "rail/promote-right-answer")
       (check-equal?
        (second (first named-next*))
-       (term (() ((state () () () (label "ra")))
-                 ((empty-tree) <-+ (empty-tree)))))))
+       (term (() (((⊤ (state () () () (label "ra"))) + (empty-tree))
+                  <-+
+                  (empty-tree))))))))
 
 (define/provide-test-suite VARIANT-MODULES
   LANGUAGE-MODULES

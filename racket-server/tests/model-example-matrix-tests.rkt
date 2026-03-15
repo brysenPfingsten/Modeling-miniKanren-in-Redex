@@ -13,6 +13,7 @@
          "../src/model-registry.rkt"
          "../src/transpiler.rkt"
          "../src/zipper.rkt"
+         "./variant-test-support.rkt"
          "./example-compat-tests.rkt")
 
 (provide MODEL-EXAMPLE-MATRIX)
@@ -27,11 +28,6 @@
     (if (eof-object? expr)
         '()
         (cons expr (read-all port)))))
-
-(define (final-config? cfg)
-  (match cfg
-    [`(,_ ,_ (empty-tree)) #t]
-    [_ #f]))
 
 (define (step1-name+cfg succ)
   (match succ
@@ -63,13 +59,18 @@
             (define next* (maybe-step-once cfg))
             (cond
               [(null? next*)
-               (hasheq 'status (if (final-config? cfg) 'value 'stuck)
+               (hasheq 'status (if (trace-stop-config? cfg) 'value 'stuck)
                        'steps steps
                        'last-rule last-rule)]
               [(> (length next*) 1)
+               (define rule-names
+                 (for/list ([succ (in-list next*)])
+                   (match succ
+                     [(list name _cfg) (format "~a" name)]
+                     [_ "<unknown>"])))
                (hasheq 'status 'nondeterministic
                        'steps steps
-                       'last-rule last-rule)]
+                       'last-rule (string-join rule-names " | "))]
               [(>= steps MATRIX-STEP-CAP)
                (hasheq 'status 'cap
                        'steps steps
@@ -176,9 +177,10 @@
     ;; Determinism guard.
     (for ([r (in-list rows)])
       (check-false (eq? (hash-ref r 'status) 'nondeterministic)
-                   (format "unexpected nondeterminism for ~a / ~a"
+                   (format "unexpected nondeterminism for ~a / ~a (choices=~a)"
                            (hash-ref r 'model)
-                           (hash-ref r 'label))))
+                           (hash-ref r 'label)
+                           (hash-ref r 'last-rule))))
 
     ;; Compatibility guard: compatible pairs should not be marked incompatible.
     (for ([r (in-list rows)])
