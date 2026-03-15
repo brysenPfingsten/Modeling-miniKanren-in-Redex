@@ -186,15 +186,9 @@
   (map gen-rel-def
        (rt:random-distinct/rng PROPERTY-RNG R-POOL count)))
 
-(define (gen-answers)
-  (define count (prandom 3))
-  (for/list ([_ (in-range count)])
-    (gen-state (extend-c '() PROPERTY-C-EXTRA-MAX))))
-
 (define (generate-wf-config/constructive)
   (define cfg
     `(,(gen-rel-env)
-      ,(gen-answers)
       ,(gen-tree '() (max-depth))))
   (unless (wf-config-term? cfg)
     (error 'generate-wf-config/constructive
@@ -220,6 +214,13 @@
     [`(empty-tree) (values #f #f #f 0)]
     [`(⊤ ,st) (define csz (state-c-size st))
               (values (> csz 0) #f #f csz)]
+    [`((⊤ ,st) + ,s2)
+     (define csz (state-c-size st))
+     (define-values (nonempty?2 hex2 hconj2 cmax2) (tree-coverage s2))
+     (values (or (> csz 0) nonempty?2)
+             hex2
+             hconj2
+             (max csz cmax2))]
     [`(,g ,st) (define csz (state-c-size st))
                (define-values (hex hconj) (goal-flags g))
                (values (> csz 0) hex hconj csz)]
@@ -235,16 +236,11 @@
 
 (define (config-coverage cfg)
   (match cfg
-    [`(,Gamma ,ans* ,s)
+    [`(,Gamma ,s)
      (define nonempty-c? #f)
      (define has-exists? #f)
      (define has-conj? #f)
      (define max-c-size 0)
-
-     (for ([st (in-list ans*)])
-       (define csz (state-c-size st))
-       (set! max-c-size (max max-c-size csz))
-       (when (> csz 0) (set! nonempty-c? #t)))
 
      (for ([rel (in-list Gamma)])
        (match rel
