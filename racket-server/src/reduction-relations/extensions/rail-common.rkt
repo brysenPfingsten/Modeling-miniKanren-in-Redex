@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../../extensions/l4-railroad-syntax.rkt")
+         "./core-l3.rkt")
 
 (check-redundancy #t)
 
@@ -9,32 +9,15 @@
          lift-l3-to-l4
          extend-with-rail-rules)
 
+;; L4/K is a strict context/language extension of L3/K:
+;; add right-pointing disjunction syntax and allow scheduler/strategy
+;; contexts to descend through +-> positions.
 (define-extended-language L4/K
-  L4
-  ;; Base stepping context in railroad syntax:
-  ;; - left branch for <-+
-  ;; - right branch for +-> (rail mode)
-  ;; - never descend through delay
-  [K ::= hole
-         (K × g c)
-         (K <-+ s)
-         (s +-> K)
-         ((⊤ σ) + K)]
-  ;; Core staged contexts inherited from L3/K relations.
-  [Kcore ::= hole
-             (Kcore × g c)]
-  [Kleft ::= hole
-             (Kleft <-+ s)
-             (s +-> Kleft)
-             ((⊤ σ) + Kleft)]
-  ;; Scheduler context: disjunction traversal plus answer-stream tails.
-  [Ksched ::= hole
-              (Ksched <-+ s)
-              (s +-> Ksched)
-              ((⊤ σ) + Ksched)]
-  ;; Delay invocation context: top-level or under answer-stream tails only.
-  [Kdelay ::= hole
-              ((⊤ σ) + Kdelay)])
+  L3/K
+  [s .... (s +-> s)]
+  [K .... (s +-> K)]
+  [Kleft .... (s +-> Kleft)]
+  [Ksched .... (s +-> Ksched)])
 
 (define (lift-l3-to-l4 rel)
   (extend-reduction-relation rel L4/K))
