@@ -2,6 +2,7 @@
 
 (require redex/reduction-semantics
          "./common.rkt"
+         "./context-l1.rkt"
          "./core-l1.rkt")
 
 (check-redundancy #t)
