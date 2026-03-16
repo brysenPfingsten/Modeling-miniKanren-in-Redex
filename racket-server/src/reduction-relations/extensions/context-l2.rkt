@@ -17,8 +17,8 @@
          ((⊤ σ) + K)]
   ;; Core reduction context: conjunction only (no disjunction descent).
   [Kcore ::= hole
-             (Kcore × g c)
-             ((⊤ σ) + Kcore)]
+             (Kcore × g c)]
   ;; Left-disjunction scheduler context.
   [Kleft ::= hole
-             (Kleft <-+ s)])
+             (Kleft <-+ s)
+             ((⊤ σ) + Kleft)])
