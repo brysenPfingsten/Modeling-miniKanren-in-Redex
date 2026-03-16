@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "./core-l3.rkt")
+         "./context-l3.rkt")
 
 (check-redundancy #t)
 
