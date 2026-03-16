@@ -2,7 +2,8 @@
 
 (require redex/reduction-semantics
          "../../extensions/l2-left-disjunction.rkt"
-         "./core-common.rkt")
+         "./core-common.rkt"
+         "./context-pipeline.rkt")
 
 (check-redundancy #t)
 
@@ -26,6 +27,4 @@
   [Kleft ::= hole
              (Kleft <-+ s)])
 
-(define core-step/base-l2 (context-closure core-redex/l2 L2/K Kcore))
-(define core-step/l2 (context-closure core-step/base-l2 L2/K Kleft))
-(define core-cfg/l2 (context-closure core-step/l2 L2/K (Γ hole)))
+(define-cfg/two-stage core-cfg/l2 core-redex/l2 L2/K Kcore Kleft)

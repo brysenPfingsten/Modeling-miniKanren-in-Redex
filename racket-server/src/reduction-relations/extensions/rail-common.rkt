@@ -27,8 +27,11 @@
              (Kleft <-+ s)
              (s +-> Kleft)
              ((⊤ σ) + Kleft)]
-  [Kcall ::= hole
-             (Kcall × g c)]
+  ;; Scheduler context: disjunction traversal plus answer-stream tails.
+  [Ksched ::= hole
+              (Ksched <-+ s)
+              (s +-> Ksched)
+              ((⊤ σ) + Ksched)]
   ;; Delay invocation context: top-level or under answer-stream tails only.
   [Kdelay ::= hole
               ((⊤ σ) + Kdelay)])
@@ -45,12 +48,12 @@
          (side-condition (not (redex-match? L4/K (proceed pr) (term s_1))))
          "rail/invoke-delay"]
 
-    [--> (Γ (in-hole K ((delay s_1) <-+ s_2)))
-         (Γ (in-hole K (delay (s_1 +-> s_2))))
+    [--> (Γ (in-hole Ksched ((delay s_1) <-+ s_2)))
+         (Γ (in-hole Ksched (delay (s_1 +-> s_2))))
          "rail/enter-right"]
 
-    [--> (Γ (in-hole K (s_2 +-> (delay s_1))))
-         (Γ (in-hole K (delay (s_2 <-+ s_1))))
+    [--> (Γ (in-hole Ksched (s_2 +-> (delay s_1))))
+         (Γ (in-hole Ksched (delay (s_2 <-+ s_1))))
          "rail/return-left"]
 
     [--> (Γ (in-hole K (s_left +-> ((⊤ σ_new) + (⊤ σ_tail)))))

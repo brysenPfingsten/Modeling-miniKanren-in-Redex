@@ -158,18 +158,15 @@
         (trace-overlap-events model-id
                               (model-id->relation model-id)
                               cfg))))
-  (append* (append matrix-events random-events)))
+  (append* (append matrix-events (append* random-events))))
 
 (define/provide-test-suite DETERMINISM-OVERLAP
-  (test-case "overlap audit captures multi-rule overlap events"
+  (test-case "overlap audit: no multi-rule overlap in canonical deterministic variants"
     (define events (all-overlap-events))
-    (check-true (list? events))
-    ;; Commit A baseline: capture overlap events before priority removal.
-    (check-false (null? events)
-                 "expected at least one overlap before priority elimination")
-    (displayln
-     (format "[determinism-overlap] captured ~a overlap event(s)"
-             (length events)))))
+    (check-true (null? events)
+                (if (null? events)
+                    "no overlaps"
+                    (format "overlap events found: ~s" events)))))
 
 (module+ test
   (run-tests DETERMINISM-OVERLAP))

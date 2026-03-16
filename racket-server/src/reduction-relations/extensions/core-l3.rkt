@@ -2,7 +2,8 @@
 
 (require redex/reduction-semantics
          "../../extensions/l3-union-base.rkt"
-         "./core-common.rkt")
+         "./core-common.rkt"
+         "./context-pipeline.rkt")
 
 (check-redundancy #t)
 
@@ -25,13 +26,12 @@
   [Kleft ::= hole
              (Kleft <-+ s)
              ((⊤ σ) + Kleft)]
-  ;; Call-step base context; left-disjunction lifting is applied separately.
-  [Kcall ::= hole
-             (Kcall × g c)]
+  ;; Scheduler context: disjunction traversal plus answer-stream tails.
+  [Ksched ::= hole
+              (Ksched <-+ s)
+              ((⊤ σ) + Ksched)]
   ;; Delay invocation context: top-level or under answer-stream tails only.
   [Kdelay ::= hole
               ((⊤ σ) + Kdelay)])
 
-(define core-step/base-l3 (context-closure core-redex/l3 L3/K Kcore))
-(define core-step/l3 (context-closure core-step/base-l3 L3/K Kleft))
-(define core-cfg/l3 (context-closure core-step/l3 L3/K (Γ hole)))
+(define-cfg/two-stage core-cfg/l3 core-redex/l3 L3/K Kcore Kleft)

@@ -13,8 +13,8 @@
   (reduction-relation
     L1/K
     #:domain config
-    [--> (Γ (in-hole Kcall ((r t ... tag) σ)))
-         (Γ (in-hole Kcall (delay (proceed (g_new σ)))))
+    [--> (Γ (in-hole K ((r t ... tag) σ)))
+         (Γ (in-hole K (delay (proceed (g_new σ)))))
          (where g_new ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
          "call/eager-suspend-expanded"]
 
@@ -27,12 +27,12 @@
          (side-condition (not (redex-match? L1/K (proceed pr) (term s_1))))
          "call/invoke-delay"]
 
-    [--> (Γ (in-hole Kcall (proceed (g σ))))
-         (Γ (in-hole Kcall (g σ)))
+    [--> (Γ (in-hole K (proceed (g σ))))
+         (Γ (in-hole K (g σ)))
          "call/eager-resume-goal"]
 
-    [--> (Γ (in-hole Kcall ((delay s_1) × g c)))
-         (Γ (in-hole Kcall (delay (s_1 × g c))))
+    [--> (Γ (in-hole K ((delay s_1) × g c)))
+         (Γ (in-hole K (delay (s_1 × g c))))
          "call/delay-through-conj"]))
 
 (define Rcall-eager

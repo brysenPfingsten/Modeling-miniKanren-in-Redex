@@ -6,6 +6,7 @@
          "./capability-analysis-tests.rkt"
          "./property-core.rkt"
          "./example-compat-tests.rkt"
+         "./determinism-overlap-tests.rkt"
          "./confidence-gates-tests.rkt"
          "./model-example-matrix-tests.rkt"
          "./variant-module-tests.rkt"
@@ -17,6 +18,7 @@
   CAPABILITY-ANALYSIS
   PROPERTY-CORE
   EXAMPLE-COMPAT
+  DETERMINISM-OVERLAP
   CONFIDENCE-GATES
   MODEL-EXAMPLE-MATRIX
   VARIANT-MODULES

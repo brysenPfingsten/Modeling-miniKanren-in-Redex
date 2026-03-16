@@ -2,7 +2,8 @@
 
 (require redex/reduction-semantics
          "../../extensions/l1-calls-delay.rkt"
-         "./core-common.rkt")
+         "./core-common.rkt"
+         "./context-pipeline.rkt")
 
 (check-redundancy #t)
 
@@ -17,8 +18,6 @@
   ;; `delay` is an administrative barrier, so we do not descend into it.
   [K ::= hole
          (K × g c)
-         ((⊤ σ) + K)]
-  [Kcall ::= K])
+         ((⊤ σ) + K)])
 
-(define core-step/l1 (context-closure core-redex/l1 L1/K K))
-(define core-cfg/l1 (context-closure core-step/l1 L1/K (Γ hole)))
+(define-cfg/one-stage core-cfg/l1 core-redex/l1 L1/K K)

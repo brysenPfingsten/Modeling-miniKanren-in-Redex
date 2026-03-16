@@ -16,6 +16,6 @@
          (side-condition (not (redex-match? L3/K (proceed pr) (term s_1))))
          "flip/invoke-delay"]
 
-    [--> (Γ (in-hole K ((delay s_1) <-+ s_2)))
-         (Γ (in-hole K (delay (s_2 <-+ s_1))))
+    [--> (Γ (in-hole Ksched ((delay s_1) <-+ s_2)))
+         (Γ (in-hole Ksched (delay (s_2 <-+ s_1))))
          "flip/delay-swap-left"]))

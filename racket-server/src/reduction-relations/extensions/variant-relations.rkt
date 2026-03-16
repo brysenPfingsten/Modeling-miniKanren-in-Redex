@@ -11,7 +11,7 @@
          (rename-in "./rflip-l.rkt" [Rflip-l Rl3-flip-lazy])
          (rename-in "./rrail-e.rkt" [Rrail-e Rl4-rail-eager])
          (rename-in "./rrail-l.rkt" [Rrail-l Rl4-rail-lazy])
-         "./core-l3.rkt")
+         "./rdfs-common.rkt")
 
 ;; Relation names follow the language/relation lattice:
 ;; - Rl1-call-{eager,lazy}
@@ -21,45 +21,9 @@
 ;; - Rl3-flip-{eager,lazy}
 ;; - Rl4-rail-{eager,lazy}
 
-(define (step-priority name)
-  (if (member name
-              '("disj/promote-left-stream"
-                "rail/promote-right-stream"))
-      5
-      0))
-
-(define (determinize-tagged-successors succ*)
-  (match succ*
-    ['() '()]
-    [(list _) succ*]
-    [_ (define max-pr
-         (for/fold ([best -inf.0])
-                   ([succ (in-list succ*)])
-           (match succ
-             [(list name _cfg) (max best (step-priority name))]
-             [_ best])))
-       (for/first ([succ (in-list succ*)]
-                   #:when (match succ
-                            [(list name _cfg) (= (step-priority name) max-pr)]
-                            [_ #f]))
-         (list succ))]))
-
 (define (step-once/by rel prog)
-  (determinize-tagged-successors
-   (dedupe-tagged-successors
-    (apply-reduction-relation/tag-with-names rel (term ,prog)))))
-
-(define (extend-with-dfs-rules base-rel)
-  (extend-reduction-relation
-   base-rel
-   L3/K
-   [--> (Γ (in-hole K ((delay s_1) <-+ s_2)))
-        (Γ (in-hole K (delay (s_1 <-+ s_2))))
-        "dfs/delay-through-left"]
-   [--> (Γ (in-hole Kdelay (delay s_1)))
-        (Γ (in-hole Kdelay s_1))
-        (side-condition (not (redex-match? L3/K (proceed pr) (term s_1))))
-        "dfs/invoke-delay"]))
+  (dedupe-tagged-successors
+   (apply-reduction-relation/tag-with-names rel (term ,prog))))
 
 (define Rl3-dfs-eager
   (extend-with-dfs-rules Rl3-pre-eager))
