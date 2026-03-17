@@ -10,10 +10,12 @@
 (provide (all-from-out "wf-kernel.rkt")
          wf-goal?
          wf-tree?
+         wf-answer-stream?
          wf-rel-env?
          wf-config?
          core-goal-shape?
          core-tree-shape?
+         core-answer-stream-shape?
          core-shape?)
 
 (define-judgment-form
@@ -81,8 +83,23 @@
    (core-tree-shape? (s × g c))]
 
   [(core-tree-shape? s_tail)
-   ------------------- "core-answer-stream-shape"
-   (core-tree-shape? ((⊤ σ) + s_tail))])
+   ------------------- "core-emit-shape"
+   (core-tree-shape? (emit σ s_tail))])
+
+(define-judgment-form
+  Core
+  #:contract (core-answer-stream-shape? as)
+  #:mode (core-answer-stream-shape? I)
+
+  [------------------- "core-empty-answer-stream-shape"
+   (core-answer-stream-shape? (empty-stream))]
+
+  [------------------- "core-single-answer-stream-shape"
+   (core-answer-stream-shape? (⊤ σ))]
+
+  [(core-answer-stream-shape? as_tail)
+   ------------------- "core-answer-stream-tail-shape"
+   (core-answer-stream-shape? ((⊤ σ) + as_tail))])
 
 (define-judgment-form
   Core
@@ -90,8 +107,9 @@
   #:mode (core-shape? I)
   [(core-goal-shape? g) ...
    (core-tree-shape? s)
+   (core-answer-stream-shape? as)
    ------------------- "core-config-shape"
-   (core-shape? (((r d g) ...) s))])
+   (core-shape? (((r d g) ...) s as))])
 
 (define-judgment-form
   Core
@@ -121,8 +139,27 @@
   [(lvars-subset? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-tree? s_tail ((r d g_env) ...) c)
+   ------------------- "emit wf"
+   (wf-tree? (emit (state sub c_i trail tag) s_tail) ((r d g_env) ...) c)])
+
+(define-judgment-form
+  Core
+  #:contract (wf-answer-stream? as c)
+  #:mode (wf-answer-stream? I I)
+
+  [------------------- "empty answer stream wf"
+   (wf-answer-stream? (empty-stream) c)]
+
+  [(lvars-subset? c c_i)
+   (wf-sub/wf+equiv-trail? sub c_i trail)
+   ------------------- "single answer stream wf"
+   (wf-answer-stream? (⊤ (state sub c_i trail tag)) c)]
+
+  [(lvars-subset? c c_i)
+   (wf-sub/wf+equiv-trail? sub c_i trail)
+   (wf-answer-stream? as_tail c)
    ------------------- "answer stream wf"
-   (wf-tree? ((⊤ (state sub c_i trail tag)) + s_tail) ((r d g_env) ...) c)])
+   (wf-answer-stream? ((⊤ (state sub c_i trail tag)) + as_tail) c)])
 
 (define-judgment-form
   Core
@@ -138,8 +175,9 @@
   #:mode (wf-config? I)
   [(wf-rel-env? ((r d g) ...))
    (wf-tree? s ((r d g) ...) ())
+   (wf-answer-stream? as ())
    ----------------------- "program-wf"
-   (wf-config? (((r d g) ...) s))])
+   (wf-config? (((r d g) ...) s as))])
 
 (module+ test
   (check-true (judgment-holds (wf-goal? (succeed (label "fish")) () () ())))
@@ -202,17 +240,15 @@
               ()
               ())))
 
-  (check-true (judgment-holds (wf-config? (() (empty-tree)))))
+  (check-true (judgment-holds (wf-config? (() (empty-tree) (empty-stream)))))
 
   (check-true
    (judgment-holds
-    (wf-config?
-     (()
-      ((⊤ (state ((u:0 (sym "a")))
-                 (u:0)
-                 (((sym "a") =? u:0 (label "g1")))
-                 (label "σ")))
-       + (empty-tree))))))
+    (wf-config? (() (empty-tree)
+                 (⊤ (state ((u:0 (sym "a")))
+                           (u:0)
+                           (((sym "a") =? u:0 (label "g1")))
+                           (label "σ")))))))
 
   (check-true
    (judgment-holds
@@ -224,24 +260,25 @@
     (wf-rel-env?
      ((r:bad () (x:0 =? x:0 (label "eq")))))))
 
-  (check-true (judgment-holds (core-shape? (() (empty-tree)))))
+  (check-true (judgment-holds (core-shape? (() (empty-tree) (empty-stream)))))
 
   (check-true
    (judgment-holds
     (core-shape?
      (()
       (((succeed (label "ok")) ∧ (succeed (label "ok2")) (label "c"))
-       (state () () () (label "s")))))))
+       (state () () () (label "s")))
+      (empty-stream)))))
 
   (check-true
    (judgment-holds
     (core-shape?
-     (()
-      ((⊤ (state () () () (label "a")))
-       +
-       ((⊤ (state () () () (label "b")))
-        +
-        (empty-tree)))))))
+     (() (empty-tree)
+         ((⊤ (state () () () (label "a")))
+          +
+          ((⊤ (state () () () (label "b")))
+           +
+           (empty-stream)))))))
 
   (define (core-tree-shape-holds? st)
     (with-handlers ([exn:fail? (lambda (_) #f)])
@@ -256,4 +293,5 @@
   (check-false
    (core-config-shape-holds?
     '(() (proceed ((r:foo (sym "x") (label "t"))
-                   (state () () () (label "s"))))))))
+                   (state () () () (label "s"))))
+         (empty-stream)))))

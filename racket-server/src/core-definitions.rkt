@@ -8,7 +8,14 @@
 
 #;(current-traced-metafunctions 'all)
 
-(provide Core unify walk extend occurs? fresh-substitution subst-goal)
+(provide Core
+         unify
+         walk
+         extend
+         occurs?
+         fresh-substitution
+         subst-goal
+         append-answer)
 
 (module+ test
   (require rackunit)
@@ -18,7 +25,7 @@
 
 (define-language Core
   ;--------------------Top Level-------------------------
-  [config (Γ s)]    ; Program
+  [config (Γ s as)] ; Program: active work + produced answer stream
 
   [Γ ((r_!_ d g) ...)]  ; Relation Environment w/ distinct relation names
   [d (x_!_ ...)]        ; Distinct variable declarations
@@ -27,8 +34,8 @@
   [s (empty-tree)               ; Empty Tree / Failure
      (g σ)                      ; Goal-State
      (s × g c)                  ; Conjunction, w/vars used so far.
-     (⊤ σ)
-     ((⊤ σ) + s)
+     (⊤ σ)                      ; Immediate single answer
+     (emit σ s)                 ; Emit answer, then continue with work tree
 
      ;; (s +-> s)                  ; Right Disjunciton
      ;; (s <-+ s)                  ; Left Disjunction
@@ -74,17 +81,16 @@
   [sub ((u_!_ t) ...)]        ; Substitution, make the vars definitionally distinct
   [maybe-sub sub #f]
   [trail (eq ...)]
-  [s-final (empty-tree)
-           (⊤ σ)
-           ((⊤ σ) + s-final)]
-  [end-config (Γ s-final)]
+  [as (empty-stream)
+      (⊤ σ)
+      ((⊤ σ) + as)]
+  [end-config (Γ (empty-tree) as)]
   [c (u_!_ ...)]
   ;-----------------Evaluation Contexts------------------
 
   ; Search Tree
   [Es hole
-      (Es × g)
-      ((⊤ σ) + Es)
+      (Es × g c)
       ;; (Es <-+ s)
       ;; (s +-> Es)
   ]
@@ -123,9 +129,18 @@
   (check-true (redex-match? Core s (term (⊤ (state () () () (label "Om"))))))
   (check-true (redex-match? Core s (term ((u:0 =? (sym "a") (label "t")) (state ((u:0 (sym "a"))) (u:0) () (label "σ"))))))
 
-  (check-true (redex-match? Core config (term (() (empty-tree)))))
+  (check-true (redex-match? Core config (term (() (empty-tree) (empty-stream)))))
 
 )
+
+(define-metafunction Core
+  append-answer : as σ -> as
+  [(append-answer (empty-stream) σ_new)
+   (⊤ σ_new)]
+  [(append-answer (⊤ σ_old) σ_new)
+   ((⊤ σ_old) + (⊤ σ_new))]
+  [(append-answer ((⊤ σ_old) + as_tail) σ_new)
+   ((⊤ σ_old) + (append-answer as_tail σ_new))])
 
 
 (define-metafunction Core

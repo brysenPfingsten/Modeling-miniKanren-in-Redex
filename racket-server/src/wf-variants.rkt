@@ -9,6 +9,7 @@
 
 (provide wf-goal/L4?
          wf-tree/L4?
+         wf-answer-stream/L4?
          wf-rel-env/L4?
          wf-config/L4?
          wf-config/L1?
@@ -99,8 +100,8 @@
   [(lvars-subset? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-tree/L4? s_tail ((r d g_env) ...) c)
-   ------------------- "answer stream wf/L4"
-   (wf-tree/L4? ((⊤ (state sub c_i trail tag)) + s_tail) ((r d g_env) ...) c)]
+   ------------------- "emit wf/L4"
+   (wf-tree/L4? (emit (state sub c_i trail tag) s_tail) ((r d g_env) ...) c)]
 
   [(wf-tree/L4? s_1 ((r d g_env) ...) c)
    (wf-tree/L4? s_2 ((r d g_env) ...) c)
@@ -137,6 +138,25 @@
 
 (define-judgment-form
   L4
+  #:contract (wf-answer-stream/L4? as c)
+  #:mode (wf-answer-stream/L4? I I)
+
+  [------------------- "empty answer stream wf/L4"
+   (wf-answer-stream/L4? (empty-stream) c)]
+
+  [(lvars-subset? c c_i)
+   (wf-sub/wf+equiv-trail? sub c_i trail)
+   ------------------- "single answer stream wf/L4"
+   (wf-answer-stream/L4? (⊤ (state sub c_i trail tag)) c)]
+
+  [(lvars-subset? c c_i)
+   (wf-sub/wf+equiv-trail? sub c_i trail)
+   (wf-answer-stream/L4? as_tail c)
+   ------------------- "answer stream wf/L4"
+   (wf-answer-stream/L4? ((⊤ (state sub c_i trail tag)) + as_tail) c)])
+
+(define-judgment-form
+  L4
   #:contract (wf-rel-env/L4? Γ)
   #:mode (wf-rel-env/L4? I)
   [(wf-goal/L4? g ((r d g) ...) d ()) ...
@@ -149,8 +169,9 @@
   #:mode (wf-config/L4? I)
   [(wf-rel-env/L4? ((r d g) ...))
    (wf-tree/L4? s ((r d g) ...) ())
+   (wf-answer-stream/L4? as ())
    ----------------------- "program-wf/L4"
-   (wf-config/L4? (((r d g) ...) s))])
+   (wf-config/L4? (((r d g) ...) s as))])
 
 ;; L1/L2/L3 are syntax subsets of L4; reuse the L4 wf judgment while
 ;; keeping language-specific contracts at each layer.
@@ -204,20 +225,23 @@
   (define cfg-l1
     (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
            (delay (proceed ((r:id (sym "ok") (label "call"))
-                            (state () () () (label "s"))))))))
+                            (state () () () (label "s")))))
+          (empty-stream))))
 
   (define cfg-l2
     (term (()
            (((succeed (label "a")) (state () () () (label "sa")))
             <-+
-            ((succeed (label "b")) (state () () () (label "sb")))))))
+            ((succeed (label "b")) (state () () () (label "sb"))))
+           (empty-stream))))
 
   (define cfg-l3
     (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
            ((delay (proceed ((r:id (sym "ok") (label "call"))
                              (state () () () (label "s")))))
             <-+
-            ((succeed (label "b")) (state () () () (label "sb")))))))
+            ((succeed (label "b")) (state () () () (label "sb"))))
+           (empty-stream))))
 
   (define cfg-l4
     (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
@@ -225,12 +249,14 @@
                               (state () () () (label "s")))))
              <-+
              ((succeed (label "b")) (state () () () (label "sb"))))
-            +-> (empty-tree)))))
+            +-> (empty-tree))
+           (empty-stream))))
 
   (define cfg-bad-arity
     (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
            ((r:id (sym "ok") (sym "extra") (label "call"))
-            (state () () () (label "s"))))))
+            (state () () () (label "s")))
+           (empty-stream))))
 
   (check-true  (judgment-holds (wf-config/L1? ,cfg-l1)))
   (check-true  (judgment-holds (wf-config/L2? ,cfg-l2)))
