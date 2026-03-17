@@ -447,9 +447,6 @@
     [`(run ,n (,q ..1) . ,gs) (run n (map var q) (conj-goals (map parse-goal gs)))]
     [`(run* (,q ..1) . ,gs) (run +inf.0 (map var q) (conj-goals (map parse-goal gs)))]))
 
-(define (parse-relation-defs a-lor)
-  (map parse-relation-def a-lor))
-
 (define (parse-relation-def a-relation)
   (match a-relation
     [`(defrel (,r . ,params) . ,gs) (defrel
@@ -529,7 +526,7 @@
             lst)])
       (values (reverse (car result)) (cdr result))))
 
-  (prog (parse-relation-defs defrels)
+  (prog (map parse-relation-def defrels)
         (parse-run run)))
 
 (define (parse-prog lst)
