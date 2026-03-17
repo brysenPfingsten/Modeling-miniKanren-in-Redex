@@ -59,7 +59,7 @@
             (define next* (maybe-step-once cfg))
             (cond
               [(null? next*)
-               (hasheq 'status (if (trace-stop-config? cfg) 'value 'stuck)
+               (hasheq 'status (if (final-config? cfg) 'value 'stuck)
                        'steps steps
                        'last-rule last-rule)]
               [(> (length next*) 1)
@@ -215,12 +215,6 @@
                          (hash-ref r 'last-rule)
                          (hash-ref r 'steps)))))
 
-(define (run-heavy-row/direct model-id _label src should-compat?)
-  (classify-pair model-id src should-compat?))
-
-(define (run-smoke-row/direct model-id _label src _should-compat?)
-  (classify-pair model-id src #t))
-
 (define (run-heavy-row/api model-id label src should-compat?)
   (define analyze-resp (analyze! #f (make-post-analyze-request src)))
   (check-equal? (response-code analyze-resp) 200
@@ -285,13 +279,21 @@
 (define/provide-test-suite MODEL-EXAMPLE-MATRIX
   (test-case "matrix lane: heavy L3/L4 full coverage; internal L0/L1/L2 smoke only"
     (define examples (frontend-example-programs))
-    (define heavy-rows (collect-heavy-rows surfaced-model-specs examples run-heavy-row/direct))
+    (define heavy-rows
+      (collect-heavy-rows surfaced-model-specs
+                          examples
+                          (lambda (model-id _label src should-compat?)
+                            (classify-pair model-id src should-compat?))))
     (assert-heavy-rows heavy-rows '(incompatible) 'incompatible
                        #:forbid-nondeterministic? #t
                        #:check-primary-rail? #t
                        #:context "direct matrix")
     (define smoke-rows
-      (collect-smoke-rows internal-smoke-model-specs examples run-smoke-row/direct "smoke"))
+      (collect-smoke-rows internal-smoke-model-specs
+                          examples
+                          (lambda (model-id _label src _should-compat?)
+                            (classify-pair model-id src #t))
+                          "smoke"))
     (assert-smoke-rows smoke-rows '(stuck incompatible nondeterministic missing-example)
                        "internal smoke")
 

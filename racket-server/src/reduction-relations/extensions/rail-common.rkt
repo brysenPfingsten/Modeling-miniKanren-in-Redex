@@ -6,7 +6,6 @@
 (check-redundancy #t)
 
 (provide L4/K
-         lift-l3-to-l4
          extend-with-rail-rules)
 
 ;; L4/K is a strict context/language extension of L3/K:
@@ -18,9 +17,6 @@
   [K .... (s +-> K)]
   [Kleft .... (s +-> Kleft)]
   [Ksched .... (s +-> Ksched)])
-
-(define (lift-l3-to-l4 rel)
-  (extend-reduction-relation rel L4/K))
 
 (define (extend-with-rail-rules base-rel)
   (extend-reduction-relation

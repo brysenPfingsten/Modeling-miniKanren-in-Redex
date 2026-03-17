@@ -6,7 +6,6 @@
          "../src/extensions/variant-languages.rkt")
 
 (provide final-config?
-         trace-stop-config?
          wf-config-term?
          progress?
          unique-decomposition?
@@ -33,11 +32,6 @@
 
 (define (final-config? cfg)
   (redex-match? Core end-config cfg))
-
-;; Trace harnesses should only classify true semantic finals as `value`.
-;; This keeps regressions visible (instead of masking non-final stuck states).
-(define (trace-stop-config? cfg)
-  (final-config? cfg))
 
 (define (wf-config-term? cfg)
   (judgment-holds (wf-config? ,cfg)))

@@ -10,4 +10,4 @@
 
 (define Rrail-e
   (extend-with-rail-rules
-   (lift-l3-to-l4 Rbase-e)))
+   (extend-reduction-relation Rbase-e L4/K)))

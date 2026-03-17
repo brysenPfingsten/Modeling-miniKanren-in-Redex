@@ -6,7 +6,7 @@
 
 (check-redundancy #t)
 
-(provide -->cfg -->cfg/base step-once -->*e)
+(provide -->cfg step-once -->*e)
 
 (module+ examples)
 
@@ -63,8 +63,7 @@
     ))
 
 (define -->*e (compatible-closure -->e Core s))
-(define -->cfg/base (context-closure -->*e Core (Γ hole)))
-(define -->cfg -->cfg/base)
+(define -->cfg (context-closure -->*e Core (Γ hole)))
 
 (module+ examples
   (provide trivial-conjunction-tree)
