@@ -11,7 +11,7 @@
     (context-closure
      (context-closure rel lang ctx)
      lang
-     (Γ hole))))
+     (Γ hole as))))
 
 ;; Build cfg closure as core -> stage1 -> stage2 -> whole-config.
 (define-syntax-rule (define-cfg/two-stage cfg-name rel lang ctx1 ctx2)
@@ -22,4 +22,4 @@
       lang
       ctx2)
      lang
-     (Γ hole))))
+     (Γ hole as))))

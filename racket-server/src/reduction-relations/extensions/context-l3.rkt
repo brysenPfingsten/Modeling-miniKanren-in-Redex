@@ -15,23 +15,19 @@
   ;; General strategic context used by call/disjunction extension rules.
   [K ::= hole
          (K × g c)
-         (K <-+ s)
-         ((⊤ σ) + K)]
+         (K <-+ s)]
   ;; Core reduction context: conjunction only (no disjunction or delay descent).
   [Kcore ::= hole
              (Kcore × g c)]
   ;; Left-disjunction scheduler context.
   [Kleft ::= hole
-             (Kleft <-+ s)
-             ((⊤ σ) + Kleft)]
+             (Kleft <-+ s)]
   ;; Scheduler context: disjunction traversal plus answer-stream tails.
   [Ksched ::= hole
-              (Ksched <-+ s)
-              ((⊤ σ) + Ksched)])
+              (Ksched <-+ s)])
 
 ;; Adds only the delay-invocation fence on top of the shared backbone.
 (define-extended-language L3/K
   L3/K-base
   ;; Delay invocation context: top-level or under answer-stream tails only.
-  [Kdelay ::= hole
-              ((⊤ σ) + Kdelay)])
+  [Kdelay ::= hole])

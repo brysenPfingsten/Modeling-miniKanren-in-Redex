@@ -26,31 +26,32 @@
   (extend-reduction-relation
     base-rel
     L4/K
-    [--> (Γ (in-hole Kdelay (delay s_1)))
-         (Γ (in-hole Kdelay s_1))
+    [--> (Γ (in-hole Kdelay (delay s_1)) as)
+         (Γ (in-hole Kdelay s_1) as)
          (side-condition (not (redex-match? L4/K (proceed pr) (term s_1))))
          "rail/invoke-delay"]
 
-    [--> (Γ (in-hole Ksched ((delay s_1) <-+ s_2)))
-         (Γ (in-hole Ksched (delay (s_1 +-> s_2))))
+    [--> (Γ (in-hole Ksched ((delay s_1) <-+ s_2)) as)
+         (Γ (in-hole Ksched (delay (s_1 +-> s_2))) as)
          "rail/enter-right"]
 
-    [--> (Γ (in-hole Ksched (s_2 +-> (delay s_1))))
-         (Γ (in-hole Ksched (delay (s_2 <-+ s_1))))
+    [--> (Γ (in-hole Ksched (s_2 +-> (delay s_1))) as)
+         (Γ (in-hole Ksched (delay (s_2 <-+ s_1))) as)
          "rail/return-left"]
 
-    [--> (Γ (in-hole K (s_left +-> ((⊤ σ_new) + (⊤ σ_tail)))))
-         (Γ (in-hole K ((⊤ σ_new) + (s_left +-> (⊤ σ_tail)))))
+    [--> (Γ (in-hole K (s_left +-> (emit σ_new s_right_tail))) as)
+         (Γ (in-hole K (emit σ_new (s_left +-> s_right_tail))) as)
+         (side-condition (not (redex-match? L4/K (empty-tree) (term s_right_tail))))
          "rail/promote-right-stream"]
 
-    [--> (Γ (in-hole K (s_left +-> ((⊤ σ_new) + (empty-tree)))))
-         (Γ (in-hole K ((⊤ σ_new) + s_left)))
+    [--> (Γ (in-hole K (s_left +-> (emit σ_new (empty-tree)))) as)
+         (Γ (in-hole K (emit σ_new s_left)) as)
          "rail/promote-right-singleton-stream"]
 
-    [--> (Γ (in-hole K (s_left +-> (⊤ σ_new))))
-         (Γ (in-hole K ((⊤ σ_new) + s_left)))
+    [--> (Γ (in-hole K (s_left +-> (⊤ σ_new))) as)
+         (Γ (in-hole K (emit σ_new s_left)) as)
          "rail/promote-right-answer"]
 
-    [--> (Γ (in-hole K (s_left +-> (empty-tree))))
-         (Γ (in-hole K s_left))
+    [--> (Γ (in-hole K (s_left +-> (empty-tree))) as)
+         (Γ (in-hole K s_left) as)
          "rail/skip-right-fail"]))

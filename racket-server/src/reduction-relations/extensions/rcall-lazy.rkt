@@ -14,26 +14,26 @@
   (reduction-relation
     L1/K
     #:domain config
-    [--> (Γ (in-hole K ((r t ... tag) σ)))
-         (Γ (in-hole K (delay (proceed ((r t ... tag) σ)))))
+    [--> (Γ (in-hole K ((r t ... tag) σ)) as)
+         (Γ (in-hole K (delay (proceed ((r t ... tag) σ)))) as)
          "call/lazy-suspend-call"]
 
-    [--> (Γ (delay (proceed ((r t ... tag) σ))))
-         (Γ (proceed ((r t ... tag) σ)))
+    [--> (Γ (delay (proceed ((r t ... tag) σ))) as)
+         (Γ (proceed ((r t ... tag) σ)) as)
          "call/lazy-invoke-delay"]
 
-    [--> (Γ (delay s_1))
-         (Γ s_1)
+    [--> (Γ (delay s_1) as)
+         (Γ s_1 as)
          (side-condition (not (redex-match? L1/K (proceed pr) (term s_1))))
          "call/invoke-delay"]
 
-    [--> (Γ (in-hole K (proceed ((r t ... tag) σ))))
-         (Γ (in-hole K (g_new σ)))
+    [--> (Γ (in-hole K (proceed ((r t ... tag) σ))) as)
+         (Γ (in-hole K (g_new σ)) as)
          (where g_new ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
          "call/lazy-expand-on-resume"]
 
-    [--> (Γ (in-hole K ((delay s_1) × g c)))
-         (Γ (in-hole K (delay (s_1 × g c))))
+    [--> (Γ (in-hole K ((delay s_1) × g c)) as)
+         (Γ (in-hole K (delay (s_1 × g c))) as)
          "call/delay-through-conj"]))
 
 (define Rcall-lazy

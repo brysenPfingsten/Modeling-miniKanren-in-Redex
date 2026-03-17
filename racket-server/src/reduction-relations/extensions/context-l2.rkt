@@ -13,12 +13,10 @@
   ;; General strategic context used by disjunction extension rules.
   [K ::= hole
          (K × g c)
-         (K <-+ s)
-         ((⊤ σ) + K)]
+         (K <-+ s)]
   ;; Core reduction context: conjunction only (no disjunction descent).
   [Kcore ::= hole
              (Kcore × g c)]
   ;; Left-disjunction scheduler context.
   [Kleft ::= hole
-             (Kleft <-+ s)
-             ((⊤ σ) + Kleft)])
+             (Kleft <-+ s)])

@@ -15,21 +15,21 @@
     #:domain config
     ;; Stage 1 (inside active branch): call contexts from L1.
     ;; Stage 2 (outside): left-disjunction scheduler contexts.
-    [--> (Γ (in-hole Kleft (in-hole Kcore ((r t ... tag) σ))))
-         (Γ (in-hole Kleft (in-hole Kcore (delay (proceed (g_new σ))))))
+    [--> (Γ (in-hole Kleft (in-hole Kcore ((r t ... tag) σ))) as)
+         (Γ (in-hole Kleft (in-hole Kcore (delay (proceed (g_new σ))))) as)
          (where g_new ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
          "call/eager-suspend-expanded"]
 
-    [--> (Γ (in-hole Kdelay (delay (proceed (g σ)))))
-         (Γ (in-hole Kdelay (proceed (g σ))))
+    [--> (Γ (in-hole Kdelay (delay (proceed (g σ)))) as)
+         (Γ (in-hole Kdelay (proceed (g σ))) as)
          "call/eager-invoke-delay"]
 
-    [--> (Γ (in-hole Kleft (in-hole Kcore (proceed (g σ)))))
-         (Γ (in-hole Kleft (in-hole Kcore (g σ))))
+    [--> (Γ (in-hole Kleft (in-hole Kcore (proceed (g σ)))) as)
+         (Γ (in-hole Kleft (in-hole Kcore (g σ))) as)
          "call/eager-resume-goal"]
 
-    [--> (Γ (in-hole Kleft (in-hole Kcore ((delay s_1) × g c))))
-         (Γ (in-hole Kleft (in-hole Kcore (delay (s_1 × g c)))))
+    [--> (Γ (in-hole Kleft (in-hole Kcore ((delay s_1) × g c))) as)
+         (Γ (in-hole Kleft (in-hole Kcore (delay (s_1 × g c)))) as)
          "call/delay-through-conj"]))
 
 (define call+core-l3/eager

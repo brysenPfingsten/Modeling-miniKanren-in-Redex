@@ -7,7 +7,8 @@
 (check-redundancy #t)
 
 (provide core-redex/core
-         extend-core-redex)
+         extend-core-redex
+         make-core-collector)
 
 ;; Shared core stepping rules over the base Core syntax.
 (define core-redex/core
@@ -26,9 +27,9 @@
     [--> ((empty-tree) × g c)
          (empty-tree)
          "core/conj-prune-fail"]
-    [--> (((⊤ σ_head) + s_tail) × g c)
-         (((⊤ σ_head) × g c) + (s_tail × g c))
-         "core/conj-distribute-answer-stream"]
+    [--> ((emit σ_head s_tail) × g c)
+         (emit σ_head (s_tail × g c))
+         "core/conj-distribute-emit"]
     [--> ((∃ d g tag) (state sub c trail tag_1))
          (g_new
           (state sub (u_1 ... ,@(term c)) trail tag_1))
@@ -50,3 +51,14 @@
 
 (define-syntax-rule (extend-core-redex lang)
   (extend-reduction-relation core-redex/core lang))
+
+(define-syntax-rule (make-core-collector lang)
+  (reduction-relation
+   lang
+   #:domain config
+   [--> (Γ (⊤ σ_new) as_old)
+        (Γ (empty-tree) (append-answer as_old σ_new))
+        "core/collect-single-answer"]
+   [--> (Γ (emit σ_new s_next) as_old)
+        (Γ s_next (append-answer as_old σ_new))
+        "core/collect-emit"]))

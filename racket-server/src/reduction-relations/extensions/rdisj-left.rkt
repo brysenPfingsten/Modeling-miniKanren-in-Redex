@@ -11,74 +11,57 @@
 
 (define disj-expand-only/l2
   (reduction-relation
-    L2/K
-    #:domain config
-    [--> (Γ (in-hole Kleft (in-hole Kcore ((g_1 ∨ g_2 tag) σ))))
-         (Γ (in-hole Kleft (in-hole Kcore ((g_1 σ) <-+ (g_2 σ)))))
-         "disj/goal-to-tree"]
-    [--> (Γ (in-hole Kleft (in-hole Kcore ((s_1 <-+ s_2) × g c))))
-         (Γ (in-hole Kleft (in-hole Kcore ((s_1 × g c) <-+ (s_2 × g c)))))
-         "disj/distribute-over-conj"]))
+   L2/K
+   #:domain config
+   [--> (Γ (in-hole Kleft (in-hole Kcore ((g_1 ∨ g_2 tag) σ))) as)
+        (Γ (in-hole Kleft (in-hole Kcore ((g_1 σ) <-+ (g_2 σ)))) as)
+        "disj/goal-to-tree"]
+   [--> (Γ (in-hole Kleft (in-hole Kcore ((s_1 <-+ s_2) × g c))) as)
+        (Γ (in-hole Kleft (in-hole Kcore ((s_1 × g c) <-+ (s_2 × g c)))) as)
+        "disj/distribute-over-conj"]))
 
 (define disj-scheduler-only/l2
   (reduction-relation
-    L2/K
-    #:domain config
-    [--> (Γ (in-hole Kleft (((⊤ σ_new) + s_left_tail) <-+ s_right)))
-         (Γ (in-hole Kleft ((⊤ σ_new) + (s_left_tail <-+ s_right))))
-         "disj/promote-left-stream"]
-
-    [--> (Γ (in-hole Kleft (((⊤ σ_new) + (empty-tree)) <-+ s_right)))
-         (Γ (in-hole Kleft ((⊤ σ_new) + s_right)))
-         "disj/promote-left-singleton-stream"]
-
-    [--> (Γ (in-hole Kleft ((⊤ σ_new) <-+ s_right)))
-         (Γ (in-hole Kleft ((⊤ σ_new) + s_right)))
-         "disj/promote-left-answer"]
-
-    [--> (Γ (in-hole Kleft ((empty-tree) <-+ s_right)))
-         (Γ (in-hole Kleft s_right))
-         "disj/skip-left-fail"]))
+   L2/K
+   #:domain config
+   [--> (Γ (in-hole Kleft ((emit σ_new s_left_tail) <-+ s_right)) as)
+        (Γ (in-hole Kleft (emit σ_new (s_left_tail <-+ s_right))) as)
+        "disj/promote-left-stream"]
+   [--> (Γ (in-hole Kleft ((emit σ_new (empty-tree)) <-+ s_right)) as)
+        (Γ (in-hole Kleft (emit σ_new s_right)) as)
+        "disj/promote-left-singleton-stream"]
+   [--> (Γ (in-hole Kleft ((⊤ σ_new) <-+ s_right)) as)
+        (Γ (in-hole Kleft (emit σ_new s_right)) as)
+        "disj/promote-left-answer"]
+   [--> (Γ (in-hole Kleft ((empty-tree) <-+ s_right)) as)
+        (Γ (in-hole Kleft s_right) as)
+        "disj/skip-left-fail"]))
 
 (define disj-extra/l2
   (reduction-relation
-    L2/K
-    #:domain config
-    ;; Stage 1 (inside active branch): core-conjunction contexts.
-    ;; Stage 2 (outside): left-disjunction scheduler contexts.
-    [--> (Γ (in-hole Kleft (in-hole Kcore ((g_1 ∨ g_2 tag) σ))))
-         (Γ (in-hole Kleft (in-hole Kcore ((g_1 σ) <-+ (g_2 σ)))))
-         "disj/goal-to-tree"]
-
-    [--> (Γ (in-hole Kleft (in-hole Kcore ((s_1 <-+ s_2) × g c))))
-         (Γ (in-hole Kleft (in-hole Kcore ((s_1 × g c) <-+ (s_2 × g c)))))
-         "disj/distribute-over-conj"]
-
-    [--> (Γ (in-hole Kleft (((⊤ σ_new) + s_left_tail) <-+ s_right)))
-         (Γ (in-hole Kleft ((⊤ σ_new) + (s_left_tail <-+ s_right))))
-         (side-condition
-          (null? (apply-reduction-relation core-cfg/l2
-                                           (term (Γ s_left_tail)))))
-         (side-condition
-          (null? (apply-reduction-relation disj-expand-only/l2
-                                           (term (Γ s_left_tail)))))
-         (side-condition
-          (null? (apply-reduction-relation disj-scheduler-only/l2
-                                           (term (Γ s_left_tail)))))
-         (side-condition (not (redex-match? L2/K (empty-tree) (term s_left_tail))))
-         "disj/promote-left-stream"]
-
-    [--> (Γ (in-hole Kleft (((⊤ σ_new) + (empty-tree)) <-+ s_right)))
-         (Γ (in-hole Kleft ((⊤ σ_new) + s_right)))
-         "disj/promote-left-singleton-stream"]
-
-    [--> (Γ (in-hole Kleft ((⊤ σ_new) <-+ s_right)))
-         (Γ (in-hole Kleft ((⊤ σ_new) + s_right)))
-         "disj/promote-left-answer"]
-
-    [--> (Γ (in-hole Kleft ((empty-tree) <-+ s_right)))
-         (Γ (in-hole Kleft s_right))
-         "disj/skip-left-fail"]))
+   L2/K
+   #:domain config
+   ;; Stage 1 (inside active branch): core-conjunction contexts.
+   ;; Stage 2 (outside): left-disjunction scheduler contexts.
+   [--> (Γ (in-hole Kleft (in-hole Kcore ((g_1 ∨ g_2 tag) σ))) as)
+        (Γ (in-hole Kleft (in-hole Kcore ((g_1 σ) <-+ (g_2 σ)))) as)
+        "disj/goal-to-tree"]
+   [--> (Γ (in-hole Kleft (in-hole Kcore ((s_1 <-+ s_2) × g c))) as)
+        (Γ (in-hole Kleft (in-hole Kcore ((s_1 × g c) <-+ (s_2 × g c)))) as)
+        "disj/distribute-over-conj"]
+   [--> (Γ (in-hole Kleft ((emit σ_new s_left_tail) <-+ s_right)) as)
+        (Γ (in-hole Kleft (emit σ_new (s_left_tail <-+ s_right))) as)
+        (side-condition (not (redex-match? L2/K (empty-tree) (term s_left_tail))))
+        "disj/promote-left-stream"]
+   [--> (Γ (in-hole Kleft ((emit σ_new (empty-tree)) <-+ s_right)) as)
+        (Γ (in-hole Kleft (emit σ_new s_right)) as)
+        "disj/promote-left-singleton-stream"]
+   [--> (Γ (in-hole Kleft ((⊤ σ_new) <-+ s_right)) as)
+        (Γ (in-hole Kleft (emit σ_new s_right)) as)
+        "disj/promote-left-answer"]
+   [--> (Γ (in-hole Kleft ((empty-tree) <-+ s_right)) as)
+        (Γ (in-hole Kleft s_right) as)
+        "disj/skip-left-fail"]))
 
 (define Rdisj-left
   (union-reduction-relations

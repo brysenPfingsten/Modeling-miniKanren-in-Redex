@@ -39,9 +39,9 @@
          (empty-tree)
          "Prune Failed Conjuncts"]
 
-    [--> (((⊤ σ_head) + s_tail) × g c)
-         (((⊤ σ_head) × g c) + (s_tail × g c))
-         "Distribute Conjunction Over Answer Stream"]
+    [--> ((emit σ_head s_tail) × g c)
+         (emit σ_head (s_tail × g c))
+         "Distribute Conjunction Over Emit"]
 
     [--> ((∃ d g tag) (state sub c trail tag_1))
          ((subst-goal g ((x_1 u_1) ...))
@@ -62,8 +62,25 @@
 
     ))
 
-(define -->*e (compatible-closure -->e Core s))
-(define -->cfg (context-closure -->*e Core (Γ hole)))
+(define -->*e (context-closure -->e Core Es))
+
+(define -->collect
+  (reduction-relation
+   Core
+   #:domain config
+   [--> (Γ (⊤ σ_new) as_old)
+        (Γ (empty-tree) (append-answer as_old σ_new))
+        "Collect Single Answer"]
+   [--> (Γ (emit σ_new s_next) as_old)
+        (Γ s_next (append-answer as_old σ_new))
+        "Collect Emit"]))
+
+(define -->cfg/work (context-closure -->*e Core (Γ hole as)))
+
+(define -->cfg
+  (union-reduction-relations
+   -->cfg/work
+   -->collect))
 
 (module+ examples
   (provide trivial-conjunction-tree)
@@ -121,7 +138,12 @@
                         (state () () () (label "cat")))))
 
   (check-true (judgment-holds (wf-tree? ,trivial-conjunction-tree () ())))
-  (check-true (judgment-holds (wf-tree? ,trivial-conjunction-tree ((r:foo (x:1 x:2 x:3))) ())))
+  (check-true
+   (judgment-holds
+    (wf-tree?
+     ,trivial-conjunction-tree
+     ((r:foo (x:1 x:2 x:3) (succeed (label "ok"))))
+     ())))
 
   (define (progress? cfg)
     (or (final-config? cfg)

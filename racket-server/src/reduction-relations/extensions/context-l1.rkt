@@ -13,5 +13,4 @@
   ;; Deterministic search context: step in conjunction's left tree only.
   ;; `delay` is an administrative barrier, so we do not descend into it.
   [K ::= hole
-         (K × g c)
-         ((⊤ σ) + K)])
+         (K × g c)])
