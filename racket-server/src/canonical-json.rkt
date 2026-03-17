@@ -218,6 +218,35 @@
          base)]
     [_ (hasheq 'name "Answer")]))
 
+(define (project-work-tree/canonical s)
+  (match s
+    [`(emit ,σ ,s_tail)
+     `((⊤ ,σ) + ,(project-work-tree/canonical s_tail))]
+    [`(,s_1 × ,g ,c)
+     `(,(project-work-tree/canonical s_1) × ,g ,c)]
+    [`(,s_1 <-+ ,s_2)
+     `(,(project-work-tree/canonical s_1) <-+ ,(project-work-tree/canonical s_2))]
+    [`(,s_1 +-> ,s_2)
+     `(,(project-work-tree/canonical s_1) +-> ,(project-work-tree/canonical s_2))]
+    [`(delay ,s_1)
+     `(delay ,(project-work-tree/canonical s_1))]
+    [_ s]))
+
+(define (append-stream-prefix/canonical as s)
+  (match as
+    ['(empty-stream) s]
+    [`(⊤ ,σ) `((⊤ ,σ) + ,s)]
+    [`((⊤ ,σ) + ,as_tail)
+     `((⊤ ,σ) + ,(append-stream-prefix/canonical as_tail s))]
+    [_ s]))
+
+(define (project-config-tree/canonical cfg)
+  (match cfg
+    [`(,_gamma ,s_work ,as)
+     (append-stream-prefix/canonical as (project-work-tree/canonical s_work))]
+    [`(,_gamma ,s) s]
+    [_ '(empty-tree)]))
+
 (define (tree->json/canonical s num-query-variables)
   (match s
     ['(empty-tree)
@@ -274,13 +303,14 @@
      (state->answer-json/canonical σ
                                    num-query-variables
                                    (and (not tail-empty?) tail-json))]
+    [`(emit ,σ ,s_tail)
+     (tree->json/canonical `((⊤ ,σ) + ,s_tail) num-query-variables)]
     [_ (hasheq 'name "Unknown")]))
 
 (define (config->tree-json/canonical cfg num-query-variables)
-  (match cfg
-    [`(,_gamma ,s)
-     (tree->json/canonical s num-query-variables)]
-    [_ (hasheq 'name "Empty")]))
+  (tree->json/canonical
+   (project-config-tree/canonical cfg)
+   num-query-variables))
 
 (define (to-json/canonical cfg num-query-variables)
   (jsexpr->string (config->tree-json/canonical cfg num-query-variables)))
@@ -294,22 +324,33 @@
                             (goal-query-vars/canonical g_2))]
     [_ 0]))
 
+(define (num-query-vars/work s)
+  (match s
+    [`(,g ,_σ)
+     (goal-query-vars/canonical g)]
+    [`(,s_1 × ,g ,_c)
+     (max (num-query-vars/work s_1)
+          (goal-query-vars/canonical g))]
+    [`(,s_1 <-+ ,s_2)
+     (max (num-query-vars/work s_1)
+          (num-query-vars/work s_2))]
+    [`(,s_1 +-> ,s_2)
+     (max (num-query-vars/work s_1)
+          (num-query-vars/work s_2))]
+    [`(emit ,_σ ,s_tail)
+     (num-query-vars/work s_tail)]
+    [`((⊤ ,_σ) + ,s_1)
+     (num-query-vars/work s_1)]
+    [`(delay ,s_1)
+     (num-query-vars/work s_1)]
+    [`(proceed (,g ,_σ))
+     (goal-query-vars/canonical g)]
+    [_ 0]))
+
 (define (num-query-vars/canonical cfg)
   (match cfg
-    [`(,_gamma (,g ,_σ)) (goal-query-vars/canonical g)]
-    [`(,_gamma (,s_1 × ,g ,_c))
-     (max (num-query-vars/canonical `(() ,s_1))
-          (goal-query-vars/canonical g))]
-    [`(,_gamma (,s_1 <-+ ,s_2))
-     (max (num-query-vars/canonical `(() ,s_1))
-          (num-query-vars/canonical `(() ,s_2)))]
-    [`(,_gamma (,s_1 +-> ,s_2))
-     (max (num-query-vars/canonical `(() ,s_1))
-          (num-query-vars/canonical `(() ,s_2)))]
-    [`(,_gamma ((⊤ ,_σ) + ,s_1))
-     (num-query-vars/canonical `(() ,s_1))]
-    [`(,_gamma (delay ,s_1))
-     (num-query-vars/canonical `(() ,s_1))]
-    [`(,_gamma (proceed (,g ,_σ)))
-     (goal-query-vars/canonical g)]
+    [`(,_gamma ,s_work ,_as)
+     (num-query-vars/work s_work)]
+    [`(,_gamma ,s)
+     (num-query-vars/work s)]
     [_ 0]))
