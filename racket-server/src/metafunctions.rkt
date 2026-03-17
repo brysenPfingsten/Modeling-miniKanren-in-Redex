@@ -3,14 +3,11 @@
          json
          racket/hash
          "definitions.rkt"
-         "reification.rkt"
-         (prefix-in canonical-json: "canonical-json.rkt"))
+         "reification.rkt")
 
 (provide to-json
-         to-json/canonical
          prog->tree
-         num-query-vars
-         num-query-vars/canonical)
+         num-query-vars)
 
 (define num-of-query-vars 'uninitialized)
 (define (set-num-query-vars! n)
@@ -198,8 +195,3 @@
 
 (define (num-query-vars prog)
   (length (term (extract-query-vars ,prog))))
-
-;; ---------- Canonical config JSON rendering ----------
-(define to-json/canonical canonical-json:to-json/canonical)
-
-(define num-query-vars/canonical canonical-json:num-query-vars/canonical)

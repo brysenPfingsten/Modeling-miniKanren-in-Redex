@@ -13,7 +13,6 @@
          model-spec-step-once
          all-model-specs
          default-model-id
-         default-parser-target-id
          lookup-model-spec
          lookup-model-step-once
          model-spec->jsexpr)
@@ -85,7 +84,6 @@
                     var:step-once/Rl3-flip-eager)))
 
 (define default-model-id "mk-l4-rail-lazy")
-(define default-parser-target-id canonical-parser-target-id)
 
 (define spec-by-id
   (for/hash ([spec (in-list all-model-specs)])

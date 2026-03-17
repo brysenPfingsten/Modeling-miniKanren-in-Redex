@@ -11,7 +11,8 @@
          "capability-analysis.rkt"
          "syntax-checking.rkt"
          "zipper.rkt"
-         "model-registry.rkt")
+         "model-registry.rkt"
+         "model-surface-policy.rkt")
 
 (provide step! back! reset! init! init-session! 
          make-stepper step step-name 
@@ -133,10 +134,10 @@
                    model-id
                    (string-join reasons "; "))))
   (define-values (model-prog html-prog) (parse-prog/canonical sexpr-prog)) ;; Parse directly to canonical target
-  (unless (canonical-target-in-domain? model-prog default-parser-target-id)
+  (unless (canonical-target-in-domain? model-prog canonical-parser-target-id)
     (error 'init! (format "transpiler produced a program outside canonical target ~a"
-                          default-parser-target-id)))
-  (check-canonical-well-formed model-prog default-parser-target-id)
+                          canonical-parser-target-id)))
+  (check-canonical-well-formed model-prog canonical-parser-target-id)
   (init-session! ses model-prog)                                       ;; Initialize all state variables
   (match-define (session zip _ nqv _) ses)                             ;; Get zipper and number query vars
   (define init-step (zipper-curr zip))                                ;; Get the initial program
@@ -213,9 +214,9 @@
     (define raw-prog (hash-ref (bytes->jsexpr json-data) 'text))
     (define analysis (analyze-source-capabilities raw-prog))
     (define requirements (hash-ref analysis 'requirements '()))
-    (define compatible-ids (compatible-model-ids requirements all-model-specs))
+    (define compatible-ids (compatible-model-ids requirements surfaced-model-specs))
     (define incompatible-specs
-      (for/list ([spec (in-list all-model-specs)]
+      (for/list ([spec (in-list surfaced-model-specs)]
                  #:unless (member (model-spec-id spec) compatible-ids))
         spec))
     (define incompatible-ids (map model-spec-id incompatible-specs))
@@ -240,7 +241,7 @@
 ;; Purpose: Returns known backend model ids and metadata for UI dispatch.
 (define (list-models!)
   (response/jsexpr
-   (for/list ([spec (in-list all-model-specs)])
+   (for/list ([spec (in-list surfaced-model-specs)])
      (model-spec->jsexpr spec))
    #:mime-type #"application/json; charset=utf-8"
    #:code 200))
