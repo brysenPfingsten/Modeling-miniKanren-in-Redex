@@ -103,6 +103,20 @@ This note is a restart map: what has been decided, what is provisional, and what
   - no requirement to preserve prior internal module names/signatures,
   - preserve documented README run/test lanes.
 
+### 1.6) Two-Slot Core Rewrite (implemented)
+- Canonical internal config is now:
+  - `(Γ s_work a_stream)`
+- Work-tree split:
+  - removed `((⊤ σ) + s)` from active work syntax,
+  - added `(emit σ s_work)` as explicit work-level answer/continuation node.
+- Core and variant reductions were migrated to thread `a_stream` explicitly.
+- Determinism was restored structurally by:
+  - treating `emit` as a scheduling barrier in shared contexts,
+  - removing side-condition rule-name/step probing fences from disjunction promotion paths.
+- Renderer/API compatibility:
+  - external payload shape remains unchanged (`program` JSON tree string),
+  - canonical renderer now projects two-slot internal configs back to the legacy view tree.
+
 ## 2) Simple Definitions (for context)
 - `global c`: treat `c` as one broad "set of extant logic vars" for the whole current computation region; easier invariants, less precision.
 - `subset c`: track a base `c` and require local states/goals to use supersets/subsets as appropriate; more bookkeeping, stronger locality/scoping statements.

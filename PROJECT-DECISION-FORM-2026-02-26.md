@@ -199,6 +199,18 @@ Use this as a working sheet. Mark one option per decision (or mark `DEFER`) and 
   - Lower layers are still retained for architecture/theory inheritance and smoke checks.
   - Heavy validation is concentrated on surfaced models; lower layers keep seam/smoke gates.
 
+## D18) Core Config Split (`work` vs `answers`)
+- Status: `DECIDED`
+- Choose:
+  - [x] Two-slot config `(Γ s_work a_stream)` with explicit `emit` in work tree
+  - [ ] Keep mixed single-tree `(Γ s)` with embedded answer-stream `+` in active work syntax
+  - [ ] `DEFER`
+- Rationale:
+  - Enforces a structural split between executable work and accumulated answers.
+  - Removes `+` from active work-tree syntax.
+  - Uses `(emit σ s_work)` as the only in-work "answer now + continuation" constructor.
+  - Keeps external API payload shape stable via projection (`config2 -> legacy-view-tree`) during migration.
+
 ## Milestone Gate
 - Before coding next semantic layer, decisions required: `D1-D6`.
 - For current theorem/proof batch, decisions required: `D7-D8` (with `D10-D12` deferred).
