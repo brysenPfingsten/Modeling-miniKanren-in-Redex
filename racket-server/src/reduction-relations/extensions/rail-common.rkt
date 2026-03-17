@@ -8,6 +8,10 @@
 (provide L4/K
          extend-with-rail-rules)
 
+;; Determinism invariant:
+;; railroad rules must be structurally disjoint from other scheduler rules.
+;; Do not introduce dynamic precedence fences that inspect available rule names.
+
 ;; L4/K is a strict context/language extension of L3/K:
 ;; add right-pointing disjunction syntax and allow scheduler/strategy
 ;; contexts to descend through +-> positions.

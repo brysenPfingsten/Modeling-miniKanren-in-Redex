@@ -8,6 +8,16 @@
 (provide disj-distribute-only/l3
          make-disj-extra/l3)
 
+(define (contains-active-right-disj? t)
+  (match t
+    ;; A right-disjunction under delay is inactive until delay is invoked.
+    [`(delay ,_) #f]
+    [`(,_ +-> ,_) #t]
+    ['() #f]
+    [(cons a d) (or (contains-active-right-disj? a)
+                    (contains-active-right-disj? d))]
+    [_ #f]))
+
 (define disj-distribute-only/l3
   (reduction-relation
     L3/K
@@ -57,6 +67,11 @@
 
     [--> (Γ (in-hole Kleft (((⊤ σ_new) + s_left_tail) <-+ s_right)))
          (Γ (in-hole Kleft ((⊤ σ_new) + (s_left_tail <-+ s_right))))
+         ;; Structural disjointness with railroad promotions:
+         ;; left-stream promotion only applies when no active +-> appears in
+         ;; the pending left tail.
+         (side-condition
+          (not (contains-active-right-disj? (term s_left_tail))))
          (side-condition
           (let ([cfg (term (Γ s_left_tail))])
             (or (not (redex-match? L3/K config cfg))
@@ -71,10 +86,6 @@
                 (null? (apply-reduction-relation disj-scheduler-only/l3 cfg)))))
          (side-condition
           (not (redex-match? L3/K ((delay s_1) <-+ s_2) (term s_left_tail))))
-         (side-condition
-          (not (match (term s_left_tail)
-                 [`(,_ +-> ,_) #t]
-                 [_ #f])))
          (side-condition (not (redex-match? L3/K (empty-tree) (term s_left_tail))))
          "disj/promote-left-stream"]
 

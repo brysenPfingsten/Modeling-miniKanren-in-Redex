@@ -3,6 +3,7 @@
 (require rackunit
          rackunit/text-ui
          racket/list
+         racket/runtime-path
          redex/reduction-semantics
          (prefix-in rt: "../src/random-test-support.rkt")
          "../src/core-definitions.rkt"
@@ -25,6 +26,9 @@
 (define OVERLAP-RANDOM-SAMPLES-PER-MODEL 16)
 (define OVERLAP-RANDOM-TERM-DEPTH 8)
 (define OVERLAP-RANDOM-MAX-REJECTS 800)
+
+(define-runtime-path EXTENSIONS-DIR
+  "../src/reduction-relations/extensions")
 
 (define (read-all port)
   (let ([expr (read port)])
@@ -173,6 +177,42 @@
                           cfg)))
 
 (define/provide-test-suite DETERMINISM-OVERLAP
+  (test-case "policy guard: no rule-priority/name-based precedence in extension semantics"
+    (for ([p (in-list (directory-list EXTENSIONS-DIR #:build? #t))]
+          #:when (regexp-match? #rx"\\.rkt$" (path->string p)))
+      (define src (file->string p))
+      (check-false
+       (regexp-match? #px"step-priority" src)
+       (format "forbidden priority-based determinizer found in ~a" p))
+      (check-false
+       (regexp-match?
+        #px"side-condition[^\\]]*apply-reduction-relation/tag-with-names"
+        src)
+       (format "forbidden rule-name-based precedence fence found in ~a" p))))
+
+  (test-case "regression: rail/disj overlap shape has a single next step"
+    (define cfg
+      (term
+       (()
+        (((⊤ (state () () () (label "Xi")))
+          +
+          ((⊤ (state () () () (label "pr")))
+           +
+           (((succeed (label "NiKuC"))
+             (state () () () (label "ayTAaTvy")))
+            +-> ((⊤ (state () () () (label "XAfR"))) + (empty-tree)))))
+         <-+ (delay (empty-tree))))))
+    (define tagged-next*
+      (apply-reduction-relation/tag-with-names Rl4-rail-lazy cfg))
+    (check-equal? (length tagged-next*) 1
+                  (format "expected single successor, got ~a: ~s"
+                          (length tagged-next*)
+                          tagged-next*))
+    (check-true
+     (regexp-match? #rx"^rail/promote-right-singleton-stream"
+                    (tagged-successor-name (first tagged-next*)))
+     (format "expected rail singleton promotion step, got ~s" tagged-next*)))
+
   (test-case "overlap audit: heavy L3/L4 variants"
     (define events (heavy-overlap-events))
     (check-true (null? events)
