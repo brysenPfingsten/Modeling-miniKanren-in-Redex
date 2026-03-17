@@ -6,12 +6,11 @@
          racket/string
          json
          web-server/http/response-structs
-         web-server/http/request-structs
-         net/url-structs
          "../src/app.rkt"
          "../src/zipper.rkt"
          "../src/transpiler.rkt"
          "../src/model-registry.rkt"
+         "./test-http-helpers.rkt"
          "./variant-test-support.rkt"
          "./example-compat-tests.rkt")
 
@@ -121,56 +120,6 @@
            "core/unify-success"
            "disj/promote-left-answer"))))
 
-(define (get-response-body resp)
-  (define out (open-output-string))
-  ((response-output resp) out)
-  (get-output-string out))
-
-(define (make-post-model-request model-id)
-  (make-request
-   #"POST"
-   (make-url #f #f #f #f #t
-             (list (make-path/param "post" empty)
-                   (make-path/param "model" empty))
-             empty
-             #f)
-   (list (make-header #"content-type" #"application/json"))
-   (delay '())
-   (string->bytes/utf-8 (jsexpr->string (hasheq 'model model-id)))
-   "127.0.0.1"
-   5000
-   "127.0.0.1"))
-
-(define (make-post-init-request program-text)
-  (make-request
-   #"POST"
-   (make-url #f #f #f #f #t
-             (list (make-path/param "post" empty)
-                   (make-path/param "init" empty))
-             empty
-             #f)
-   (list (make-header #"content-type" #"application/json"))
-   (delay '())
-   (string->bytes/utf-8 (jsexpr->string (hasheq 'text program-text)))
-   "127.0.0.1"
-   5000
-   "127.0.0.1"))
-
-(define (assert-step-payload-shape payload where)
-  (check-true (hash? payload) (format "~a: payload must be json object" where))
-  (check-true (exact-nonnegative-integer? (hash-ref payload 'step -1))
-              (format "~a: missing/non-integer step" where))
-  (check-true (named-step? (hash-ref payload 'stepName #f))
-              (format "~a: missing/non-string stepName" where))
-  (define program-json (hash-ref payload 'program #f))
-  (check-true (string? program-json)
-              (format "~a: missing/non-string program field" where))
-  (define tree (string->jsexpr program-json))
-  (check-true (hash? tree)
-              (format "~a: program is not a json object" where))
-  (check-true (named-step? (hash-ref tree 'name #f))
-              (format "~a: tree root missing name" where)))
-
 (define/provide-test-suite CONFIDENCE-GATES
   (test-case "golden trace prefixes stay stable and step names are always named"
     (for ([entry (in-list GOLDEN-PREFIXES)])
@@ -217,12 +166,12 @@
       (define init-resp (init! ses (make-post-init-request src) 'shape-id))
       (check-equal? (response-code init-resp) 200
                     (format "init failed for ~a / ~a" model-id label))
-      (assert-step-payload-shape (string->jsexpr (get-response-body init-resp))
+      (assert-step-payload-shape (string->jsexpr (response-body->string init-resp))
                                  (format "~a / ~a init" model-id label))
       (define seen 0)
       (for ([i (in-range 25)])
         (define step-resp (step! ses))
-        (define body (get-response-body step-resp))
+        (define body (response-body->string step-resp))
         (unless (string=? body "null")
           (set! seen (add1 seen))
           (assert-step-payload-shape (string->jsexpr body)

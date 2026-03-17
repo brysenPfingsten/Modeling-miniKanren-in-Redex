@@ -6,13 +6,13 @@
          racket/string
          json
          web-server/http/response-structs
-         web-server/http/request-structs
-         net/url-structs
          "../src/app.rkt"
          "../src/capability-analysis.rkt"
          "../src/model-registry.rkt"
+         "../src/model-surface-policy.rkt"
          "../src/transpiler.rkt"
          "../src/zipper.rkt"
+         "./test-http-helpers.rkt"
          "./variant-test-support.rkt"
          "./example-compat-tests.rkt")
 
@@ -85,57 +85,6 @@
     (define k (list (hash-ref r 'model) (hash-ref r 'status)))
     (hash-set h k (add1 (hash-ref h k 0)))))
 
-(define (response-body->string response)
-  (define out (open-output-string))
-  ((response-output response) out)
-  (get-output-string out))
-
-(define (make-post-request endpoint payload)
-  (make-request
-   #"POST"
-   (make-url #f #f #f #f #t
-             (list (make-path/param "post" empty)
-                   (make-path/param endpoint empty))
-             empty
-             #f)
-   (list (make-header #"content-type" #"application/json"))
-   (delay '())
-   (string->bytes/utf-8 (jsexpr->string payload))
-   "127.0.0.1"
-   5000
-   "127.0.0.1"))
-
-(define (make-post-analyze-request src)
-  (make-post-request "analyze" (hasheq 'text src)))
-
-(define (make-post-model-request model-id)
-  (make-post-request "model" (hasheq 'model model-id)))
-
-(define (make-post-init-request src)
-  (make-post-request "init" (hasheq 'text src)))
-
-(define (nonempty-string? v)
-  (and (string? v)
-       (positive? (string-length (string-trim v)))))
-
-(define (assert-step-payload-shape payload where)
-  (check-true (hash? payload) (format "~a: payload must be json object" where))
-  (check-true (exact-nonnegative-integer? (hash-ref payload 'step -1))
-              (format "~a: missing/non-integer step" where))
-  (check-true (nonempty-string? (hash-ref payload 'stepName #f))
-              (format "~a: missing/non-string stepName" where))
-  (define program-json (hash-ref payload 'program #f))
-  (check-true (string? program-json)
-              (format "~a: missing/non-string program field" where))
-  (define tree (string->jsexpr program-json))
-  (check-true (hash? tree)
-              (format "~a: program is not a json object" where))
-  (define root-name (hash-ref tree 'name #f))
-  (check-true (nonempty-string? root-name)
-              (format "~a: tree root missing name" where))
-  (check-false (equal? root-name "Unknown")
-               (format "~a: tree root should not be Unknown" where)))
-
 (define (run-api-steps! ses model-id label)
   (let loop ([i 0] [last-rule ""])
     (if (>= i MATRIX-STEP-CAP)
@@ -154,52 +103,94 @@
                                                    model-id label i))
                 (loop (add1 i) (hash-ref payload 'stepName ""))))))))
 
-(define/provide-test-suite MODEL-EXAMPLE-MATRIX
-  (test-case "model/example step matrix (25-step) stays deterministic and avoids known stuck regressions"
-    (define examples (frontend-example-programs))
-    (define rows
-      (for*/list ([spec (in-list all-model-specs)]
-                  [ex (in-list examples)])
-        (match-define (cons label src) ex)
-        (define reqs (hash-ref (analyze-source-capabilities src) 'requirements))
-        (define should-compat?
-          (member (model-spec-id spec)
-                  (compatible-model-ids reqs all-model-specs)))
-        (define result
-          (classify-pair (model-spec-id spec) src should-compat?))
-        (hasheq 'model (model-spec-id spec)
-                'label label
-                'should-compat? should-compat?
-                'status (hash-ref result 'status)
-                'steps (hash-ref result 'steps)
-                'last-rule (hash-ref result 'last-rule))))
+(define (source-compatible-with-model? src model-id)
+  (define requirements (hash-ref (analyze-source-capabilities src) 'requirements '()))
+  (member model-id (compatible-model-ids requirements all-model-specs)))
 
-    ;; Determinism guard.
+(define (first-compatible-example model-id examples)
+  (for/first ([(label src) (in-dict examples)]
+              #:when (source-compatible-with-model? src model-id))
+    (cons label src)))
+
+(define (make-default-session)
+  (define default-step-once (lookup-model-step-once default-model-id))
+  (unless default-step-once
+    (error 'MODEL-EXAMPLE-MATRIX
+           (format "default model missing stepper: ~a" default-model-id)))
+  (session (zipper '() #f '() 0)
+           (make-stepper default-step-once)
+           1))
+
+(define (make-heavy-row model-id label should-compat? result)
+  (hasheq 'model model-id
+          'label label
+          'should-compat? should-compat?
+          'status (hash-ref result 'status)
+          'steps (hash-ref result 'steps)
+          'last-rule (hash-ref result 'last-rule)))
+
+(define (make-smoke-row model-id label result)
+  (hasheq 'model model-id
+          'label label
+          'status (hash-ref result 'status)
+          'steps (hash-ref result 'steps)
+          'last-rule (hash-ref result 'last-rule)))
+
+(define (collect-heavy-rows specs examples runner)
+  (for*/list ([spec (in-list specs)]
+              [(label src) (in-dict examples)])
+    (define model-id (model-spec-id spec))
+    (define should-compat? (and (source-compatible-with-model? src model-id) #t))
+    (define result (runner model-id label src should-compat?))
+    (make-heavy-row model-id label should-compat? result)))
+
+(define (collect-smoke-rows specs examples runner smoke-kind)
+  (for/list ([spec (in-list specs)])
+    (define model-id (model-spec-id spec))
+    (define maybe-example (first-compatible-example model-id examples))
+    (unless maybe-example
+      (fail-check (format "no compatible ~a example found for ~a" smoke-kind model-id)))
+    (if maybe-example
+        (let ()
+          (define label (car maybe-example))
+          (define src (cdr maybe-example))
+          (define result (runner model-id label src #t))
+          (make-smoke-row model-id label result))
+        (make-smoke-row model-id "<missing>"
+                        (hasheq 'status 'missing-example 'steps 0 'last-rule "")))))
+
+(define (assert-heavy-rows rows
+                           compat-disallowed
+                           incompatible-expected
+                           #:forbid-nondeterministic? [forbid-nondeterministic? #f]
+                           #:check-primary-rail? [check-primary-rail? #f]
+                           #:context [context "heavy"])
+  (when forbid-nondeterministic?
     (for ([r (in-list rows)])
       (check-false (eq? (hash-ref r 'status) 'nondeterministic)
-                   (format "unexpected nondeterminism for ~a / ~a (choices=~a)"
+                   (format "~a: unexpected nondeterminism for ~a / ~a (choices=~a)"
+                           context
                            (hash-ref r 'model)
                            (hash-ref r 'label)
-                           (hash-ref r 'last-rule))))
-
-    ;; Compatibility guard: compatible pairs should not be marked incompatible.
-    (for ([r (in-list rows)])
-      (when (hash-ref r 'should-compat? #f)
-        (check-false (eq? (hash-ref r 'status) 'incompatible)
-                     (format "unexpected incompatible pair ~a / ~a"
-                             (hash-ref r 'model)
-                             (hash-ref r 'label)))))
-
-    ;; Incompatibility guard: incompatible pairs should be rejected early.
-    (for ([r (in-list rows)])
-      (when (not (hash-ref r 'should-compat? #t))
-        (check-equal? (hash-ref r 'status) 'incompatible
-                      (format "expected incompatible pair for ~a / ~a, got ~a"
-                              (hash-ref r 'model)
-                              (hash-ref r 'label)
-                              (hash-ref r 'status)))))
-
-    ;; Regression guard: fives/fours should not get stuck in rail-family semantics.
+                           (hash-ref r 'last-rule)))))
+  (for ([r (in-list rows)])
+    (when (hash-ref r 'should-compat? #f)
+      (check-false (member (hash-ref r 'status) compat-disallowed)
+                   (format "~a: compatible pair failed for ~a / ~a (status=~a last-rule=~a)"
+                           context
+                           (hash-ref r 'model)
+                           (hash-ref r 'label)
+                           (hash-ref r 'status)
+                           (hash-ref r 'last-rule)))))
+  (for ([r (in-list rows)])
+    (when (not (hash-ref r 'should-compat? #t))
+      (check-equal? (hash-ref r 'status) incompatible-expected
+                    (format "~a: expected incompatible pair for ~a / ~a, got ~a"
+                            context
+                            (hash-ref r 'model)
+                            (hash-ref r 'label)
+                            (hash-ref r 'status)))))
+  (when check-primary-rail?
     (for ([mid (in-list PRIMARY-RAIL-MODELS)])
       (define row
         (for/first ([r (in-list rows)]
@@ -211,103 +202,114 @@
                    (format "stuck regression for ~a / fives/fours (last-rule=~a, steps=~a)"
                            mid
                            (hash-ref row 'last-rule)
-                           (hash-ref row 'steps))))
+                           (hash-ref row 'steps))))))
 
-    ;; Core L0-safe baseline should always complete quickly in compatible models.
-    (for ([r (in-list rows)]
-          #:when (equal? (hash-ref r 'label) "core/fresh+conj+unify"))
-      (check-equal? (hash-ref r 'status) 'value
-                    (format "core/fresh+conj+unify should finish for ~a (got ~a)"
-                            (hash-ref r 'model)
-                            (hash-ref r 'status))))
+(define (assert-smoke-rows rows disallowed-statuses context)
+  (for ([r (in-list rows)])
+    (check-false (member (hash-ref r 'status) disallowed-statuses)
+                 (format "~a: regression for ~a / ~a (status=~a last-rule=~a steps=~a)"
+                         context
+                         (hash-ref r 'model)
+                         (hash-ref r 'label)
+                         (hash-ref r 'status)
+                         (hash-ref r 'last-rule)
+                         (hash-ref r 'steps)))))
 
-    ;; Debug summary in test output.
-    (displayln (format "[matrix-tests] 25-step summary: ~s" (summarize rows))))
+(define (run-heavy-row/direct model-id _label src should-compat?)
+  (classify-pair model-id src should-compat?))
 
-  (test-case "api flow matrix (analyze->switch->init->step) validates compatibility and payload shape"
+(define (run-smoke-row/direct model-id _label src _should-compat?)
+  (classify-pair model-id src #t))
+
+(define (run-heavy-row/api model-id label src should-compat?)
+  (define analyze-resp (analyze! #f (make-post-analyze-request src)))
+  (check-equal? (response-code analyze-resp) 200
+                (format "analyze failed for ~a" label))
+  (define analyze-body (string->jsexpr (response-body->string analyze-resp)))
+  (check-true (hash-ref analyze-body 'validSyntax #f)
+              (format "analyze returned invalid syntax for ~a" label))
+  (define compatible-ids (hash-ref analyze-body 'compatibleModelIds '()))
+  (check-equal? (and (member model-id compatible-ids) #t) (and should-compat? #t)
+                (format "analyze/model compatibility mismatch for ~a / ~a" model-id label))
+  (define ses (make-default-session))
+  (define model-resp (switch-model! ses (make-post-model-request model-id) 'matrix-id))
+  (check-equal? (response-code model-resp) 200
+                (format "switch-model failed for ~a" model-id))
+  (if should-compat?
+      (with-handlers ([exn:fail?
+                       (lambda (e)
+                         (hasheq 'status 'init-error
+                                 'steps 0
+                                 'last-rule (exn-message e)))])
+        (define init-resp (init! ses (make-post-init-request src) 'matrix-id))
+        (check-equal? (response-code init-resp) 200
+                      (format "init failed for compatible pair ~a / ~a"
+                              model-id
+                              label))
+        (assert-step-payload-shape (string->jsexpr (response-body->string init-resp))
+                                   (format "~a / ~a init" model-id label))
+        (run-api-steps! ses model-id label))
+      (let ([failed?
+             (with-handlers ([exn:fail? (lambda (_e) #t)])
+               (init! ses (make-post-init-request src) 'matrix-id)
+               #f)])
+        (when (not failed?)
+          (fail-check
+           (format "expected incompatible init rejection for ~a / ~a"
+                   model-id
+                   label)))
+        (hasheq 'status 'incompatible
+                'steps 0
+                'last-rule ""))))
+
+(define (run-smoke-row/api model-id label src _should-compat?)
+  (define analyze-resp (analyze! #f (make-post-analyze-request src)))
+  (check-equal? (response-code analyze-resp) 200
+                (format "smoke analyze failed for ~a / ~a" model-id label))
+  (define ses (make-default-session))
+  (define model-resp (switch-model! ses (make-post-model-request model-id) 'matrix-id))
+  (check-equal? (response-code model-resp) 200
+                (format "smoke switch-model failed for ~a" model-id))
+  (with-handlers ([exn:fail?
+                   (lambda (e)
+                     (hasheq 'status 'init-error
+                             'steps 0
+                             'last-rule (exn-message e)))])
+    (define init-resp (init! ses (make-post-init-request src) 'matrix-id))
+    (check-equal? (response-code init-resp) 200
+                  (format "smoke init failed for ~a / ~a" model-id label))
+    (assert-step-payload-shape (string->jsexpr (response-body->string init-resp))
+                               (format "smoke ~a / ~a init" model-id label))
+    (run-api-steps! ses model-id label)))
+
+(define/provide-test-suite MODEL-EXAMPLE-MATRIX
+  (test-case "matrix lane: heavy L3/L4 full coverage; internal L0/L1/L2 smoke only"
     (define examples (frontend-example-programs))
-    (define rows
-      (for*/list ([spec (in-list all-model-specs)]
-                  [ex (in-list examples)])
-        (match-define (cons label src) ex)
-        (define model-id (model-spec-id spec))
+    (define heavy-rows (collect-heavy-rows surfaced-model-specs examples run-heavy-row/direct))
+    (assert-heavy-rows heavy-rows '(incompatible) 'incompatible
+                       #:forbid-nondeterministic? #t
+                       #:check-primary-rail? #t
+                       #:context "direct matrix")
+    (define smoke-rows
+      (collect-smoke-rows internal-smoke-model-specs examples run-smoke-row/direct "smoke"))
+    (assert-smoke-rows smoke-rows '(stuck incompatible nondeterministic missing-example)
+                       "internal smoke")
 
-        (define analyze-resp (analyze! #f (make-post-analyze-request src)))
-        (check-equal? (response-code analyze-resp) 200
-                      (format "analyze failed for ~a" label))
-        (define analyze-body (string->jsexpr (response-body->string analyze-resp)))
-        (check-true (hash-ref analyze-body 'validSyntax #f)
-                    (format "analyze returned invalid syntax for ~a" label))
+    (displayln (format "[matrix-tests] heavy summary: ~s" (summarize heavy-rows)))
+    (displayln (format "[matrix-tests] internal smoke summary: ~s" (summarize smoke-rows))))
 
-        (define compatible-ids (hash-ref analyze-body 'compatibleModelIds '()))
-        (define should-compat? (member model-id compatible-ids))
+  (test-case "api-flow lane: heavy L3/L4 full matrix; internal L0/L1/L2 bounded smoke"
+    (define examples (frontend-example-programs))
+    (define heavy-rows (collect-heavy-rows surfaced-model-specs examples run-heavy-row/api))
+    (assert-heavy-rows heavy-rows '(incompatible init-error) 'incompatible
+                       #:context "api matrix")
+    (define smoke-rows
+      (collect-smoke-rows internal-smoke-model-specs examples run-smoke-row/api "API-smoke"))
+    (assert-smoke-rows smoke-rows '(stuck incompatible init-error missing-example)
+                       "internal API smoke")
 
-        (define default-step-once (lookup-model-step-once default-model-id))
-        (unless default-step-once
-          (error 'MODEL-EXAMPLE-MATRIX
-                 (format "default model missing stepper: ~a" default-model-id)))
-        (define ses
-          (session (zipper '() #f '() 0)
-                   (make-stepper default-step-once)
-                   1))
-
-        (define model-resp (switch-model! ses (make-post-model-request model-id) 'matrix-id))
-        (check-equal? (response-code model-resp) 200
-                      (format "switch-model failed for ~a" model-id))
-
-        (define row
-          (if should-compat?
-              (with-handlers ([exn:fail?
-                               (lambda (e)
-                                 (hasheq 'status 'init-error
-                                         'steps 0
-                                         'last-rule (exn-message e)))])
-                (define init-resp (init! ses (make-post-init-request src) 'matrix-id))
-                (check-equal? (response-code init-resp) 200
-                              (format "init failed for compatible pair ~a / ~a"
-                                      model-id
-                                      label))
-                (assert-step-payload-shape (string->jsexpr (response-body->string init-resp))
-                                           (format "~a / ~a init" model-id label))
-                (run-api-steps! ses model-id label))
-              (let ([failed?
-                     (with-handlers ([exn:fail? (lambda (_e) #t)])
-                       (init! ses (make-post-init-request src) 'matrix-id)
-                       #f)])
-                (when (not failed?)
-                  (fail-check
-                   (format "expected incompatible init rejection for ~a / ~a"
-                           model-id
-                           label)))
-                (hasheq 'status 'incompatible
-                        'steps 0
-                        'last-rule ""))))
-
-        (hasheq 'model model-id
-                'label label
-                'should-compat? should-compat?
-                'status (hash-ref row 'status)
-                'steps (hash-ref row 'steps)
-                'last-rule (hash-ref row 'last-rule))))
-
-    (for ([r (in-list rows)])
-      (when (hash-ref r 'should-compat? #f)
-        (check-false (member (hash-ref r 'status) '(incompatible init-error))
-                     (format "compatible pair failed API flow: ~a / ~a (status=~a last-rule=~a)"
-                             (hash-ref r 'model)
-                             (hash-ref r 'label)
-                             (hash-ref r 'status)
-                             (hash-ref r 'last-rule)))))
-
-    (for ([r (in-list rows)])
-      (when (not (hash-ref r 'should-compat? #t))
-        (check-equal? (hash-ref r 'status) 'incompatible
-                      (format "incompatible pair should reject init: ~a / ~a (status=~a)"
-                              (hash-ref r 'model)
-                              (hash-ref r 'label)
-                              (hash-ref r 'status)))))
-
-    (displayln (format "[matrix-tests] api-flow summary: ~s" (summarize rows)))))
+    (displayln (format "[matrix-tests] heavy api-flow summary: ~s" (summarize heavy-rows)))
+    (displayln (format "[matrix-tests] internal smoke api-flow summary: ~s" (summarize smoke-rows)))))
 
 (module+ test
   (run-tests MODEL-EXAMPLE-MATRIX))

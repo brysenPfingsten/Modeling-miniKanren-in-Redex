@@ -22,8 +22,10 @@
          shape-closed/L4?
          symbols-in
          tree-of
+         seam-config-candidates
          sigma-a
          sigma-b
+         cfg-core
          cfg-call
          cfg-disj
          cfg-flip
@@ -137,6 +139,9 @@
 (define sigma-b
   (term (state () () () (label "b"))))
 
+(define cfg-core
+  (term (() (⊤ (state () () () (label "s"))))))
+
 (define cfg-call
   (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
          ((r:id (sym "ok") (label "call"))
@@ -156,3 +161,11 @@
   (term (() ((delay (empty-tree))
              <-+
              (⊤ (state () () () (label "b")))))))
+
+;; Shared seam corpus for bounded smoke/determinism checks at relation boundaries.
+(define seam-config-candidates
+  (list cfg-core
+        cfg-call
+        cfg-disj
+        cfg-flip
+        cfg-rail))

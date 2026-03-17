@@ -12,6 +12,7 @@
          (prefix-in core: "../src/reduction-relations/core-reduction-relations.rkt")
          "../src/reduction-relations/extensions/variant-relations.rkt"
          "../src/model-registry.rkt"
+         "../src/model-surface-policy.rkt"
          "../src/capability-analysis.rkt"
          "../src/transpiler.rkt"
          "./example-compat-tests.rkt"
@@ -112,20 +113,19 @@
         cfg
         (loop (add1 attempt)))))
 
-(define (compatible-example-seeds)
+(define (compatible-example-seeds model-ids)
   (define examples (frontend-example-programs))
-  (for*/list ([spec (in-list all-model-specs)]
+  (for*/list ([model-id (in-list model-ids)]
               [ex (in-list examples)])
-    (match-define (cons label src) ex)
-    (define model-id (model-spec-id spec))
+    (match-define (cons _label src) ex)
     (define reqs (hash-ref (analyze-source-capabilities src) 'requirements))
     (define compatible-models (compatible-model-ids reqs all-model-specs))
     (if (member model-id compatible-models)
         (let ()
           (define-values (cfg0 _html) (parse-src/canonical src))
           (and (model-domain? model-id cfg0)
+               (model-wf? model-id cfg0)
                (hash 'model-id model-id
-                     'label label
                      'cfg cfg0)))
         #f)))
 
@@ -134,22 +134,17 @@
              #:when x)
     x))
 
-(define (sample-with-rng rng xs count)
-  (for/list ([_ (in-range count)])
-    (list-ref xs (rt:rng-random rng (length xs)))))
-
-(define (all-overlap-events)
-  (define matrix-seeds (drop-false (compatible-example-seeds)))
+(define (heavy-overlap-events)
+  (define matrix-seeds (drop-false (compatible-example-seeds surfaced-model-ids)))
   (define matrix-events
-    (for*/list ([seed (in-list matrix-seeds)])
+    (for/list ([seed (in-list matrix-seeds)])
       (trace-overlap-events
        (hash-ref seed 'model-id)
        (model-id->relation (hash-ref seed 'model-id))
        (hash-ref seed 'cfg))))
   (define random-events
     (for*/list ([seed (in-list OVERLAP-RANDOM-SEEDS)]
-                [spec (in-list all-model-specs)])
-      (define model-id (model-spec-id spec))
+                [model-id (in-list surfaced-model-ids)])
       (define rng (rt:make-seeded-rng seed))
       (for/list ([cfg
                   (in-list
@@ -160,13 +155,43 @@
                               cfg))))
   (append* (append matrix-events (append* random-events))))
 
+(define (internal-seam-model-cfgs)
+  (for/list ([model-id (in-list internal-smoke-model-ids)])
+    (define cfgs
+      (for/list ([cfg (in-list seam-config-candidates)]
+                 #:when (and (model-domain? model-id cfg)
+                             (model-wf? model-id cfg)))
+        cfg))
+    (hash 'model-id model-id
+          'cfgs cfgs)))
+
+(define (internal-seam-overlap-events seam-model-cfgs)
+  (for*/list ([entry (in-list seam-model-cfgs)]
+              [cfg (in-list (hash-ref entry 'cfgs))])
+    (trace-overlap-events (hash-ref entry 'model-id)
+                          (model-id->relation (hash-ref entry 'model-id))
+                          cfg)))
+
 (define/provide-test-suite DETERMINISM-OVERLAP
-  (test-case "overlap audit: no multi-rule overlap in canonical deterministic variants"
-    (define events (all-overlap-events))
+  (test-case "overlap audit: heavy L3/L4 variants"
+    (define events (heavy-overlap-events))
     (check-true (null? events)
                 (if (null? events)
-                    "no overlaps"
-                    (format "overlap events found: ~s" events)))))
+                    "no heavy-model overlaps"
+                    (format "heavy overlap events found: ~s" events))))
+
+  (test-case "overlap audit: internal L0/L1/L2 seam smoke"
+    (define seam-model-cfgs (internal-seam-model-cfgs))
+    (for ([entry (in-list seam-model-cfgs)])
+      (define model-id (hash-ref entry 'model-id))
+      (define cfgs (hash-ref entry 'cfgs))
+      (check-true (pair? cfgs)
+                  (format "no seam-corpus configs in domain/wf for ~a" model-id)))
+    (define events (append* (internal-seam-overlap-events seam-model-cfgs)))
+    (check-true (null? events)
+                (if (null? events)
+                    "no internal seam overlaps"
+                    (format "internal seam overlap events found: ~s" events)))))
 
 (module+ test
   (run-tests DETERMINISM-OVERLAP))

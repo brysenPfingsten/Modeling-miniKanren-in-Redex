@@ -3,11 +3,12 @@
          rackunit/text-ui
          web-server/http/response-structs
          web-server/http/request-structs
-         net/url-structs
          json
          "../src/app.rkt"
+         "../src/model-surface-policy.rkt"
          "../src/zipper.rkt"
-         "../src/transpiler.rkt")
+         "../src/transpiler.rkt"
+         "./test-http-helpers.rkt")
 
 (define sample-tree
   '(() ((∃
@@ -18,56 +19,6 @@
 
 (define step/const-tree-output
   (make-stepper (lambda (_) (list (list "foo" sample-tree)))))
-
-(define (get-response-out response)
-  (let ([out (open-output-string)])
-    ((response-output response) out)
-    (get-output-string out)))
-
-(define (make-post-model-request model)
-  (make-request
-   #"POST"
-   (make-url #f #f #f #f #t
-             (list (make-path/param "post" empty)
-                   (make-path/param "model" empty))
-             empty
-             #f)
-   (list (make-header #"content-type" #"application/json"))
-   (delay '())
-   (string->bytes/utf-8 (format "{\"model\":\"~a\"}" model))
-   "127.0.0.1"
-   5000
-   "127.0.0.1"))
-
-(define (make-post-init-request program-text)
-  (make-request
-   #"POST"
-   (make-url #f #f #f #f #t
-             (list (make-path/param "post" empty)
-                   (make-path/param "init" empty))
-             empty
-             #f)
-   (list (make-header #"content-type" #"application/json"))
-   (delay '())
-   (string->bytes/utf-8 (jsexpr->string (hasheq 'text program-text)))
-   "127.0.0.1"
-   5000
-   "127.0.0.1"))
-
-(define (make-post-analyze-request program-text)
-  (make-request
-   #"POST"
-   (make-url #f #f #f #f #t
-             (list (make-path/param "post" empty)
-                   (make-path/param "analyze" empty))
-             empty
-             #f)
-   (list (make-header #"content-type" #"application/json"))
-   (delay '())
-   (string->bytes/utf-8 (jsexpr->string (hasheq 'text program-text)))
-   "127.0.0.1"
-   5000
-   "127.0.0.1"))
 
 (define disj-delay-program
   "(defrel (same x y)
@@ -83,7 +34,7 @@
     (if (>= i limit)
         (reverse acc)
         (let* ([response (step! ses)]
-               [out (get-response-out response)])
+               [out (response-body->string response)])
           (if (string=? out "null")
               (reverse acc)
               (loop (add1 i)
@@ -103,7 +54,7 @@
               (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
               (check-equal? (response-headers response)
                             (list (make-header #"X-Done" #"true")))
-              (check-equal? (get-response-out response) "null")
+              (check-equal? (response-body->string response) "null")
               (define new-zipper (session-zipper ses))
               (check-equal? zip new-zipper))
 
@@ -116,7 +67,7 @@
               (check-equal? (response-message response) #"OK")
               (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
               (check-equal? (response-headers response) '())
-              (check-equal? (get-response-out response)
+              (check-equal? (response-body->string response)
                             "{\"program\":\"{\\\"children\\\":[{\\\"id\\\":\\\"u5\\\",\\\"left\\\":{\\\"sym\\\":\\\"tree1\\\"},\\\"name\\\":\\\"Unify\\\",\\\"right\\\":{\\\"sym\\\":\\\"horse\\\"}}],\\\"id\\\":\\\"f0\\\",\\\"name\\\":\\\"Fresh\\\",\\\"reified\\\":[],\\\"stateId\\\":\\\"s\\\",\\\"sub\\\":[],\\\"trail\\\":[],\\\"vars\\\":[{\\\"var\\\":\\\"q\\\"}]}\",\"step\":2,\"stepName\":\"foo\"}")
               (define new-zipper (session-zipper ses))
               (check-equal? (zipper-prev new-zipper) (list (step "foo" sample-tree)))
@@ -133,7 +84,7 @@
               (check-equal? (response-message response) #"OK")
               (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
               (check-equal? (response-headers response) '())
-              (check-equal? (get-response-out response)
+              (check-equal? (response-body->string response)
                             "{\"program\":\"{\\\"children\\\":[{\\\"id\\\":\\\"u5\\\",\\\"left\\\":{\\\"sym\\\":\\\"tree1\\\"},\\\"name\\\":\\\"Unify\\\",\\\"right\\\":{\\\"sym\\\":\\\"horse\\\"}}],\\\"id\\\":\\\"f0\\\",\\\"name\\\":\\\"Fresh\\\",\\\"reified\\\":[],\\\"stateId\\\":\\\"s\\\",\\\"sub\\\":[],\\\"trail\\\":[],\\\"vars\\\":[{\\\"var\\\":\\\"q\\\"}]}\",\"step\":2,\"stepName\":\"bar\"}")
               (define new-zipper (session-zipper ses))
               (check-equal? (zipper-prev new-zipper) (list (step "foo" sample-tree)))
@@ -148,20 +99,7 @@
   #:after (thunk (displayln "Finished running tests for init!."))
 
   (test-case "init! parses, updates state, and sends response with json and string prog"
-              (define sample-req
-              (make-request
-              #"POST"
-              (make-url #f #f #f #f #t
-                        (list (make-path/param "post" empty)
-                              (make-path/param "init" empty))
-                        empty
-                        #f)
-              (list (make-header #"content-type" #"application/json"))
-              (delay '())
-              (string->bytes/utf-8 "{\"text\":\"(run* (q) (== 'a 'a))\"}")
-              "127.0.0.1"
-              5000
-              "127.0.0.1"))
+              (define sample-req (make-post-init-request "(run* (q) (== 'a 'a))"))
               (define zip (zipper '() #f '() 0))
               (define stepper identity)
               (define ses (session zip stepper 1))
@@ -172,27 +110,14 @@
                             APPLICATION/JSON-MIME-TYPE)
               (check-equal? (response-headers response) 
                             (list (header #"Set-Cookie" #"session-id=testid; Path=/; SameSite=Lax")))
-              (define json-response (string->jsexpr (get-response-out response)))
+              (define json-response (string->jsexpr (response-body->string response)))
               (check-equal? (hash-ref json-response 'stepName #f) "Initialize Program")
               (check-equal? (hash-ref json-response 'step #f) 0)
               (check-not-false (hash-ref json-response 'program #f))
               (check-not-false (hash-ref json-response 'htmlGuids #f)))
 
   (test-case "init! throws error if program is not syntactically correct"
-              (define sample-req
-              (make-request
-              #"POST"
-              (make-url #f #f #f #f #t
-                        (list (make-path/param "post" empty)
-                              (make-path/param "init" empty))
-                        empty
-                        #f)
-              (list (make-header #"content-type" #"application/json"))
-              (delay '())
-              (string->bytes/utf-8 "{\"text\":\"(run* (== 'a 'a))\"}")
-              "127.0.0.1"
-              5000
-              "127.0.0.1"))
+              (define sample-req (make-post-init-request "(run* (== 'a 'a))"))
               (define zip (zipper '() #f '() 0))
               (define stepper identity)
               (define ses (session zip stepper 1))
@@ -227,7 +152,7 @@
                            APPLICATION/JSON-MIME-TYPE)
              (check-equal? (response-headers response) 
                            (list (header #"X-Is-Last" #"true")))
-             (check-equal? (get-response-out response)
+             (check-equal? (response-body->string response)
                            "{\"program\":\"{\\\"children\\\":[{\\\"id\\\":\\\"u5\\\",\\\"left\\\":{\\\"sym\\\":\\\"tree1\\\"},\\\"name\\\":\\\"Unify\\\",\\\"right\\\":{\\\"sym\\\":\\\"horse\\\"}}],\\\"id\\\":\\\"f0\\\",\\\"name\\\":\\\"Fresh\\\",\\\"reified\\\":[],\\\"stateId\\\":\\\"s\\\",\\\"sub\\\":[],\\\"trail\\\":[],\\\"vars\\\":[{\\\"var\\\":\\\"q\\\"}]}\",\"step\":0,\"stepName\":\"Initialize Program\"}")
              (check-false (hash-ref ses-table 'testid false)))
 
@@ -244,7 +169,7 @@
              (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
              (check-equal? (response-headers response)
                            (list (make-header #"X-Is-Last" #"true")))
-             (check-equal? (get-response-out response)
+             (check-equal? (response-body->string response)
                            "{\"program\":\"{\\\"children\\\":[{\\\"id\\\":\\\"u5\\\",\\\"left\\\":{\\\"sym\\\":\\\"tree1\\\"},\\\"name\\\":\\\"Unify\\\",\\\"right\\\":{\\\"sym\\\":\\\"horse\\\"}}],\\\"id\\\":\\\"f0\\\",\\\"name\\\":\\\"Fresh\\\",\\\"reified\\\":[],\\\"stateId\\\":\\\"s\\\",\\\"sub\\\":[],\\\"trail\\\":[],\\\"vars\\\":[{\\\"var\\\":\\\"q\\\"}]}\",\"step\":0,\"stepName\":\"Initialize Program\"}")
              (check-false (hash-ref ses-table 'testid false)))
   )
@@ -263,7 +188,7 @@
              (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
              (check-equal? (response-headers response)
                            (list (header #"X-Is-Last" #"true")))
-             (check-equal? (get-response-out response)
+             (check-equal? (response-body->string response)
                            "{\"program\":\"{\\\"children\\\":[{\\\"id\\\":\\\"u5\\\",\\\"left\\\":{\\\"sym\\\":\\\"tree1\\\"},\\\"name\\\":\\\"Unify\\\",\\\"right\\\":{\\\"sym\\\":\\\"horse\\\"}}],\\\"id\\\":\\\"f0\\\",\\\"name\\\":\\\"Fresh\\\",\\\"reified\\\":[],\\\"stateId\\\":\\\"s\\\",\\\"sub\\\":[],\\\"trail\\\":[],\\\"vars\\\":[{\\\"var\\\":\\\"q\\\"}]}\",\"step\":0,\"stepName\":\"Initialize Program\"}")
              (define new-zipper (session-zipper ses))
              (check-equal? (zipper-prev new-zipper) '())
@@ -280,7 +205,7 @@
               (check-equal? (response-message response) #"OK")
               (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
               (check-equal? (response-headers response) '())
-              (check-equal? (get-response-out response)
+              (check-equal? (response-body->string response)
                             "{\"program\":\"{\\\"children\\\":[{\\\"id\\\":\\\"u5\\\",\\\"left\\\":{\\\"sym\\\":\\\"tree1\\\"},\\\"name\\\":\\\"Unify\\\",\\\"right\\\":{\\\"sym\\\":\\\"horse\\\"}}],\\\"id\\\":\\\"f0\\\",\\\"name\\\":\\\"Fresh\\\",\\\"reified\\\":[],\\\"stateId\\\":\\\"s\\\",\\\"sub\\\":[],\\\"trail\\\":[],\\\"vars\\\":[{\\\"var\\\":\\\"q\\\"}]}\",\"step\":1,\"stepName\":\"Initialize Program\"}")
               (define new-zipper (session-zipper ses))
               (check-equal? (zipper-prev new-zipper) '(test1))
@@ -304,7 +229,7 @@
              (check-false (eq? (session-stepper ses) old-stepper))
              (check-equal? (response-headers response)
                            (list (header #"Set-Cookie" #"session-id=testid; Path=/; SameSite=Lax")))
-             (check-equal? (string->jsexpr (get-response-out response))
+             (check-equal? (string->jsexpr (response-body->string response))
                            (hasheq 'model "mk-l3-dfs-lazy")))
 
   (test-case "switch-model! supports core-only model id"
@@ -316,7 +241,7 @@
              (check-equal? (response-code response) 200)
              (check-true (procedure? (session-stepper ses)))
              (check-false (eq? (session-stepper ses) old-stepper))
-             (check-equal? (string->jsexpr (get-response-out response))
+             (check-equal? (string->jsexpr (response-body->string response))
                            (hasheq 'model "mk-l0-core")))
 
   (test-case "switch-model! rejects unknown model id and keeps existing stepper"
@@ -327,7 +252,7 @@
              (define response (switch-model! ses req 'testid))
              (check-equal? (response-code response) 400)
              (check-true (eq? (session-stepper ses) old-stepper))
-             (check-true (hash-has-key? (string->jsexpr (get-response-out response)) 'error)))
+             (check-true (hash-has-key? (string->jsexpr (response-body->string response)) 'error)))
 
   (test-case "flip model emits flip delay/disjunction rules (no railroad disjunction rules)"
              (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
@@ -366,21 +291,13 @@
   (test-case "list-models! returns known backend models with parser contract"
              (define response (list-models!))
              (check-equal? (response-code response) 200)
-             (define models (string->jsexpr (get-response-out response)))
+             (define models (string->jsexpr (response-body->string response)))
              (check-true (list? models))
-             (check-true (>= (length models) 10))
+             (check-true (>= (length models) (length surfaced-model-ids)))
              (define ids (for/list ([m (in-list models)])
                            (hash-ref m 'id #f)))
-             (check-not-false (member "mk-l0-core" ids))
-             (check-not-false (member "mk-l1-call-lazy" ids))
-             (check-not-false (member "mk-l1-call-eager" ids))
-             (check-not-false (member "mk-l2-disj-left" ids))
-             (check-not-false (member "mk-l4-rail-lazy" ids))
-             (check-not-false (member "mk-l3-dfs-lazy" ids))
-             (check-not-false (member "mk-l4-rail-eager" ids))
-             (check-not-false (member "mk-l3-dfs-eager" ids))
-             (check-not-false (member "mk-l3-flip-lazy" ids))
-             (check-not-false (member "mk-l3-flip-eager" ids))
+             (for ([id (in-list surfaced-model-ids)])
+               (check-not-false (member id ids)))
              (check-true (for/and ([m (in-list models)])
                            (and (hash-has-key? m 'parserProfile)
                                 (hash-has-key? m 'parserTarget)
@@ -396,19 +313,14 @@
              (define req (make-post-analyze-request "(run* (q) (fresh (x) (== q x)))"))
              (define response (analyze! #f req))
              (check-equal? (response-code response) 200)
-             (define body (string->jsexpr (get-response-out response)))
-             (check-true (hash-ref body 'validSyntax #f))
-             (check-true (list? (hash-ref body 'requirements '())))
-             (check-true (list? (hash-ref body 'compatibleModelIds '())))
-             (check-true (list? (hash-ref body 'incompatibleModelIds '())))
-             (check-true (hash? (hash-ref body 'incompatReasonsByModel #hash())))
-             (check-true (string? (hash-ref body 'analysisVersion ""))))
+             (define body (string->jsexpr (response-body->string response)))
+             (assert-analyze-payload-shape body "analyze valid source"))
 
   (test-case "analyze! returns 400 on syntax error"
              (define req (make-post-analyze-request "(run* (== 'a 'a))"))
              (define response (analyze! #f req))
              (check-equal? (response-code response) 400)
-             (define body (string->jsexpr (get-response-out response)))
+             (define body (string->jsexpr (response-body->string response)))
              (check-false (hash-ref body 'validSyntax #t))
              (check-true (hash-has-key? body 'error)))
 
@@ -418,8 +330,9 @@
                 "(run* (q) (fresh (x) (== q x)))"))
              (define response (analyze! #f req))
              (check-equal? (response-code response) 200)
-             (define body (string->jsexpr (get-response-out response)))
-             (define models-res (string->jsexpr (get-response-out (list-models!))))
+             (define body (string->jsexpr (response-body->string response)))
+             (assert-analyze-payload-shape body "analyze compatibility ids")
+             (define models-res (string->jsexpr (response-body->string (list-models!))))
              (define known-ids
                (for/set ([m (in-list models-res)])
                  (hash-ref m 'id #f)))
@@ -428,7 +341,7 @@
              (for ([id (in-list (hash-ref body 'incompatibleModelIds '()))])
                (check-true (set-member? known-ids id))))
 
-  (test-case "analyze! returns mixed compatible/incompatible payload for appendo"
+  (test-case "analyze! returns surfaced-compatible payload for appendo"
              (define req
                (make-post-analyze-request
                 "(defrel (appendo l s out)
@@ -441,21 +354,15 @@
                  (run* (q) (appendo (list 'mini) (list 'kanren) q))"))
              (define response (analyze! #f req))
              (check-equal? (response-code response) 200)
-             (define body (string->jsexpr (get-response-out response)))
-             (check-true (hash-ref body 'validSyntax #f))
+             (define body (string->jsexpr (response-body->string response)))
+             (assert-analyze-payload-shape body "analyze appendo")
              (check-not-false (member "mk-l3-dfs-lazy"
                                       (hash-ref body 'compatibleModelIds '())))
-             (check-not-false (member "mk-l0-core"
-                                      (hash-ref body 'incompatibleModelIds '())))
+             (check-not-false (member "mk-l4-rail-lazy"
+                                      (hash-ref body 'compatibleModelIds '())))
+             (check-true (null? (hash-ref body 'incompatibleModelIds '())))
              (define reasons-by-model (hash-ref body 'incompatReasonsByModel #hash()))
-             (define reasons-l0
-               (or (hash-ref reasons-by-model "mk-l0-core" #f)
-                   (hash-ref reasons-by-model 'mk-l0-core #f)
-                   '()))
-             (check-true (pair? reasons-l0))
-             (check-not-false
-              (member "missing cap/relcall (required by req/relcall)"
-                      reasons-l0))))
+             (check-equal? (hash-count reasons-by-model) 0)))
 
 (define/provide-test-suite APP
   #:before (thunk (displayln "Running tests for app.rkt..."))
