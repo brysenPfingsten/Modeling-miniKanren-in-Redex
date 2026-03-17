@@ -22,11 +22,12 @@ This note is a restart map: what has been decided, what is provisional, and what
   - railroad variants.
 - Important clarification: once disjunction tree nodes exist in syntax, semantics must include a concrete scheduling/stepping choice for those nodes (deterministic policy is acceptable; "syntax only" is not enough for progress/preservation claims).
 - Active surfaced model lattice now includes:
+  - `mk-l3-{dfs,flip}-{lazy,eager}`
+  - `mk-l4-rail-{lazy,eager}`
+- Internal (hidden) architecture-preserving tiers remain:
   - `mk-l0-core`
   - `mk-l1-call-{lazy,eager}`
   - `mk-l2-disj-left`
-  - `mk-l3-{dfs,flip}-{lazy,eager}`
-  - `mk-l4-rail-{lazy,eager}`
 - WF/generator refactor direction is now locked:
   - WF stack unification into `wf-kernel` -> `wf-core` -> `wf-variants`.
   - Shared randomized generator mechanics in dedicated kernel/support modules.
@@ -59,6 +60,8 @@ This note is a restart map: what has been decided, what is provisional, and what
 ### 1.3) Compatibility Dispatch + Gating (implemented)
 - Backend model registry is now source-of-truth for selectable semantics:
   - `GET /api/get/models` via `racket-server/src/model-registry.rkt`
+- Surface policy is now split from semantics:
+  - `racket-server/src/model-surface-policy.rkt` defines surfaced/heavy/internal tiers.
 - Backend capability analysis is implemented:
   - `racket-server/src/capability-analysis.rkt`
   - `POST /api/post/analyze` in `racket-server/src/app.rkt`
@@ -76,7 +79,10 @@ This note is a restart map: what has been decided, what is provisional, and what
   - frontend gating logic: `npm --prefix frontend test`
   - model/example API-flow matrix:
     - `racket-server/tests/model-example-matrix-tests.rkt`
-- Matrix API-flow lane validates, for all `model × example` pairs:
+- Matrix API-flow lane validates by tier:
+  - heavy (`L3/L4` surfaced): full `model × example` coverage,
+  - internal smoke (`L0/L1/L2` hidden): bounded seam/smoke checks.
+- Both tiers validate:
   - analyze -> switch-model -> init -> step (up to 25 or termination),
   - payload shape invariants (`step`, `stepName`, JSON `program`) at each step.
 - Active-lane legacy retirement status:

@@ -40,6 +40,10 @@ Runs full model/example compatibility and stepping audit without manual clicking
 - step up to 25 or termination (`GET /api/get/next`)
 - assert payload shape each step (`step`, `stepName`, JSON `program`)
 
+Tiering policy:
+- Heavy coverage (`L3/L4` surfaced models): full example matrix.
+- Internal smoke (`L0/L1/L2` hidden models): bounded seam/smoke checks only.
+
 ```sh
 raco test racket-server/tests/model-example-matrix-tests.rkt
 ```
@@ -47,4 +51,4 @@ raco test racket-server/tests/model-example-matrix-tests.rkt
 ## Notes
 
 - Deprecated legacy suites are archived under `racket-server/tests/archive/legacy-deprecated/`.
-- Supported lanes are only the three listed above.
+- Supported lanes are `A`/`B`/`C`/`D` above.

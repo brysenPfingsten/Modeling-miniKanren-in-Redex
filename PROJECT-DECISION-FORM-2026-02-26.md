@@ -188,6 +188,17 @@ Use this as a working sheet. Mark one option per decision (or mark `DEFER`) and 
   - Active execution/testing should rely on canonical core/variant stack.
   - Legacy modules may remain only as explicit deprecated/archive context until fully removed.
 
+## D17) Surface Tier Policy (UI vs Internal Models)
+- Status: `DECIDED`
+- Choose:
+  - [x] Surface only `L3/L4` models in UI; keep `L0/L1/L2` internal
+  - [ ] Surface all models
+  - [ ] `DEFER`
+- Rationale:
+  - UI/product workflows focus on expressive, user-relevant branches.
+  - Lower layers are still retained for architecture/theory inheritance and smoke checks.
+  - Heavy validation is concentrated on surfaced models; lower layers keep seam/smoke gates.
+
 ## Milestone Gate
 - Before coding next semantic layer, decisions required: `D1-D6`.
 - For current theorem/proof batch, decisions required: `D7-D8` (with `D10-D12` deferred).
