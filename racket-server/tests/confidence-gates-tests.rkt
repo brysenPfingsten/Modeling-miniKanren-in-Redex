@@ -9,6 +9,7 @@
          "../src/app.rkt"
          "../src/zipper.rkt"
          "../src/transpiler.rkt"
+         "../src/sexpr-read.rkt"
          "../src/model-registry.rkt"
          "./test-http-helpers.rkt"
          "./variant-test-support.rkt"
@@ -17,12 +18,6 @@
 (provide CONFIDENCE-GATES)
 
 (define TRACE-STEP-CAP 30)
-
-(define (read-all port)
-  (let ([expr (read port)])
-    (if (eof-object? expr)
-        '()
-        (cons expr (read-all port)))))
 
 (define (example-src label)
   (for/first ([pr (in-list (frontend-example-programs))]
@@ -34,7 +29,7 @@
   (unless src
     (error 'trace-steps (format "missing example label: ~a" label)))
   (define-values (cfg0 _html)
-    (parse-prog/canonical (read-all (open-input-string src))))
+    (parse-prog/canonical (read-all-sexprs (open-input-string src))))
   (define step-once (lookup-model-step-once model-id))
   (unless step-once
     (error 'trace-steps (format "unknown model id: ~a" model-id)))

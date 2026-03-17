@@ -4,6 +4,7 @@
          redex/reduction-semantics
          (prefix-in l4: "../src/extensions/l4-railroad-syntax.rkt")
          (prefix-in j: "../src/wf-variants.rkt")
+         "../src/sexpr-read.rkt"
          "../src/transpiler.rkt")
 
 (define-test-suite ASSOCIATIVITY
@@ -58,14 +59,8 @@
       [_ (fail "unexpected canonical cfg shape")])
     ))
 
-(define (read-all port)
-  (let ([expr (read port)])
-    (if (eof-object? expr)
-        '()
-        (cons expr (read-all port)))))
-
 (define (parse-src/canonical src)
-  (parse-prog/canonical (read-all (open-input-string src))))
+  (parse-prog/canonical (read-all-sexprs (open-input-string src))))
 
 (define-test-suite CANONICAL-TRANSLATION
   (test-case

@@ -10,6 +10,7 @@
          "../src/capability-analysis.rkt"
          "../src/model-registry.rkt"
          "../src/model-surface-policy.rkt"
+         "../src/sexpr-read.rkt"
          "../src/transpiler.rkt"
          "../src/zipper.rkt"
          "./test-http-helpers.rkt"
@@ -22,12 +23,6 @@
 
 (define PRIMARY-RAIL-MODELS
   '("mk-l4-rail-lazy" "mk-l4-rail-eager" "mk-l3-dfs-lazy"))
-
-(define (read-all port)
-  (let ([expr (read port)])
-    (if (eof-object? expr)
-        '()
-        (cons expr (read-all port)))))
 
 (define (step1-name+cfg succ)
   (match succ
@@ -48,7 +43,7 @@
               'steps 0
               'last-rule "")
       (let ()
-        (define sexprs (read-all (open-input-string src)))
+        (define sexprs (read-all-sexprs (open-input-string src)))
         (define-values (cfg0 _html) (parse-prog/canonical sexprs))
         (with-handlers ([domain-error?
                          (lambda (_e)

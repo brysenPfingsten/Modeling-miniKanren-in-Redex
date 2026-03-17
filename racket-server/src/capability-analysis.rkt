@@ -3,6 +3,7 @@
 (require racket/set
          racket/list
          "transpiler.rkt"
+         "sexpr-read.rkt"
          "syntax-checking.rkt"
          "model-registry.rkt")
 
@@ -20,12 +21,6 @@
 
 (define ANALYSIS-VERSION "v1")
 
-(define (read-all port)
-  (let ([expr (read port)])
-    (if (eof-object? expr)
-        '()
-        (cons expr (read-all port)))))
-
 (define (requirement->capability req)
   (cond
     [(equal? req REQ-CORE) "cap/core"]
@@ -36,7 +31,7 @@
 
 (define (analyze-source-capabilities source)
   (check-syntax-capture-error source)
-  (define sexprs (read-all (open-input-string source)))
+  (define sexprs (read-all-sexprs (open-input-string source)))
   (define ast (parse-prog->ast sexprs))
   (hasheq 'validSyntax #t
           'requirements (ast->requirements ast)

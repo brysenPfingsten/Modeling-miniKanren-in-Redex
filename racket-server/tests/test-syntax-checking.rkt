@@ -2,6 +2,7 @@
 
 (require "../src/syntax-checking.rkt"
          "../src/core-definitions.rkt"
+         "../src/sexpr-read.rkt"
          "../src/wf-core.rkt"
          "../src/transpiler.rkt")
 (require redex/reduction-semantics
@@ -12,12 +13,6 @@
 (define BAD-FORMED-CONFIG
   (term (() ((u:1 =? (sym "a") (label "t"))
              (state () () () (label "s"))))))
-
-(define (read-all port)
-  (let ([expr (read port)])
-    (if (eof-object? expr)
-        '()
-        (cons expr (read-all port)))))
 
 (define-test-suite WELL-FORMED
   (test-case "Well-formed canonical config is accepted"
@@ -61,7 +56,7 @@
                "(defrel (same x y) (== x y))
 (run* (q) (same q 'cat))")
              (define-values (canonical _html)
-               (parse-prog/canonical (read-all (open-input-string src))))
+               (parse-prog/canonical (read-all-sexprs (open-input-string src))))
              (check-true (canonical-target-in-domain? canonical "L4/config"))
              (check-true (canonical-target-well-formed? canonical "L4/config"))
              (check-not-exn

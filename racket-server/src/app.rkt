@@ -10,6 +10,7 @@
          "transpiler.rkt"
          "capability-analysis.rkt"
          "syntax-checking.rkt"
+         "sexpr-read.rkt"
          "zipper.rkt"
          "model-registry.rkt"
          "model-surface-policy.rkt")
@@ -105,22 +106,13 @@
     (step zip nqv)))
 
 
-;; read-all: port -> ListOf sexpression
-;; Purpose: To read the string program into sexpressions
-(define (read-all port)
-  (let ([expr (read port)])
-    (if (eof-object? expr)
-        '()  ;; Stop when EOF is reached
-        (cons expr (read-all port)))))
-
-
 ;; init!: session request string -> response
 ;; Purpose: To initialize the given session
 (define (init! ses req ses-id)
   (define json-data (request-post-data/raw req))                      ;; Get the JSON data from the request
   (define raw-prog (hash-ref (bytes->jsexpr json-data) 'text))        ;; Get the program from that JSON
   (check-syntax-capture-error raw-prog)                               ;; Check for syntax errors
-  (define sexpr-prog (read-all (open-input-string raw-prog)))         ;; Read the program into sexpressions
+  (define sexpr-prog (read-all-sexprs (open-input-string raw-prog)))   ;; Read the program into sexpressions
   (define model-id (session-model-id ses))
   (define maybe-spec (lookup-model-spec model-id))
   (unless maybe-spec

@@ -6,6 +6,7 @@
          racket/runtime-path
          racket/match
          "../src/transpiler.rkt"
+         "../src/sexpr-read.rkt"
          "../src/extensions/l4-railroad-syntax.rkt")
 
 (provide EXAMPLE-COMPAT
@@ -52,17 +53,11 @@
                      label)))
     (cons label maybe-src)))
 
-(define (read-all port)
-  (let ([expr (read port)])
-    (if (eof-object? expr)
-        '()
-        (cons expr (read-all port)))))
-
 (define (parse-src src)
-  (parse-prog (read-all (open-input-string src))))
+  (parse-prog (read-all-sexprs (open-input-string src))))
 
 (define (parse-src/canonical src)
-  (parse-prog/canonical (read-all (open-input-string src))))
+  (parse-prog/canonical (read-all-sexprs (open-input-string src))))
 
 (define (assert-example-compat! name src)
   (define-values (canonical html) (parse-src/canonical src))
