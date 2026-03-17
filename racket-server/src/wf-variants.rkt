@@ -28,10 +28,21 @@
                           (cons u used)))])
     rev-fresh))
 
-(define (lookup-rel-arity gamma rel-name)
-  (for/first ([defn (in-list gamma)]
-              #:when (equal? (first defn) rel-name))
-    (length (second defn))))
+(define-metafunction L4
+  same-length? : (any ...) (any ...) -> boolean
+  [(same-length? () ()) #t]
+  [(same-length? (any_1 any_rest_1 ...) (any_2 any_rest_2 ...))
+   (same-length? (any_rest_1 ...) (any_rest_2 ...))]
+  [(same-length? () (any_2 any_rest_2 ...)) #f]
+  [(same-length? (any_1 any_rest_1 ...) ()) #f])
+
+(define-metafunction L4
+  relcall-arity-ok? : r (t ...) ((r d g) ...) -> boolean
+  [(relcall-arity-ok? r_call (t ...) ()) #f]
+  [(relcall-arity-ok? r_call (t ...) ((r_call (x ...) g_env) (r_rest d_rest g_rest) ...))
+   (same-length? (t ...) (x ...))]
+  [(relcall-arity-ok? r_call (t ...) ((r_other d_other g_other) (r_rest d_rest g_rest) ...))
+   (relcall-arity-ok? r_call (t ...) ((r_rest d_rest g_rest) ...))])
 
 (define-judgment-form
   L4
@@ -63,12 +74,7 @@
    (wf-goal/L4? (t_1 =? t_2 tag) ((r d_env g_env) ...) (x_1 ...) c)]
 
   [(wf-term? t (x_lex ...) c) ...
-   (side-condition
-    ,(let* ([gamma (term ((r_1 d_1 g_1) ...))]
-            [rel-name (term r_call)]
-            [arity (lookup-rel-arity gamma rel-name)])
-       (and arity
-            (= arity (length (term (t ...)))))))
+   (where #t (relcall-arity-ok? r_call (t ...) ((r_1 d_1 g_1) ...)))
    ---------- "relcall-wf/L4"
    (wf-goal/L4? (r_call t ... tag) ((r_1 d_1 g_1) ...) (x_lex ...) c)])
 
