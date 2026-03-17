@@ -6,8 +6,7 @@
 (require "wf-core.rkt"
          "wf-variants.rkt"
          (only-in "core-definitions.rkt" Core))
-(provide check-well-formed
-         canonical-core-shape?
+(provide canonical-core-shape?
          canonical-well-formed?
          canonical-target-well-formed?
          canonical-target-in-domain?
@@ -43,9 +42,6 @@
            (canonical-target-well-formed? canonical-config target-id))
       ""
       (error (format "Program failed canonical ~a wf check." target-id))))
-
-(define (check-well-formed canonical-config [target-id "L4/config"])
-  (check-canonical-well-formed canonical-config target-id))
 
 
 ;; read-all: port -> ListOf sexpression

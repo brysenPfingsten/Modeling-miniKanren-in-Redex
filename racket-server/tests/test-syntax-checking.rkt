@@ -24,14 +24,14 @@
              (check-true (redex-match? Core config WELL-FORMED-CONFIG))
              (check-true (canonical-core-shape? WELL-FORMED-CONFIG))
              (check-true (canonical-well-formed? WELL-FORMED-CONFIG))
-             (check-not-exn (λ () (check-well-formed WELL-FORMED-CONFIG)) ""))
+             (check-not-exn (λ () (check-canonical-well-formed WELL-FORMED-CONFIG)) ""))
 
   (test-case "Malformed canonical config is rejected"
              (check-true (redex-match? Core config BAD-FORMED-CONFIG))
              (check-true (canonical-core-shape? BAD-FORMED-CONFIG))
              (check-false (canonical-well-formed? BAD-FORMED-CONFIG))
              (check-exn exn:fail?
-                        (λ () (check-well-formed BAD-FORMED-CONFIG))))
+                        (λ () (check-canonical-well-formed BAD-FORMED-CONFIG))))
 
   (test-case "Canonical core gate rejects malformed canonical core program"
              (define bad-canonical
