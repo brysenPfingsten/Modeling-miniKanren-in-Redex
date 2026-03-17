@@ -95,15 +95,13 @@
     (judgment-holds (wf-state? ,st))))
 
 (define (shape-closed? lang-id rel cfg)
-  (define cfg-in-lang?
-    (case lang-id
-      [(L1) (lambda (cfg^) (redex-match? L1 config cfg^))]
-      [(L2) (lambda (cfg^) (redex-match? L2 config cfg^))]
-      [(L3) (lambda (cfg^) (redex-match? L3 config cfg^))]
-      [(L4) (lambda (cfg^) (redex-match? L4 config cfg^))]
-      [else (lambda (_cfg^) #f)]))
   (for/and ([cfg^ (in-list (apply-reduction-relation rel cfg))])
-    (cfg-in-lang? cfg^)))
+    (case lang-id
+      [(L1) (redex-match? L1 config cfg^)]
+      [(L2) (redex-match? L2 config cfg^)]
+      [(L3) (redex-match? L3 config cfg^)]
+      [(L4) (redex-match? L4 config cfg^)]
+      [else #f])))
 
 (define (shape-closed/L1? rel cfg)
   (shape-closed? 'L1 rel cfg))
@@ -117,12 +115,12 @@
 (define (shape-closed/L4? rel cfg)
   (shape-closed? 'L4 rel cfg))
 
-(define (symbols-in d)
+(define (symbols-in d [acc '()])
   (match d
-    ['() '()]
-    [(? symbol?) (list d)]
-    [(cons a b) (append (symbols-in a) (symbols-in b))]
-    [_ '()]))
+    ['() acc]
+    [(? symbol?) (cons d acc)]
+    [(cons a b) (symbols-in a (symbols-in b acc))]
+    [_ acc]))
 
 (define (tree-of cfg)
   (second cfg))
