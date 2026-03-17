@@ -93,24 +93,8 @@
     (values (model-spec-id spec) spec)))
 
 (define (lookup-model-spec model-id)
-  (define canonical-id
-    (cond
-      ;; Legacy id aliases for compatibility with older URLs/saved state.
-      [(equal? model-id "microKanren") "mk-l4-rail-lazy"]
-      [(equal? model-id "microKanren-rail") "mk-l4-rail-lazy"]
-      [(equal? model-id "microKanren-noi-flip") "mk-l3-dfs-lazy"]
-      [(equal? model-id "microKanren-flip") "mk-l3-flip-lazy"]
-      [(equal? model-id "microKanren-rail-eager") "mk-l4-rail-eager"]
-      [(equal? model-id "microKanren-flip-eager") "mk-l3-flip-eager"]
-      [(equal? model-id "dfs") "mk-l3-dfs-lazy"]
-      [(equal? model-id "mk-l4-dfs-lazy") "mk-l3-dfs-lazy"]
-      [(equal? model-id "core") "mk-l0-core"]
-      [(equal? model-id "l1-lazy") "mk-l1-call-lazy"]
-      [(equal? model-id "l1-eager") "mk-l1-call-eager"]
-      [(equal? model-id "l2") "mk-l2-disj-left"]
-      [else model-id]))
-  (and (string? canonical-id)
-       (hash-ref spec-by-id canonical-id #f)))
+  (and (string? model-id)
+       (hash-ref spec-by-id model-id #f)))
 
 (define (lookup-model-step-once model-id)
   (define maybe-spec (lookup-model-spec model-id))
