@@ -32,13 +32,8 @@
          (Γ (in-hole Kleft (in-hole Kcore (delay (s_1 × g c)))) as)
          "call/delay-through-conj"]))
 
-(define call+core-l3/eager
-  (union-reduction-relations
-   call-eager-extra/l3
-   core-cfg/l3))
-
 (define disj-extra/l3
-  (make-disj-extra/l3 call+core-l3/eager))
+  (make-disj-extra/l3))
 
 (define Rbase-e
   (union-reduction-relations
