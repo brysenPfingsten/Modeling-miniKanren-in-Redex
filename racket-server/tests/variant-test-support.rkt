@@ -134,27 +134,31 @@
   (term (state () () () (label "b"))))
 
 (define cfg-core
-  (term (() (⊤ (state () () () (label "s"))))))
+  (term (() (⊤ (state () () () (label "s"))) (empty-stream))))
 
 (define cfg-call
   (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
          ((r:id (sym "ok") (label "call"))
-          (state () () () (label "s"))))))
+          (state () () () (label "s")))
+         (empty-stream))))
 
 (define cfg-disj
   (term (() ((⊤ (state () () () (label "a")))
              <-+
-             (⊤ (state () () () (label "b")))))))
+             (⊤ (state () () () (label "b"))))
+         (empty-stream))))
 
 (define cfg-flip
   (term (() ((delay (empty-tree))
              <-+
-             (⊤ (state () () () (label "b")))))))
+             (⊤ (state () () () (label "b"))))
+         (empty-stream))))
 
 (define cfg-rail
   (term (() ((delay (empty-tree))
              <-+
-             (⊤ (state () () () (label "b")))))))
+             (⊤ (state () () () (label "b"))))
+         (empty-stream))))
 
 ;; Shared seam corpus for bounded smoke/determinism checks at relation boundaries.
 (define seam-config-candidates

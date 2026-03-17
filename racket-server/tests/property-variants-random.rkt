@@ -190,7 +190,7 @@
   (define-values (gamma rel-sig) (gen-rel-env/rng rng opts))
   (define c0 (extend-c/rng rng '() VR-C-EXTRA-MAX))
   (define s (gen-tree-user/rng rng c0 VR-MAX-DEPTH rel-sig opts))
-  `(,gamma ,s))
+  `(,gamma ,s (empty-stream)))
 
 (define (gen-config-delay-left-disj-admin/rng rng)
   (define opts (gopts #t #t #t #t))
@@ -198,7 +198,7 @@
   (define c0 (extend-c/rng rng '() VR-C-EXTRA-MAX))
   (define s1 (gen-tree-user/rng rng c0 VR-MAX-DEPTH rel-sig opts))
   (define s2 (gen-tree-user/rng rng c0 VR-MAX-DEPTH rel-sig opts))
-  `(,gamma ((delay ,s1) <-+ ,s2)))
+  `(,gamma ((delay ,s1) <-+ ,s2) (empty-stream)))
 
 (define (state-c-size st)
   (match st
@@ -240,7 +240,7 @@
     [`(⊤ ,st)
      (values call? disj? exists? conj? left? delay? right?
              (max cmax (state-c-size st)))]
-    [`((⊤ ,st) + ,s2)
+    [`(emit ,st ,s2)
      (tree-flags s2
                  call?
                  disj?
@@ -285,6 +285,26 @@
 
 (define (config-flags cfg)
   (match cfg
+    [`(,gamma ,s ,_as)
+     (define-values (call? disj? exists? conj?)
+       (for/fold ([call? #f]
+                  [disj? #f]
+                  [exists? #f]
+                  [conj? #f])
+                 ([rel (in-list gamma)])
+         (match rel
+           [`(,_ ,_ ,g) (goal-flags g call? disj? exists? conj?)]
+           [_ (values call? disj? exists? conj?)])))
+
+     (define-values (hc hd he hj hl hdelay hr cmax-tree) (tree-flags s))
+     (values (or call? hc)
+             (or disj? hd)
+             (or exists? he)
+             (or conj? hj)
+             hl
+             hdelay
+             hr
+             cmax-tree)]
     [`(,gamma ,s)
      (define-values (call? disj? exists? conj?)
        (for/fold ([call? #f]

@@ -22,28 +22,37 @@
     (define next1 (first (apply-reduction-relation Rl2-disj-left cfg-disj)))
     (check-equal?
      next1
-     (term (() ((⊤ (state () () () (label "a")))
-               +
-               (⊤ (state () () () (label "b")))))))
-    (check-true (null? (apply-reduction-relation Rl2-disj-left next1))))
+     (term (() (emit (state () () () (label "a"))
+                     (⊤ (state () () () (label "b"))))
+               (empty-stream))))
+    (define next2* (apply-reduction-relation Rl2-disj-left next1))
+    (check-equal? (length next2*) 1)
+    (check-equal?
+     (first next2*)
+     (term (() (⊤ (state () () () (label "b")))
+               (⊤ (state () () () (label "a")))))))
 
   (test-case "Rbase variants can step call and disjunction configs"
     (check-false (null? (apply-reduction-relation Rl3-pre-eager cfg-call)))
     (check-false (null? (apply-reduction-relation Rl3-pre-lazy cfg-call)))
-    (check-false (null? (apply-reduction-relation Rl3-pre-eager (term (() ((⊤ ,sigma-a) <-+ (⊤ ,sigma-b)))))))
-    (check-false (null? (apply-reduction-relation Rl3-pre-lazy (term (() ((⊤ ,sigma-a) <-+ (⊤ ,sigma-b))))))))
+    (check-false (null? (apply-reduction-relation Rl3-pre-eager (term (() ((⊤ ,sigma-a) <-+ (⊤ ,sigma-b))
+                                                                      (empty-stream))))))
+    (check-false (null? (apply-reduction-relation Rl3-pre-lazy (term (() ((⊤ ,sigma-a) <-+ (⊤ ,sigma-b))
+                                                                     (empty-stream)))))))
 
   (test-case "flip branch keeps left-only disjunction syntax"
     (define flipped (first (apply-reduction-relation Rl3-flip-eager cfg-flip)))
     (check-equal? flipped
-                  (term (() (delay ((⊤ ,sigma-b) <-+ (empty-tree)))))
+                  (term (() (delay ((⊤ ,sigma-b) <-+ (empty-tree)))
+                            (empty-stream)))
                   "expected flip step to swap left-only disjunction branches")
     (check-true (redex-match? L3 config flipped)))
 
   (test-case "railroad branch introduces right-pointing syntax"
     (define railed (first (apply-reduction-relation Rl4-rail-eager cfg-rail)))
     (check-equal? railed
-                  (term (() (delay ((empty-tree) +-> (⊤ ,sigma-b)))))
+                  (term (() (delay ((empty-tree) +-> (⊤ ,sigma-b)))
+                            (empty-stream)))
                   "expected railroad step to introduce +->")
     (check-true (redex-match? L4 config railed)))
 
@@ -53,7 +62,8 @@
              (delay
               (proceed
                ((r:id (sym "ok") (label "call"))
-                (state () () () (label "s"))))))))
+                (state () () () (label "s")))))
+             (empty-stream))))
     (define named-next* (apply-reduction-relation/tag-with-names Rl3-flip-eager cfg-delay-proceed-call))
     (check-equal? (length named-next*)
                   1
@@ -68,7 +78,8 @@
              (delay
               (proceed
                ((r:id (sym "ok") (label "call"))
-                (state () () () (label "s"))))))))
+                (state () () () (label "s")))))
+             (empty-stream))))
     (define named-next* (apply-reduction-relation/tag-with-names Rl3-flip-lazy cfg-delay-proceed-call))
     (check-equal? (length named-next*)
                   1
@@ -83,7 +94,8 @@
              (delay
               (proceed
                ((r:id (sym "ok") (label "call"))
-                (state () () () (label "s"))))))))
+                (state () () () (label "s")))))
+             (empty-stream))))
     (define named-next* (apply-reduction-relation/tag-with-names Rl4-rail-eager cfg-delay-proceed-call))
     (check-equal? (length named-next*)
                   1
@@ -98,7 +110,8 @@
              (delay
               (proceed
                ((r:id (sym "ok") (label "call"))
-                (state () () () (label "s"))))))))
+                (state () () () (label "s")))))
+             (empty-stream))))
     (define named-next* (apply-reduction-relation/tag-with-names Rl4-rail-lazy cfg-delay-proceed-call))
     (check-equal? (length named-next*)
                   1

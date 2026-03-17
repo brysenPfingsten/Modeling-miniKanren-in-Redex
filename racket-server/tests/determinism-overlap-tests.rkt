@@ -194,14 +194,9 @@
     (define cfg
       (term
        (()
-        (((⊤ (state () () () (label "Xi")))
-          +
-          ((⊤ (state () () () (label "pr")))
-           +
-           (((succeed (label "NiKuC"))
-             (state () () () (label "ayTAaTvy")))
-            +-> ((⊤ (state () () () (label "XAfR"))) + (empty-tree)))))
-         <-+ (delay (empty-tree))))))
+        ((empty-tree)
+         +-> (⊤ (state () () () (label "XAfR"))))
+        (empty-stream))))
     (define tagged-next*
       (apply-reduction-relation/tag-with-names Rl4-rail-lazy cfg))
     (check-equal? (length tagged-next*) 1
@@ -209,9 +204,9 @@
                           (length tagged-next*)
                           tagged-next*))
     (check-true
-     (regexp-match? #rx"^rail/promote-right-singleton-stream"
+     (regexp-match? #rx"^rail/promote-right-answer"
                     (tagged-successor-name (first tagged-next*)))
-     (format "expected rail singleton promotion step, got ~s" tagged-next*)))
+     (format "expected rail right-answer promotion step, got ~s" tagged-next*)))
 
   (test-case "overlap audit: heavy L3/L4 variants"
     (define events (heavy-overlap-events))

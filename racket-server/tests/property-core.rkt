@@ -189,7 +189,8 @@
 (define (generate-wf-config/constructive)
   (define cfg
     `(,(gen-rel-env)
-      ,(gen-tree '() (max-depth))))
+      ,(gen-tree '() (max-depth))
+      (empty-stream)))
   (unless (wf-config-term? cfg)
     (error 'generate-wf-config/constructive
            (format "constructed non-wf config: ~s" cfg)))
@@ -214,7 +215,7 @@
     [`(empty-tree) (values #f #f #f 0)]
     [`(⊤ ,st) (define csz (state-c-size st))
               (values (> csz 0) #f #f csz)]
-    [`((⊤ ,st) + ,s2)
+    [`(emit ,st ,s2)
      (define csz (state-c-size st))
      (define-values (nonempty?2 hex2 hconj2 cmax2) (tree-coverage s2))
      (values (or (> csz 0) nonempty?2)
@@ -234,28 +235,43 @@
              (max cmax1 csz))]
     [_ (values #f #f #f 0)]))
 
+(define (answer-stream-coverage as)
+  (match as
+    [`(empty-stream)
+     (values #f 0)]
+    [`(⊤ ,st)
+     (define csz (state-c-size st))
+     (values (> csz 0) csz)]
+    [`((⊤ ,st) + ,as2)
+     (define csz (state-c-size st))
+     (define-values (nonempty?2 cmax2) (answer-stream-coverage as2))
+     (values (or (> csz 0) nonempty?2)
+             (max csz cmax2))]
+    [_ (values #f 0)]))
+
 (define (config-coverage cfg)
   (match cfg
-    [`(,Gamma ,s)
-     (define nonempty-c? #f)
-     (define has-exists? #f)
-     (define has-conj? #f)
-     (define max-c-size 0)
-
-     (for ([rel (in-list Gamma)])
-       (match rel
-         [`(,_ ,_ ,g)
-          (define-values (hex hconj) (goal-flags g))
-          (when hex (set! has-exists? #t))
-          (when hconj (set! has-conj? #t))]
-         [_ (void)]))
-
+    [`(,Gamma ,s_work ,as)
+     (define-values (has-exists? has-conj?)
+       (for/fold ([has-exists? #f]
+                  [has-conj? #f])
+                 ([rel (in-list Gamma)])
+         (match rel
+           [`(,_ ,_ ,g)
+            (define-values (hex hconj) (goal-flags g))
+            (values (or has-exists? hex)
+                    (or has-conj? hconj))]
+           [_ (values has-exists? has-conj?)])))
      (define-values (tree-nonempty tree-exists tree-conj tree-cmax)
-       (tree-coverage s))
-     (values (or nonempty-c? tree-nonempty)
+       (tree-coverage s_work))
+     (define-values (stream-nonempty stream-cmax)
+       (answer-stream-coverage as))
+     (values (or tree-nonempty stream-nonempty)
              (or has-exists? tree-exists)
              (or has-conj? tree-conj)
-             (max max-c-size tree-cmax))]
+             (max tree-cmax stream-cmax))]
+    [`(,Gamma ,s_work)
+     (config-coverage `(,Gamma ,s_work (empty-stream)))]
     [_ (values #f #f #f 0)]))
 
 (define (check-wf-guarded-property label pred)
