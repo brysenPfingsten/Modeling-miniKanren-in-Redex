@@ -15,6 +15,14 @@
     #:domain config
     ;; Stage 1 (inside active branch): call contexts from L1.
     ;; Stage 2 (outside): left-disjunction scheduler contexts.
+    [--> (Γ (in-hole Kleft (in-hole Kcore ((name goal-src g) σ))) as)
+         (Γ (in-hole Kleft (in-hole Kcore s_new)) as)
+         (where s_new ,(bridge-source-delay/lazy-host (term Γ)
+                                                      (term goal-src)
+                                                      (term σ)))
+         (side-condition (not (equal? (term s_new) #f)))
+         "source-delay/bridge"]
+
     [--> (Γ (in-hole Kleft (in-hole Kcore ((r t ... tag) σ))) as)
          (Γ (in-hole Kleft (in-hole Kcore (delay (proceed ((r t ... tag) σ)))) ) as)
          "call/lazy-suspend-call"]

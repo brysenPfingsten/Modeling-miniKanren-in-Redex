@@ -26,6 +26,9 @@
   [------------------ "trivial success wf"
    (wf-goal? (succeed tag) ((r d g_env) ...) (x_1 ...) c)]
 
+  [------------------ "trivial fail wf"
+   (wf-goal? (fail tag) ((r d g_env) ...) (x_1 ...) c)]
+
   [(where (u_old ...) c)
    (where (u_new ...) (fresh-lvars (x_1 ...) c))
    (wf-goal? g ((r d g_env) ...) (x_1 ... x_2 ...) (u_new ... u_old ...))
@@ -40,7 +43,12 @@
   [(wf-term? t_1 (x_1 ...) c)
    (wf-term? t_2 (x_1 ...) c)
    ---------- "==-wf"
-   (wf-goal? (t_1 =? t_2 tag) ((r d g_env) ...) (x_1 ...) c)])
+   (wf-goal? (t_1 =? t_2 tag) ((r d g_env) ...) (x_1 ...) c)]
+
+  [(wf-term? t_1 (x_1 ...) c)
+   (wf-term? t_2 (x_1 ...) c)
+   ---------- "=/=-wf"
+   (wf-goal? (t_1 != t_2 tag) ((r d g_env) ...) (x_1 ...) c)])
 
 (define-judgment-form
   Core
@@ -50,8 +58,14 @@
   [------------------- "core-succeed-shape"
    (core-goal-shape? (succeed tag))]
 
+  [------------------- "core-fail-shape"
+   (core-goal-shape? (fail tag))]
+
   [------------------- "core-eq-shape"
    (core-goal-shape? (t_1 =? t_2 tag))]
+
+  [------------------- "core-diseq-shape"
+   (core-goal-shape? (t_1 != t_2 tag))]
 
   [(core-goal-shape? g_1)
    (core-goal-shape? g_2)
@@ -121,14 +135,16 @@
 
   [(lvars-subset? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
+   (wf-dis? dis c_i)
    ------------------- "single answer/state wf"
-   (wf-tree? (⊤ (state sub c_i trail tag)) ((r d g_env) ...) c)]
+   (wf-tree? (⊤ (state sub dis c_i trail tag)) ((r d g_env) ...) c)]
 
   [(lvars-subset? c c_i)
    (wf-goal? g ((r d g_env) ...) () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
+   (wf-dis? dis c_i)
    ------------------- "goal/state wf"
-   (wf-tree? (g (state sub c_i trail tag)) ((r d g_env) ...) c)]
+   (wf-tree? (g (state sub dis c_i trail tag)) ((r d g_env) ...) c)]
 
   [(lvars-subset? c c_i)
    (wf-tree? s ((r d g_env) ...) c_i)
@@ -138,9 +154,10 @@
 
   [(lvars-subset? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
+   (wf-dis? dis c_i)
    (wf-tree? s_tail ((r d g_env) ...) c)
    ------------------- "emit wf"
-   (wf-tree? (emit (state sub c_i trail tag) s_tail) ((r d g_env) ...) c)])
+   (wf-tree? (emit (state sub dis c_i trail tag) s_tail) ((r d g_env) ...) c)])
 
 (define-judgment-form
   Core
@@ -152,14 +169,16 @@
 
   [(lvars-subset? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
+   (wf-dis? dis c_i)
    ------------------- "single answer stream wf"
-   (wf-answer-stream? (⊤ (state sub c_i trail tag)) c)]
+   (wf-answer-stream? (⊤ (state sub dis c_i trail tag)) c)]
 
   [(lvars-subset? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
+   (wf-dis? dis c_i)
    (wf-answer-stream? as_tail c)
    ------------------- "answer stream wf"
-   (wf-answer-stream? ((⊤ (state sub c_i trail tag)) + as_tail) c)])
+   (wf-answer-stream? ((⊤ (state sub dis c_i trail tag)) + as_tail) c)])
 
 (define-judgment-form
   Core
@@ -267,16 +286,16 @@
     (core-shape?
      (()
       (((succeed (label "ok")) ∧ (succeed (label "ok2")) (label "c"))
-       (state () () () (label "s")))
+       (state () () () () (label "s")))
       (empty-stream)))))
 
   (check-true
    (judgment-holds
     (core-shape?
      (() (empty-tree)
-         ((⊤ (state () () () (label "a")))
+         ((⊤ (state () () () () (label "a")))
           +
-          ((⊤ (state () () () (label "b")))
+          ((⊤ (state () () () () (label "b")))
            +
            (empty-stream)))))))
 
@@ -293,5 +312,5 @@
   (check-false
    (core-config-shape-holds?
     '(() (proceed ((r:foo (sym "x") (label "t"))
-                   (state () () () (label "s"))))
+                   (state () () () () (label "s"))))
          (empty-stream)))))

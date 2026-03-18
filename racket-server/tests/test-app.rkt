@@ -15,10 +15,32 @@
           (x:q)
           ((sym "tree1") =? (sym "horse") (label "u5"))
           (label "f0"))
-        (state () () () (label "s")))))
+        (state () () () () (label "s")))))
 
 (define step/const-tree-output
   (make-stepper (lambda (_) (list (list "foo" sample-tree)))))
+
+(define sample-program-jsexpr
+  (hasheq 'children
+          (list (hasheq 'id "u5"
+                        'left (hasheq 'sym "tree1")
+                        'name "Unify"
+                        'right (hasheq 'sym "horse")))
+          'disequalities '()
+          'id "f0"
+          'name "Fresh"
+          'reified "_.0"
+          'stateId "s"
+          'sub '()
+          'trail '()
+          'vars (list (hasheq 'var "q"))))
+
+(define (check-sample-program-response response expected-step expected-step-name)
+  (define payload (string->jsexpr (response-body->string response)))
+  (check-equal? (hash-ref payload 'step #f) expected-step)
+  (check-equal? (hash-ref payload 'stepName #f) expected-step-name)
+  (check-equal? (string->jsexpr (hash-ref payload 'program #f))
+                sample-program-jsexpr))
 
 (define disj-delay-program
   "(defrel (same x y)
@@ -29,16 +51,19 @@
        [(same q 'cat)]
        [(same q 'dog)]))")
 
-(define (collect-step-names ses limit)
-  (let loop ([i 0] [acc '()])
-    (if (>= i limit)
-        (reverse acc)
-        (let* ([response (step! ses)]
-               [out (response-body->string response)])
-          (if (string=? out "null")
-              (reverse acc)
-              (loop (add1 i)
-                    (cons (hash-ref (string->jsexpr out) 'stepName #f) acc)))))))
+(define (collect-step-names ses limit [i 0] [acc '()])
+  (cond
+    [(>= i limit) (reverse acc)]
+    [else
+     (define response (step! ses))
+     (define out (response-body->string response))
+     (if (string=? out "null")
+         (reverse acc)
+         (collect-step-names ses
+                             limit
+                             (add1 i)
+                             (cons (hash-ref (string->jsexpr out) 'stepName #f)
+                                   acc)))]))
 
 (define-test-suite STEP!
   #:before (thunk (displayln "Running tests for step!..."))
@@ -67,8 +92,7 @@
               (check-equal? (response-message response) #"OK")
               (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
               (check-equal? (response-headers response) '())
-              (check-equal? (response-body->string response)
-                            "{\"program\":\"{\\\"children\\\":[{\\\"id\\\":\\\"u5\\\",\\\"left\\\":{\\\"sym\\\":\\\"tree1\\\"},\\\"name\\\":\\\"Unify\\\",\\\"right\\\":{\\\"sym\\\":\\\"horse\\\"}}],\\\"id\\\":\\\"f0\\\",\\\"name\\\":\\\"Fresh\\\",\\\"reified\\\":[],\\\"stateId\\\":\\\"s\\\",\\\"sub\\\":[],\\\"trail\\\":[],\\\"vars\\\":[{\\\"var\\\":\\\"q\\\"}]}\",\"step\":2,\"stepName\":\"foo\"}")
+              (check-sample-program-response response 2 "foo")
               (define new-zipper (session-zipper ses))
               (check-equal? (zipper-prev new-zipper) (list (step "foo" sample-tree)))
               (check-equal? (step-name (zipper-curr new-zipper)) "foo")
@@ -84,8 +108,7 @@
               (check-equal? (response-message response) #"OK")
               (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
               (check-equal? (response-headers response) '())
-              (check-equal? (response-body->string response)
-                            "{\"program\":\"{\\\"children\\\":[{\\\"id\\\":\\\"u5\\\",\\\"left\\\":{\\\"sym\\\":\\\"tree1\\\"},\\\"name\\\":\\\"Unify\\\",\\\"right\\\":{\\\"sym\\\":\\\"horse\\\"}}],\\\"id\\\":\\\"f0\\\",\\\"name\\\":\\\"Fresh\\\",\\\"reified\\\":[],\\\"stateId\\\":\\\"s\\\",\\\"sub\\\":[],\\\"trail\\\":[],\\\"vars\\\":[{\\\"var\\\":\\\"q\\\"}]}\",\"step\":2,\"stepName\":\"bar\"}")
+              (check-sample-program-response response 2 "bar")
               (define new-zipper (session-zipper ses))
               (check-equal? (zipper-prev new-zipper) (list (step "foo" sample-tree)))
               (check-equal? (zipper-curr new-zipper) (step "bar" sample-tree))
@@ -110,6 +133,21 @@
                             APPLICATION/JSON-MIME-TYPE)
               (check-equal? (response-headers response) 
                             (list (header #"Set-Cookie" #"session-id=testid; Path=/; SameSite=Lax")))
+              (define json-response (string->jsexpr (response-body->string response)))
+              (check-equal? (hash-ref json-response 'stepName #f) "Initialize Program")
+              (check-equal? (hash-ref json-response 'step #f) 0)
+              (check-not-false (hash-ref json-response 'program #f))
+              (check-not-false (hash-ref json-response 'htmlGuids #f)))
+
+  (test-case "init! defaults missing source options to canonical mini profile"
+              (define sample-req
+                (make-post-request "init"
+                                   (hasheq 'text "(run* (q) (== 'a 'a))")))
+              (define zip (zipper '() #f '() 0))
+              (define stepper identity)
+              (define ses (session zip stepper 1))
+              (define response (init! ses sample-req 'defaultid))
+              (check-equal? (response-code response) 200)
               (define json-response (string->jsexpr (response-body->string response)))
               (check-equal? (hash-ref json-response 'stepName #f) "Initialize Program")
               (check-equal? (hash-ref json-response 'step #f) 0)
@@ -152,8 +190,7 @@
                            APPLICATION/JSON-MIME-TYPE)
              (check-equal? (response-headers response) 
                            (list (header #"X-Is-Last" #"true")))
-             (check-equal? (response-body->string response)
-                           "{\"program\":\"{\\\"children\\\":[{\\\"id\\\":\\\"u5\\\",\\\"left\\\":{\\\"sym\\\":\\\"tree1\\\"},\\\"name\\\":\\\"Unify\\\",\\\"right\\\":{\\\"sym\\\":\\\"horse\\\"}}],\\\"id\\\":\\\"f0\\\",\\\"name\\\":\\\"Fresh\\\",\\\"reified\\\":[],\\\"stateId\\\":\\\"s\\\",\\\"sub\\\":[],\\\"trail\\\":[],\\\"vars\\\":[{\\\"var\\\":\\\"q\\\"}]}\",\"step\":0,\"stepName\":\"Initialize Program\"}")
+             (check-sample-program-response response 0 "Initialize Program")
              (check-false (hash-ref ses-table 'testid false)))
 
 
@@ -169,8 +206,7 @@
              (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
              (check-equal? (response-headers response)
                            (list (make-header #"X-Is-Last" #"true")))
-             (check-equal? (response-body->string response)
-                           "{\"program\":\"{\\\"children\\\":[{\\\"id\\\":\\\"u5\\\",\\\"left\\\":{\\\"sym\\\":\\\"tree1\\\"},\\\"name\\\":\\\"Unify\\\",\\\"right\\\":{\\\"sym\\\":\\\"horse\\\"}}],\\\"id\\\":\\\"f0\\\",\\\"name\\\":\\\"Fresh\\\",\\\"reified\\\":[],\\\"stateId\\\":\\\"s\\\",\\\"sub\\\":[],\\\"trail\\\":[],\\\"vars\\\":[{\\\"var\\\":\\\"q\\\"}]}\",\"step\":0,\"stepName\":\"Initialize Program\"}")
+             (check-sample-program-response response 0 "Initialize Program")
              (check-false (hash-ref ses-table 'testid false)))
   )
 
@@ -188,8 +224,7 @@
              (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
              (check-equal? (response-headers response)
                            (list (header #"X-Is-Last" #"true")))
-             (check-equal? (response-body->string response)
-                           "{\"program\":\"{\\\"children\\\":[{\\\"id\\\":\\\"u5\\\",\\\"left\\\":{\\\"sym\\\":\\\"tree1\\\"},\\\"name\\\":\\\"Unify\\\",\\\"right\\\":{\\\"sym\\\":\\\"horse\\\"}}],\\\"id\\\":\\\"f0\\\",\\\"name\\\":\\\"Fresh\\\",\\\"reified\\\":[],\\\"stateId\\\":\\\"s\\\",\\\"sub\\\":[],\\\"trail\\\":[],\\\"vars\\\":[{\\\"var\\\":\\\"q\\\"}]}\",\"step\":0,\"stepName\":\"Initialize Program\"}")
+             (check-sample-program-response response 0 "Initialize Program")
              (define new-zipper (session-zipper ses))
              (check-equal? (zipper-prev new-zipper) '())
              (check-equal? (zipper-curr new-zipper) (step "Initialize Program" sample-tree))
@@ -205,8 +240,7 @@
               (check-equal? (response-message response) #"OK")
               (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
               (check-equal? (response-headers response) '())
-              (check-equal? (response-body->string response)
-                            "{\"program\":\"{\\\"children\\\":[{\\\"id\\\":\\\"u5\\\",\\\"left\\\":{\\\"sym\\\":\\\"tree1\\\"},\\\"name\\\":\\\"Unify\\\",\\\"right\\\":{\\\"sym\\\":\\\"horse\\\"}}],\\\"id\\\":\\\"f0\\\",\\\"name\\\":\\\"Fresh\\\",\\\"reified\\\":[],\\\"stateId\\\":\\\"s\\\",\\\"sub\\\":[],\\\"trail\\\":[],\\\"vars\\\":[{\\\"var\\\":\\\"q\\\"}]}\",\"step\":1,\"stepName\":\"Initialize Program\"}")
+              (check-sample-program-response response 1 "Initialize Program")
               (define new-zipper (session-zipper ses))
               (check-equal? (zipper-prev new-zipper) '(test1))
               (check-equal? (zipper-curr new-zipper) (step "Initialize Program" sample-tree))
@@ -316,6 +350,15 @@
              (define body (string->jsexpr (response-body->string response)))
              (assert-analyze-payload-shape body "analyze valid source"))
 
+  (test-case "analyze! defaults missing source options to canonical mini profile"
+             (define req
+               (make-post-request "analyze"
+                                  (hasheq 'text "(run* (q) (fresh (x) (== q x)))")))
+             (define response (analyze! #f req))
+             (check-equal? (response-code response) 200)
+             (define body (string->jsexpr (response-body->string response)))
+             (assert-analyze-payload-shape body "analyze default source options"))
+
   (test-case "analyze! returns 400 on syntax error"
              (define req (make-post-analyze-request "(run* (== 'a 'a))"))
              (define response (analyze! #f req))
@@ -362,7 +405,49 @@
                                       (hash-ref body 'compatibleModelIds '())))
              (check-true (null? (hash-ref body 'incompatibleModelIds '())))
              (define reasons-by-model (hash-ref body 'incompatReasonsByModel #hash()))
-             (check-equal? (hash-count reasons-by-model) 0)))
+             (check-equal? (hash-count reasons-by-model) 0))
+
+  (test-case "analyze! rejects compileProfile when sourceMode is micro"
+             (define req
+               (make-post-analyze-request
+                "(run* (q) (Zzz (== q 'cat)))"
+                (hasheq 'text "(run* (q) (Zzz (== q 'cat)))"
+                        'sourceMode "micro"
+                        'compileProfile (hasheq 'conjAssoc "left"
+                                                'disjAssoc "right"
+                                                'delayPlacement "relbody"))))
+             (define response (analyze! #f req))
+             (check-equal? (response-code response) 400)
+             (define body (string->jsexpr (response-body->string response)))
+             (check-false (hash-ref body 'validSyntax #t))
+             (check-true (hash-has-key? body 'error))))
+
+(define-test-suite SOURCE-CONVERT!
+  (test-case "source-convert! lowers mini source to direct micro source with Zzz"
+             (define req
+               (make-post-source-convert-request
+                "(defrel (same x y) (== x y))
+                 (run* (q)
+                   (conde
+                     [(same q 'cat)]
+                     [(same q 'dog)]))"))
+             (define response (source-convert! req))
+             (check-equal? (response-code response) 200)
+             (define body (string->jsexpr (response-body->string response)))
+             (define rendered (hash-ref body 'source #f))
+             (check-true (string? rendered))
+             (check-not-false (regexp-match? #rx"Zzz" rendered)))
+
+  (test-case "source-convert! rejects unsupported target source modes"
+             (define req
+               (make-post-source-convert-request
+                "(run* (q) (== q 'cat))"
+                (hasheq 'text "(run* (q) (== q 'cat))"
+                        'sourceMode "mini"
+                        'compileProfile (hash-ref default-source-options 'compileProfile)
+                        'targetSourceMode "mini")))
+             (check-exn exn:fail?
+                        (lambda () (source-convert! req)))))
 
 (define/provide-test-suite APP
   #:before (thunk (displayln "Running tests for app.rkt..."))
@@ -373,6 +458,7 @@
   BACK!
   SWITCH-MODEL!
   LIST-MODELS!
+  SOURCE-CONVERT!
   ANALYZE!
 )
 

@@ -11,6 +11,12 @@ import Resizable       from './components/Resizable';
 import Sidebar from './components/Sidebar';
 import { MODEL_IDS } from './utils/model_ids.js';
 import { analysisStatusForModel, isStartBlockedByAnalysis } from './utils/compatibility.js';
+import { exampleById } from './utils/example_programs.js';
+import {
+  buildSourceOptions,
+  DEFAULT_COMPILE_PROFILE,
+  DEFAULT_SOURCE_MODE,
+} from './utils/source_defaults.js';
 import './styles.css'
 
 const ANALYSIS_DEBOUNCE_MS = 450;
@@ -18,7 +24,7 @@ const ANALYSIS_DEBOUNCE_MS = 450;
 function App() {
   const [code, setCode] = useState('');
   const originalCodeRef = useRef('');
-  const [predefinedCodeText, setPredefinedCodeText] = useState('');
+  const [selectedExampleId, setSelectedExampleId] = useState('');
   const [model, setModel] = useState(MODEL_IDS.L4_RAIL_LAZY);
   const [modelOptions, setModelOptions] = useState([
     { value: MODEL_IDS.L0_CORE, label: "µKanren Core (No RelCall/No Disjunction)" },
@@ -60,6 +66,9 @@ function App() {
   const analysisCacheRef = useRef(new Map());
   const analysisAbortRef = useRef(null);
   const analysisTokenRef = useRef(0);
+  const programmaticCodeUpdateRef = useRef(false);
+  const compileProfile = DEFAULT_COMPILE_PROFILE;
+  const sourceMode = DEFAULT_SOURCE_MODE;
 
   const requestModelChange = async (newModel) => {
     try {
@@ -78,37 +87,50 @@ function App() {
   };
 
   const analyzeSource = async (source, { signal } = {}) => {
-    const cached = analysisCacheRef.current.get(source);
+    const requestPayload = buildSourceOptions(source, sourceMode, compileProfile);
+    const cacheKey = JSON.stringify(requestPayload);
+    const cached = analysisCacheRef.current.get(cacheKey);
     if (cached) return cached;
 
     const response = await fetch('api/post/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json'},
-      body: JSON.stringify({ text: source }),
+      body: JSON.stringify(requestPayload),
       credentials: "include",
       signal,
     });
     const text = await response.text();
-    let payload;
+    let responsePayload;
     try {
-      payload = JSON.parse(text);
+      responsePayload = JSON.parse(text);
     } catch (_) {
-      payload = { validSyntax: false, error: "invalid analysis response" };
+      responsePayload = { validSyntax: false, error: "invalid analysis response" };
     }
 
     if (!response.ok) {
-      const failData = (payload && typeof payload === "object")
-        ? payload
+      const failData = (responsePayload && typeof responsePayload === "object")
+        ? responsePayload
         : { validSyntax: false, error: `Analyze failed (${response.status})` };
       // Only cache deterministic syntax failures; avoid pinning transient backend errors.
       if (response.status === 400 && failData.validSyntax === false) {
-        analysisCacheRef.current.set(source, failData);
+        analysisCacheRef.current.set(cacheKey, failData);
       }
       return failData;
     }
 
-    analysisCacheRef.current.set(source, payload);
-    return payload;
+    analysisCacheRef.current.set(cacheKey, responsePayload);
+    return responsePayload;
+  };
+
+  const loadExampleSource = (exampleId) => {
+    const example = exampleById(exampleId);
+    return example ? example.miniSource : null;
+  };
+
+  const applyExampleSource = (nextCode, exampleId) => {
+    programmaticCodeUpdateRef.current = true;
+    setSelectedExampleId(exampleId);
+    setCode(nextCode);
   };
 
   const applyAnalysisStatus = (analysis, modelId = model) => {
@@ -148,7 +170,7 @@ function App() {
     }
 
     originalCodeRef.current = code;
-    const [success, progOrError] = await init(code);
+    const [success, progOrError] = await init(code, sourceMode, compileProfile);
     if (success) {
       setFrozen(true);
       setCode(progOrError);
@@ -179,6 +201,7 @@ function App() {
   const handleReset = async () => {
     const success = await reset();  
     if (success) {
+      programmaticCodeUpdateRef.current = true;
       setCode(originalCodeRef.current);
       setFrozen(false);
       setDisabled({start: false, reset: true, back: true, step: true});
@@ -191,12 +214,6 @@ function App() {
       treeRef.current.updateSidebar(stateId);
       }
   }, [tree]);
-
-  useEffect(() => {
-    if (!isFrozen) {
-      setCode(predefinedCodeText);
-    }
-  }, [predefinedCodeText, isFrozen]);
 
   useEffect(() => {
     if (isFrozen) return undefined;
@@ -239,6 +256,12 @@ function App() {
       controller.abort();
     };
   }, [code, model, isFrozen]);
+
+  useEffect(() => {
+    if (programmaticCodeUpdateRef.current) {
+      programmaticCodeUpdateRef.current = false;
+    }
+  }, [code]);
 
   useEffect(() => {
     let active = true;
@@ -292,14 +315,32 @@ function App() {
     await requestModelChange(firstCompatibleModel);
   };
 
+  const handleExampleChange = (exampleId) => {
+    if (isFrozen) return;
+    if (!exampleId) {
+      setSelectedExampleId("");
+      return;
+    }
+    const nextCode = loadExampleSource(exampleId);
+    if (nextCode == null) return;
+    applyExampleSource(nextCode, exampleId);
+  };
+
+  const handleCodeChange = (nextCode) => {
+    if (!programmaticCodeUpdateRef.current) {
+      setSelectedExampleId("");
+    }
+    setCode(nextCode);
+  };
+
   return (
     <div className="container">
       <Resizable>
         <div className="input-container">
           <CodeHeader
             logoSrc={darkMode ? "/mk_logo_white.png" : "/mk_logo_black.png"}
-            programText={predefinedCodeText}
-            onProgramChange={setPredefinedCodeText}
+            exampleValue={selectedExampleId}
+            onExampleChange={handleExampleChange}
             modelValue={model}
             modelOptions={modelOptions}
             onModelChangeRequest={requestModelChange}
@@ -311,7 +352,7 @@ function App() {
           <div className="editor-area">
             <CodeEditor 
               codeText={code} 
-              setCodeText={setCode} 
+              setCodeText={handleCodeChange}
               isFrozen={isFrozen} 
               isDark={darkMode}
               goalId={goalId}

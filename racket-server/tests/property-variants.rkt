@@ -22,15 +22,15 @@
     (define next1 (first (apply-reduction-relation Rl2-disj-left cfg-disj)))
     (check-equal?
      next1
-     (term (() (emit (state () () () (label "a"))
-                     (⊤ (state () () () (label "b"))))
+     (term (() (emit (state () () () () (label "a"))
+                     (⊤ (state () () () () (label "b"))))
                (empty-stream))))
     (define next2* (apply-reduction-relation Rl2-disj-left next1))
     (check-equal? (length next2*) 1)
     (check-equal?
      (first next2*)
-     (term (() (⊤ (state () () () (label "b")))
-               (⊤ (state () () () (label "a")))))))
+     (term (() (⊤ (state () () () () (label "b")))
+               (⊤ (state () () () () (label "a")))))))
 
   (test-case "Rbase variants can step call and disjunction configs"
     (check-false (null? (apply-reduction-relation Rl3-pre-eager cfg-call)))
@@ -62,7 +62,7 @@
              (delay
               (proceed
                ((r:id (sym "ok") (label "call"))
-                (state () () () (label "s")))))
+                (state () () () () (label "s")))))
              (empty-stream))))
     (define named-next* (apply-reduction-relation/tag-with-names Rl3-flip-eager cfg-delay-proceed-call))
     (check-equal? (length named-next*)
@@ -78,7 +78,7 @@
              (delay
               (proceed
                ((r:id (sym "ok") (label "call"))
-                (state () () () (label "s")))))
+                (state () () () () (label "s")))))
              (empty-stream))))
     (define named-next* (apply-reduction-relation/tag-with-names Rl3-flip-lazy cfg-delay-proceed-call))
     (check-equal? (length named-next*)
@@ -94,7 +94,7 @@
              (delay
               (proceed
                ((r:id (sym "ok") (label "call"))
-                (state () () () (label "s")))))
+                (state () () () () (label "s")))))
              (empty-stream))))
     (define named-next* (apply-reduction-relation/tag-with-names Rl4-rail-eager cfg-delay-proceed-call))
     (check-equal? (length named-next*)
@@ -110,7 +110,7 @@
              (delay
               (proceed
                ((r:id (sym "ok") (label "call"))
-                (state () () () (label "s")))))
+                (state () () () () (label "s")))))
              (empty-stream))))
     (define named-next* (apply-reduction-relation/tag-with-names Rl4-rail-lazy cfg-delay-proceed-call))
     (check-equal? (length named-next*)

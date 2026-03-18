@@ -35,13 +35,13 @@
                     "µKanren L1 Calls (Lazy, No Disjunction)"
                     canonical-parser-profile
                     canonical-parser-target-id
-                    '("cap/core" "cap/relcall" "cap/fresh")
+                    '("cap/core" "cap/relcall" "cap/fresh" "cap/delay")
                     (stepper var:Rl1-call-lazy))
         (model-spec "mk-l1-call-eager"
                     "µKanren L1 Calls (Eager, No Disjunction)"
                     canonical-parser-profile
                     canonical-parser-target-id
-                    '("cap/core" "cap/relcall" "cap/fresh")
+                    '("cap/core" "cap/relcall" "cap/fresh" "cap/delay")
                     (stepper var:Rl1-call-eager))
         (model-spec "mk-l2-disj-left"
                     "µKanren L2 Disjunction (No RelCall)"
@@ -53,37 +53,37 @@
                     "µKanren (Interleave + Railroad, Lazy)"
                     canonical-parser-profile
                     canonical-parser-target-id
-                    '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh")
+                    '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh" "cap/delay")
                     (stepper var:Rl4-rail-lazy))
         (model-spec "mk-l3-dfs-lazy"
                     "µKanren (No Interleave, Lazy)"
                     canonical-parser-profile
                     canonical-parser-target-id
-                    '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh")
+                    '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh" "cap/delay")
                     (stepper var:Rl3-dfs-lazy))
         (model-spec "mk-l3-flip-lazy"
                     "µKanren (Interleave + Flip-Flop, Lazy)"
                     canonical-parser-profile
                     canonical-parser-target-id
-                    '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh")
+                    '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh" "cap/delay")
                     (stepper var:Rl3-flip-lazy))
         (model-spec "mk-l4-rail-eager"
                     "µKanren (Interleave + Railroad, Eager)"
                     canonical-parser-profile
                     canonical-parser-target-id
-                    '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh")
+                    '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh" "cap/delay")
                     (stepper var:Rl4-rail-eager))
         (model-spec "mk-l3-dfs-eager"
                     "µKanren (No Interleave, Eager)"
                     canonical-parser-profile
                     canonical-parser-target-id
-                    '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh")
+                    '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh" "cap/delay")
                     (stepper var:Rl3-dfs-eager))
         (model-spec "mk-l3-flip-eager"
                     "µKanren (Interleave + Flip-Flop, Eager)"
                     canonical-parser-profile
                     canonical-parser-target-id
-                    '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh")
+                    '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh" "cap/delay")
                     (stepper var:Rl3-flip-eager))))
 
 (define default-model-id "mk-l4-rail-lazy")

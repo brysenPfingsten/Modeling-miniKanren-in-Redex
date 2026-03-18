@@ -72,12 +72,12 @@
            "call/lazy-suspend-call"
            "call/lazy-invoke-delay"
            "call/lazy-expand-on-resume"
+           "source-delay/bridge"
+           "rail/invoke-delay"
            "disj/goal-to-tree"
            "core/conj-distribute-state"
            "core/unify-fail"
-           "core/conj-prune-fail"
-           "disj/skip-left-fail"
-           "core/fresh-substitute"))
+           "core/conj-prune-fail"))
    (list "mk-l4-rail-lazy"
          "fives/fours"
          '("core/fresh-substitute"
@@ -89,7 +89,7 @@
            "rail/return-left"
            "rail/invoke-delay"
            "call/lazy-expand-on-resume"
-           "disj/goal-to-tree"))
+           "source-delay/bridge"))
    (list "mk-l3-flip-lazy"
          "fives/fours"
          '("core/fresh-substitute"
@@ -101,7 +101,7 @@
            "flip/delay-swap-left"
            "flip/invoke-delay"
            "call/lazy-expand-on-resume"
-           "disj/goal-to-tree"))
+           "source-delay/bridge"))
    (list "mk-l3-dfs-lazy"
          "same"
          '("core/fresh-substitute"
@@ -112,8 +112,8 @@
            "dfs/delay-through-left"
            "dfs/invoke-delay"
            "call/lazy-expand-on-resume"
-           "core/unify-success"
-           "disj/promote-left-answer"))))
+           "source-delay/bridge"
+           "dfs/delay-through-left"))))
 
 (define/provide-test-suite CONFIDENCE-GATES
   (test-case "golden trace prefixes stay stable and step names are always named"

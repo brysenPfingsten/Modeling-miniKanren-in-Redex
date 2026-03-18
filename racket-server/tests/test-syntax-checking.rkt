@@ -12,7 +12,7 @@
 (define WELL-FORMED-CONFIG (term (() (empty-tree))))
 (define BAD-FORMED-CONFIG
   (term (() ((u:1 =? (sym "a") (label "t"))
-             (state () () () (label "s"))))))
+             (state () () () () (label "s"))))))
 
 (define-test-suite WELL-FORMED
   (test-case "Well-formed canonical config is accepted"
@@ -31,7 +31,7 @@
   (test-case "Canonical core gate rejects malformed canonical core program"
              (define bad-canonical
                '(() ((u:1 =? (sym "a") (label "t"))
-                     (state () () () (label "s")))))
+                     (state () () () () (label "s")))))
              (check-true (canonical-core-shape? bad-canonical))
              (check-false (canonical-well-formed? bad-canonical))
              (check-exn exn:fail?

@@ -190,7 +190,7 @@
       (term
        (()
         ((empty-tree)
-         +-> (⊤ (state () () () (label "XAfR"))))
+         +-> (⊤ (state () () () () (label "XAfR"))))
         (empty-stream))))
     (define tagged-next*
       (apply-reduction-relation/tag-with-names Rl4-rail-lazy cfg))

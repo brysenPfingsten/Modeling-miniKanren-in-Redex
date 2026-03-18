@@ -18,7 +18,18 @@
 (provide step! back! reset! init! init-session! 
          make-stepper step step-name 
          session session-zipper session-stepper session-nqv
-         switch-model! analyze! list-models!)
+         switch-model! analyze! source-convert! list-models!)
+
+(define (request->payload req)
+  (bytes->jsexpr (request-post-data/raw req)))
+
+(define (payload->source-options payload)
+  (define source-mode
+    (normalize-source-mode (hash-ref payload 'sourceMode default-source-mode)))
+  (define compile-profile
+    (normalize-compile-profile (hash-ref payload 'compileProfile #f)
+                               source-mode))
+  (values source-mode compile-profile))
 
 (define-struct step (name prog) #:transparent)
 (define-struct session 
@@ -109,15 +120,21 @@
 ;; init!: session request string -> response
 ;; Purpose: To initialize the given session
 (define (init! ses req ses-id)
-  (define json-data (request-post-data/raw req))                      ;; Get the JSON data from the request
-  (define raw-prog (hash-ref (bytes->jsexpr json-data) 'text))        ;; Get the program from that JSON
-  (check-syntax-capture-error raw-prog)                               ;; Check for syntax errors
+  (define payload (request->payload req))
+  (define raw-prog (hash-ref payload 'text))
+  (define-values (source-mode compile-profile)
+    (payload->source-options payload))
+  (when (equal? source-mode "mini")
+    (check-syntax-capture-error raw-prog))
   (define sexpr-prog (read-all-sexprs (open-input-string raw-prog)))   ;; Read the program into sexpressions
   (define model-id (session-model-id ses))
   (define maybe-spec (lookup-model-spec model-id))
   (unless maybe-spec
     (error 'init! (format "Unknown model selected for session: ~a" model-id)))
-  (define requirements (ast->requirements (parse-prog->ast sexpr-prog)))
+  (define requirements
+    (ast->requirements (parse-prog->ast sexpr-prog
+                                        #:source-mode source-mode
+                                        #:compile-profile compile-profile)))
   (define reasons
     (incompatible-reasons requirements (model-spec-capabilities maybe-spec)))
   (unless (null? reasons)
@@ -125,7 +142,10 @@
            (format "Program is incompatible with selected model ~a: ~a"
                    model-id
                    (string-join reasons "; "))))
-  (define-values (model-prog html-prog) (parse-prog/canonical sexpr-prog)) ;; Parse directly to canonical target
+  (define-values (model-prog html-prog)
+    (parse-prog/canonical sexpr-prog
+                          #:source-mode source-mode
+                          #:compile-profile compile-profile))
   (unless (canonical-target-in-domain? model-prog canonical-parser-target-id)
     (error 'init! (format "transpiler produced a program outside canonical target ~a"
                           canonical-parser-target-id)))
@@ -202,9 +222,14 @@
                    'error (exn-message e))
            #:mime-type #"application/json; charset=utf-8"
            #:code 400))])
-    (define json-data (request-post-data/raw req))
-    (define raw-prog (hash-ref (bytes->jsexpr json-data) 'text))
-    (define analysis (analyze-source-capabilities raw-prog))
+    (define payload (request->payload req))
+    (define raw-prog (hash-ref payload 'text))
+    (define-values (source-mode compile-profile)
+      (payload->source-options payload))
+    (define analysis
+      (analyze-source-capabilities raw-prog
+                                   #:source-mode source-mode
+                                   #:compile-profile compile-profile))
     (define requirements (hash-ref analysis 'requirements '()))
     (define compatible-ids (compatible-model-ids requirements surfaced-model-specs))
     (define incompatible-specs
@@ -227,6 +252,27 @@
              'analysisVersion (hash-ref analysis 'analysisVersion ANALYSIS-VERSION))
      #:mime-type #"application/json; charset=utf-8"
      #:code 200)))
+
+(define (source-convert! req)
+  (define payload (request->payload req))
+  (define raw-prog (hash-ref payload 'text))
+  (define target-source-mode
+    (normalize-source-mode (hash-ref payload 'targetSourceMode "micro")))
+  (unless (equal? target-source-mode "micro")
+    (error 'source-convert!
+           (format "unsupported target source mode: ~a" target-source-mode)))
+  (define-values (source-mode compile-profile)
+    (payload->source-options payload))
+  (when (equal? source-mode "mini")
+    (check-syntax-capture-error raw-prog))
+  (define sexpr-prog (read-all-sexprs (open-input-string raw-prog)))
+  (response/jsexpr
+   (hasheq 'source
+           (render-micro-source sexpr-prog
+                                #:source-mode source-mode
+                                #:compile-profile compile-profile))
+   #:mime-type #"application/json; charset=utf-8"
+   #:code 200))
 
 
 ;; list-models!: -> response
@@ -289,6 +335,7 @@
       ["post/reset" (reset! session session-table session-id)]
       ["post/back"  (back! session)]
       ["post/model" (switch-model! session req session-id)]
+      ["post/source-convert" (source-convert! req)]
       ["post/analyze" (analyze! session req)])))
 
 (define (handled-dispatcher req)

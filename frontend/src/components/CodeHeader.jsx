@@ -4,8 +4,8 @@ import { examplesForModel } from "../utils/example_programs.js";
 
 export default function CodeHeader({
   logoSrc,
-  programText,
-  onProgramChange,
+  exampleValue,
+  onExampleChange,
   modelValue,
   modelOptions = [],
   onModelChangeRequest,
@@ -46,8 +46,8 @@ export default function CodeHeader({
 
       <select
         className="select"
-        value={programText}
-        onChange={(e) => onProgramChange(e.target.value)}
+        value={exampleValue}
+        onChange={(e) => onExampleChange(e.target.value)}
         disabled={isFrozen}
       >
         {renderExampleOptions(availableExamples)}

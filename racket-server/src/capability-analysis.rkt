@@ -12,6 +12,7 @@
          REQ-RELCALL
          REQ-DISJUNCTION
          REQ-FRESH
+         REQ-DELAY
          requirement->capability
          ast->requirements
          analyze-source-capabilities
@@ -19,7 +20,7 @@
          compatible-model-ids
          incompatible-model-ids)
 
-(define ANALYSIS-VERSION "v1")
+(define ANALYSIS-VERSION "v2")
 
 (define (requirement->capability req)
   (cond
@@ -27,12 +28,19 @@
     [(equal? req REQ-RELCALL) "cap/relcall"]
     [(equal? req REQ-DISJUNCTION) "cap/disjunction"]
     [(equal? req REQ-FRESH) "cap/fresh"]
+    [(equal? req REQ-DELAY) "cap/delay"]
     [else #f]))
 
-(define (analyze-source-capabilities source)
-  (check-syntax-capture-error source)
+(define (analyze-source-capabilities source
+                                     #:source-mode [source-mode default-source-mode]
+                                     #:compile-profile [compile-profile #f])
+  (define source-mode* (normalize-source-mode source-mode))
+  (when (equal? source-mode* "mini")
+    (check-syntax-capture-error source))
   (define sexprs (read-all-sexprs (open-input-string source)))
-  (define ast (parse-prog->ast sexprs))
+  (define ast (parse-prog->ast sexprs
+                               #:source-mode source-mode*
+                               #:compile-profile compile-profile))
   (hasheq 'validSyntax #t
           'requirements (ast->requirements ast)
           'analysisVersion ANALYSIS-VERSION))

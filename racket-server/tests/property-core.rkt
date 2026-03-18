@@ -150,7 +150,7 @@
        ,(make-label "ex"))]))
 
 (define (gen-state c)
-  `(state () ,c () ,(make-label "st")))
+  `(state () () ,c () ,(make-label "st")))
 
 (define (max-depth)
   PROPERTY-MAX-DEPTH)
@@ -198,7 +198,7 @@
 
 (define (state-c-size st)
   (match st
-    [`(state ,_ ,c ,_ ,_) (length c)]
+    [`(state ,_ ,_ ,c ,_ ,_) (length c)]
     [_ 0]))
 
 (define (goal-flags g)

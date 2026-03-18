@@ -132,6 +132,7 @@ function drawCircle(group, fill, text = "", textColor = "black", fontSize = "20p
 function drawGoalConjNode(group, _) { return drawCircle(group, "#57c4ff", "∧", "white"); }
 function drawGoalDisjNode(group, _) { return drawCircle(group, "orange", "∨"); }
 function drawSucceedNode(group, _)  { return drawCircle(group, "green"); }
+function drawFailNode(group, _)     { return drawCircle(group, "#ffdddd", "×"); }
 function drawAnswerNode(group, _)   { return drawCircle(group, "green", "Answer", undefined, "10px") }
 function drawEmptyNode(group, _)    { return drawCircle(group, "white") }
 
@@ -178,6 +179,11 @@ function drawProceedNode(group, data) {
 
 function drawUnifyNode(group, data) {
     const textContent = `(== ${termToString(data.left)} ${termToString(data.right)})`;
+    return drawTextNode(group, textContent);
+}
+
+function drawDisequalityNode(group, data) {
+    const textContent = `(=/= ${termToString(data.left)} ${termToString(data.right)})`;
     return drawTextNode(group, textContent);
 }
 
@@ -230,7 +236,9 @@ function drawDelayNode(group) {
 const nodeDrawFunctions = {
     "Answer": drawAnswerNode,
     "Succeed": drawSucceedNode,
+    "Fail": drawFailNode,
     "Unify": drawUnifyNode,
+    "Disequality": drawDisequalityNode,
     "<-+": drawLeftDisjunctionNode,
     "+->": drawRightDisjunctionNode,
     "Delay": drawDelayNode,

@@ -85,7 +85,7 @@
 
 (define (states-in datum [acc '()])
   (match datum
-    [`(state ,_sub ,_c ,_trail ,_tag) (cons datum acc)]
+    [`(state ,_sub ,_dis ,_c ,_trail ,_tag) (cons datum acc)]
     ['() acc]
     [(cons a d) (states-in a (states-in d acc))]
     [_ acc]))
@@ -126,36 +126,36 @@
   (second cfg))
 
 (define sigma-a
-  (term (state () () () (label "a"))))
+  (term (state () () () () (label "a"))))
 
 (define sigma-b
-  (term (state () () () (label "b"))))
+  (term (state () () () () (label "b"))))
 
 (define cfg-core
-  (term (() (⊤ (state () () () (label "s"))) (empty-stream))))
+  (term (() (⊤ (state () () () () (label "s"))) (empty-stream))))
 
 (define cfg-call
   (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
          ((r:id (sym "ok") (label "call"))
-          (state () () () (label "s")))
+          (state () () () () (label "s")))
          (empty-stream))))
 
 (define cfg-disj
-  (term (() ((⊤ (state () () () (label "a")))
+  (term (() ((⊤ (state () () () () (label "a")))
              <-+
-             (⊤ (state () () () (label "b"))))
+             (⊤ (state () () () () (label "b"))))
          (empty-stream))))
 
 (define cfg-flip
   (term (() ((delay (empty-tree))
              <-+
-             (⊤ (state () () () (label "b"))))
+             (⊤ (state () () () () (label "b"))))
          (empty-stream))))
 
 (define cfg-rail
   (term (() ((delay (empty-tree))
              <-+
-             (⊤ (state () () () (label "b"))))
+             (⊤ (state () () () () (label "b"))))
          (empty-stream))))
 
 ;; Shared seam corpus for bounded smoke/determinism checks at relation boundaries.

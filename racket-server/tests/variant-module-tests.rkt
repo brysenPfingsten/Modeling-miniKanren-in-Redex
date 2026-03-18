@@ -16,14 +16,14 @@
     (check-true
      (redex-match? lang:L1 s
                    (term (delay (proceed ((r:id (sym "ok") (label "call"))
-                                          (state () () () (label "s")))))))))
+                                          (state () () () () (label "s")))))))))
 
   (test-case "L2 includes disjunction but not delay/proceed"
     (check-true
      (redex-match? lang:L2 s
-                   (term ((⊤ (state () () () (label "a")))
+                   (term ((⊤ (state () () () () (label "a")))
                           <-+
-                          (⊤ (state () () () (label "b")))))))
+                          (⊤ (state () () () () (label "b")))))))
     (check-false
      (redex-match? lang:L2 s
                    (term (delay (empty-tree))))))
@@ -32,54 +32,54 @@
     (check-true
      (redex-match? lang:L3 s
                    (term ((r:id (sym "ok") (label "call"))
-                          (state () () () (label "s"))))))
+                          (state () () () () (label "s"))))))
     (check-true
      (redex-match? lang:L3 s
-                   (term ((⊤ (state () () () (label "a")))
+                   (term ((⊤ (state () () () () (label "a")))
                           <-+
-                          (⊤ (state () () () (label "b"))))))))
+                          (⊤ (state () () () () (label "b"))))))))
 
   (test-case "L4 adds right disjunction"
     (check-true
      (redex-match? lang:L4 s
                    (term ((empty-tree)
-                          +-> (⊤ (state () () () (label "b"))))))))
+                          +-> (⊤ (state () () () () (label "b"))))))))
 
   (test-case "Variant wf judgments cover L1/L2/L3/L4 syntax"
     (define cfg-l1
       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
              (delay (proceed ((r:id (sym "ok") (label "call"))
-                              (state () () () (label "s")))))
+                              (state () () () () (label "s")))))
              (empty-stream))))
 
     (define cfg-l2
       (term (()
-             (((succeed (label "a")) (state () () () (label "sa")))
+             (((succeed (label "a")) (state () () () () (label "sa")))
               <-+
-              ((succeed (label "b")) (state () () () (label "sb"))))
+              ((succeed (label "b")) (state () () () () (label "sb"))))
              (empty-stream))))
 
     (define cfg-l3
       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
              ((delay (proceed ((r:id (sym "ok") (label "call"))
-                               (state () () () (label "s")))))
+                               (state () () () () (label "s")))))
               <-+
-              ((succeed (label "b")) (state () () () (label "sb"))))
+              ((succeed (label "b")) (state () () () () (label "sb"))))
              (empty-stream))))
 
     (define cfg-l4
       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
              (((delay (proceed ((r:id (sym "ok") (label "call"))
-                                (state () () () (label "s")))))
+                                (state () () () () (label "s")))))
                <-+
-               ((succeed (label "b")) (state () () () (label "sb"))))
+               ((succeed (label "b")) (state () () () () (label "sb"))))
               +-> (empty-tree))
              (empty-stream))))
 
     (define cfg-bad-arity
       (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
              ((r:id (sym "ok") (sym "extra") (label "call"))
-              (state () () () (label "s")))
+              (state () () () () (label "s")))
              (empty-stream))))
 
     (check-true (judgment-holds (j:wf-config/L1? ,cfg-l1)))
@@ -135,16 +135,16 @@
     (define next (first (apply-reduction-relation Rl2-disj-left cfg-disj)))
     (check-equal?
      next
-     (term (() (emit (state () () () (label "a"))
-                     (⊤ (state () () () (label "b"))))
+     (term (() (emit (state () () () () (label "a"))
+                     (⊤ (state () () () () (label "b"))))
                (empty-stream)))))
 
   (test-case "Rdfs-nodelay matches left-biased DFS behavior without delay/proceed machinery"
     (define next (first (apply-reduction-relation dn:Rdfs-nodelay cfg-disj)))
     (check-equal?
      next
-     (term (() (emit (state () () () (label "a"))
-                     (⊤ (state () () () (label "b"))))
+     (term (() (emit (state () () () () (label "a"))
+                     (⊤ (state () () () () (label "b"))))
                (empty-stream)))))
 
   (test-case "Rl3-pre-eager and Rl3-pre-lazy both step call and disjunction configs"
@@ -158,7 +158,7 @@
       (define next (first (apply-reduction-relation rel cfg-flip)))
       (check-equal?
        next
-       (term (() (delay ((⊤ (state () () () (label "b"))) <-+ (empty-tree)))
+       (term (() (delay ((⊤ (state () () () () (label "b"))) <-+ (empty-tree)))
                  (empty-stream))))))
 
   (test-case "Rl3-flip-eager and Rl3-flip-lazy propagate delay over left disjunction before resuming proceed"
@@ -167,9 +167,9 @@
              ((delay
                (proceed
                 ((r:id (sym "ok") (label "call"))
-                 (state () () () (label "s")))))
+                 (state () () () () (label "s")))))
               <-+
-              (⊤ (state () () () (label "b"))))
+              (⊤ (state () () () () (label "b"))))
              (empty-stream))))
     (for ([rel (in-list (list Rl3-flip-eager Rl3-flip-lazy))])
       (define named-next* (apply-reduction-relation/tag-with-names rel cfg))
@@ -179,11 +179,11 @@
        (second (first named-next*))
        (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
               (delay
-               ((⊤ (state () () () (label "b")))
+               ((⊤ (state () () () () (label "b")))
                 <-+
                 (proceed
                  ((r:id (sym "ok") (label "call"))
-                  (state () () () (label "s"))))))
+                  (state () () () () (label "s"))))))
               (empty-stream))))))
 
   (test-case "Rl4-rail-eager and Rl4-rail-lazy introduce right-pointing disjunction"
@@ -191,7 +191,7 @@
       (define next (first (apply-reduction-relation rel cfg-rail)))
       (check-equal?
        next
-       (term (() (delay ((empty-tree) +-> (⊤ (state () () () (label "b")))))
+       (term (() (delay ((empty-tree) +-> (⊤ (state () () () () (label "b")))))
                  (empty-stream))))))
 
   (test-case "Rl4-rail-eager and Rl4-rail-lazy propagate delay into railroad branch before resuming proceed"
@@ -200,9 +200,9 @@
              ((delay
                (proceed
                 ((r:id (sym "ok") (label "call"))
-                 (state () () () (label "s")))))
+                 (state () () () () (label "s")))))
               <-+
-              (⊤ (state () () () (label "b"))))
+              (⊤ (state () () () () (label "b"))))
              (empty-stream))))
     (for ([rel (in-list (list Rl4-rail-eager Rl4-rail-lazy))])
       (define named-next* (apply-reduction-relation/tag-with-names rel cfg))
@@ -214,15 +214,15 @@
               (delay
                ((proceed
                  ((r:id (sym "ok") (label "call"))
-                  (state () () () (label "s"))))
+                  (state () () () () (label "s"))))
                 +->
-                (⊤ (state () () () (label "b")))))
+                (⊤ (state () () () () (label "b")))))
               (empty-stream))))))
 
   (test-case "Rl4-rail-eager and Rl4-rail-lazy promote +-> right answer inside <-+ context"
     (define cfg
       (term (()
-             (((empty-tree) +-> (⊤ (state () () () (label "ra"))))
+             (((empty-tree) +-> (⊤ (state () () () () (label "ra"))))
               <-+
               (empty-tree))
              (empty-stream))))
@@ -232,7 +232,7 @@
       (check-equal? (first (first named-next*)) "rail/promote-right-answer")
       (check-equal?
        (second (first named-next*))
-       (term (() ((emit (state () () () (label "ra")) (empty-tree))
+       (term (() ((emit (state () () () () (label "ra")) (empty-tree))
                   <-+
                   (empty-tree))
                 (empty-stream)))))))

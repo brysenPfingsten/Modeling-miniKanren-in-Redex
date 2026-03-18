@@ -63,6 +63,13 @@
                  'value (term->json/canonical t)))
        sub))
 
+(define (dis->json/canonical dis)
+  (map (lambda (p)
+         (match-define (list t1 t2) p)
+         (hasheq 'left (term->json/canonical t1)
+                 'right (term->json/canonical t2)))
+       dis))
+
 (define (trail->json/canonical trail)
   (map (lambda (crumb)
          (match crumb
@@ -127,16 +134,27 @@
                   (canonical-term->mk r))])
     `(== ,lhs ,rhs)))
 
+(define (make-diseq-clause query-vars n pair)
+  (let* ([l (car pair)]
+         [r (cadr pair)]
+         [lhs (if (< l n)
+                  (list-ref query-vars l)
+                  (underscore-symbol l))]
+         [rhs (if (and (number? r) (< r n))
+                  (list-ref query-vars r)
+                  (canonical-term->mk r))])
+    `(=/= ,lhs ,rhs)))
+
 (define (prepare-minikanren-namespace)
   (let ([ns (make-base-namespace)])
     (parameterize ([current-namespace ns])
       (namespace-require 'hosted-minikanren))
     ns))
 
-(define (run-in-namespace ns query-vars fresh-names unify-clauses)
+(define (run-in-namespace ns query-vars fresh-names clauses)
   (car (eval `(run* ,query-vars
                     (fresh ,fresh-names
-                           ,@unify-clauses))
+                           ,@clauses))
              ns)))
 
 (define (map/pair f p)
@@ -150,18 +168,20 @@
     [(pair? result) (map/pair mk->json result)]
     [else (mk->json result)]))
 
-(define (reify/canonical sub c n)
-  (if (empty? sub)
-      '()
-      (let* ([fresh-names (generate-fresh-names c)]
-             [query-vars (generate-query-vars n)]
-             [unify-clauses (map (lambda (p) (make-unify-clause query-vars n p)) sub)]
-             [ns (prepare-minikanren-namespace)]
-             [raw-result (run-in-namespace ns
-                                           query-vars
-                                           fresh-names
-                                           unify-clauses)])
-        (process-reify-result raw-result))))
+(define (reify/canonical sub dis c n)
+  (let* ([fresh-names (generate-fresh-names c)]
+         [query-vars (generate-query-vars n)]
+         [unify-clauses (map (lambda (p) (make-unify-clause query-vars n p)) sub)]
+         [diseq-clauses (map (lambda (p) (make-diseq-clause query-vars n p)) dis)]
+         [clauses (append unify-clauses diseq-clauses)]
+         [ns (prepare-minikanren-namespace)]
+         [raw-result (run-in-namespace ns
+                                       query-vars
+                                       fresh-names
+                                       (if (null? clauses)
+                                           (list '(== 1 1))
+                                           clauses))])
+    (process-reify-result raw-result)))
 
 (define (sub->reify/canonical sub)
   (for/list ([pr (in-list sub)])
@@ -169,12 +189,25 @@
     (list (or (u-symbol->natural u) u)
           (term->reify/canonical t))))
 
+(define (dis->reify/canonical dis)
+  (for/list ([pr (in-list dis)])
+    (match-define (list t1 t2) pr)
+    (list (term->reify/canonical t1)
+          (term->reify/canonical t2))))
+
 (define (goal->json/canonical g)
   (match g
     [`(succeed ,_tag)
      (hasheq 'name "Succeed")]
+    [`(fail ,_tag)
+     (hasheq 'name "Fail")]
     [`(,t_1 =? ,t_2 ,tag)
      (hasheq 'name "Unify"
+             'id (label->id tag)
+             'left (term->json/canonical t_1)
+             'right (term->json/canonical t_2))]
+    [`(,t_1 != ,t_2 ,tag)
+     (hasheq 'name "Disequality"
              'id (label->id tag)
              'left (term->json/canonical t_1)
              'right (term->json/canonical t_2))]
@@ -195,6 +228,10 @@
              'id (label->id tag)
              'children (list (goal->json/canonical g_1)
                              (goal->json/canonical g_2)))]
+    [`(sdelay ,g_1 ,tag)
+     (hasheq 'name "Delay"
+             'id (label->id tag)
+             'children (list (goal->json/canonical g_1)))]
     [`(∃ ,d ,g_1 ,tag)
      (hasheq 'name "Fresh"
              'id (label->id tag)
@@ -204,13 +241,15 @@
 
 (define (state->answer-json/canonical σ num-query-variables [rest #f])
   (match σ
-    [`(state ,sub ,c ,trail ,tag)
+    [`(state ,sub ,dis ,c ,trail ,tag)
      (define base
        (hasheq 'name "Answer"
                'stateId (label->id tag)
                'sub (sub->json/canonical sub)
+               'disequalities (dis->json/canonical dis)
                'trail (trail->json/canonical trail)
                'reified (reify/canonical (sub->reify/canonical sub)
+                                         (dis->reify/canonical dis)
                                          (state-c-bound/canonical c)
                                          num-query-variables)))
      (if rest
@@ -251,33 +290,39 @@
   (match s
     ['(empty-tree)
      (hasheq 'name "Empty")]
-    [`(,g (state ,sub ,c ,trail ,tag))
+    [`(,g (state ,sub ,dis ,c ,trail ,tag))
      #:when (not (equal? g '⊤))
      (hash-union (goal->json/canonical g)
                  (hasheq 'stateId (label->id tag)
                          'sub (sub->json/canonical sub)
+                         'disequalities (dis->json/canonical dis)
                          'trail (trail->json/canonical trail)
                          'reified (reify/canonical (sub->reify/canonical sub)
+                                                   (dis->reify/canonical dis)
                                                    (state-c-bound/canonical c)
                                                    num-query-variables)))]
-    [`(proceed ((,r ,t ... ,tag-call) (state ,sub ,c ,trail ,tag-state)))
+    [`(proceed ((,r ,t ... ,tag-call) (state ,sub ,dis ,c ,trail ,tag-state)))
      (hasheq 'name "Proceed"
              'id (label->id tag-call)
              'stateId (label->id tag-state)
              'goal (goal->json/canonical `(,r ,@t ,tag-call))
              'sub (sub->json/canonical sub)
+             'disequalities (dis->json/canonical dis)
              'trail (trail->json/canonical trail)
              'reified (reify/canonical (sub->reify/canonical sub)
+                                       (dis->reify/canonical dis)
                                        (state-c-bound/canonical c)
                                        num-query-variables))]
-    [`(proceed (,g (state ,sub ,c ,trail ,tag-state)))
+    [`(proceed (,g (state ,sub ,dis ,c ,trail ,tag-state)))
      (hasheq 'name "Proceed"
              'id (label->id tag-state)
              'stateId (label->id tag-state)
              'goal (goal->json/canonical g)
              'sub (sub->json/canonical sub)
+             'disequalities (dis->json/canonical dis)
              'trail (trail->json/canonical trail)
              'reified (reify/canonical (sub->reify/canonical sub)
+                                       (dis->reify/canonical dis)
                                        (state-c-bound/canonical c)
                                        num-query-variables))]
     [`(,s_1 <-+ ,s_2)
@@ -318,6 +363,7 @@
 (define (goal-query-vars/canonical g)
   (match g
     [`(∃ ,d ,_ ,_) (length d)]
+    [`(sdelay ,g_1 ,_) (goal-query-vars/canonical g_1)]
     [`(,g_1 ∧ ,g_2 ,_) (max (goal-query-vars/canonical g_1)
                             (goal-query-vars/canonical g_2))]
     [`(,g_1 ∨ ,g_2 ,_) (max (goal-query-vars/canonical g_1)
