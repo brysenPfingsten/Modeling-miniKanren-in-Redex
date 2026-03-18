@@ -1,7 +1,7 @@
 export function addColors(tree) {
 
     const ACTIVE_INDEX = { Conjunction: 0, "<-+": 0, "+->": 1 };
-    const TERMINALS1   = new Set(["Answer", "Succeed", "Empty", "Delay"]);
+    const TERMINALS1   = new Set(["Answer", "Succeed", "Empty", "Delay", "Goal-Delay"]);
     const TERMINALS2   = new Set(["Answer", "Succeed"]);
     const DISJ         = new Set(["<-+", "+->"]);
 
@@ -52,6 +52,7 @@ export function addColors(tree) {
             addColors(children[0]);
             break;
         case "Delay":
+        case "Goal-Delay":
             return tree;
         case "Answer":
             if (children) {

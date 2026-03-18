@@ -42,6 +42,14 @@
   (check-equal? (string->jsexpr (hash-ref payload 'program #f))
                 sample-program-jsexpr))
 
+(define (json-contains-name? node target)
+  (match node
+    [(? hash? h)
+     (or (equal? (hash-ref h 'name #f) target)
+         (json-contains-name? (hash-ref h 'children '()) target))]
+    [(list xs ...) (ormap (lambda (x) (json-contains-name? x target)) xs)]
+    [_ #f]))
+
 (define disj-delay-program
   "(defrel (same x y)
      (== x y))
@@ -153,6 +161,22 @@
               (check-equal? (hash-ref json-response 'step #f) 0)
               (check-not-false (hash-ref json-response 'program #f))
               (check-not-false (hash-ref json-response 'htmlGuids #f)))
+
+  (test-case "init! serializes direct micro Zzz as goal delay"
+              (define sample-req
+                (make-post-init-request
+                 "(run* (q) (Zzz (== q 'cat)))"
+                 (hasheq 'text "(run* (q) (Zzz (== q 'cat)))"
+                         'sourceMode "micro")))
+              (define zip (zipper '() #f '() 0))
+              (define stepper identity)
+              (define ses (session zip stepper 1))
+              (define response (init! ses sample-req 'goal-delay-id))
+              (check-equal? (response-code response) 200)
+              (define payload (string->jsexpr (response-body->string response)))
+              (define program-json (string->jsexpr (hash-ref payload 'program #f)))
+              (check-true (json-contains-name? program-json "Goal-Delay"))
+              (check-false (equal? (hash-ref program-json 'name #f) "Delay")))
 
   (test-case "init! throws error if program is not syntactically correct"
               (define sample-req (make-post-init-request "(run* (== 'a 'a))"))

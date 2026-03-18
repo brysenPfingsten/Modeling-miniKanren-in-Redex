@@ -229,7 +229,7 @@
              'children (list (goal->json/canonical g_1)
                              (goal->json/canonical g_2)))]
     [`(sdelay ,g_1 ,tag)
-     (hasheq 'name "Delay"
+     (hasheq 'name "Goal-Delay"
              'id (label->id tag)
              'children (list (goal->json/canonical g_1)))]
     [`(∃ ,d ,g_1 ,tag)
