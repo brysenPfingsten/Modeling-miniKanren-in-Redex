@@ -5,7 +5,11 @@ import { exampleById, examplesForModel } from "../src/utils/example_programs.js"
 import { MODEL_IDS } from "../src/utils/model_ids.js";
 import {
   buildSourceOptions,
+  CONJ_ASSOC_OPTIONS,
+  DELAY_PLACEMENT_OPTIONS,
   DEFAULT_COMPILE_PROFILE,
+  DISJ_ASSOC_OPTIONS,
+  SOURCE_MODE_OPTIONS,
 } from "../src/utils/source_defaults.js";
 
 test("buildSourceOptions includes compileProfile for mini source", () => {
@@ -42,4 +46,23 @@ test("exampleById returns the semantic example source of truth", () => {
   assert.equal(example.label, "same");
   assert.match(example.miniSource, /defrel/);
   assert.equal(exampleById("missing-example"), null);
+});
+
+test("source mode and compile profile option catalogs expose the expected axes", () => {
+  assert.deepEqual(
+    SOURCE_MODE_OPTIONS.map(({ value }) => value),
+    ["mini", "micro"],
+  );
+  assert.deepEqual(
+    CONJ_ASSOC_OPTIONS.map(({ value }) => value),
+    ["left", "right"],
+  );
+  assert.deepEqual(
+    DISJ_ASSOC_OPTIONS.map(({ value }) => value),
+    ["left", "right"],
+  );
+  assert.deepEqual(
+    DELAY_PLACEMENT_OPTIONS.map(({ value }) => value),
+    ["relbody", "relcall", "disj"],
+  );
 });

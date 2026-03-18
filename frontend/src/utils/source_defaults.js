@@ -11,6 +11,22 @@ export const SOURCE_MODE_OPTIONS = Object.freeze([
   Object.freeze({ value: "micro", label: "microKanren" }),
 ]);
 
+export const CONJ_ASSOC_OPTIONS = Object.freeze([
+  Object.freeze({ value: "left", label: "Left" }),
+  Object.freeze({ value: "right", label: "Right" }),
+]);
+
+export const DISJ_ASSOC_OPTIONS = Object.freeze([
+  Object.freeze({ value: "left", label: "Left" }),
+  Object.freeze({ value: "right", label: "Right" }),
+]);
+
+export const DELAY_PLACEMENT_OPTIONS = Object.freeze([
+  Object.freeze({ value: "relbody", label: "Top of Body" }),
+  Object.freeze({ value: "relcall", label: "Every RelCall" }),
+  Object.freeze({ value: "disj", label: "Every Disj" }),
+]);
+
 export function buildSourceOptions(
   text,
   sourceMode = DEFAULT_SOURCE_MODE,

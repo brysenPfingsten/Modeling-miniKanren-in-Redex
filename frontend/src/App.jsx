@@ -14,8 +14,12 @@ import { analysisStatusForModel, isStartBlockedByAnalysis } from './utils/compat
 import { exampleById } from './utils/example_programs.js';
 import {
   buildSourceOptions,
+  CONJ_ASSOC_OPTIONS,
+  DELAY_PLACEMENT_OPTIONS,
   DEFAULT_COMPILE_PROFILE,
   DEFAULT_SOURCE_MODE,
+  DISJ_ASSOC_OPTIONS,
+  SOURCE_MODE_OPTIONS,
 } from './utils/source_defaults.js';
 import './styles.css'
 
@@ -25,6 +29,8 @@ function App() {
   const [code, setCode] = useState('');
   const originalCodeRef = useRef('');
   const [selectedExampleId, setSelectedExampleId] = useState('');
+  const [sourceMode, setSourceMode] = useState(DEFAULT_SOURCE_MODE);
+  const [compileProfile, setCompileProfile] = useState(DEFAULT_COMPILE_PROFILE);
   const [model, setModel] = useState(MODEL_IDS.L4_RAIL_LAZY);
   const [modelOptions, setModelOptions] = useState([
     { value: MODEL_IDS.L0_CORE, label: "µKanren Core (No RelCall/No Disjunction)" },
@@ -61,14 +67,13 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState("idle");
   const [analysisResult, setAnalysisResult] = useState(null);
+  const [isExampleLoading, setIsExampleLoading] = useState(false);
   
   const [ darkMode, setDarkMode ] = useState(false);
   const analysisCacheRef = useRef(new Map());
   const analysisAbortRef = useRef(null);
   const analysisTokenRef = useRef(0);
   const programmaticCodeUpdateRef = useRef(false);
-  const compileProfile = DEFAULT_COMPILE_PROFILE;
-  const sourceMode = DEFAULT_SOURCE_MODE;
 
   const requestModelChange = async (newModel) => {
     try {
@@ -122,9 +127,33 @@ function App() {
     return responsePayload;
   };
 
-  const loadExampleSource = (exampleId) => {
+  const convertExampleToMicro = async (sourceText, profile = compileProfile) => {
+    const response = await fetch('api/post/source-convert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...buildSourceOptions(sourceText, DEFAULT_SOURCE_MODE, profile),
+        targetSourceMode: "micro",
+      }),
+      credentials: "include",
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload?.error || `Unable to convert example (${response.status})`);
+    }
+    return payload.source;
+  };
+
+  const loadExampleSource = async (
+    exampleId,
+    nextSourceMode = sourceMode,
+    nextCompileProfile = compileProfile,
+  ) => {
     const example = exampleById(exampleId);
-    return example ? example.miniSource : null;
+    if (!example) return null;
+    return nextSourceMode === "mini"
+      ? example.miniSource
+      : convertExampleToMicro(example.miniSource, nextCompileProfile);
   };
 
   const applyExampleSource = (nextCode, exampleId) => {
@@ -217,6 +246,10 @@ function App() {
 
   useEffect(() => {
     if (isFrozen) return undefined;
+    if (isExampleLoading) {
+      setAnalysisStatus("analyzing");
+      return undefined;
+    }
     const trimmed = code.trim();
     if (!trimmed) {
       setAnalysisStatus("idle");
@@ -255,7 +288,41 @@ function App() {
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [code, model, isFrozen]);
+  }, [code, model, sourceMode, compileProfile, isFrozen, isExampleLoading]);
+
+  useEffect(() => {
+    if (isFrozen || !selectedExampleId) {
+      setIsExampleLoading(false);
+      return undefined;
+    }
+    let active = true;
+    setIsExampleLoading(true);
+
+    const load = async () => {
+      try {
+        const nextCode = await loadExampleSource(
+          selectedExampleId,
+          sourceMode,
+          compileProfile,
+        );
+        if (!active || nextCode == null) return;
+        applyExampleSource(nextCode, selectedExampleId);
+      } catch (err) {
+        if (!active) return;
+        setAlert({
+          isOpen: true,
+          message: err?.message || "Unable to load example.",
+        });
+      } finally {
+        if (active) {
+          setIsExampleLoading(false);
+        }
+      }
+    };
+
+    load();
+    return () => { active = false; };
+  }, [selectedExampleId, sourceMode, compileProfile, isFrozen]);
 
   useEffect(() => {
     if (programmaticCodeUpdateRef.current) {
@@ -315,15 +382,26 @@ function App() {
     await requestModelChange(firstCompatibleModel);
   };
 
+  const handleSourceModeChange = (nextSourceMode) => {
+    if (isFrozen) return;
+    if (selectedExampleId) {
+      setIsExampleLoading(true);
+    }
+    setSourceMode(nextSourceMode);
+  };
+
+  const handleCompileProfileChange = (axis, value) => {
+    if (isFrozen) return;
+    if (selectedExampleId && sourceMode === "micro") {
+      setIsExampleLoading(true);
+    }
+    setCompileProfile((current) => ({ ...current, [axis]: value }));
+  };
+
   const handleExampleChange = (exampleId) => {
     if (isFrozen) return;
-    if (!exampleId) {
-      setSelectedExampleId("");
-      return;
-    }
-    const nextCode = loadExampleSource(exampleId);
-    if (nextCode == null) return;
-    applyExampleSource(nextCode, exampleId);
+    setIsExampleLoading(Boolean(exampleId));
+    setSelectedExampleId(exampleId);
   };
 
   const handleCodeChange = (nextCode) => {
@@ -341,6 +419,14 @@ function App() {
             logoSrc={darkMode ? "/mk_logo_white.png" : "/mk_logo_black.png"}
             exampleValue={selectedExampleId}
             onExampleChange={handleExampleChange}
+            sourceModeValue={sourceMode}
+            sourceModeOptions={SOURCE_MODE_OPTIONS}
+            onSourceModeChange={handleSourceModeChange}
+            compileProfile={compileProfile}
+            conjAssocOptions={CONJ_ASSOC_OPTIONS}
+            disjAssocOptions={DISJ_ASSOC_OPTIONS}
+            delayPlacementOptions={DELAY_PLACEMENT_OPTIONS}
+            onCompileProfileChange={handleCompileProfileChange}
             modelValue={model}
             modelOptions={modelOptions}
             onModelChangeRequest={requestModelChange}
