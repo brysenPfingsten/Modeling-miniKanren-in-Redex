@@ -14,6 +14,10 @@ test("analysisStatusForModel returns ok when current model is compatible", () =>
   assert.equal(analysisStatusForModel(analysis, "mk-l4-rail-lazy"), "ok");
 });
 
+test("analysisStatusForModel treats syntax-only analysis as ok", () => {
+  assert.equal(analysisStatusForModel({ validSyntax: true }, "mk-l4-rail-lazy"), "ok");
+});
+
 test("analysisStatusForModel returns incompatible when current model is not compatible", () => {
   const analysis = {
     validSyntax: true,

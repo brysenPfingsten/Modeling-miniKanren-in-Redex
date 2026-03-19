@@ -1,6 +1,7 @@
 export function analysisStatusForModel(analysis, modelId) {
   if (!analysis?.validSyntax) return "syntax-error";
-  const compatibleIds = analysis.compatibleModelIds || [];
+  const compatibleIds = analysis.compatibleModelIds;
+  if (!Array.isArray(compatibleIds)) return "ok";
   return compatibleIds.includes(modelId) ? "ok" : "incompatible";
 }
 
