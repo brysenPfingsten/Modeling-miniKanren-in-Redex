@@ -1,9 +1,5 @@
 #lang racket
-(require racket/struct
-         racket/generic
-         racket/set
-         redex/reduction-semantics
-         syntax/to-string
+(require racket/set
          racket/pretty)
 
 (provide parse-prog
@@ -181,11 +177,13 @@
 ;;   (map/fold (λ (x s) (values (+ x s) (* s 2))) '(1 2 3) 1)
 ;;    => values '(2 4 7), 8
 (define (map/fold f lst init-state)
-  (let loop ([lst lst] [acc '()] [state init-state])
-    (if (null? lst)
-        (values (reverse acc) state)
-        (let-values ([(v s1) (f (car lst) state)])
-          (loop (cdr lst) (cons v acc) s1)))))
+  (define-values (rev-acc state)
+    (for/fold ([rev-acc '()]
+               [state init-state])
+              ([x (in-list lst)])
+      (define-values (v next-state) (f x state))
+      (values (cons v rev-acc) next-state)))
+  (values (reverse rev-acc) state))
 
 ;; map/fold-with-guids: (T Nat -> (values R Nat (listof String))) (listof T) Nat
 ;;                      -> (values (listof R) Nat (listof String))
@@ -201,14 +199,16 @@
 ;;    '(1 2 3) 0)
 ;;   => values '(2 4 6), 3, '("g0" "g1" "g2")
 (define (map/fold-with-guids f lst init-counter)
-  (let loop ([lst lst] [acc '()] [count init-counter] [guids '()])
-    (if (null? lst)
-        (values (reverse acc) count guids)
-        (let-values ([(v c2 g2) (f (car lst) count)])
-          (loop (cdr lst)
-                (cons v acc)
-                c2
-                (append guids g2))))))
+  (define-values (rev-acc count rev-guids)
+    (for/fold ([rev-acc '()]
+               [count init-counter]
+               [rev-guids '()])
+              ([x (in-list lst)])
+      (define-values (v next-count next-guids) (f x count))
+      (values (cons v rev-acc)
+              next-count
+              (foldl cons rev-guids next-guids))))
+  (values (reverse rev-acc) count (reverse rev-guids)))
 
 
 ;; next-g-id: String Number -> (values String Number)

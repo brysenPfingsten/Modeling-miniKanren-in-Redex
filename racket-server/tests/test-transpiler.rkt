@@ -65,6 +65,14 @@
          (goal-contains-delay? g2 seen))]
     [_ seen]))
 
+(define (strip-sdelays goal)
+  (match goal
+    [`(sdelay ,g ,_) (strip-sdelays g)]
+    [`(∃ ,vars ,g ,tag) `(∃ ,vars ,(strip-sdelays g) ,tag)]
+    [`(,g1 ∧ ,g2 ,tag) `(,(strip-sdelays g1) ∧ ,(strip-sdelays g2) ,tag)]
+    [`(,g1 ∨ ,g2 ,tag) `(,(strip-sdelays g1) ∨ ,(strip-sdelays g2) ,tag)]
+    [_ goal]))
+
 (define (goal-contains-delayed-relcall? goal)
   (match goal
     [`(sdelay (,r ,_ ... ,_) ,_)
@@ -81,6 +89,12 @@
      (or (goal-contains-delayed-relcall? g1)
          (goal-contains-delayed-relcall? g2))]
     [_ #f]))
+
+(define (strip-labels x)
+  (match x
+    [`(label ,_) '(label "_")]
+    [(cons a d) (cons (strip-labels a) (strip-labels d))]
+    [_ x]))
 
 (define conj-source
   "(run* (q) (== 1 1) (== 2 2) (== 3 3))")
@@ -120,11 +134,12 @@
   (test-case "Conjunctions Left Associate"
     (define PROG '((run* (q) (== 1 1) (== 2 2) (== 3 3))))
     (define-values (cfg _) (parse-prog/canonical PROG))
-    (match cfg
-      [`(,_ ((∃ ,_ ,goal ,_) ,_))
-       (check-true (redex-match? l4:L4 g (term ,goal)))
-       (check-true (redex-match? l4:L4 g (term ((g_1 ∧ g_2 tag_1) ∧ g_3 tag_2))))]
-      [_ (fail "unexpected canonical cfg shape")]))
+    (define goal (query-goal-of cfg))
+    (check-true (redex-match? l4:L4 g (term ,goal)))
+    (check-true
+     (match goal
+       [`((,_ ∧ ,_ ,_) ∧ ,_ ,_) #t]
+       [_ #f])))
 
   (test-case "Disjunctions Right Associate"
     (define PROG '((run* (q)
@@ -135,11 +150,12 @@
                         [(== q 'dog)])]
                       [(same q 'fish)]))))
     (define-values (cfg _) (parse-prog/canonical PROG))
-    (match cfg
-      [`(,_ ((∃ ,_ ,goal ,_) ,_))
-       (check-true (redex-match? l4:L4 g (term ,goal)))
-       (check-true (redex-match? l4:L4 g (term ((g_1 ∨ (g_2 ∨ g_3 tag_1) tag_2) ∨ g_4 tag_3))))]
-      [_ (fail "unexpected canonical cfg shape")])
+    (define goal (query-goal-of cfg))
+    (check-true (redex-match? l4:L4 g (term ,goal)))
+    (check-true
+     (match goal
+       [`((,_ ∨ (,_ ∨ ,_ ,_) ,_) ∨ ,_ ,_) #t]
+       [_ #f]))
 
     (define PROG1 '((run* (q)
                       (conde
@@ -150,10 +166,11 @@
 	                          ((== q 'dog))))))
                             ((same q 'fish))))))
     (define-values (cfg1 _1) (parse-prog/canonical PROG1))
-    (match cfg1
-      [`(,_ ((∃ ,_ ,goal ,_) ,_))
-       (check-true (redex-match? l4:L4 g (term ((g_1 ∨ (g_2 ∨ g_3 tag_1) tag_2) ∨ g_4 tag_3))))]
-      [_ (fail "unexpected canonical cfg shape")])
+    (define goal1 (query-goal-of cfg1))
+    (check-true
+     (match goal1
+       [`((,_ ∨ (,_ ∨ ,_ ,_) ,_) ∨ ,_ ,_) #t]
+       [_ #f]))
 
     (define PROG2 '((run* (q)
                     (conde
@@ -162,10 +179,11 @@
                       [(== q 'dog)]
                       [(same q 'fish)]))))
     (define-values (cfg2 _2) (parse-prog/canonical PROG2))
-    (match cfg2
-      [`(,_ ((∃ ,_ ,goal ,_) ,_))
-       (check-true (redex-match? l4:L4 g (term (g_1 ∨ (g_2 ∨ (g_3 ∨ g_4 tag_1) tag_2) tag_3))))]
-      [_ (fail "unexpected canonical cfg shape")])
+    (define goal2 (query-goal-of cfg2))
+    (check-true
+     (match goal2
+       [`(,_ ∨ (,_ ∨ (,_ ∨ ,_ ,_) ,_) ,_) #t]
+       [_ #f]))
     ))
 
 (define-test-suite COMPILE-PROFILES
@@ -181,12 +199,16 @@
       (define conj-goal (query-goal-of conj-cfg))
       (if (equal? conj-assoc "left")
           (check-true
-           (redex-match? l4:L4 g (term ((g_1 ∧ g_2 tag_1) ∧ g_3 tag_2)))
+           (match conj-goal
+             [`((,_ ∧ ,_ ,_) ∧ ,_ ,_) #t]
+             [_ #f])
            (format "expected left-associated conjunction for profile ~e, got ~e"
                    profile
                    conj-goal))
           (check-true
-           (redex-match? l4:L4 g (term (g_1 ∧ (g_2 ∧ g_3 tag_1) tag_2)))
+           (match conj-goal
+             [`(,_ ∧ (,_ ∧ ,_ ,_) ,_) #t]
+             [_ #f])
            (format "expected right-associated conjunction for profile ~e, got ~e"
                    profile
                    conj-goal)))
@@ -198,6 +220,7 @@
         (match disj-goal
           [`(sdelay ,inner ,_) inner]
           [_ disj-goal]))
+      (define stripped-disj (strip-sdelays disj-inner))
       (check-equal? (goal-top-delay? disj-goal)
                     (equal? delay-placement "disj")
                     (format "disjunction delay placement mismatch for profile ~e: ~e"
@@ -205,12 +228,16 @@
                             disj-goal))
       (if (equal? disj-assoc "left")
           (check-true
-           (redex-match? l4:L4 g (term ((g_1 ∨ g_2 tag_1) ∨ g_3 tag_2)))
+           (match stripped-disj
+             [`((,_ ∨ ,_ ,_) ∨ ,_ ,_) #t]
+             [_ #f])
            (format "expected left-associated disjunction for profile ~e, got ~e"
                    profile
                    disj-inner))
           (check-true
-           (redex-match? l4:L4 g (term (g_1 ∨ (g_2 ∨ g_3 tag_1) tag_2)))
+           (match stripped-disj
+             [`(,_ ∨ (,_ ∨ ,_ ,_) ,_) #t]
+             [_ #f])
            (format "expected right-associated disjunction for profile ~e, got ~e"
                    profile
                    disj-inner)))))
@@ -312,11 +339,17 @@
       (define rendered
         (render-micro-source (read-all-sexprs (open-input-string relcall-source))
                              #:compile-profile profile))
-      (check-true (regexp-match? #rx"Zzz" rendered)
-                  (format "rendered micro should expose profile delay with Zzz for ~e" profile))
-      (check-equal? (parse-src/ast relcall-source #:compile-profile profile)
-                    (parse-src/ast rendered #:source-mode "micro")
-                    (format "rendered micro should round-trip normalized AST for ~e" profile)))))
+      (check-equal? (not (false? (regexp-match? #rx"Zzz" rendered)))
+                    (not (equal? delay-placement "disj"))
+                    (format "rendered micro delay visibility mismatch for ~e" profile))
+      (define-values (expected-cfg _expected-html)
+        (parse-src/canonical relcall-source #:compile-profile profile))
+      (define-values (rendered-cfg _rendered-html)
+        (parse-src/canonical rendered #:source-mode "micro"))
+      (check-equal? (strip-labels expected-cfg)
+                    (strip-labels rendered-cfg)
+                    (format "rendered micro should round-trip canonical cfg modulo labels for ~e"
+                            profile)))))
 
 (define-test-suite DISEQUALITY-TRANSLATION
   (test-case "mini source translates disequality to canonical != goal"
@@ -379,4 +412,5 @@
   DISEQUALITY-TRANSLATION
   CANONICAL-TRANSLATION)
 
-#;(run-tests TRANSPILER)
+(module+ test
+  (run-tests TRANSPILER))

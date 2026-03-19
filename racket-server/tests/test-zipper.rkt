@@ -83,4 +83,5 @@
              (check-equal? (zipper-idx z2) 3))
   )
 
-#; (run-tests ZIPPER)
+(module+ test
+  (run-tests ZIPPER))
