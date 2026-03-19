@@ -3,10 +3,9 @@
 (require rackunit
          redex/reduction-semantics
          "../src/transpiler.rkt"
-         "../src/core-definitions.rkt"
-         "../src/extensions/variant-languages.rkt"
-         "../src/wf-core.rkt"
-         "../src/wf-variants.rkt")
+         "../src/languages/l0.rkt"
+         "../src/languages/all.rkt"
+         "../src/wf/all.rkt")
 
 (define reverso-source
   '((defrel (appendo l s out)
@@ -32,12 +31,12 @@
   (check-true (redex-match? L4 config reverso-cfg))
   (check-true (judgment-holds (wf-config/L4? ,reverso-cfg))))
 
-(test-case "Core config is accepted by core wf judgment"
+(test-case "L0 config is accepted by core wf judgment"
   (define core-cfg
     (term (() ((succeed (label "ok"))
                (state () () () () (label "s")))
               (empty-stream))))
-  (check-true (redex-match? Core config core-cfg))
+  (check-true (redex-match? L0 config core-cfg))
   (check-true (judgment-holds (wf-config? ,core-cfg)))
   (check-true (judgment-holds (core-shape? ,core-cfg))))
 

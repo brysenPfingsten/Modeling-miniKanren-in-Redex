@@ -7,9 +7,9 @@
          redex/reduction-semantics
          (prefix-in rt: "../src/random-test-support.rkt")
          (prefix-in gk: "./generator-kernel.rkt")
-         "../src/core-definitions.rkt"
-         "../src/wf-core.rkt"
-         "../src/reduction-relations/core/core-reduction-relations.rkt")
+         "../src/languages/l0.rkt"
+         "../src/wf/l0.rkt"
+         "../src/reduction-relations/l0.rkt")
 
 ;; Randomized test tuning constants.
 ;; Edit these values directly when you want different pressure/coverage.
@@ -60,7 +60,7 @@
   (rt:rng-random PROPERTY-RNG n))
 
 (define (final-config? cfg)
-  (redex-match? Core end-config cfg))
+  (redex-match? L0 end-config cfg))
 
 (define (wf-config-term? cfg)
   (judgment-holds (wf-config? ,cfg)))
@@ -69,22 +69,22 @@
   (judgment-holds (core-shape? ,cfg)))
 
 (define (unique-decomposition? cfg)
-  (define next* (apply-reduction-relation -->cfg cfg))
+  (define next* (apply-reduction-relation Rl0-core cfg))
   (cond
     [(final-config? cfg) (null? next*)]
     [else (= (length next*) 1)]))
 
 (define (progress? cfg)
   (or (final-config? cfg)
-      (not (null? (apply-reduction-relation -->cfg cfg)))))
+      (not (null? (apply-reduction-relation Rl0-core cfg)))))
 
 (define (wf-preserved? cfg)
-  (for/and ([cfg^ (in-list (apply-reduction-relation -->cfg cfg))])
+  (for/and ([cfg^ (in-list (apply-reduction-relation Rl0-core cfg))])
     (wf-config-term? cfg^)))
 
 (define (core-shape-preserved? cfg)
   (and (core-shape-term? cfg)
-       (for/and ([cfg^ (in-list (apply-reduction-relation -->cfg cfg))])
+       (for/and ([cfg^ (in-list (apply-reduction-relation Rl0-core cfg))])
          (core-shape-term? cfg^))))
 
 ;; Pool sizes bound generated test-data diversity only; they do not bound the

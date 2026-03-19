@@ -4,8 +4,8 @@
          rackunit/text-ui
          redex/reduction-semantics
          "./variant-test-support.rkt"
-         "../src/extensions/variant-languages.rkt"
-         "../src/reduction-relations/extensions/assemblies/variant-relations.rkt")
+         "../src/languages/all.rkt"
+         "../src/reduction-relations/all.rkt")
 
 (provide PROPERTY-VARIANTS)
 
@@ -33,11 +33,11 @@
                 (⊤ (state () () () () (label "b"))))))))
 
   (test-case "Rbase variants can step call and disjunction configs"
-    (check-false (null? (apply-reduction-relation Rl3-pre-eager cfg-call)))
-    (check-false (null? (apply-reduction-relation Rl3-pre-lazy cfg-call)))
-    (check-false (null? (apply-reduction-relation Rl3-pre-eager (term (() ((⊤ ,sigma-a) <-+ (⊤ ,sigma-b))
+    (check-false (null? (apply-reduction-relation Rl3-base-eager cfg-call)))
+    (check-false (null? (apply-reduction-relation Rl3-base-lazy cfg-call)))
+    (check-false (null? (apply-reduction-relation Rl3-base-eager (term (() ((⊤ ,sigma-a) <-+ (⊤ ,sigma-b))
                                                                       (empty-stream))))))
-    (check-false (null? (apply-reduction-relation Rl3-pre-lazy (term (() ((⊤ ,sigma-a) <-+ (⊤ ,sigma-b))
+    (check-false (null? (apply-reduction-relation Rl3-base-lazy (term (() ((⊤ ,sigma-a) <-+ (⊤ ,sigma-b))
                                                                      (empty-stream)))))))
 
   (test-case "flip branch keeps left-only disjunction syntax"
@@ -69,8 +69,8 @@
                   1
                   "expected exactly one next step for Rl3-flip-eager on delay/proceed boundary")
     (define fired-name (first (first named-next*)))
-    (check-true (regexp-match? #rx"^call/" (~a fired-name))
-                (format "expected call-prefixed rule, got ~a" fired-name)))
+    (check-true (regexp-match? #rx"^l3-base/" (~a fired-name))
+                (format "expected l3-base rule, got ~a" fired-name)))
 
   (test-case "delay(proceed(call)) boundary deterministic in Rl3-flip-lazy"
     (define cfg-delay-proceed-call
@@ -85,8 +85,8 @@
                   1
                   "expected exactly one next step for Rl3-flip-lazy on delay/proceed boundary")
     (define fired-name (first (first named-next*)))
-    (check-true (regexp-match? #rx"^call/" (~a fired-name))
-                (format "expected call-prefixed rule, got ~a" fired-name)))
+    (check-true (regexp-match? #rx"^l3-base/" (~a fired-name))
+                (format "expected l3-base rule, got ~a" fired-name)))
 
   (test-case "delay(proceed(call)) boundary deterministic in Rl4-rail-eager"
     (define cfg-delay-proceed-call
@@ -101,8 +101,8 @@
                   1
                   "expected exactly one next step for Rl4-rail-eager on delay/proceed boundary")
     (define fired-name (first (first named-next*)))
-    (check-true (regexp-match? #rx"^call/" (~a fired-name))
-                (format "expected call-prefixed rule, got ~a" fired-name)))
+    (check-true (regexp-match? #rx"^l3-base/" (~a fired-name))
+                (format "expected l3-base rule, got ~a" fired-name)))
 
   (test-case "delay(proceed(call)) boundary deterministic in Rl4-rail-lazy"
     (define cfg-delay-proceed-call
@@ -117,8 +117,8 @@
                   1
                   "expected exactly one next step for Rl4-rail-lazy on delay/proceed boundary")
     (define fired-name (first (first named-next*)))
-    (check-true (regexp-match? #rx"^call/" (~a fired-name))
-                (format "expected call-prefixed rule, got ~a" fired-name))))
+    (check-true (regexp-match? #rx"^l3-base/" (~a fired-name))
+                (format "expected l3-base rule, got ~a" fired-name))))
 
 (define-test-suite VARIANT-INVARIANTS
   (test-case "L1 call variants safety: progress + state wf + shape closure"
@@ -144,7 +144,7 @@
     (check-true (unique-decomposition? Rl2-disj-left cfg-disj)))
 
   (test-case "L3 base variants safety: progress + state wf + shape closure"
-    (for ([rel (in-list (list Rl3-pre-eager Rl3-pre-lazy))])
+    (for ([rel (in-list (list Rl3-base-eager Rl3-base-lazy))])
       (check-true (progress? rel cfg-call))
       (check-true (states-wf? cfg-call))
       (check-true (for/and ([cfg^ (in-list (apply-reduction-relation rel cfg-call))])
@@ -152,7 +152,7 @@
       (check-true (shape-closed/L3? rel cfg-call))))
 
   (test-case "L3 base variants uniqueness"
-    (for ([rel (in-list (list Rl3-pre-eager Rl3-pre-lazy))])
+    (for ([rel (in-list (list Rl3-base-eager Rl3-base-lazy))])
       (check-true (unique-decomposition? rel cfg-call))))
 
   (test-case "L3 Rl3-flip-eager safety: progress + state wf + shape closure"

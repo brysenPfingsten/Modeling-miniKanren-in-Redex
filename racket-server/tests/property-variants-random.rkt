@@ -8,8 +8,8 @@
          (prefix-in rt: "../src/random-test-support.rkt")
          (prefix-in gk: "./generator-kernel.rkt")
          "./variant-test-support.rkt"
-         "../src/extensions/variant-languages.rkt"
-         "../src/reduction-relations/extensions/assemblies/variant-relations.rkt")
+         "../src/languages/all.rkt"
+         "../src/reduction-relations/all.rkt")
 
 (provide PROPERTY-VARIANTS-RANDOM)
 
@@ -123,9 +123,7 @@
        ,(gen-goal/rng rng x-env c (sub1 depth) rel-sig opts)
        ,(make-label rng "or"))]
     [(call)
-     (define ra (pick-one rng rel-sig))
-     (define r (car ra))
-     (define arity (cdr ra))
+     (match-define (cons r arity) (pick-one rng rel-sig))
      `(,r
        ,@(for/list ([_ (in-range arity)])
            (gen-term/rng rng x-env c (max 0 (sub1 depth))))
@@ -168,8 +166,7 @@
     (cons r (vrandom rng 3))))
 
 (define (gen-rel-def/rng rng rel-ar rel-sig opts)
-  (define r (car rel-ar))
-  (define arity (cdr rel-ar))
+  (match-define (cons r arity) rel-ar)
   (define d
     (take (rt:random-distinct/rng rng X-POOL arity) arity))
   ;; Relation bodies are restricted to core-goal forms because subst-goal in
@@ -422,10 +419,18 @@
       m+))
 
 (define (metrics-inc-rule-prefixes m name)
-  (define m1 (metrics-inc-if m 'call-rule-hits (name-has-prefix? name "call/")))
-  (define m2 (metrics-inc-if m1 'disj-rule-hits (name-has-prefix? name "disj/")))
-  (define m3 (metrics-inc-if m2 'flip-rule-hits (name-has-prefix? name "flip/")))
-  (metrics-inc-if m3 'rail-rule-hits (name-has-prefix? name "rail/")))
+  (define call-step?
+    (regexp-match?
+     #rx"/(?:suspend-goal|eager-expand|lazy-expand|invoke-delay|eager-resume-goal|lazy-expand-on-resume|delay-through-conj)$"
+     name))
+  (define disj-step?
+    (regexp-match?
+     #rx"/(?:goal-to-tree|distribute-over-conj|bubble-left-answer|promote-left-answer|bubble-left-fail|skip-left-fail)$"
+     name))
+  (define m1 (metrics-inc-if m 'call-rule-hits call-step?))
+  (define m2 (metrics-inc-if m1 'disj-rule-hits disj-step?))
+  (define m3 (metrics-inc-if m2 'flip-rule-hits (name-has-prefix? name "l3-flip/")))
+  (metrics-inc-if m3 'rail-rule-hits (name-has-prefix? name "l4-rail/")))
 
 (define (metrics-inc-k-fail m fail-info)
   (match fail-info
@@ -706,10 +711,10 @@
                         #:min-disj-gen VR-MIN-DISJ-GEN-HITS
                         #:min-disj-rules VR-MIN-DISJ-RULE-HITS))
 
-  (test-case "L3 Rl3-pre-eager randomized"
+  (test-case "L3 Rl3-base-eager randomized"
     (define opts (gopts #t #t #f #t))
-    (run-random-variant "Rl3-pre-eager"
-                        Rl3-pre-eager
+    (run-random-variant "Rl3-base-eager"
+                        Rl3-base-eager
                         (lambda (cfg) (redex-match? L3 config cfg))
                         shape-closed/L3?
                         (lambda (rng) (gen-config-user/rng rng opts))
@@ -721,10 +726,10 @@
                         #:min-call-rules VR-MIN-CALL-RULE-HITS
                         #:min-disj-rules VR-MIN-DISJ-RULE-HITS))
 
-  (test-case "L3 Rl3-pre-lazy randomized"
+  (test-case "L3 Rl3-base-lazy randomized"
     (define opts (gopts #t #t #f #t))
-    (run-random-variant "Rl3-pre-lazy"
-                        Rl3-pre-lazy
+    (run-random-variant "Rl3-base-lazy"
+                        Rl3-base-lazy
                         (lambda (cfg) (redex-match? L3 config cfg))
                         shape-closed/L3?
                         (lambda (rng) (gen-config-user/rng rng opts))

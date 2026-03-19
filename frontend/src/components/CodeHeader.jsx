@@ -18,9 +18,6 @@ export default function CodeHeader({
   modelOptions = [],
   onModelChange,
   isFrozen,
-  analysisStatus = "idle",
-  compatWarning = null,
-  onSwitchCompatibleModel = () => {},
 }) {
   const availableExamples = exampleOptions();
 
@@ -110,42 +107,6 @@ export default function CodeHeader({
           </select>
         </label>
       </div>
-
-      {analysisStatus === "analyzing" && !isFrozen ? (
-        <div style={{ fontSize: "0.85rem" }}>
-          Analyzing...
-        </div>
-      ) : null}
-
-      {compatWarning ? (
-        <div
-          style={{
-            flexBasis: "100%",
-            padding: "8px 10px",
-            border: "1px solid #b55",
-            borderRadius: "6px",
-            background: "#fff5f5",
-            color: "#622",
-            maxWidth: "560px",
-          }}
-        >
-          <div style={{ marginBottom: "6px" }}>{compatWarning.message}</div>
-          {compatWarning.reasons && compatWarning.reasons.length > 0 ? (
-            <div style={{ marginBottom: "6px", fontSize: "0.85rem" }}>
-              {compatWarning.reasons.join("; ")}
-            </div>
-          ) : null}
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button
-              type="button"
-              onClick={onSwitchCompatibleModel}
-              disabled={isFrozen || !compatWarning.canSwitchModel}
-            >
-              Switch to Compatible Model
-            </button>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

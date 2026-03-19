@@ -3,10 +3,9 @@
 (require redex/reduction-semantics
          racket/port
          racket/sandbox)
-(require "wf-core.rkt"
-         "wf-variants.rkt"
+(require "wf/all.rkt"
          "sexpr-read.rkt"
-         (only-in "core-definitions.rkt" Core))
+         "languages/l0.rkt")
 (provide canonical-core-shape?
          canonical-well-formed?
          canonical-target-well-formed?
@@ -17,13 +16,13 @@
 ;; Canonical-config -> boolean
 ;; Purpose: True when config is in the core judgment fragment shape.
 (define (canonical-core-shape? canonical-config)
-  (and (redex-match? Core config canonical-config)
+  (and (redex-match? L0 config canonical-config)
        (judgment-holds (core-shape? ,canonical-config))))
 
 ;; Canonical-config -> boolean
 ;; Purpose: True when canonical config satisfies core wf-config? judgment.
 (define (canonical-well-formed? canonical-config)
-  (and (redex-match? Core config canonical-config)
+  (and (redex-match? L0 config canonical-config)
        (judgment-holds (wf-config? ,canonical-config))))
 
 ;; Canonical-config String -> boolean

@@ -10,7 +10,6 @@ import useStepper      from './hooks/useStepper';
 import Resizable       from './components/Resizable';
 import Sidebar from './components/Sidebar';
 import { DEFAULT_MODEL_OPTIONS, MODEL_IDS } from './utils/model_ids.js';
-import { analysisStatusForModel, isStartBlockedByAnalysis } from './utils/compatibility.js';
 import { exampleById } from './utils/example_programs.js';
 import {
   buildSourceOptions,
@@ -23,8 +22,6 @@ import {
 } from './utils/source_defaults.js';
 import './styles.css'
 
-const ANALYSIS_DEBOUNCE_MS = 450;
-
 function App() {
   const [code, setCode] = useState('');
   const originalCodeRef = useRef('');
@@ -36,7 +33,6 @@ function App() {
   const [isFrozen, setFrozen] = useState(false);
   const [alert, setAlert] = useState({ isOpen: false, message: '' });
   const treeRef = useRef();
-  const scrollRef = useRef(null);
   const {
     tree, stepInfo,
     init, step, reset, back
@@ -54,51 +50,10 @@ function App() {
   const [goalId, setGoalId] = useState(null);
   const [stateId, setStateId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [analysisStatus, setAnalysisStatus] = useState("idle");
-  const [analysisResult, setAnalysisResult] = useState(null);
   const [isExampleLoading, setIsExampleLoading] = useState(false);
   
   const [ darkMode, setDarkMode ] = useState(false);
-  const analysisCacheRef = useRef(new Map());
-  const analysisAbortRef = useRef(null);
-  const analysisTokenRef = useRef(0);
   const programmaticCodeUpdateRef = useRef(false);
-
-  const analyzeSource = async (source, { signal } = {}) => {
-    const requestPayload = buildSourceOptions(source, sourceMode, compileProfile);
-    const cacheKey = JSON.stringify(requestPayload);
-    const cached = analysisCacheRef.current.get(cacheKey);
-    if (cached) return cached;
-
-    const response = await fetch('api/post/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json'},
-      body: JSON.stringify(requestPayload),
-      credentials: "include",
-      signal,
-    });
-    const text = await response.text();
-    let responsePayload;
-    try {
-      responsePayload = JSON.parse(text);
-    } catch (_) {
-      responsePayload = { validSyntax: false, error: "invalid analysis response" };
-    }
-
-    if (!response.ok) {
-      const failData = (responsePayload && typeof responsePayload === "object")
-        ? responsePayload
-        : { validSyntax: false, error: `Analyze failed (${response.status})` };
-      // Only cache deterministic syntax failures; avoid pinning transient backend errors.
-      if (response.status === 400 && failData.validSyntax === false) {
-        analysisCacheRef.current.set(cacheKey, failData);
-      }
-      return failData;
-    }
-
-    analysisCacheRef.current.set(cacheKey, responsePayload);
-    return responsePayload;
-  };
 
   const convertExampleToMicro = async (sourceText, profile = compileProfile) => {
     const response = await fetch('api/post/source-convert', {
@@ -135,39 +90,10 @@ function App() {
     setCode(nextCode);
   };
 
-  const applyAnalysisStatus = (analysis, modelId = model) => {
-    setAnalysisResult(analysis);
-    const nextStatus = analysisStatusForModel(analysis, modelId);
-    setAnalysisStatus(nextStatus);
-    const isCompatible = nextStatus === "ok";
-    return isCompatible;
-  };
-
   const handleInit = async () => {
     const trimmed = code.trim();
     if (!trimmed) {
       setAlert({ isOpen: true, message: "Program is empty." });
-      return;
-    }
-
-    try {
-      const analysis = await analyzeSource(code);
-      const isCompatible = applyAnalysisStatus(analysis);
-      if (!analysis.validSyntax) {
-        setAlert({ isOpen: true, message: analysis.error || "Program has syntax errors." });
-        return;
-      }
-      if (!isCompatible) {
-        const reasons = (analysis.incompatReasonsByModel || {})[model] || [];
-        const details = reasons.length > 0 ? ` ${reasons.join("; ")}` : "";
-        setAlert({
-          isOpen: true,
-          message: `Program is incompatible with selected model.${details}`,
-        });
-        return;
-      }
-    } catch (err) {
-      setAlert({ isOpen: true, message: err?.message || "Unable to analyze program." });
       return;
     }
 
@@ -216,52 +142,6 @@ function App() {
       treeRef.current.updateSidebar(stateId);
       }
   }, [tree]);
-
-  useEffect(() => {
-    if (isFrozen) return undefined;
-    if (isExampleLoading) {
-      setAnalysisStatus("analyzing");
-      return undefined;
-    }
-    const trimmed = code.trim();
-    if (!trimmed) {
-      setAnalysisStatus("idle");
-      setAnalysisResult(null);
-      return undefined;
-    }
-
-    if (analysisAbortRef.current) {
-      analysisAbortRef.current.abort();
-    }
-
-    const controller = new AbortController();
-    analysisAbortRef.current = controller;
-    const token = analysisTokenRef.current + 1;
-    analysisTokenRef.current = token;
-
-    setAnalysisStatus("analyzing");
-
-    const timeoutId = setTimeout(async () => {
-      try {
-        const analysis = await analyzeSource(code, { signal: controller.signal });
-        if (token !== analysisTokenRef.current) return;
-
-        applyAnalysisStatus(analysis);
-      } catch (err) {
-        if (controller.signal.aborted) return;
-        if (token !== analysisTokenRef.current) return;
-        applyAnalysisStatus({
-          validSyntax: false,
-          error: err?.message || "analysis failed",
-        });
-      }
-    }, ANALYSIS_DEBOUNCE_MS);
-
-    return () => {
-      clearTimeout(timeoutId);
-      controller.abort();
-    };
-  }, [code, model, sourceMode, compileProfile, isFrozen, isExampleLoading]);
 
   useEffect(() => {
     if (isFrozen || !selectedExampleId) {
@@ -333,31 +213,9 @@ function App() {
   const modelOptions = serverModelOptions.length > 0
     ? serverModelOptions
     : DEFAULT_MODEL_OPTIONS;
-  const compatibleModelIds = analysisResult?.compatibleModelIds || [];
-  const currentModelReasons = (analysisResult?.incompatReasonsByModel || {})[model] || [];
-  const firstCompatibleModel = compatibleModelIds[0] || null;
-
-  const compatWarning = (!isFrozen && analysisStatus === "incompatible")
-    ? {
-        message: "Current program is incompatible with the selected model.",
-        reasons: currentModelReasons,
-        canSwitchModel: Boolean(firstCompatibleModel),
-      }
-    : null;
-
-  const startBlockedByAnalysis = isStartBlockedByAnalysis({
-    isFrozen,
-    code,
-    analysisStatus,
-  });
   const toolbarDisabled = {
     ...disabled,
-    start: disabled.start || startBlockedByAnalysis,
-  };
-
-  const switchCompatibleModel = () => {
-    if (!firstCompatibleModel) return;
-    setModel(firstCompatibleModel);
+    start: disabled.start || (!isFrozen && (code.trim() === "" || isExampleLoading)),
   };
 
   const handleSourceModeChange = (nextSourceMode) => {
@@ -414,9 +272,6 @@ function App() {
             modelOptions={modelOptions}
             onModelChange={handleModelChange}
             isFrozen={isFrozen}
-            analysisStatus={analysisStatus}
-            compatWarning={compatWarning}
-            onSwitchCompatibleModel={switchCompatibleModel}
            />
           <div className="editor-area">
             <CodeEditor 

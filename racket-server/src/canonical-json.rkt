@@ -230,7 +230,7 @@
              'id (label->id tag)
              'children (list (goal->json/canonical g_1)
                              (goal->json/canonical g_2)))]
-    [`(sdelay ,g_1 ,tag)
+    [`(suspend ,g_1 ,tag)
      (hasheq 'name "Goal-Delay"
              'id (label->id tag)
              'children (list (goal->json/canonical g_1)))]
@@ -362,7 +362,7 @@
 (define (goal-query-vars/canonical g)
   (match g
     [`(∃ ,d ,_ ,_) (length d)]
-    [`(sdelay ,g_1 ,_) (goal-query-vars/canonical g_1)]
+    [`(suspend ,g_1 ,_) (goal-query-vars/canonical g_1)]
     [`(,g_1 ∧ ,g_2 ,_) (max (goal-query-vars/canonical g_1)
                             (goal-query-vars/canonical g_2))]
     [`(,g_1 ∨ ,g_2 ,_) (max (goal-query-vars/canonical g_1)

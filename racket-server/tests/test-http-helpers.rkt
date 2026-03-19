@@ -10,12 +10,10 @@
 
 (provide response-body->string
          make-post-request
-         make-post-analyze-request
          make-post-init-request
          make-post-source-convert-request
          default-source-options
-         assert-step-payload-shape
-         assert-analyze-payload-shape)
+         assert-step-payload-shape)
 
 (define default-source-options
   (hasheq 'sourceMode "mini"
@@ -42,11 +40,6 @@
    "127.0.0.1"
    5000
    "127.0.0.1"))
-
-(define (make-post-analyze-request src [payload #f])
-  (make-post-request "analyze"
-                     (or payload
-                         (hash-set default-source-options 'text src))))
 
 (define (ensure-init-model payload [model-id #f])
   (cond
@@ -90,19 +83,3 @@
               (format "~a: tree root missing name" where))
   (check-false (equal? root-name "Unknown")
                (format "~a: tree root should not be Unknown" where)))
-
-(define analyze-payload-specs
-  (list (list 'requirements list? '())
-        (list 'compatibleModelIds list? '())
-        (list 'incompatibleModelIds list? '())
-        (list 'incompatReasonsByModel hash? #hash())
-        (list 'analysisVersion string? "")))
-
-(define (assert-analyze-payload-shape payload where)
-  (check-true (hash? payload) (format "~a: payload must be json object" where))
-  (check-true (hash-ref payload 'validSyntax #f)
-              (format "~a: validSyntax should be true for successful analyze response" where))
-  (for ([spec (in-list analyze-payload-specs)])
-    (match-define (list key pred default) spec)
-    (check-true (pred (hash-ref payload key default))
-                (format "~a: malformed ~a field" where key))))

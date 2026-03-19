@@ -8,18 +8,18 @@
          internal-smoke-model-specs)
 
 (define surfaced-model-ids
-  '("mk-l3-dfs-lazy"
-    "mk-l3-flip-lazy"
-    "mk-l4-rail-lazy"
-    "mk-l3-dfs-eager"
-    "mk-l3-flip-eager"
-    "mk-l4-rail-eager"))
+  '("l3-dfs-lazy"
+    "l3-flip-lazy"
+    "l4-rail-lazy"
+    "l3-dfs-eager"
+    "l3-flip-eager"
+    "l4-rail-eager"))
 
 (define internal-smoke-model-ids
-  '("mk-l0-core"
-    "mk-l1-call-lazy"
-    "mk-l1-call-eager"
-    "mk-l2-disj-left"))
+  '("l0-core"
+    "l1-call-lazy"
+    "l1-call-eager"
+    "l2-disj-left"))
 
 (define (ids->specs ids)
   (for/list ([mid (in-list ids)])

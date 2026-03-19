@@ -3,7 +3,6 @@
 (require rackunit
          rackunit/text-ui
          "./helpers-tests.rkt"
-         "./capability-analysis-tests.rkt"
          "./property-core.rkt"
          "./example-compat-tests.rkt"
          "./determinism-overlap-tests.rkt"
@@ -15,7 +14,6 @@
 
 (define-test-suite HEADLESS
   HELPERS-TESTS
-  CAPABILITY-ANALYSIS
   PROPERTY-CORE
   EXAMPLE-COMPAT
   DETERMINISM-OVERLAP

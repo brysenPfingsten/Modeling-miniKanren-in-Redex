@@ -238,9 +238,9 @@
               (check-exn exn:fail?
                          (thunk (init! ses sample-req 'unknown-model-id))))
 
-  (test-case "init! rejects program incompatible with selected model payload"
+  (test-case "init! rejects hidden internal model in payload"
               (define sample-req
-                (make-post-init-request disj-delay-program #:model "mk-l0-core"))
+                (make-post-init-request disj-delay-program #:model "l0-core"))
               (define zip (zipper '() #f '() 0))
               (define stepper identity)
               (define ses (session zip stepper 1))
@@ -255,13 +255,13 @@
                  ses
                  (make-post-init-request
                   disj-delay-program
-                  #:model "mk-l3-flip-lazy")
+                  #:model "l3-flip-lazy")
                  'init-model-id))
               (check-equal? (response-code response) 200)
-              (check-equal? (session-model-id ses) "mk-l3-flip-lazy")
+              (check-equal? (session-model-id ses) "l3-flip-lazy")
               (define names (collect-step-names ses 24))
-              (check-not-false (member "flip/delay-swap-left" names))
-              (check-false (member "rail/enter-right" names)))
+              (check-not-false (member "l3-flip/delay-swap-left" names))
+              (check-false (member "l4-rail/enter-right" names)))
   )
 
 (define-test-suite RESET!
@@ -346,31 +346,31 @@
 
   (test-case "flip model emits flip delay/disjunction rules (no railroad disjunction rules)"
              (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
-             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program #:model "mk-l3-flip-lazy") 'testid)) 200)
-             (check-equal? (session-model-id ses) "mk-l3-flip-lazy")
+             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program #:model "l3-flip-lazy") 'testid)) 200)
+             (check-equal? (session-model-id ses) "l3-flip-lazy")
              (define names (collect-step-names ses 24))
-             (check-not-false (member "flip/delay-swap-left" names))
-             (check-not-false (member "call/invoke-delay" names))
-             (check-false (member "rail/enter-right" names))
-             (check-false (member "rail/return-left" names)))
+             (check-not-false (member "l3-flip/delay-swap-left" names))
+             (check-not-false (member "l3-base/invoke-delay" names))
+             (check-false (member "l4-rail/enter-right" names))
+             (check-false (member "l4-rail/return-left" names)))
 
   (test-case "rail model emits railroad delay/disjunction rules (no flip disjunction rule)"
              (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
-             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program #:model "mk-l4-rail-lazy") 'testid)) 200)
-             (check-equal? (session-model-id ses) "mk-l4-rail-lazy")
+             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program #:model "l4-rail-lazy") 'testid)) 200)
+             (check-equal? (session-model-id ses) "l4-rail-lazy")
              (define names (collect-step-names ses 24))
-             (check-not-false (member "rail/enter-right" names))
-             (check-not-false (member "rail/return-left" names))
-             (check-not-false (member "call/invoke-delay" names))
-             (check-false (member "flip/delay-swap-left" names)))
+             (check-not-false (member "l4-rail/enter-right" names))
+             (check-not-false (member "l4-rail/return-left" names))
+             (check-not-false (member "l3-base/invoke-delay" names))
+             (check-false (member "l3-flip/delay-swap-left" names)))
 
   (test-case "rail eager model emits eager call rules after init"
              (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
-             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program #:model "mk-l4-rail-eager") 'testid)) 200)
-             (check-equal? (session-model-id ses) "mk-l4-rail-eager")
+             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program #:model "l4-rail-eager") 'testid)) 200)
+             (check-equal? (session-model-id ses) "l4-rail-eager")
              (define names (collect-step-names ses 24))
-             (check-not-false (member "call/eager-expand" names))
-             (check-false (member "call/lazy-expand-on-resume" names)))
+             (check-not-false (member "l3-base/eager-expand" names))
+             (check-false (member "l3-base/lazy-expand-on-resume" names)))
 
   (test-case "rail lazy disjunction-delay profile does not also suspend plain relcalls"
              (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
@@ -385,14 +385,14 @@
                          'compileProfile (hasheq 'conjAssoc "right"
                                                  'disjAssoc "left"
                                                  'delayPlacement "disj"))
-                 #:model "mk-l4-rail-lazy")
+                 #:model "l4-rail-lazy")
                 'testid))
-              200)
-             (check-equal? (session-model-id ses) "mk-l4-rail-lazy")
+             200)
+             (check-equal? (session-model-id ses) "l4-rail-lazy")
              (define names (collect-step-names ses 16))
-             (check-not-false (member "source-delay/bridge" names))
-             (check-false (member "call/lazy-suspend-call" names))
-             (check-not-false (member "call/lazy-expand" names))))
+             (check-not-false (member "l3-base/suspend-goal" names))
+             (check-false (member "l3-base/lazy-expand-on-resume" names))
+             (check-not-false (member "l3-base/lazy-expand" names))))
 
 (define-test-suite LIST-MODELS!
   #:before (thunk (displayln "Running tests for list-models!..."))
@@ -403,100 +403,17 @@
              (check-equal? (response-code response) 200)
              (define models (string->jsexpr (response-body->string response)))
              (check-true (list? models))
-             (check-true (>= (length models) (length surfaced-model-ids)))
+             (check-equal? (length models) (length surfaced-model-ids))
              (define ids (for/list ([m (in-list models)])
                            (hash-ref m 'id #f)))
-             (for ([id (in-list surfaced-model-ids)])
-               (check-not-false (member id ids)))
+             (check-equal? (sort ids string<?)
+                           (sort surfaced-model-ids string<?))
              (check-true (for/and ([m (in-list models)])
                            (and (hash-has-key? m 'parserProfile)
                                 (hash-has-key? m 'parserTarget)
                                 (hash-has-key? m 'capabilities)
                                 (equal? (hash-ref m 'parserTarget #f)
                                         canonical-parser-target-id))))))
-
-(define-test-suite ANALYZE!
-  #:before (thunk (displayln "Running tests for analyze!..."))
-  #:after (thunk (displayln "Finished running tests for analyze!."))
-
-  (test-case "analyze! returns capability payload for valid source"
-             (define req (make-post-analyze-request "(run* (q) (fresh (x) (== q x)))"))
-             (define response (analyze! #f req))
-             (check-equal? (response-code response) 200)
-             (define body (string->jsexpr (response-body->string response)))
-             (assert-analyze-payload-shape body "analyze valid source"))
-
-  (test-case "analyze! defaults missing source options to canonical mini profile"
-             (define req
-               (make-post-request "analyze"
-                                  (hasheq 'text "(run* (q) (fresh (x) (== q x)))")))
-             (define response (analyze! #f req))
-             (check-equal? (response-code response) 200)
-             (define body (string->jsexpr (response-body->string response)))
-             (assert-analyze-payload-shape body "analyze default source options"))
-
-  (test-case "analyze! returns 400 on syntax error"
-             (define req (make-post-analyze-request "(run* (== 'a 'a))"))
-             (define response (analyze! #f req))
-             (check-equal? (response-code response) 400)
-             (define body (string->jsexpr (response-body->string response)))
-             (check-false (hash-ref body 'validSyntax #t))
-             (check-true (hash-has-key? body 'error)))
-
-  (test-case "analyze! compatibility ids are known model ids"
-             (define req
-               (make-post-analyze-request
-                "(run* (q) (fresh (x) (== q x)))"))
-             (define response (analyze! #f req))
-             (check-equal? (response-code response) 200)
-             (define body (string->jsexpr (response-body->string response)))
-             (assert-analyze-payload-shape body "analyze compatibility ids")
-             (define models-res (string->jsexpr (response-body->string (list-models!))))
-             (define known-ids
-               (for/set ([m (in-list models-res)])
-                 (hash-ref m 'id #f)))
-             (for ([id (in-list (hash-ref body 'compatibleModelIds '()))])
-               (check-true (set-member? known-ids id)))
-             (for ([id (in-list (hash-ref body 'incompatibleModelIds '()))])
-               (check-true (set-member? known-ids id))))
-
-  (test-case "analyze! returns surfaced-compatible payload for appendo"
-             (define req
-               (make-post-analyze-request
-                "(defrel (appendo l s out)
-                   (conde
-                     [(== l '()) (== s out)]
-                     [(fresh (a d res)
-                        (== l (cons a d))
-                        (== out (cons a res))
-                        (appendo d s res))]))
-                 (run* (q) (appendo (list 'mini) (list 'kanren) q))"))
-             (define response (analyze! #f req))
-             (check-equal? (response-code response) 200)
-             (define body (string->jsexpr (response-body->string response)))
-             (assert-analyze-payload-shape body "analyze appendo")
-             (check-not-false (member "mk-l3-dfs-lazy"
-                                      (hash-ref body 'compatibleModelIds '())))
-             (check-not-false (member "mk-l4-rail-lazy"
-                                      (hash-ref body 'compatibleModelIds '())))
-             (check-true (null? (hash-ref body 'incompatibleModelIds '())))
-             (define reasons-by-model (hash-ref body 'incompatReasonsByModel #hash()))
-             (check-equal? (hash-count reasons-by-model) 0))
-
-  (test-case "analyze! rejects compileProfile when sourceMode is micro"
-             (define req
-               (make-post-analyze-request
-                "(run* (q) (Zzz (== q 'cat)))"
-                (hasheq 'text "(run* (q) (Zzz (== q 'cat)))"
-                        'sourceMode "micro"
-                        'compileProfile (hasheq 'conjAssoc "left"
-                                                'disjAssoc "right"
-                                                'delayPlacement "relbody"))))
-             (define response (analyze! #f req))
-             (check-equal? (response-code response) 400)
-             (define body (string->jsexpr (response-body->string response)))
-             (check-false (hash-ref body 'validSyntax #t))
-             (check-true (hash-has-key? body 'error))))
 
 (define-test-suite SOURCE-CONVERT!
   (test-case "source-convert! lowers mini source to direct micro source with Zzz"
@@ -535,7 +452,6 @@
   INIT-MODEL!
   LIST-MODELS!
   SOURCE-CONVERT!
-  ANALYZE!
 )
 
 (run-tests APP)

@@ -23,9 +23,9 @@ Runs the app-level test suite used for server behavior regression checks.
 raco test racket-server/tests/test-all.rkt
 ```
 
-## Lane C: Frontend Compatibility-Gating Logic
+## Lane C: Frontend Unit Tests
 
-Runs pure frontend logic tests for compatibility analysis status + Start-button gating behavior.
+Runs pure frontend unit tests.
 
 ```sh
 npm --prefix frontend test
@@ -33,15 +33,13 @@ npm --prefix frontend test
 
 ## Lane D: Model×Example API-Flow Matrix (automated GUI-proxy)
 
-Runs full model/example compatibility and stepping audit without manual clicking:
-- analyze source (`POST /api/post/analyze`)
+Runs full surfaced-model/example stepping audit without manual clicking:
 - init with selected model (`POST /api/post/init`, payload includes `model`)
 - step up to 25 or termination (`GET /api/get/next`)
 - assert payload shape each step (`step`, `stepName`, JSON `program`)
 
-Tiering policy:
-- Heavy coverage (`L3/L4` surfaced models): full example matrix.
-- Internal smoke (`L0/L1/L2` hidden models): bounded seam/smoke checks only.
+Coverage policy:
+- Surfaced models only (`L3/L4`): full example matrix.
 
 ```sh
 raco test racket-server/tests/model-example-matrix-tests.rkt

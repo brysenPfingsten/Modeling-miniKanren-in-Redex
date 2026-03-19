@@ -1,7 +1,17 @@
 #lang racket
 
-(require (prefix-in core: "reduction-relations/core/core-reduction-relations.rkt")
-         (prefix-in var: "reduction-relations/extensions/assemblies/variant-relations.rkt")
+(require (prefix-in rr:l0: "reduction-relations/l0.rkt")
+         (prefix-in rr:l1e: "reduction-relations/l1-call-eager.rkt")
+         (prefix-in rr:l1l: "reduction-relations/l1-call-lazy.rkt")
+         (prefix-in rr:l2: "reduction-relations/l2-disj-left.rkt")
+         (prefix-in rr:l3be: "reduction-relations/l3-base-eager.rkt")
+         (prefix-in rr:l3bl: "reduction-relations/l3-base-lazy.rkt")
+         (prefix-in rr:l3de: "reduction-relations/l3-dfs-eager.rkt")
+         (prefix-in rr:l3dl: "reduction-relations/l3-dfs-lazy.rkt")
+         (prefix-in rr:l3fe: "reduction-relations/l3-flip-eager.rkt")
+         (prefix-in rr:l3fl: "reduction-relations/l3-flip-lazy.rkt")
+         (prefix-in rr:l4re: "reduction-relations/l4-rail-eager.rkt")
+         (prefix-in rr:l4rl: "reduction-relations/l4-rail-lazy.rkt")
          "transpiler.rkt")
 
 (provide model-spec?
@@ -19,74 +29,81 @@
 
 (struct model-spec (id label parser-profile parser-target capabilities step-once) #:transparent)
 
-;; This is intentionally a backend-only source of truth for model dispatch.
-;; Frontend option wiring can consume this later without changing stepping code.
-(define (stepper rel)
-  (lambda (prog) (var:step-once/by rel prog)))
-
 (define all-model-specs
-  (list (model-spec "mk-l0-core"
-                    "Core (No RelCall/No Disjunction)"
+  (list (model-spec "l0-core"
+                    "L0 Core (No RelCall/No Disjunction)"
                     canonical-parser-profile
                     canonical-parser-target-id
                     '("cap/core" "cap/fresh")
-                    core:step-once)
-        (model-spec "mk-l1-call-lazy"
+                    rr:l0:step-once)
+        (model-spec "l1-call-lazy"
                     "L1 Calls (Lazy, No Disjunction)"
                     canonical-parser-profile
                     canonical-parser-target-id
                     '("cap/core" "cap/relcall" "cap/fresh" "cap/delay")
-                    (stepper var:Rl1-call-lazy))
-        (model-spec "mk-l1-call-eager"
+                    rr:l1l:step-once)
+        (model-spec "l1-call-eager"
                     "L1 Calls (Eager, No Disjunction)"
                     canonical-parser-profile
                     canonical-parser-target-id
                     '("cap/core" "cap/relcall" "cap/fresh" "cap/delay")
-                    (stepper var:Rl1-call-eager))
-        (model-spec "mk-l2-disj-left"
+                    rr:l1e:step-once)
+        (model-spec "l2-disj-left"
                     "L2 Disjunction (No RelCall)"
                     canonical-parser-profile
                     canonical-parser-target-id
                     '("cap/core" "cap/disjunction" "cap/fresh")
-                    (stepper var:Rl2-disj-left))
-        (model-spec "mk-l4-rail-lazy"
+                    rr:l2:step-once)
+        (model-spec "l4-rail-lazy"
                     "(Interleave + Railroad, Lazy)"
                     canonical-parser-profile
                     canonical-parser-target-id
                     '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh" "cap/delay")
-                    (stepper var:Rl4-rail-lazy))
-        (model-spec "mk-l3-dfs-lazy"
+                    rr:l4rl:step-once)
+        (model-spec "l3-dfs-lazy"
                     "(No Interleave, Lazy)"
                     canonical-parser-profile
                     canonical-parser-target-id
                     '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh" "cap/delay")
-                    (stepper var:Rl3-dfs-lazy))
-        (model-spec "mk-l3-flip-lazy"
+                    rr:l3dl:step-once)
+        (model-spec "l3-flip-lazy"
                     "(Interleave + Flip-Flop, Lazy)"
                     canonical-parser-profile
                     canonical-parser-target-id
                     '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh" "cap/delay")
-                    (stepper var:Rl3-flip-lazy))
-        (model-spec "mk-l4-rail-eager"
+                    rr:l3fl:step-once)
+        (model-spec "l4-rail-eager"
                     "(Interleave + Railroad, Eager)"
                     canonical-parser-profile
                     canonical-parser-target-id
                     '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh" "cap/delay")
-                    (stepper var:Rl4-rail-eager))
-        (model-spec "mk-l3-dfs-eager"
+                    rr:l4re:step-once)
+        (model-spec "l3-dfs-eager"
                     "(No Interleave, Eager)"
                     canonical-parser-profile
                     canonical-parser-target-id
                     '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh" "cap/delay")
-                    (stepper var:Rl3-dfs-eager))
-        (model-spec "mk-l3-flip-eager"
+                    rr:l3de:step-once)
+        (model-spec "l3-flip-eager"
                     "(Interleave + Flip-Flop, Eager)"
                     canonical-parser-profile
                     canonical-parser-target-id
                     '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh" "cap/delay")
-                    (stepper var:Rl3-flip-eager))))
+                    rr:l3fe:step-once)
+        (model-spec "l3-base-lazy"
+                    "L3 Base (Lazy)"
+                    canonical-parser-profile
+                    canonical-parser-target-id
+                    '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh" "cap/delay")
+                    rr:l3bl:step-once)
+        (model-spec "l3-base-eager"
+                    "L3 Base (Eager)"
+                    canonical-parser-profile
+                    canonical-parser-target-id
+                    '("cap/core" "cap/relcall" "cap/disjunction" "cap/fresh" "cap/delay")
+                    rr:l3be:step-once)))
 
-(define default-model-id "mk-l4-rail-lazy")
+(define default-model-id "l4-rail-lazy")
 
 (define spec-by-id
   (for/hash ([spec (in-list all-model-specs)])

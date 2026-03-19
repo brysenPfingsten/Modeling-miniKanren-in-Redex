@@ -1,9 +1,8 @@
 #lang racket
 
 (require "../src/syntax-checking.rkt"
-         "../src/core-definitions.rkt"
+         "../src/languages/l0.rkt"
          "../src/sexpr-read.rkt"
-         "../src/wf-core.rkt"
          "../src/transpiler.rkt")
 (require redex/reduction-semantics
          rackunit
@@ -17,13 +16,13 @@
 
 (define-test-suite WELL-FORMED
   (test-case "Well-formed canonical config is accepted"
-             (check-true (redex-match? Core config WELL-FORMED-CONFIG))
+             (check-true (redex-match? L0 config WELL-FORMED-CONFIG))
              (check-true (canonical-core-shape? WELL-FORMED-CONFIG))
              (check-true (canonical-well-formed? WELL-FORMED-CONFIG))
              (check-not-exn (λ () (check-canonical-well-formed WELL-FORMED-CONFIG)) ""))
 
   (test-case "Malformed canonical config is rejected"
-             (check-true (redex-match? Core config BAD-FORMED-CONFIG))
+             (check-true (redex-match? L0 config BAD-FORMED-CONFIG))
              (check-true (canonical-core-shape? BAD-FORMED-CONFIG))
              (check-false (canonical-well-formed? BAD-FORMED-CONFIG))
              (check-exn exn:fail?

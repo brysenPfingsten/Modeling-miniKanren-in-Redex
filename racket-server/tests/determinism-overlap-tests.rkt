@@ -7,15 +7,13 @@
          racket/runtime-path
          redex/reduction-semantics
          (prefix-in rt: "../src/random-test-support.rkt")
-         "../src/core-definitions.rkt"
-         "../src/wf-core.rkt"
-         "../src/wf-variants.rkt"
-         "../src/extensions/variant-languages.rkt"
-         (prefix-in core: "../src/reduction-relations/core/core-reduction-relations.rkt")
-         "../src/reduction-relations/extensions/assemblies/variant-relations.rkt"
+         "../src/languages/l0.rkt"
+         "../src/wf/all.rkt"
+         "../src/languages/all.rkt"
+         (prefix-in l0: "../src/reduction-relations/l0.rkt")
+         "../src/reduction-relations/all.rkt"
          "../src/model-registry.rkt"
          "../src/model-surface-policy.rkt"
-         "../src/capability-analysis.rkt"
          "../src/transpiler.rkt"
          "../src/sexpr-read.rkt"
          "./example-compat-tests.rkt"
@@ -29,43 +27,52 @@
 (define OVERLAP-RANDOM-TERM-DEPTH 8)
 (define OVERLAP-RANDOM-MAX-REJECTS 800)
 
-(define-runtime-path EXTENSIONS-DIR
-  "../src/reduction-relations/extensions")
+(define-runtime-path REDUCTION-RELATIONS-DIR
+  "../src/reduction-relations")
+
+(define (extension-source-file? p)
+  (define name
+    (path->string (file-name-from-path p)))
+  (and (regexp-match? #rx"\\.rkt$" name)
+       (not (regexp-match? #rx"^(?:\\.#|#)" name))
+       (file-exists? p)
+       (not (link-exists? p))
+       (not (regexp-match? #rx"/archive/" (path->string p)))))
 
 (define (model-id->relation model-id)
   (case (string->symbol model-id)
-    [(mk-l0-core) core:-->cfg]
-    [(mk-l1-call-lazy) Rl1-call-lazy]
-    [(mk-l1-call-eager) Rl1-call-eager]
-    [(mk-l2-disj-left) Rl2-disj-left]
-    [(mk-l3-dfs-lazy) Rl3-dfs-lazy]
-    [(mk-l3-dfs-eager) Rl3-dfs-eager]
-    [(mk-l3-flip-lazy) Rl3-flip-lazy]
-    [(mk-l3-flip-eager) Rl3-flip-eager]
-    [(mk-l4-rail-lazy) Rl4-rail-lazy]
-    [(mk-l4-rail-eager) Rl4-rail-eager]
+    [(l0-core) l0:Rl0-core]
+    [(l1-call-lazy) Rl1-call-lazy]
+    [(l1-call-eager) Rl1-call-eager]
+    [(l2-disj-left) Rl2-disj-left]
+    [(l3-dfs-lazy) Rl3-dfs-lazy]
+    [(l3-dfs-eager) Rl3-dfs-eager]
+    [(l3-flip-lazy) Rl3-flip-lazy]
+    [(l3-flip-eager) Rl3-flip-eager]
+    [(l4-rail-lazy) Rl4-rail-lazy]
+    [(l4-rail-eager) Rl4-rail-eager]
     [else
      (error 'model-id->relation
             (format "unsupported model-id: ~a" model-id))]))
 
 (define (model-domain? model-id cfg)
   (case (string->symbol model-id)
-    [(mk-l0-core) (redex-match? Core config cfg)]
-    [(mk-l1-call-lazy mk-l1-call-eager) (redex-match? L1 config cfg)]
-    [(mk-l2-disj-left) (redex-match? L2 config cfg)]
-    [(mk-l3-dfs-lazy mk-l3-dfs-eager mk-l3-flip-lazy mk-l3-flip-eager)
+    [(l0-core) (redex-match? L0 config cfg)]
+    [(l1-call-lazy l1-call-eager) (redex-match? L1 config cfg)]
+    [(l2-disj-left) (redex-match? L2 config cfg)]
+    [(l3-dfs-lazy l3-dfs-eager l3-flip-lazy l3-flip-eager)
      (redex-match? L3 config cfg)]
-    [(mk-l4-rail-lazy mk-l4-rail-eager) (redex-match? L4 config cfg)]
+    [(l4-rail-lazy l4-rail-eager) (redex-match? L4 config cfg)]
     [else #f]))
 
 (define (model-wf? model-id cfg)
   (case (string->symbol model-id)
-    [(mk-l0-core) (judgment-holds (wf-config? ,cfg))]
-    [(mk-l1-call-lazy mk-l1-call-eager) (judgment-holds (wf-config/L1? ,cfg))]
-    [(mk-l2-disj-left) (judgment-holds (wf-config/L2? ,cfg))]
-    [(mk-l3-dfs-lazy mk-l3-dfs-eager mk-l3-flip-lazy mk-l3-flip-eager)
+    [(l0-core) (judgment-holds (wf-config? ,cfg))]
+    [(l1-call-lazy l1-call-eager) (judgment-holds (wf-config/L1? ,cfg))]
+    [(l2-disj-left) (judgment-holds (wf-config/L2? ,cfg))]
+    [(l3-dfs-lazy l3-dfs-eager l3-flip-lazy l3-flip-eager)
      (judgment-holds (wf-config/L3? ,cfg))]
-    [(mk-l4-rail-lazy mk-l4-rail-eager) (judgment-holds (wf-config/L4? ,cfg))]
+    [(l4-rail-lazy l4-rail-eager) (judgment-holds (wf-config/L4? ,cfg))]
     [else #f]))
 
 (define (parse-src/canonical src)
@@ -97,13 +104,13 @@
     (define cfg
       (parameterize ([current-pseudo-random-generator rng])
         (case (string->symbol model-id)
-          [(mk-l0-core) (generate-term Core config OVERLAP-RANDOM-TERM-DEPTH)]
-          [(mk-l1-call-lazy mk-l1-call-eager)
+          [(l0-core) (generate-term L0 config OVERLAP-RANDOM-TERM-DEPTH)]
+          [(l1-call-lazy l1-call-eager)
            (generate-term L1 config OVERLAP-RANDOM-TERM-DEPTH)]
-          [(mk-l2-disj-left) (generate-term L2 config OVERLAP-RANDOM-TERM-DEPTH)]
-          [(mk-l3-dfs-lazy mk-l3-dfs-eager mk-l3-flip-lazy mk-l3-flip-eager)
+          [(l2-disj-left) (generate-term L2 config OVERLAP-RANDOM-TERM-DEPTH)]
+          [(l3-dfs-lazy l3-dfs-eager l3-flip-lazy l3-flip-eager)
            (generate-term L3 config OVERLAP-RANDOM-TERM-DEPTH)]
-          [(mk-l4-rail-lazy mk-l4-rail-eager)
+          [(l4-rail-lazy l4-rail-eager)
            (generate-term L4 config OVERLAP-RANDOM-TERM-DEPTH)]
           [else
            (error 'generate-random-config
@@ -118,16 +125,11 @@
   (for*/list ([model-id (in-list model-ids)]
               [ex (in-list examples)])
     (match-define (cons _label src) ex)
-    (define reqs (hash-ref (analyze-source-capabilities src) 'requirements))
-    (define compatible-models (compatible-model-ids reqs all-model-specs))
-    (if (member model-id compatible-models)
-        (let ()
-          (define-values (cfg0 _html) (parse-src/canonical src))
-          (and (model-domain? model-id cfg0)
-               (model-wf? model-id cfg0)
-               (hash 'model-id model-id
-                     'cfg cfg0)))
-        #f)))
+    (define-values (cfg0 _html) (parse-src/canonical src))
+    (and (model-domain? model-id cfg0)
+         (model-wf? model-id cfg0)
+         (hash 'model-id model-id
+               'cfg cfg0))))
 
 (define (drop-false xs)
   (for/list ([x (in-list xs)]
@@ -174,9 +176,7 @@
 
 (define/provide-test-suite DETERMINISM-OVERLAP
   (test-case "policy guard: no rule-priority/name-based precedence in extension semantics"
-    (for ([p (in-list (find-files (lambda (p)
-                                    (regexp-match? #rx"\\.rkt$" (path->string p)))
-                                  EXTENSIONS-DIR))])
+    (for ([p (in-list (find-files extension-source-file? REDUCTION-RELATIONS-DIR))])
       (define src (file->string p))
       (check-false
        (regexp-match? #px"step-priority" src)
@@ -201,7 +201,7 @@
                           (length tagged-next*)
                           tagged-next*))
     (check-true
-     (regexp-match? #rx"^rail/promote-right-answer"
+     (regexp-match? #rx"^l4-rail/promote-right-answer"
                     (tagged-successor-name (first tagged-next*)))
      (format "expected rail right-answer promotion step, got ~s" tagged-next*)))
 

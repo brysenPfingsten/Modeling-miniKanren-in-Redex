@@ -46,7 +46,7 @@ Includes syntax-compat checks that frontend example programs parse and lift to `
 raco test racket-server/tests/test-all.rkt
 ```
 
-### **3) Frontend compatibility-gating lane**
+### **3) Frontend lane**
 
 ```sh
 npm --prefix frontend test
@@ -55,7 +55,7 @@ npm --prefix frontend test
 ### **4) Model×Example API-flow matrix lane**
 
 Automates model selection + example execution checks across the full cross-product
-using backend endpoints (analyze/init-with-model/step), up to 25 steps or termination.
+using backend endpoints (init-with-model/step), up to 25 steps or termination.
 
 ```sh
 raco test racket-server/tests/model-example-matrix-tests.rkt
@@ -77,7 +77,20 @@ Each entry includes:
 
 Execution contract:
 - `POST /api/post/init` is the supported way to choose the model for a run.
+- `POST /api/post/init` accepts only surfaced model ids returned by `GET /api/get/models`.
 - Init payloads should include `text`, `sourceMode`, optional `compileProfile`, and `model`.
+
+## **Semantics Ladder**
+
+The backend is now organized as an explicit `L0 -> L1/L2 -> L3 -> L4` ladder:
+
+- languages: `racket-server/src/languages/*.rkt`
+- well-formedness: `racket-server/src/wf/*.rkt`
+- public reducers: `racket-server/src/reduction-relations/*.rkt`
+
+The short architecture note lives in:
+
+- `docs/semantics-ladder.md`
 
 ## **LLM Orientation (Minimal)**
 
@@ -91,9 +104,13 @@ Use this if you are jumping in with no project history:
   - `racket-server/src/app.rkt` (`init!` enforces canonical config shape)
   - `racket-server/src/model-registry.rkt` (exposes parser contract in `/api/get/models`)
 - Canonical WF stack is split by layer:
-  - `racket-server/src/wf-kernel.rkt` (shared term/state/substitution checks)
-  - `racket-server/src/wf-core.rkt` (core judgments/shapes)
-  - `racket-server/src/wf-variants.rkt` (L1/L2/L3/L4 judgments)
+  - `racket-server/src/wf/kernel.rkt` (shared term/state/substitution checks)
+  - `racket-server/src/wf/l0.rkt`
+  - `racket-server/src/wf/l1.rkt`
+  - `racket-server/src/wf/l2.rkt`
+  - `racket-server/src/wf/l3.rkt`
+  - `racket-server/src/wf/l4.rkt`
+  - `racket-server/src/wf/all.rkt` (target/runtime helpers)
 - Frontend examples are source-of-truth in:
   - `frontend/src/utils/example_programs.js`
 - Integration test auto-loads all frontend examples and checks parse + lift to canonical target:

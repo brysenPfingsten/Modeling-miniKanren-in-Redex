@@ -2,13 +2,11 @@
 (require web-server/servlet-env
          web-server/http
          net/url-structs
-         net/uri-codec
          json
          racket/string)
 
 (require "canonical-json.rkt"
          "transpiler.rkt"
-         "capability-analysis.rkt"
          "syntax-checking.rkt"
          "sexpr-read.rkt"
          "zipper.rkt"
@@ -18,7 +16,7 @@
 (provide step! back! reset! init! init-session!
          make-stepper step step-name
          session session-zipper session-stepper session-nqv session-model-id
-         analyze! source-convert! list-models!)
+         source-convert! list-models!)
 
 (define (request->payload req)
   (bytes->jsexpr (request-post-data/raw req)))
@@ -116,10 +114,15 @@
   (match-let ([(session zip step nqv _) ses])
     (step zip nqv)))
 
+(define (lookup-surfaced-model-spec model-id)
+  (for/first ([spec (in-list surfaced-model-specs)]
+              #:when (equal? (model-spec-id spec) model-id))
+    spec))
+
 (define (bind-session-model! ses model-id)
-  (define maybe-spec (lookup-model-spec model-id))
+  (define maybe-spec (lookup-surfaced-model-spec model-id))
   (unless maybe-spec
-    (error 'init! (format "Unknown model selected for init: ~a" model-id)))
+    (error 'init! (format "Unsupported model selected for init: ~a" model-id)))
   (set-session-model-id! ses (model-spec-id maybe-spec))
   (set-session-stepper! ses (make-stepper (model-spec-step-once maybe-spec)))
   maybe-spec)
@@ -138,17 +141,6 @@
   (when (equal? source-mode "mini")
     (check-syntax-capture-error raw-prog))
   (define sexpr-prog (read-all-sexprs (open-input-string raw-prog)))   ;; Read the program into sexpressions
-  (define requirements
-    (ast->requirements (parse-prog->ast sexpr-prog
-                                        #:source-mode source-mode
-                                        #:compile-profile compile-profile)))
-  (define reasons
-    (incompatible-reasons requirements (model-spec-capabilities maybe-spec)))
-  (unless (null? reasons)
-    (error 'init!
-           (format "Program is incompatible with selected model ~a: ~a"
-                   model-id
-                   (string-join reasons "; "))))
   (define-values (model-prog html-prog)
     (parse-prog/canonical sexpr-prog
                           #:source-mode source-mode
@@ -193,49 +185,6 @@
       [(initial s) (step->response/initial s nqv)]
       [s #:when (step? s) (step->response s idx nqv)]
       [_ (step->response maybe-back idx nqv)])))
-
-
-;; analyze!: session request -> response
-;; Purpose: Analyze source capabilities and model compatibility without executing.
-(define (analyze! _ses req)
-  (with-handlers
-      ([exn:fail?
-        (lambda (e)
-          (response/jsexpr
-           (hasheq 'validSyntax #f
-                   'error (exn-message e))
-           #:mime-type #"application/json; charset=utf-8"
-           #:code 400))])
-    (define payload (request->payload req))
-    (define raw-prog (hash-ref payload 'text))
-    (define-values (source-mode compile-profile)
-      (payload->source-options payload))
-    (define analysis
-      (analyze-source-capabilities raw-prog
-                                   #:source-mode source-mode
-                                   #:compile-profile compile-profile))
-    (define requirements (hash-ref analysis 'requirements '()))
-    (define compatible-ids (compatible-model-ids requirements surfaced-model-specs))
-    (define incompatible-specs
-      (for/list ([spec (in-list surfaced-model-specs)]
-                 #:unless (member (model-spec-id spec) compatible-ids))
-        spec))
-    (define incompatible-ids (map model-spec-id incompatible-specs))
-    (define incompat-reasons
-      (for/hash ([spec (in-list incompatible-specs)])
-        ;; Use symbol keys so response/jsexpr can encode object fields reliably.
-        (values (string->symbol (model-spec-id spec))
-                (incompatible-reasons requirements
-                                      (model-spec-capabilities spec)))))
-    (response/jsexpr
-     (hasheq 'validSyntax #t
-             'requirements requirements
-             'compatibleModelIds compatible-ids
-             'incompatibleModelIds incompatible-ids
-             'incompatReasonsByModel incompat-reasons
-             'analysisVersion (hash-ref analysis 'analysisVersion ANALYSIS-VERSION))
-     #:mime-type #"application/json; charset=utf-8"
-     #:code 200)))
 
 (define (source-convert! req)
   (define payload (request->payload req))
@@ -318,8 +267,7 @@
       ["post/init"  (init! session req session-id)]
       ["post/reset" (reset! session session-table session-id)]
       ["post/back"  (back! session)]
-      ["post/source-convert" (source-convert! req)]
-      ["post/analyze" (analyze! session req)])))
+      ["post/source-convert" (source-convert! req)])))
 
 (define (handled-dispatcher req)
   (with-handlers

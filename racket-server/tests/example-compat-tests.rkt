@@ -7,7 +7,7 @@
          racket/match
          "../src/transpiler.rkt"
          "../src/sexpr-read.rkt"
-         "../src/extensions/l4-railroad-syntax.rkt")
+         "../src/languages/l4-railroad.rkt")
 
 (provide EXAMPLE-COMPAT
          frontend-example-programs)
@@ -52,9 +52,6 @@
                      value-var
                      label)))
     (cons label maybe-src)))
-
-(define (parse-src src)
-  (parse-prog (read-all-sexprs (open-input-string src))))
 
 (define (parse-src/canonical src)
   (parse-prog/canonical (read-all-sexprs (open-input-string src))))

@@ -21,8 +21,9 @@
 
 (define (example-src label)
   (for/first ([pr (in-list (frontend-example-programs))]
-              #:when (equal? (car pr) label))
-    (cdr pr)))
+              #:do [(match-define (cons example-label src) pr)]
+              #:when (equal? example-label label))
+    src))
 
 (define (trace-steps model-id label)
   (define src (example-src label))
@@ -56,64 +57,64 @@
 
 (define GOLDEN-PREFIXES
   (list
-   (list "mk-l0-core"
+   (list "l0-core"
          "core/fresh+conj+unify"
-         '("Substitute Fresh Variables"
-           "Substitute Fresh Variables"
-           "Distribute State Over Conjunction"
-           "Distribute State Over Conjunction"
-           "Distribute State Over Conjunction"
-           "Unification Succeeds"
-           "Bring Success State To Second Conjunct"
-           "Unification Succeeds"))
-   (list "mk-l4-rail-lazy"
+         '("l0/fresh-substitute"
+           "l0/fresh-substitute"
+           "l0/conj-distribute-state"
+           "l0/conj-distribute-state"
+           "l0/conj-distribute-state"
+           "l0/unify-success"
+           "l0/conj-bring-success"
+           "l0/unify-success"))
+   (list "l4-rail-lazy"
          "appendoh 1"
-         '("core/fresh-substitute"
-           "call/lazy-expand"
-           "source-delay/bridge"
-           "call/invoke-delay"
-           "disj/goal-to-tree"
-           "core/conj-distribute-state"
-           "core/unify-fail"
-           "core/conj-prune-fail"
-           "disj/skip-left-fail"
-           "core/fresh-substitute"))
-   (list "mk-l4-rail-lazy"
+         '("l0/fresh-substitute"
+           "l3-base/lazy-expand"
+           "l3-base/suspend-goal"
+           "l3-base/invoke-delay"
+           "l3-base/goal-to-tree"
+           "l0/conj-distribute-state"
+           "l0/unify-fail"
+           "l0/conj-prune-fail"
+           "l3-base/skip-left-fail"
+           "l0/fresh-substitute"))
+   (list "l4-rail-lazy"
          "fives/fours"
-         '("core/fresh-substitute"
-           "disj/goal-to-tree"
-           "call/lazy-expand"
-           "source-delay/bridge"
-           "rail/enter-right"
-           "call/invoke-delay"
-           "call/lazy-expand"
-           "source-delay/bridge"
-           "rail/return-left"
-           "call/invoke-delay"))
-   (list "mk-l3-flip-lazy"
+         '("l0/fresh-substitute"
+           "l3-base/goal-to-tree"
+           "l3-base/lazy-expand"
+           "l3-base/suspend-goal"
+           "l4-rail/enter-right"
+           "l3-base/invoke-delay"
+           "l3-base/lazy-expand"
+           "l3-base/suspend-goal"
+           "l4-rail/return-left"
+           "l3-base/invoke-delay"))
+   (list "l3-flip-lazy"
          "fives/fours"
-         '("core/fresh-substitute"
-           "disj/goal-to-tree"
-           "call/lazy-expand"
-           "source-delay/bridge"
-           "flip/delay-swap-left"
-           "call/invoke-delay"
-           "call/lazy-expand"
-           "source-delay/bridge"
-           "flip/delay-swap-left"
-           "call/invoke-delay"))
-   (list "mk-l3-dfs-lazy"
+         '("l0/fresh-substitute"
+           "l3-base/goal-to-tree"
+           "l3-base/lazy-expand"
+           "l3-base/suspend-goal"
+           "l3-flip/delay-swap-left"
+           "l3-base/invoke-delay"
+           "l3-base/lazy-expand"
+           "l3-base/suspend-goal"
+           "l3-flip/delay-swap-left"
+           "l3-base/invoke-delay"))
+   (list "l3-dfs-lazy"
          "same"
-         '("core/fresh-substitute"
-           "disj/goal-to-tree"
-           "disj/goal-to-tree"
-           "call/lazy-expand"
-           "source-delay/bridge"
-           "dfs/delay-through-left"
-           "dfs/delay-through-left"
-           "call/invoke-delay"
-           "core/unify-success"
-           "disj/bubble-left-answer"))))
+         '("l0/fresh-substitute"
+           "l3-base/goal-to-tree"
+           "l3-base/goal-to-tree"
+           "l3-base/lazy-expand"
+           "l3-base/suspend-goal"
+           "l3-dfs/delay-through-left"
+           "l3-dfs/delay-through-left"
+           "l3-base/invoke-delay"
+           "l0/unify-success"
+           "l3-base/bubble-left-answer"))))
 
 (define/provide-test-suite CONFIDENCE-GATES
   (test-case "golden trace prefixes stay stable and step names are always named"
@@ -145,9 +146,9 @@
 
   (test-case "init/step payloads satisfy UI contract for canonical programs"
     (define pairs
-      (list (list "mk-l4-rail-lazy" "appendoh 1")
-            (list "mk-l3-flip-lazy" "fives/fours")
-            (list "mk-l0-core" "core/fresh+conj+unify")))
+      (list (list "l4-rail-lazy" "appendoh 1")
+            (list "l3-flip-lazy" "fives/fours")
+            (list "l3-dfs-lazy" "same")))
     (for ([pr (in-list pairs)])
       (match-define (list model-id label) pr)
       (define src (example-src label))

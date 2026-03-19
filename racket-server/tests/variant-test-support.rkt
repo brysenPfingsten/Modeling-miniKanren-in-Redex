@@ -1,9 +1,9 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../src/core-definitions.rkt"
-         "../src/wf-core.rkt"
-         "../src/extensions/variant-languages.rkt")
+         "../src/languages/l0.rkt"
+         "../src/wf/l0.rkt"
+         "../src/languages/all.rkt")
 
 (provide final-config?
          wf-config-term?
@@ -152,7 +152,7 @@
 
 (define cfg-call-source-delay
   (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
-         ((sdelay (r:id (sym "ok") (label "call")) (label "delay"))
+         ((suspend (r:id (sym "ok") (label "call")) (label "delay"))
           (state () () () () (label "s")))
          (empty-stream))))
 
