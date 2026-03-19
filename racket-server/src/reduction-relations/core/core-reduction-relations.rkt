@@ -3,7 +3,7 @@
          "../../core-definitions.rkt"
          "../../extensions/l0-core.rkt"
          "../../wf-core.rkt"
-         "../step-utils.rkt")
+         "../support/step-utils.rkt")
 
 (check-redundancy #t)
 

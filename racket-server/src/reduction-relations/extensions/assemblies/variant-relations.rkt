@@ -1,17 +1,17 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../step-utils.rkt"
-         (rename-in "./rcall-eager.rkt" [Rcall-eager Rl1-call-eager])
-         (rename-in "./rcall-lazy.rkt" [Rcall-lazy Rl1-call-lazy])
-         (rename-in "./rdisj-left.rkt" [Rdisj-left Rl2-disj-left])
+         "../../support/step-utils.rkt"
+         (rename-in "../features/rcall-eager.rkt" [Rcall-eager Rl1-call-eager])
+         (rename-in "../features/rcall-lazy.rkt" [Rcall-lazy Rl1-call-lazy])
+         (rename-in "../features/rdisj-left.rkt" [Rdisj-left Rl2-disj-left])
          (rename-in "./rbase-e.rkt" [Rbase-e Rl3-pre-eager])
          (rename-in "./rbase-l.rkt" [Rbase-l Rl3-pre-lazy])
          (rename-in "./rflip-e.rkt" [Rflip-e Rl3-flip-eager])
          (rename-in "./rflip-l.rkt" [Rflip-l Rl3-flip-lazy])
          (rename-in "./rrail-e.rkt" [Rrail-e Rl4-rail-eager])
          (rename-in "./rrail-l.rkt" [Rrail-l Rl4-rail-lazy])
-         "./rdfs-common.rkt")
+         "../variants/rdfs-common.rkt")
 
 ;; Relation names follow the language/relation lattice:
 ;; - Rl1-call-{eager,lazy}

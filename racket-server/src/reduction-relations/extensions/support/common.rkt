@@ -2,7 +2,7 @@
 
 (require racket/match
          redex/reduction-semantics
-         "../../core-definitions.rkt")
+         "../../../core-definitions.rkt")
 
 (provide instantiate-call-host
          subst-goal-host

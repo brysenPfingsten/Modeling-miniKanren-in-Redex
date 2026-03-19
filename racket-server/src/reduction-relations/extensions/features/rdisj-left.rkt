@@ -1,24 +1,26 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../../core-definitions.rkt"
-         "../../extensions/l3-union-base.rkt")
+         "../../../core-definitions.rkt"
+         "../../../extensions/l2-left-disjunction.rkt"
+         "../core/core-l2.rkt")
 
 (check-redundancy #t)
 
-(provide make-disj-extra/l3)
+(provide disj-extra/l2
+         Rdisj-left)
 
-(define (make-disj-extra/l3)
+(define disj-extra/l2
   (reduction-relation
-   L3/K
+   L2/K
    #:domain config
+   ;; Stage 1 (inside active branch): core-conjunction contexts.
+   ;; Stage 2 (outside): left-disjunction scheduler contexts.
    [--> (Γ (in-hole Kleft (in-hole Kcore ((g_1 ∨ g_2 tag) σ))) as)
         (Γ (in-hole Kleft (in-hole Kcore ((g_1 σ) <-+ (g_2 σ)))) as)
         "disj/goal-to-tree"]
    [--> (Γ (in-hole Kleft (in-hole Kcore ((s_1 <-+ s_2) × g c))) as)
         (Γ (in-hole Kleft (in-hole Kcore ((s_1 × g c) <-+ (s_2 × g c)))) as)
-        (side-condition (redex-match? L3/K s (term s_1)))
-        (side-condition (redex-match? L3/K s (term s_2)))
         "disj/distribute-over-conj"]
    [--> (Γ (in-hole Kleft (((⊤ σ_new) <-+ s_mid) <-+ s_right)) as)
         (Γ (in-hole Kleft ((⊤ σ_new) <-+ (s_mid <-+ s_right))) as)
@@ -32,3 +34,8 @@
    [--> (Γ ((empty-tree) <-+ s_right) as)
         (Γ s_right as)
         "disj/skip-left-fail"]))
+
+(define Rdisj-left
+  (union-reduction-relations
+   disj-extra/l2
+   core-cfg/l2))

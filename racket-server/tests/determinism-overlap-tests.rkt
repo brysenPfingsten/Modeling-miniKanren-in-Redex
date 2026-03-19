@@ -2,6 +2,7 @@
 
 (require rackunit
          rackunit/text-ui
+         racket/file
          racket/list
          racket/runtime-path
          redex/reduction-semantics
@@ -11,7 +12,7 @@
          "../src/wf-variants.rkt"
          "../src/extensions/variant-languages.rkt"
          (prefix-in core: "../src/reduction-relations/core/core-reduction-relations.rkt")
-         "../src/reduction-relations/extensions/variant-relations.rkt"
+         "../src/reduction-relations/extensions/assemblies/variant-relations.rkt"
          "../src/model-registry.rkt"
          "../src/model-surface-policy.rkt"
          "../src/capability-analysis.rkt"
@@ -173,8 +174,9 @@
 
 (define/provide-test-suite DETERMINISM-OVERLAP
   (test-case "policy guard: no rule-priority/name-based precedence in extension semantics"
-    (for ([p (in-list (directory-list EXTENSIONS-DIR #:build? #t))]
-          #:when (regexp-match? #rx"\\.rkt$" (path->string p)))
+    (for ([p (in-list (find-files (lambda (p)
+                                    (regexp-match? #rx"\\.rkt$" (path->string p)))
+                                  EXTENSIONS-DIR))])
       (define src (file->string p))
       (check-false
        (regexp-match? #px"step-priority" src)

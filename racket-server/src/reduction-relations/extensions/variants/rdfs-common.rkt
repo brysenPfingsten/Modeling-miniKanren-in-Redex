@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../../extensions/l3-union-base.rkt")
+         "../../../extensions/l3-union-base.rkt")
 
 (check-redundancy #t)
 

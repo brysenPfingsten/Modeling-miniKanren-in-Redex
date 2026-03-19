@@ -1,41 +1,43 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../../core-definitions.rkt"
-         "../../extensions/l2-left-disjunction.rkt"
-         "./core-l2.rkt")
+         "../../../core-definitions.rkt"
+         "../../../extensions/l2-left-disjunction.rkt"
+         "../core/core-l2.rkt")
 
 (check-redundancy #t)
 
-(provide disj-extra/l2
-         Rdisj-left)
+(provide disj-extra/dfs-nodelay
+         Rdfs-nodelay)
 
-(define disj-extra/l2
+;; Explicit DFS/no-delay branch:
+;; - built from L2 (disjunction syntax present)
+;; - no delay/proceed constructors or rules
+;; - deterministic left-biased disjunction scheduling
+(define disj-extra/dfs-nodelay
   (reduction-relation
    L2/K
    #:domain config
-   ;; Stage 1 (inside active branch): core-conjunction contexts.
-   ;; Stage 2 (outside): left-disjunction scheduler contexts.
    [--> (Γ (in-hole Kleft (in-hole Kcore ((g_1 ∨ g_2 tag) σ))) as)
         (Γ (in-hole Kleft (in-hole Kcore ((g_1 σ) <-+ (g_2 σ)))) as)
-        "disj/goal-to-tree"]
+        "dfsn/goal-to-tree"]
    [--> (Γ (in-hole Kleft (in-hole Kcore ((s_1 <-+ s_2) × g c))) as)
         (Γ (in-hole Kleft (in-hole Kcore ((s_1 × g c) <-+ (s_2 × g c)))) as)
-        "disj/distribute-over-conj"]
+        "dfsn/distribute-over-conj"]
    [--> (Γ (in-hole Kleft (((⊤ σ_new) <-+ s_mid) <-+ s_right)) as)
         (Γ (in-hole Kleft ((⊤ σ_new) <-+ (s_mid <-+ s_right))) as)
-        "disj/bubble-left-answer"]
+        "dfsn/bubble-left-answer"]
    [--> (Γ ((⊤ σ_new) <-+ s_right) as)
         (Γ s_right (append-answer as σ_new))
-        "disj/promote-left-answer"]
+        "dfsn/promote-left-answer"]
    [--> (Γ (in-hole Kleft (((empty-tree) <-+ s_mid) <-+ s_right)) as)
         (Γ (in-hole Kleft ((empty-tree) <-+ (s_mid <-+ s_right))) as)
-        "disj/bubble-left-fail"]
+        "dfsn/bubble-left-fail"]
    [--> (Γ ((empty-tree) <-+ s_right) as)
         (Γ s_right as)
-        "disj/skip-left-fail"]))
+        "dfsn/skip-left-fail"]))
 
-(define Rdisj-left
+(define Rdfs-nodelay
   (union-reduction-relations
-   disj-extra/l2
+   disj-extra/dfs-nodelay
    core-cfg/l2))

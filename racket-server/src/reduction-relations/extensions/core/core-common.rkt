@@ -1,8 +1,8 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../../core-definitions.rkt"
-         "./common.rkt")
+         "../../../core-definitions.rkt"
+         "../support/common.rkt")
 
 (check-redundancy #t)
 

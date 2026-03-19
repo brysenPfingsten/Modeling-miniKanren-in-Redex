@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "./rflip-common.rkt"
+         "../variants/rflip-common.rkt"
          "./rbase-e.rkt")
 
 (check-redundancy #t)

@@ -6,8 +6,8 @@
          "./variant-test-support.rkt"
          (prefix-in lang: "../src/extensions/variant-languages.rkt")
          (prefix-in j: "../src/wf-variants.rkt")
-         "../src/reduction-relations/extensions/variant-relations.rkt"
-         (prefix-in dn: "../src/reduction-relations/extensions/rdfs-nodelay.rkt"))
+         "../src/reduction-relations/extensions/assemblies/variant-relations.rkt"
+         (prefix-in dn: "../src/reduction-relations/extensions/assemblies/rdfs-nodelay.rkt"))
 
 (provide VARIANT-MODULES)
 

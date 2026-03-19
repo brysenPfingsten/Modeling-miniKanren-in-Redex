@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "./rail-common.rkt"
+         "../variants/rail-common.rkt"
          "./rbase-e.rkt")
 
 (check-redundancy #t)

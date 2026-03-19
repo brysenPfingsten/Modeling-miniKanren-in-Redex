@@ -5,7 +5,7 @@
          redex/reduction-semantics
          "./variant-test-support.rkt"
          "../src/extensions/variant-languages.rkt"
-         "../src/reduction-relations/extensions/variant-relations.rkt")
+         "../src/reduction-relations/extensions/assemblies/variant-relations.rkt")
 
 (provide PROPERTY-VARIANTS)
 

@@ -1,9 +1,9 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../../extensions/l2-left-disjunction.rkt"
+         "../../../extensions/l2-left-disjunction.rkt"
          "./core-common.rkt"
-         "./context-pipeline.rkt")
+         "../support/context-pipeline.rkt")
 
 (check-redundancy #t)
 

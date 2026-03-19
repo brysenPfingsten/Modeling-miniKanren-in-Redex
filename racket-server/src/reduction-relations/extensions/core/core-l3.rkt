@@ -1,9 +1,9 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../../extensions/l3-union-base.rkt"
+         "../../../extensions/l3-union-base.rkt"
          "./core-common.rkt"
-         "./context-pipeline.rkt")
+         "../support/context-pipeline.rkt")
 
 (check-redundancy #t)
 

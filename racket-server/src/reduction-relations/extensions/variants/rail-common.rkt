@@ -1,8 +1,8 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../../core-definitions.rkt"
-         "../../extensions/l4-railroad-syntax.rkt")
+         "../../../core-definitions.rkt"
+         "../../../extensions/l4-railroad-syntax.rkt")
 
 (check-redundancy #t)
 

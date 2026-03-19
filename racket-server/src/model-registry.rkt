@@ -1,7 +1,7 @@
 #lang racket
 
 (require (prefix-in core: "reduction-relations/core/core-reduction-relations.rkt")
-         (prefix-in var: "reduction-relations/extensions/variant-relations.rkt")
+         (prefix-in var: "reduction-relations/extensions/assemblies/variant-relations.rkt")
          "transpiler.rkt")
 
 (provide model-spec?

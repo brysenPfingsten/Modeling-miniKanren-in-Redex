@@ -9,7 +9,7 @@
          (prefix-in gk: "./generator-kernel.rkt")
          "./variant-test-support.rkt"
          "../src/extensions/variant-languages.rkt"
-         "../src/reduction-relations/extensions/variant-relations.rkt")
+         "../src/reduction-relations/extensions/assemblies/variant-relations.rkt")
 
 (provide PROPERTY-VARIANTS-RANDOM)
 
