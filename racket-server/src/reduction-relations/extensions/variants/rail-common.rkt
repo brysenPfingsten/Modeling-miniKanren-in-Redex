@@ -25,6 +25,15 @@
          (Γ (in-hole Ksched (delay (s_2 <-+ s_1))) as)
          "rail/return-left"]
 
+    [--> (Γ (in-hole K (s_left +-> ((⊤ σ_new) <-+ s_right))) as)
+         (Γ (in-hole K (s_left +-> s_right))
+            (append-answer as σ_new))
+         "rail/promote-right-left-answer"]
+
+    [--> (Γ (in-hole K (s_left +-> ((empty-tree) <-+ s_right))) as)
+         (Γ (in-hole K (s_left +-> s_right)) as)
+         "rail/skip-right-left-fail"]
+
     [--> (Γ (in-hole K (s_left +-> (⊤ σ_new))) as)
          (Γ (in-hole K s_left)
             (append-answer as σ_new))

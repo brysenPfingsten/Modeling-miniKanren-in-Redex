@@ -332,6 +332,44 @@
                   (empty-tree))
                 (⊤ (state () () () () (label "ra")))))))))
 
+  (test-case "Rl4-rail-eager and Rl4-rail-lazy handle active right-branch left-disjunction roots"
+    (define cfg-answer
+      (term (()
+             ((empty-tree)
+              +->
+              ((⊤ (state () () () () (label "ra")))
+               <-+
+               (empty-tree)))
+             (empty-stream))))
+    (define cfg-fail
+      (term (()
+             ((empty-tree)
+              +->
+              ((empty-tree)
+               <-+
+               (⊤ (state () () () () (label "rb")))))
+             (empty-stream))))
+    (define expected-answer
+      (term (()
+             ((empty-tree) +-> (empty-tree))
+             (⊤ (state () () () () (label "ra"))))))
+    (define expected-fail
+      (term (()
+             ((empty-tree)
+              +->
+              (⊤ (state () () () () (label "rb"))))
+             (empty-stream))))
+    (for ([rel (in-list (list Rl4-rail-eager Rl4-rail-lazy))])
+      (define-values (answer-step answer-cfg)
+        (single-named-step (apply-reduction-relation/tag-with-names rel cfg-answer)))
+      (check-equal? answer-step "rail/promote-right-left-answer")
+      (check-equal? answer-cfg expected-answer)
+
+      (define-values (fail-step fail-cfg)
+        (single-named-step (apply-reduction-relation/tag-with-names rel cfg-fail)))
+      (check-equal? fail-step "rail/skip-right-left-fail")
+      (check-equal? fail-cfg expected-fail)))
+
 (define/provide-test-suite VARIANT-MODULES
   LANGUAGE-MODULES
   RELATION-MODULES)
