@@ -24,7 +24,9 @@
 
 (define (remove-at xs idx)
   (define-values (prefix suffix) (split-at xs idx))
-  (if (null? suffix) prefix (append prefix (cdr suffix))))
+  (match suffix
+    ['() prefix]
+    [(cons _ rest) (append prefix rest)]))
 
 (define (random-distinct/rng rng xs k)
   (unless (exact-nonnegative-integer? k)
@@ -35,9 +37,8 @@
              #:result (reverse rev-acc))
             ([_ (in-range need)])
     (define idx (rng-random rng (length pool)))
-    (define picked (list-ref pool idx))
     (values (remove-at pool idx)
-            (cons picked rev-acc))))
+            (cons (list-ref pool idx) rev-acc))))
 
 (define (gen-primitive/rng rng)
   (case (rng-random rng 5)

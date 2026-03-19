@@ -3,8 +3,8 @@
          rackunit/text-ui
          racket/list
          redex/reduction-semantics
-         (prefix-in l4: "../src/extensions/l4-railroad-syntax.rkt")
-         (prefix-in j: "../src/wf-variants.rkt")
+         (prefix-in l4: "../src/languages/l4-railroad.rkt")
+         (prefix-in j: "../src/wf/all.rkt")
          "../src/sexpr-read.rkt"
          "../src/transpiler.rkt")
 
@@ -48,12 +48,12 @@
 
 (define (goal-top-delay? goal)
   (match goal
-    [`(sdelay ,_ ,_) #t]
+    [`(suspend ,_ ,_) #t]
     [_ #f]))
 
 (define (goal-contains-delay? goal [seen #f])
   (match goal
-    [`(sdelay ,g ,_)
+    [`(suspend ,g ,_)
      (goal-contains-delay? g #t)]
     [`(∃ ,_ ,g ,_)
      (goal-contains-delay? g seen)]
@@ -65,20 +65,20 @@
          (goal-contains-delay? g2 seen))]
     [_ seen]))
 
-(define (strip-sdelays goal)
+(define (strip-suspends goal)
   (match goal
-    [`(sdelay ,g ,_) (strip-sdelays g)]
-    [`(∃ ,vars ,g ,tag) `(∃ ,vars ,(strip-sdelays g) ,tag)]
-    [`(,g1 ∧ ,g2 ,tag) `(,(strip-sdelays g1) ∧ ,(strip-sdelays g2) ,tag)]
-    [`(,g1 ∨ ,g2 ,tag) `(,(strip-sdelays g1) ∨ ,(strip-sdelays g2) ,tag)]
+    [`(suspend ,g ,_) (strip-suspends g)]
+    [`(∃ ,vars ,g ,tag) `(∃ ,vars ,(strip-suspends g) ,tag)]
+    [`(,g1 ∧ ,g2 ,tag) `(,(strip-suspends g1) ∧ ,(strip-suspends g2) ,tag)]
+    [`(,g1 ∨ ,g2 ,tag) `(,(strip-suspends g1) ∨ ,(strip-suspends g2) ,tag)]
     [_ goal]))
 
 (define (goal-contains-delayed-relcall? goal)
   (match goal
-    [`(sdelay (,r ,_ ... ,_) ,_)
+    [`(suspend (,r ,_ ... ,_) ,_)
      (and (symbol? r)
           (regexp-match? #rx"^r:" (symbol->string r)))]
-    [`(sdelay ,g ,_)
+    [`(suspend ,g ,_)
      (goal-contains-delayed-relcall? g)]
     [`(∃ ,_ ,g ,_)
      (goal-contains-delayed-relcall? g)]
@@ -129,6 +129,22 @@
   (hasheq 'conjAssoc conj-assoc
           'disjAssoc disj-assoc
           'delayPlacement delay-placement))
+
+(define-test-suite SOURCE-MODES
+  (test-case "normalize-source-mode defaults missing or blank inputs"
+    (check-equal? (normalize-source-mode #f) default-source-mode)
+    (check-equal? (normalize-source-mode "") default-source-mode))
+
+  (test-case "normalize-source-mode preserves supported modes"
+    (check-equal? (normalize-source-mode "mini") "mini")
+    (check-equal? (normalize-source-mode "micro") "micro"))
+
+  (test-case "normalize-source-mode rejects unsupported values"
+    (check-exn
+     (lambda (e)
+       (and (exn:fail? e)
+            (regexp-match? #rx"unsupported sourceMode" (exn-message e))))
+     (thunk (normalize-source-mode "macro")))))
 
 (define-test-suite ASSOCIATIVITY
   (test-case "Conjunctions Left Associate"
@@ -218,9 +234,9 @@
       (define disj-goal (query-goal-of disj-cfg))
       (define disj-inner
         (match disj-goal
-          [`(sdelay ,inner ,_) inner]
+          [`(suspend ,inner ,_) inner]
           [_ disj-goal]))
-      (define stripped-disj (strip-sdelays disj-inner))
+      (define stripped-disj (strip-suspends disj-inner))
       (check-equal? (goal-top-delay? disj-goal)
                     (equal? delay-placement "disj")
                     (format "disjunction delay placement mismatch for profile ~e: ~e"
@@ -277,6 +293,18 @@
                       (format "wrap body should not contain compiler delay for profile ~e: ~e"
                               profile
                               wrap-goal))]))))
+
+  (test-case "normalize-compile-profile rejects unsupported axis values"
+    (check-exn
+     (lambda (e)
+       (and (exn:fail? e)
+            (regexp-match? #rx"invalid compileProfile\\.conjAssoc"
+                           (exn-message e))))
+     (thunk
+      (normalize-compile-profile
+       (hasheq 'conjAssoc "middle"
+               'disjAssoc "right"
+               'delayPlacement "relbody")))))
 
 (define-test-suite MICRO-SOURCE
   (test-case "direct micro source accepts binary conj/disj, Zzz, and disequality"
@@ -405,6 +433,7 @@
 (define/provide-test-suite TRANSPILER
   #:after (thunk (displayln "Finished running tests for transpiler."))
 
+  SOURCE-MODES
   ASSOCIATIVITY
   COMPILE-PROFILES
   MICRO-SOURCE
