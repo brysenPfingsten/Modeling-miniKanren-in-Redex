@@ -1,5 +1,3 @@
-import { ALL_MODEL_IDS } from "./model_ids.js";
-
 const appendo = `(defrel (appendo l s out)
   (conde
     [(== l '())
@@ -107,43 +105,36 @@ export const semanticExamples = Object.freeze([
     id: "core-fresh-conj-unify",
     label: "core/fresh+conj+unify",
     miniSource: coreFreshConjUnify,
-    models: ALL_MODEL_IDS,
   }),
   Object.freeze({
     id: "appendo",
     label: "appendo",
     miniSource: appendo,
-    models: ALL_MODEL_IDS,
   }),
   Object.freeze({
     id: "appendoh-1",
     label: "appendoh 1",
     miniSource: appendoh1,
-    models: ALL_MODEL_IDS,
   }),
   Object.freeze({
     id: "appendoh-2",
     label: "appendoh 2",
     miniSource: appendoh2,
-    models: ALL_MODEL_IDS,
   }),
   Object.freeze({
     id: "fives-fours",
     label: "fives/fours",
     miniSource: fivesFours,
-    models: ALL_MODEL_IDS,
   }),
   Object.freeze({
     id: "same",
     label: "same",
     miniSource: same,
-    models: ALL_MODEL_IDS,
   }),
   Object.freeze({
     id: "div3o",
     label: "div3o",
     miniSource: div3o,
-    models: ALL_MODEL_IDS,
   }),
 ]);
 
@@ -151,11 +142,10 @@ export function exampleById(exampleId) {
   return semanticExamples.find(({ id }) => id === exampleId) ?? null;
 }
 
-export function examplesForModel(model) {
+export function exampleOptions() {
   return [
     { value: "", label: "Examples" },
     ...semanticExamples
-      .filter(({ models }) => models.includes(model))
       .map(({ id, label }) => ({ value: id, label })),
   ];
 }

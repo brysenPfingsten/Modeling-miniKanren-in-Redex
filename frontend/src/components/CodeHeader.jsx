@@ -1,6 +1,6 @@
 import React from "react";
 import "../styles.css";
-import { examplesForModel } from "../utils/example_programs.js";
+import { exampleOptions } from "../utils/example_programs.js";
 
 export default function CodeHeader({
   logoSrc,
@@ -16,13 +16,13 @@ export default function CodeHeader({
   onCompileProfileChange,
   modelValue,
   modelOptions = [],
-  onModelChangeRequest,
+  onModelChange,
   isFrozen,
   analysisStatus = "idle",
   compatWarning = null,
   onSwitchCompatibleModel = () => {},
 }) {
-  const availableExamples = examplesForModel(modelValue);
+  const availableExamples = exampleOptions();
 
   const renderOptions = (opts) =>
     opts.map(({ value, label }) => (
@@ -30,14 +30,6 @@ export default function CodeHeader({
         {label}
       </option>
     ));
-
-  const changeModel = async (newModel) => {
-    try {
-      await onModelChangeRequest(newModel);
-    } catch (_) {
-      // Keep current model selection when request fails.
-    }
-  };
 
   return (
     <div className="code-header">
@@ -111,7 +103,7 @@ export default function CodeHeader({
           <select
             className="select"
             value={modelValue}
-            onChange={(e) => changeModel(e.target.value)}
+            onChange={(e) => onModelChange(e.target.value)}
             disabled={isFrozen}
           >
             {renderOptions(modelOptions)}

@@ -123,6 +123,7 @@
               (check-equal? (zipper-next new-zipper) '())
               (check-equal? (zipper-idx   new-zipper) 2)
               )
+
 )
 
 (define-test-suite INIT!
@@ -149,8 +150,9 @@
 
   (test-case "init! defaults missing source options to canonical mini profile"
               (define sample-req
-                (make-post-request "init"
-                                   (hasheq 'text "(run* (q) (== 'a 'a))")))
+                (make-post-init-request
+                 "(run* (q) (== 'a 'a))"
+                 (hasheq 'text "(run* (q) (== 'a 'a))")))
               (define zip (zipper '() #f '() 0))
               (define stepper identity)
               (define ses (session zip stepper 1))
@@ -185,15 +187,53 @@
               (define ses (session zip stepper 1))
               (check-exn exn:fail:syntax? (thunk (init! ses sample-req 'testid))))
 
-  (test-case "init! rejects program incompatible with currently selected model"
-              (define sample-req (make-post-init-request disj-delay-program))
+  (test-case "init! rejects missing model in payload"
+              (define sample-req
+                (make-post-request "init"
+                                   (hasheq 'text "(run* (q) (== q 'ok))"
+                                           'sourceMode "mini"
+                                           'compileProfile (hash-ref default-source-options 'compileProfile))))
               (define zip (zipper '() #f '() 0))
               (define stepper identity)
               (define ses (session zip stepper 1))
-              (check-equal? (response-code (switch-model! ses (make-post-model-request "mk-l0-core") 'incompat-id))
-                            200)
+              (check-exn exn:fail?
+                         (thunk (init! ses sample-req 'missing-model-id))))
+
+  (test-case "init! rejects unknown model in payload"
+              (define sample-req
+                (make-post-init-request
+                 "(run* (q) (== q 'ok))"
+                 #:model "nope"))
+              (define zip (zipper '() #f '() 0))
+              (define stepper identity)
+              (define ses (session zip stepper 1))
+              (check-exn exn:fail?
+                         (thunk (init! ses sample-req 'unknown-model-id))))
+
+  (test-case "init! rejects program incompatible with selected model payload"
+              (define sample-req
+                (make-post-init-request disj-delay-program #:model "mk-l0-core"))
+              (define zip (zipper '() #f '() 0))
+              (define stepper identity)
+              (define ses (session zip stepper 1))
               (check-exn exn:fail?
                          (thunk (init! ses sample-req 'incompat-id))))
+
+  (test-case "init! accepts model payload and updates session state"
+              (define zip (zipper '() #f '() 0))
+              (define ses (session zip step/const-tree-output 1))
+              (define response
+                (init!
+                 ses
+                 (make-post-init-request
+                  disj-delay-program
+                  #:model "mk-l3-flip-lazy")
+                 'init-model-id))
+              (check-equal? (response-code response) 200)
+              (check-equal? (session-model-id ses) "mk-l3-flip-lazy")
+              (define names (collect-step-names ses 24))
+              (check-not-false (member "flip/delay-swap-left" names))
+              (check-false (member "rail/enter-right" names)))
   )
 
 (define-test-suite RESET!
@@ -272,50 +312,14 @@
               (check-equal? (zipper-idx new-zipper) 1))
   )
 
-(define-test-suite SWITCH-MODEL!
-  #:before (thunk (displayln "Running tests for switch-model!..."))
-  #:after (thunk (displayln "Finished running tests for switch-model!."))
-
-  (test-case "switch-model! updates stepper for known model id"
-             (define zip (zipper '() (step "foo" sample-tree) '() 1))
-             (define old-stepper step/const-tree-output)
-             (define ses (session zip old-stepper 1))
-             (define req (make-post-model-request "mk-l3-dfs-lazy"))
-             (define response (switch-model! ses req 'testid))
-             (check-equal? (response-code response) 200)
-             (check-true (procedure? (session-stepper ses)))
-             (check-false (eq? (session-stepper ses) old-stepper))
-             (check-equal? (response-headers response)
-                           (list (header #"Set-Cookie" #"session-id=testid; Path=/; SameSite=Lax")))
-             (check-equal? (string->jsexpr (response-body->string response))
-                           (hasheq 'model "mk-l3-dfs-lazy")))
-
-  (test-case "switch-model! supports core-only model id"
-             (define zip (zipper '() (step "foo" sample-tree) '() 1))
-             (define old-stepper step/const-tree-output)
-             (define ses (session zip old-stepper 1))
-             (define req (make-post-model-request "mk-l0-core"))
-             (define response (switch-model! ses req 'testid))
-             (check-equal? (response-code response) 200)
-             (check-true (procedure? (session-stepper ses)))
-             (check-false (eq? (session-stepper ses) old-stepper))
-             (check-equal? (string->jsexpr (response-body->string response))
-                           (hasheq 'model "mk-l0-core")))
-
-  (test-case "switch-model! rejects unknown model id and keeps existing stepper"
-             (define zip (zipper '() (step "foo" sample-tree) '() 1))
-             (define old-stepper step/const-tree-output)
-             (define ses (session zip old-stepper 1))
-             (define req (make-post-model-request "nope"))
-             (define response (switch-model! ses req 'testid))
-             (check-equal? (response-code response) 400)
-             (check-true (eq? (session-stepper ses) old-stepper))
-             (check-true (hash-has-key? (string->jsexpr (response-body->string response)) 'error)))
+(define-test-suite INIT-MODEL!
+  #:before (thunk (displayln "Running tests for init model binding!..."))
+  #:after (thunk (displayln "Finished running tests for init model binding!."))
 
   (test-case "flip model emits flip delay/disjunction rules (no railroad disjunction rules)"
              (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
-             (check-equal? (response-code (switch-model! ses (make-post-model-request "mk-l3-flip-lazy") 'testid)) 200)
-             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program) 'testid)) 200)
+             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program #:model "mk-l3-flip-lazy") 'testid)) 200)
+             (check-equal? (session-model-id ses) "mk-l3-flip-lazy")
              (define names (collect-step-names ses 24))
              (check-not-false (member "flip/delay-swap-left" names))
              (check-not-false (member "flip/invoke-delay" names))
@@ -324,23 +328,15 @@
 
   (test-case "rail model emits railroad delay/disjunction rules (no flip disjunction rule)"
              (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
-             (check-equal? (response-code (switch-model! ses (make-post-model-request "mk-l4-rail-lazy") 'testid)) 200)
-             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program) 'testid)) 200)
+             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program #:model "mk-l4-rail-lazy") 'testid)) 200)
+             (check-equal? (session-model-id ses) "mk-l4-rail-lazy")
              (define names (collect-step-names ses 24))
              (check-not-false (member "rail/enter-right" names))
              (check-not-false (member "rail/return-left" names))
              (check-not-false (member "rail/invoke-delay" names))
              (check-false (member "flip/delay-swap-left" names)))
 
-  (test-case "rail eager model emits eager call rules after init"
-             (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
-             (check-equal? (response-code (switch-model! ses (make-post-model-request "mk-l4-rail-eager") 'testid)) 200)
-             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program) 'testid)) 200)
-             (define names (collect-step-names ses 24))
-             (check-not-false (member "call/eager-suspend-expanded" names))
-             (check-not-false (member "call/eager-resume-goal" names))
-             (check-false (member "call/lazy-suspend-call" names))
-             (check-false (member "call/lazy-expand-on-resume" names))))
+  )
 
 (define-test-suite LIST-MODELS!
   #:before (thunk (displayln "Running tests for list-models!..."))
@@ -480,7 +476,7 @@
   INIT!
   RESET!
   BACK!
-  SWITCH-MODEL!
+  INIT-MODEL!
   LIST-MODELS!
   SOURCE-CONVERT!
   ANALYZE!

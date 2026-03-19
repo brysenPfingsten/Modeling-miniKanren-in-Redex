@@ -36,3 +36,13 @@ export function buildSourceOptions(
     ? { text, sourceMode, compileProfile }
     : { text, sourceMode };
 }
+
+export function buildInitOptions(
+  text,
+  sourceMode = DEFAULT_SOURCE_MODE,
+  compileProfile = DEFAULT_COMPILE_PROFILE,
+  model,
+) {
+  const payload = buildSourceOptions(text, sourceMode, compileProfile);
+  return model ? { ...payload, model } : payload;
+}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { buildSourceOptions } from '../utils/source_defaults.js';
+import { buildInitOptions } from '../utils/source_defaults.js';
 
 export default function useStepper({ onSuccess = () => {}} = {}) {
   const initialTree = { name: "Empty", children: [] };
@@ -62,11 +62,11 @@ export default function useStepper({ onSuccess = () => {}} = {}) {
   return {
     tree,
     stepInfo,
-    init: async (codeText, sourceMode, compileProfile) => {
+    init: async (codeText, sourceMode, compileProfile, model) => {
       const result = await send(
         'POST',
         '/api/post/init',
-        buildSourceOptions(codeText, sourceMode, compileProfile),
+        buildInitOptions(codeText, sourceMode, compileProfile, model),
       );
       if (result.success) onSuccess();
       if (!result.success) return [result.success, result.error];

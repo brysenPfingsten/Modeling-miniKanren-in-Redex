@@ -221,18 +221,19 @@
   (check-equal? (and (member model-id compatible-ids) #t) (and should-compat? #t)
                 (format "analyze/model compatibility mismatch for ~a / ~a" model-id label))
   (define ses (make-default-session))
-  (define model-resp (switch-model! ses (make-post-model-request model-id) 'matrix-id))
-  (check-equal? (response-code model-resp) 200
-                (format "switch-model failed for ~a" model-id))
   (if should-compat?
       (with-handlers ([exn:fail?
                        (lambda (e)
                          (hasheq 'status 'init-error
                                  'steps 0
                                  'last-rule (exn-message e)))])
-        (define init-resp (init! ses (make-post-init-request src) 'matrix-id))
+        (define init-resp (init! ses (make-post-init-request src #:model model-id) 'matrix-id))
         (check-equal? (response-code init-resp) 200
                       (format "init failed for compatible pair ~a / ~a"
+                              model-id
+                              label))
+        (check-equal? (session-model-id ses) model-id
+                      (format "session model binding drifted for ~a / ~a"
                               model-id
                               label))
         (assert-step-payload-shape (string->jsexpr (response-body->string init-resp))
@@ -240,7 +241,7 @@
         (run-api-steps! ses model-id label))
       (let ([failed?
              (with-handlers ([exn:fail? (lambda (_e) #t)])
-               (init! ses (make-post-init-request src) 'matrix-id)
+               (init! ses (make-post-init-request src #:model model-id) 'matrix-id)
                #f)])
         (when (not failed?)
           (fail-check
@@ -256,17 +257,18 @@
   (check-equal? (response-code analyze-resp) 200
                 (format "smoke analyze failed for ~a / ~a" model-id label))
   (define ses (make-default-session))
-  (define model-resp (switch-model! ses (make-post-model-request model-id) 'matrix-id))
-  (check-equal? (response-code model-resp) 200
-                (format "smoke switch-model failed for ~a" model-id))
   (with-handlers ([exn:fail?
                    (lambda (e)
                      (hasheq 'status 'init-error
                              'steps 0
                              'last-rule (exn-message e)))])
-    (define init-resp (init! ses (make-post-init-request src) 'matrix-id))
+    (define init-resp (init! ses (make-post-init-request src #:model model-id) 'matrix-id))
     (check-equal? (response-code init-resp) 200
                   (format "smoke init failed for ~a / ~a" model-id label))
+    (check-equal? (session-model-id ses) model-id
+                  (format "smoke session model binding drifted for ~a / ~a"
+                          model-id
+                          label))
     (assert-step-payload-shape (string->jsexpr (response-body->string init-resp))
                                (format "smoke ~a / ~a init" model-id label))
     (run-api-steps! ses model-id label)))

@@ -9,7 +9,7 @@ import CustomAlert     from './components/CustomAlert';
 import useStepper      from './hooks/useStepper';
 import Resizable       from './components/Resizable';
 import Sidebar from './components/Sidebar';
-import { MODEL_IDS } from './utils/model_ids.js';
+import { DEFAULT_MODEL_OPTIONS, MODEL_IDS } from './utils/model_ids.js';
 import { analysisStatusForModel, isStartBlockedByAnalysis } from './utils/compatibility.js';
 import { exampleById } from './utils/example_programs.js';
 import {
@@ -32,18 +32,7 @@ function App() {
   const [sourceMode, setSourceMode] = useState(DEFAULT_SOURCE_MODE);
   const [compileProfile, setCompileProfile] = useState(DEFAULT_COMPILE_PROFILE);
   const [model, setModel] = useState(MODEL_IDS.L4_RAIL_LAZY);
-  const [modelOptions, setModelOptions] = useState([
-    { value: MODEL_IDS.L0_CORE, label: "µKanren Core (No RelCall/No Disjunction)" },
-    { value: MODEL_IDS.L1_CALL_LAZY, label: "µKanren L1 Calls (Lazy, No Disjunction)" },
-    { value: MODEL_IDS.L1_CALL_EAGER, label: "µKanren L1 Calls (Eager, No Disjunction)" },
-    { value: MODEL_IDS.L2_DISJ_LEFT, label: "µKanren L2 Disjunction (No RelCall)" },
-    { value: MODEL_IDS.L4_RAIL_LAZY, label: "µKanren (Interleave + Railroad, Lazy)" },
-    { value: MODEL_IDS.L3_DFS_LAZY, label: "µKanren (No Interleave, Lazy)" },
-    { value: MODEL_IDS.L3_FLIP_LAZY, label: "µKanren (Interleave + Flip-Flop, Lazy)" },
-    { value: MODEL_IDS.L4_RAIL_EAGER, label: "µKanren (Interleave + Railroad, Eager)" },
-    { value: MODEL_IDS.L3_DFS_EAGER, label: "µKanren (No Interleave, Eager)" },
-    { value: MODEL_IDS.L3_FLIP_EAGER, label: "µKanren (Interleave + Flip-Flop, Eager)" }
-  ]);
+  const [serverModelOptions, setServerModelOptions] = useState([]);
   const [isFrozen, setFrozen] = useState(false);
   const [alert, setAlert] = useState({ isOpen: false, message: '' });
   const treeRef = useRef();
@@ -74,22 +63,6 @@ function App() {
   const analysisAbortRef = useRef(null);
   const analysisTokenRef = useRef(0);
   const programmaticCodeUpdateRef = useRef(false);
-
-  const requestModelChange = async (newModel) => {
-    try {
-      const response = await fetch('api/post/model', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ model: newModel}),
-        credentials: "include",
-      });
-      if (!response.ok) return false;
-      setModel(newModel);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  };
 
   const analyzeSource = async (source, { signal } = {}) => {
     const requestPayload = buildSourceOptions(source, sourceMode, compileProfile);
@@ -199,7 +172,7 @@ function App() {
     }
 
     originalCodeRef.current = code;
-    const [success, progOrError] = await init(code, sourceMode, compileProfile);
+    const [success, progOrError] = await init(code, sourceMode, compileProfile, model);
     if (success) {
       setFrozen(true);
       setCode(progOrError);
@@ -343,10 +316,12 @@ function App() {
           .map((m) => ({ value: m.id, label: m.label }));
         if (nextOptions.length === 0) return;
         if (!active) return;
-        setModelOptions(nextOptions);
-        if (!nextOptions.some((opt) => opt.value === model)) {
-          setModel(nextOptions[0].value);
-        }
+        setServerModelOptions(nextOptions);
+        setModel((currentModel) =>
+          nextOptions.some((opt) => opt.value === currentModel)
+            ? currentModel
+            : nextOptions[0].value
+        );
       } catch (_) {
         // Keep local fallback model options on fetch failure.
       }
@@ -355,6 +330,9 @@ function App() {
     return () => { active = false; };
   }, []);
 
+  const modelOptions = serverModelOptions.length > 0
+    ? serverModelOptions
+    : DEFAULT_MODEL_OPTIONS;
   const compatibleModelIds = analysisResult?.compatibleModelIds || [];
   const currentModelReasons = (analysisResult?.incompatReasonsByModel || {})[model] || [];
   const firstCompatibleModel = compatibleModelIds[0] || null;
@@ -377,9 +355,9 @@ function App() {
     start: disabled.start || startBlockedByAnalysis,
   };
 
-  const switchCompatibleModel = async () => {
+  const switchCompatibleModel = () => {
     if (!firstCompatibleModel) return;
-    await requestModelChange(firstCompatibleModel);
+    setModel(firstCompatibleModel);
   };
 
   const handleSourceModeChange = (nextSourceMode) => {
@@ -402,6 +380,11 @@ function App() {
     if (isFrozen) return;
     setIsExampleLoading(Boolean(exampleId));
     setSelectedExampleId(exampleId);
+  };
+
+  const handleModelChange = (nextModel) => {
+    if (isFrozen) return;
+    setModel(nextModel);
   };
 
   const handleCodeChange = (nextCode) => {
@@ -429,7 +412,7 @@ function App() {
             onCompileProfileChange={handleCompileProfileChange}
             modelValue={model}
             modelOptions={modelOptions}
-            onModelChangeRequest={requestModelChange}
+            onModelChange={handleModelChange}
             isFrozen={isFrozen}
             analysisStatus={analysisStatus}
             compatWarning={compatWarning}
