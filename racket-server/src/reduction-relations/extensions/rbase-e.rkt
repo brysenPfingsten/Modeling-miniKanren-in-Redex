@@ -24,9 +24,9 @@
          "source-delay/bridge"]
 
     [--> (Γ (in-hole Kleft (in-hole Kcore ((r t ... tag) σ))) as)
-         (Γ (in-hole Kleft (in-hole Kcore (delay (proceed (g_new σ))))) as)
+         (Γ (in-hole Kleft (in-hole Kcore (g_new σ))) as)
          (where g_new ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
-         "call/eager-suspend-expanded"]
+         "call/eager-expand"]
 
     [--> (Γ (in-hole Kdelay (delay (proceed (g σ)))) as)
          (Γ (in-hole Kdelay (proceed (g σ))) as)

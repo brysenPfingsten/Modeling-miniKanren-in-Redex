@@ -11,6 +11,14 @@
 
 (provide VARIANT-MODULES)
 
+(define (single-named-step named-next*)
+  (match named-next*
+    [(list (list name cfg))
+     (values name cfg)]
+    [_ (error 'single-named-step
+              (format "expected exactly one named reduction result, got ~v"
+                      named-next*))]))
+
 (define-test-suite LANGUAGE-MODULES
   (test-case "L1 includes calls and delay/proceed"
     (check-true
@@ -91,67 +99,154 @@
     (check-false (j:wf-config/target? "L4/config" cfg-bad-arity))))
 
 (define-test-suite RELATION-MODULES
-  (test-case "Rl1-call-lazy relation call lifecycle emits deterministic suspend/invoke/expand sequence"
+  (test-case "Rl1-call-lazy expands plain relation calls directly"
     (define step1* (apply-reduction-relation/tag-with-names Rl1-call-lazy cfg-call))
-    (check-equal? (length step1*) 1)
-    (check-equal? (caar step1*) "call/lazy-suspend-call")
-    (define cfg1 (cadar step1*))
+    (define-values (step1-name cfg1) (single-named-step step1*))
+    (check-equal? step1-name "call/lazy-expand")
+    (check-false (member 'r:id (symbols-in (tree-of cfg1)))))
+
+  (test-case "Rl1-call-eager expands plain relation calls directly"
+    (define step1* (apply-reduction-relation/tag-with-names Rl1-call-eager cfg-call))
+    (define-values (step1-name cfg1) (single-named-step step1*))
+    (check-equal? step1-name "call/eager-expand")
+    (check-false (member 'r:id (symbols-in (tree-of cfg1)))))
+
+  (test-case "Rl1-call-lazy uses suspend/invoke/expand only for explicit source delay"
+    (define step1* (apply-reduction-relation/tag-with-names Rl1-call-lazy cfg-call-source-delay))
+    (define-values (step1-name cfg1) (single-named-step step1*))
+    (check-equal? step1-name "source-delay/bridge")
 
     (define step2* (apply-reduction-relation/tag-with-names Rl1-call-lazy cfg1))
-    (check-equal? (length step2*) 1)
-    (check-equal? (caar step2*) "call/lazy-invoke-delay")
-    (define cfg2 (cadar step2*))
+    (define-values (step2-name cfg2) (single-named-step step2*))
+    (check-equal? step2-name "call/lazy-invoke-delay")
 
     (define step3* (apply-reduction-relation/tag-with-names Rl1-call-lazy cfg2))
-    (check-equal? (length step3*) 1)
-    (check-equal? (caar step3*) "call/lazy-expand-on-resume")
-    (check-false (member 'r:id (symbols-in (tree-of (cadar step3*))))))
+    (define-values (step3-name cfg3) (single-named-step step3*))
+    (check-equal? step3-name "call/lazy-expand-on-resume")
+    (check-false (member 'r:id (symbols-in (tree-of cfg3)))))
 
-  (test-case "Rl1-call-eager relation call lifecycle emits deterministic suspend/invoke/resume sequence"
-    (define step1* (apply-reduction-relation/tag-with-names Rl1-call-eager cfg-call))
-    (check-equal? (length step1*) 1)
-    (check-equal? (caar step1*) "call/eager-suspend-expanded")
-    (define cfg1 (cadar step1*))
+  (test-case "Rl1-call-eager uses suspend/invoke/resume only for explicit source delay"
+    (define step1* (apply-reduction-relation/tag-with-names Rl1-call-eager cfg-call-source-delay))
+    (define-values (step1-name cfg1) (single-named-step step1*))
+    (check-equal? step1-name "source-delay/bridge")
 
     (define step2* (apply-reduction-relation/tag-with-names Rl1-call-eager cfg1))
-    (check-equal? (length step2*) 1)
-    (check-equal? (caar step2*) "call/eager-invoke-delay")
-    (define cfg2 (cadar step2*))
+    (define-values (step2-name cfg2) (single-named-step step2*))
+    (check-equal? step2-name "call/eager-invoke-delay")
 
     (define step3* (apply-reduction-relation/tag-with-names Rl1-call-eager cfg2))
-    (check-equal? (length step3*) 1)
-    (check-equal? (caar step3*) "call/eager-resume-goal")
-    (check-false (member 'r:id (symbols-in (tree-of (cadar step3*))))))
-
-  (test-case "Rl1-call-eager expands relation body before proceed resume"
-    (define next (first (apply-reduction-relation Rl1-call-eager cfg-call)))
-    (check-false (member 'r:id (symbols-in (tree-of next)))))
-
-  (test-case "Rl1-call-lazy keeps relation call suspended under proceed"
-    (define next (first (apply-reduction-relation Rl1-call-lazy cfg-call)))
-    (check-not-false (member 'r:id (symbols-in (tree-of next)))))
+    (define-values (step3-name cfg3) (single-named-step step3*))
+    (check-equal? step3-name "call/eager-resume-goal")
+    (check-false (member 'r:id (symbols-in (tree-of cfg3)))))
 
   (test-case "Rl2-disj-left is left-biased deterministic on first answer"
     (define next (first (apply-reduction-relation Rl2-disj-left cfg-disj)))
     (check-equal?
      next
-     (term (() (emit (state () () () () (label "a"))
-                     (⊤ (state () () () () (label "b"))))
-               (empty-stream)))))
+     (term (() (⊤ (state () () () () (label "b")))
+               (⊤ (state () () () () (label "a")))))))
 
   (test-case "Rdfs-nodelay matches left-biased DFS behavior without delay/proceed machinery"
     (define next (first (apply-reduction-relation dn:Rdfs-nodelay cfg-disj)))
     (check-equal?
      next
-     (term (() (emit (state () () () () (label "a"))
-                     (⊤ (state () () () () (label "b"))))
-               (empty-stream)))))
+     (term (() (⊤ (state () () () () (label "b")))
+               (⊤ (state () () () () (label "a")))))))
+
+  (test-case "Rl2-disj-left bubbles a nested left answer before collecting it"
+    (define cfg
+      (term (()
+             (((⊤ (state () () () () (label "a")))
+               <-+
+               (⊤ (state () () () () (label "b"))))
+              <-+
+              (⊤ (state () () () () (label "c"))))
+             (empty-stream))))
+    (define step1* (apply-reduction-relation/tag-with-names Rl2-disj-left cfg))
+    (define-values (step1-name cfg1) (single-named-step step1*))
+    (check-equal? step1-name "disj/bubble-left-answer")
+    (check-equal?
+     cfg1
+     (term (()
+            ((⊤ (state () () () () (label "a")))
+             <-+
+             ((⊤ (state () () () () (label "b")))
+              <-+
+              (⊤ (state () () () () (label "c")))))
+            (empty-stream))))
+
+    (define step2* (apply-reduction-relation/tag-with-names Rl2-disj-left cfg1))
+    (define-values (step2-name cfg2) (single-named-step step2*))
+    (check-equal? step2-name "disj/promote-left-answer")
+    (check-equal?
+     cfg2
+     (term (()
+            ((⊤ (state () () () () (label "b")))
+             <-+
+             (⊤ (state () () () () (label "c"))))
+            (⊤ (state () () () () (label "a")))))))
+
+  (test-case "Rdfs-nodelay bubbles a nested left failure before pruning it"
+    (define cfg
+      (term (()
+             (((empty-tree)
+               <-+
+               (⊤ (state () () () () (label "b"))))
+              <-+
+              (⊤ (state () () () () (label "c"))))
+             (empty-stream))))
+    (define step1* (apply-reduction-relation/tag-with-names dn:Rdfs-nodelay cfg))
+    (define-values (step1-name cfg1) (single-named-step step1*))
+    (check-equal? step1-name "dfsn/bubble-left-fail")
+    (check-equal?
+     cfg1
+     (term (()
+            ((empty-tree)
+             <-+
+             ((⊤ (state () () () () (label "b")))
+              <-+
+              (⊤ (state () () () () (label "c")))))
+            (empty-stream))))
+
+    (define step2* (apply-reduction-relation/tag-with-names dn:Rdfs-nodelay cfg1))
+    (define-values (step2-name cfg2) (single-named-step step2*))
+    (check-equal? step2-name "dfsn/skip-left-fail")
+    (check-equal?
+     cfg2
+     (term (()
+            ((⊤ (state () () () () (label "b")))
+             <-+
+             (⊤ (state () () () () (label "c"))))
+            (empty-stream)))))
 
   (test-case "Rl3-pre-eager and Rl3-pre-lazy both step call and disjunction configs"
     (for ([rel (in-list (list Rl3-pre-eager Rl3-pre-lazy))])
       (check-false (null? (apply-reduction-relation rel cfg-call)))
       (check-false (null? (apply-reduction-relation rel (term (() ((⊤ ,sigma-a) <-+ (⊤ ,sigma-b))
                                                              (empty-stream))))))))
+
+  (test-case "Rl3-dfs variants bubble a nested left answer before collecting it"
+    (define cfg
+      (term (()
+             (((⊤ (state () () () () (label "a")))
+               <-+
+               (⊤ (state () () () () (label "b"))))
+              <-+
+              (⊤ (state () () () () (label "c"))))
+             (empty-stream))))
+    (for ([rel (in-list (list Rl3-dfs-eager Rl3-dfs-lazy))])
+      (define step1* (apply-reduction-relation/tag-with-names rel cfg))
+      (define-values (step1-name cfg1) (single-named-step step1*))
+      (check-equal? step1-name "disj/bubble-left-answer")
+      (check-equal?
+       cfg1
+       (term (()
+              ((⊤ (state () () () () (label "a")))
+               <-+
+               ((⊤ (state () () () () (label "b")))
+                <-+
+                (⊤ (state () () () () (label "c")))))
+              (empty-stream))))))
 
   (test-case "Rl3-flip-eager and Rl3-flip-lazy perform left-only delay swap"
     (for ([rel (in-list (list Rl3-flip-eager Rl3-flip-lazy))])
@@ -173,10 +268,10 @@
              (empty-stream))))
     (for ([rel (in-list (list Rl3-flip-eager Rl3-flip-lazy))])
       (define named-next* (apply-reduction-relation/tag-with-names rel cfg))
-      (check-equal? (length named-next*) 1)
-      (check-equal? (first (first named-next*)) "flip/delay-swap-left")
+      (define-values (step-name next-cfg) (single-named-step named-next*))
+      (check-equal? step-name "flip/delay-swap-left")
       (check-equal?
-       (second (first named-next*))
+       next-cfg
        (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
               (delay
                ((⊤ (state () () () () (label "b")))
@@ -206,10 +301,10 @@
              (empty-stream))))
     (for ([rel (in-list (list Rl4-rail-eager Rl4-rail-lazy))])
       (define named-next* (apply-reduction-relation/tag-with-names rel cfg))
-      (check-equal? (length named-next*) 1)
-      (check-equal? (first (first named-next*)) "rail/enter-right")
+      (define-values (step-name next-cfg) (single-named-step named-next*))
+      (check-equal? step-name "rail/enter-right")
       (check-equal?
-       (second (first named-next*))
+       next-cfg
        (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
               (delay
                ((proceed
@@ -228,14 +323,14 @@
              (empty-stream))))
     (for ([rel (in-list (list Rl4-rail-eager Rl4-rail-lazy))])
       (define named-next* (apply-reduction-relation/tag-with-names rel cfg))
-      (check-equal? (length named-next*) 1)
-      (check-equal? (first (first named-next*)) "rail/promote-right-answer")
+      (define-values (step-name next-cfg) (single-named-step named-next*))
+      (check-equal? step-name "rail/promote-right-answer")
       (check-equal?
-       (second (first named-next*))
-       (term (() ((emit (state () () () () (label "ra")) (empty-tree))
+       next-cfg
+       (term (() ((empty-tree)
                   <-+
                   (empty-tree))
-                (empty-stream)))))))
+                (⊤ (state () () () () (label "ra")))))))))
 
 (define/provide-test-suite VARIANT-MODULES
   LANGUAGE-MODULES

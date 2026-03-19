@@ -69,51 +69,51 @@
    (list "mk-l4-rail-lazy"
          "appendoh 1"
          '("core/fresh-substitute"
-           "call/lazy-suspend-call"
-           "call/lazy-invoke-delay"
-           "call/lazy-expand-on-resume"
+           "call/lazy-expand"
            "source-delay/bridge"
            "rail/invoke-delay"
            "disj/goal-to-tree"
            "core/conj-distribute-state"
            "core/unify-fail"
-           "core/conj-prune-fail"))
+           "core/conj-prune-fail"
+           "disj/skip-left-fail"
+           "core/fresh-substitute"))
    (list "mk-l4-rail-lazy"
          "fives/fours"
          '("core/fresh-substitute"
            "disj/goal-to-tree"
-           "call/lazy-suspend-call"
+           "call/lazy-expand"
+           "source-delay/bridge"
            "rail/enter-right"
            "rail/invoke-delay"
-           "call/lazy-suspend-call"
+           "call/lazy-expand"
+           "source-delay/bridge"
            "rail/return-left"
-           "rail/invoke-delay"
-           "call/lazy-expand-on-resume"
-           "source-delay/bridge"))
+           "rail/invoke-delay"))
    (list "mk-l3-flip-lazy"
          "fives/fours"
          '("core/fresh-substitute"
            "disj/goal-to-tree"
-           "call/lazy-suspend-call"
+           "call/lazy-expand"
+           "source-delay/bridge"
            "flip/delay-swap-left"
            "flip/invoke-delay"
-           "call/lazy-suspend-call"
+           "call/lazy-expand"
+           "source-delay/bridge"
            "flip/delay-swap-left"
-           "flip/invoke-delay"
-           "call/lazy-expand-on-resume"
-           "source-delay/bridge"))
+           "flip/invoke-delay"))
    (list "mk-l3-dfs-lazy"
          "same"
          '("core/fresh-substitute"
            "disj/goal-to-tree"
            "disj/goal-to-tree"
-           "call/lazy-suspend-call"
+           "call/lazy-expand"
+           "source-delay/bridge"
            "dfs/delay-through-left"
            "dfs/delay-through-left"
            "dfs/invoke-delay"
-           "call/lazy-expand-on-resume"
-           "source-delay/bridge"
-           "dfs/delay-through-left"))))
+           "core/unify-success"
+           "disj/bubble-left-answer"))))
 
 (define/provide-test-suite CONFIDENCE-GATES
   (test-case "golden trace prefixes stay stable and step names are always named"
@@ -155,12 +155,11 @@
         (session (zipper '() #f '() 0)
                  (make-stepper (lookup-model-step-once default-model-id))
                  1))
-      (check-equal? (response-code (switch-model! ses (make-post-model-request model-id) 'shape-id))
-                    200
-                    (format "switch model failed for ~a" model-id))
-      (define init-resp (init! ses (make-post-init-request src) 'shape-id))
+      (define init-resp (init! ses (make-post-init-request src #:model model-id) 'shape-id))
       (check-equal? (response-code init-resp) 200
                     (format "init failed for ~a / ~a" model-id label))
+      (check-equal? (session-model-id ses) model-id
+                    (format "session model binding drifted for ~a / ~a" model-id label))
       (assert-step-payload-shape (string->jsexpr (response-body->string init-resp))
                                  (format "~a / ~a init" model-id label))
       (define seen 0)

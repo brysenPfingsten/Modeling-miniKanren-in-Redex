@@ -240,16 +240,6 @@
     [`(⊤ ,st)
      (values call? disj? exists? conj? left? delay? right?
              (max cmax (state-c-size st)))]
-    [`(emit ,st ,s2)
-     (tree-flags s2
-                 call?
-                 disj?
-                 exists?
-                 conj?
-                 left?
-                 delay?
-                 right?
-                 (max cmax (state-c-size st)))]
     [`(,g ,st)
      (define-values (call1 disj1 exists1 conj1)
        (goal-flags g call? disj? exists? conj?))

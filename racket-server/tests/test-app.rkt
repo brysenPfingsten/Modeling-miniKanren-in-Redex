@@ -20,6 +20,13 @@
 (define step/const-tree-output
   (make-stepper (lambda (_) (list (list "foo" sample-tree)))))
 
+(define streamed-answer-tree
+  '(() ((succeed (label "ok")) (state () () () () (label "tail")))
+       (⊤ (state () () () () (label "answer")))))
+
+(define step/streamed-answer-output
+  (make-stepper (lambda (_) (list (list "stream-step" streamed-answer-tree)))))
+
 (define sample-program-jsexpr
   (hasheq 'children
           (list (hasheq 'id "u5"
@@ -58,6 +65,18 @@
      (conde
        [(same q 'cat)]
        [(same q 'dog)]))")
+
+(define same-program
+  "(defrel (same x y)
+     (== x y))
+
+   (run* (q)
+     (conde
+       [(conde
+          [(same q 'turtle)]
+          [(same q 'cat)]
+          [(== q 'dog)])]
+       [(same q 'fish)]))")
 
 (define (collect-step-names ses limit [i 0] [acc '()])
   (cond
@@ -124,6 +143,15 @@
               (check-equal? (zipper-idx   new-zipper) 2)
               )
 
+  (test-case "step! serializes top-level answer stream ahead of remaining work"
+              (define zip (zipper '() (step "foo" sample-tree) '() 1))
+              (define ses (session zip step/streamed-answer-output 1))
+              (define response (step! ses))
+              (check-equal? (response-code response) 200)
+              (define payload (string->jsexpr (response-body->string response)))
+              (define program-json (string->jsexpr (hash-ref payload 'program #f)))
+              (check-equal? (hash-ref program-json 'name #f) "Answer")
+              (check-false (json-contains-name? program-json "Emit")))
 )
 
 (define-test-suite INIT!
@@ -336,7 +364,35 @@
              (check-not-false (member "rail/invoke-delay" names))
              (check-false (member "flip/delay-swap-left" names)))
 
-  )
+  (test-case "rail eager model emits eager call rules after init"
+             (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
+             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program #:model "mk-l4-rail-eager") 'testid)) 200)
+             (check-equal? (session-model-id ses) "mk-l4-rail-eager")
+             (define names (collect-step-names ses 24))
+             (check-not-false (member "call/eager-expand" names))
+             (check-false (member "call/lazy-expand-on-resume" names)))
+
+  (test-case "rail lazy disjunction-delay profile does not also suspend plain relcalls"
+             (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
+             (check-equal?
+              (response-code
+               (init!
+                ses
+                (make-post-init-request
+                 same-program
+                 (hasheq 'text same-program
+                         'sourceMode "mini"
+                         'compileProfile (hasheq 'conjAssoc "right"
+                                                 'disjAssoc "left"
+                                                 'delayPlacement "disj"))
+                 #:model "mk-l4-rail-lazy")
+                'testid))
+              200)
+             (check-equal? (session-model-id ses) "mk-l4-rail-lazy")
+             (define names (collect-step-names ses 16))
+             (check-not-false (member "source-delay/bridge" names))
+             (check-false (member "call/lazy-suspend-call" names))
+             (check-not-false (member "call/lazy-expand" names))))
 
 (define-test-suite LIST-MODELS!
   #:before (thunk (displayln "Running tests for list-models!..."))

@@ -36,7 +36,6 @@
      (g σ)                      ; Goal-State
      (s × g c)                  ; Conjunction, w/vars used so far.
      (⊤ σ)                      ; Immediate single answer
-     (emit σ s)                 ; Emit answer, then continue with work tree
 
      ;; (s +-> s)                  ; Right Disjunciton
      ;; (s <-+ s)                  ; Left Disjunction
@@ -96,8 +95,6 @@
   ; Search Tree
   [Es hole
       (Es × g c)
-      ;; (Es <-+ s)
-      ;; (s +-> Es)
   ]
 
   ;---------------------Binding Forms--------------------

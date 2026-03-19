@@ -43,10 +43,6 @@
          (empty-tree)
          "Prune Failed Conjuncts"]
 
-    [--> ((emit σ_head s_tail) × g c)
-         (emit σ_head (s_tail × g c))
-         "Distribute Conjunction Over Emit"]
-
     [--> ((∃ d g tag) (state sub dis c trail tag_1))
          ((subst-goal g ((x_1 u_1) ...))
           (state sub dis (u_1 ... ,@(term c)) trail tag_1))
@@ -93,10 +89,7 @@
    #:domain config
    [--> (Γ (⊤ σ_new) as_old)
         (Γ (empty-tree) (append-answer as_old σ_new))
-        "Collect Single Answer"]
-   [--> (Γ (emit σ_new s_next) as_old)
-        (Γ s_next (append-answer as_old σ_new))
-        "Collect Emit"]))
+        "Collect Single Answer"]))
 
 (define -->cfg/work (context-closure -->*e Core (Γ hole as)))
 

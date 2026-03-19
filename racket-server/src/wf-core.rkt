@@ -94,11 +94,7 @@
   [(core-tree-shape? s)
    (core-goal-shape? g)
    ------------------- "core-conj-tree-shape"
-   (core-tree-shape? (s × g c))]
-
-  [(core-tree-shape? s_tail)
-   ------------------- "core-emit-shape"
-   (core-tree-shape? (emit σ s_tail))])
+   (core-tree-shape? (s × g c))])
 
 (define-judgment-form
   Core
@@ -150,14 +146,7 @@
    (wf-tree? s ((r d g_env) ...) c_i)
    (wf-goal? g ((r d g_env) ...) () c_i)
    ------------------- "conj wf"
-   (wf-tree? (s × g c_i) ((r d g_env) ...) c)]
-
-  [(lvars-subset? c c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
-   (wf-tree? s_tail ((r d g_env) ...) c)
-   ------------------- "emit wf"
-   (wf-tree? (emit (state sub dis c_i trail tag) s_tail) ((r d g_env) ...) c)])
+   (wf-tree? (s × g c_i) ((r d g_env) ...) c)])
 
 (define-judgment-form
   Core

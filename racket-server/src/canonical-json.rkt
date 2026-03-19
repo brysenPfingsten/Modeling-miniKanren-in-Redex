@@ -124,26 +124,28 @@
     [other other]))
 
 (define (make-unify-clause query-vars n pair)
-  (let* ([l (car pair)]
-         [r (cadr pair)]
-         [lhs (if (< l n)
-                  (list-ref query-vars l)
-                  (underscore-symbol l))]
-         [rhs (if (and (number? r) (< r n))
-                  (list-ref query-vars r)
-                  (canonical-term->mk r))])
-    `(== ,lhs ,rhs)))
+  (match-define (list l r) pair)
+  (define lhs
+    (if (< l n)
+        (list-ref query-vars l)
+        (underscore-symbol l)))
+  (define rhs
+    (if (and (number? r) (< r n))
+        (list-ref query-vars r)
+        (canonical-term->mk r)))
+  `(== ,lhs ,rhs))
 
 (define (make-diseq-clause query-vars n pair)
-  (let* ([l (car pair)]
-         [r (cadr pair)]
-         [lhs (if (< l n)
-                  (list-ref query-vars l)
-                  (underscore-symbol l))]
-         [rhs (if (and (number? r) (< r n))
-                  (list-ref query-vars r)
-                  (canonical-term->mk r))])
-    `(=/= ,lhs ,rhs)))
+  (match-define (list l r) pair)
+  (define lhs
+    (if (< l n)
+        (list-ref query-vars l)
+        (underscore-symbol l)))
+  (define rhs
+    (if (and (number? r) (< r n))
+        (list-ref query-vars r)
+        (canonical-term->mk r)))
+  `(=/= ,lhs ,rhs))
 
 (define (prepare-minikanren-namespace)
   (let ([ns (make-base-namespace)])
@@ -259,8 +261,6 @@
 
 (define (project-work-tree/canonical s)
   (match s
-    [`(emit ,σ ,s_tail)
-     `((⊤ ,σ) + ,(project-work-tree/canonical s_tail))]
     [`(,s_1 × ,g ,c)
      `(,(project-work-tree/canonical s_1) × ,g ,c)]
     [`(,s_1 <-+ ,s_2)
@@ -283,7 +283,8 @@
   (match cfg
     [`(,_gamma ,s_work ,as)
      (append-stream-prefix/canonical as (project-work-tree/canonical s_work))]
-    [`(,_gamma ,s) s]
+    [`(,_gamma ,s)
+     (project-work-tree/canonical s)]
     [_ '(empty-tree)]))
 
 (define (tree->json/canonical s num-query-variables)
@@ -348,8 +349,6 @@
      (state->answer-json/canonical σ
                                    num-query-variables
                                    (and (not tail-empty?) tail-json))]
-    [`(emit ,σ ,s_tail)
-     (tree->json/canonical `((⊤ ,σ) + ,s_tail) num-query-variables)]
     [_ (hasheq 'name "Unknown")]))
 
 (define (config->tree-json/canonical cfg num-query-variables)
@@ -383,8 +382,6 @@
     [`(,s_1 +-> ,s_2)
      (max (num-query-vars/work s_1)
           (num-query-vars/work s_2))]
-    [`(emit ,_σ ,s_tail)
-     (num-query-vars/work s_tail)]
     [`((⊤ ,_σ) + ,s_1)
      (num-query-vars/work s_1)]
     [`(delay ,s_1)

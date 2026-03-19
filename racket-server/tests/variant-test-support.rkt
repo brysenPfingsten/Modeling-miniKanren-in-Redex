@@ -26,12 +26,22 @@
          sigma-b
          cfg-core
          cfg-call
+         cfg-call-source-delay
          cfg-disj
          cfg-flip
          cfg-rail)
 
+(define (final-answer-stream? as)
+  (match as
+    ['(empty-stream) #t]
+    [`(⊤ ,_) #t]
+    [`((⊤ ,_) + ,rest) (final-answer-stream? rest)]
+    [_ #f]))
+
 (define (final-config? cfg)
-  (redex-match? Core end-config cfg))
+  (match cfg
+    [`(,_gamma (empty-tree) ,as) (final-answer-stream? as)]
+    [_ #f]))
 
 (define (wf-config-term? cfg)
   (judgment-holds (wf-config? ,cfg)))
@@ -140,6 +150,12 @@
           (state () () () () (label "s")))
          (empty-stream))))
 
+(define cfg-call-source-delay
+  (term (((r:id (x:0) (x:0 =? (sym "ok") (label "eq"))))
+         ((sdelay (r:id (sym "ok") (label "call")) (label "delay"))
+          (state () () () () (label "s")))
+         (empty-stream))))
+
 (define cfg-disj
   (term (() ((⊤ (state () () () () (label "a")))
              <-+
@@ -162,6 +178,7 @@
 (define seam-config-candidates
   (list cfg-core
         cfg-call
+        cfg-call-source-delay
         cfg-disj
         cfg-flip
         cfg-rail))

@@ -117,13 +117,6 @@
    ------------------- "conj wf/L4"
    (wf-tree/L4? (s × g c_i) ((r d g_env) ...) c)]
 
-  [(lvars-subset? c c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
-   (wf-tree/L4? s_tail ((r d g_env) ...) c)
-   ------------------- "emit wf/L4"
-   (wf-tree/L4? (emit (state sub dis c_i trail tag) s_tail) ((r d g_env) ...) c)]
-
   [(wf-tree/L4? s_1 ((r d g_env) ...) c)
    (wf-tree/L4? s_2 ((r d g_env) ...) c)
    ------------------- "left disj wf/L4"

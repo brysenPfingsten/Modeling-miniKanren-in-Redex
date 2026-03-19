@@ -30,9 +30,6 @@
     [--> ((empty-tree) × g c)
          (empty-tree)
          "core/conj-prune-fail"]
-    [--> ((emit σ_head s_tail) × g c)
-         (emit σ_head (s_tail × g c))
-         "core/conj-distribute-emit"]
     [--> ((∃ d g tag) (state sub dis c trail tag_1))
          (g_new
           (state sub dis (u_1 ... ,@(term c)) trail tag_1))
@@ -77,7 +74,4 @@
    #:domain config
    [--> (Γ (⊤ σ_new) as_old)
         (Γ (empty-tree) (append-answer as_old σ_new))
-        "core/collect-single-answer"]
-   [--> (Γ (emit σ_new s_next) as_old)
-        (Γ s_next (append-answer as_old σ_new))
-        "core/collect-emit"]))
+        "core/collect-single-answer"]))
