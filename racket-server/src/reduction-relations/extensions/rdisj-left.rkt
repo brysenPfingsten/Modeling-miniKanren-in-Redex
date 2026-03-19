@@ -2,7 +2,7 @@
 
 (require redex/reduction-semantics
          "../../core-definitions.rkt"
-         "./context-l2.rkt"
+         "../../extensions/l2-left-disjunction.rkt"
          "./core-l2.rkt")
 
 (check-redundancy #t)

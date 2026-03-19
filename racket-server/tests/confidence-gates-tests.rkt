@@ -71,7 +71,7 @@
          '("core/fresh-substitute"
            "call/lazy-expand"
            "source-delay/bridge"
-           "rail/invoke-delay"
+           "call/invoke-delay"
            "disj/goal-to-tree"
            "core/conj-distribute-state"
            "core/unify-fail"
@@ -85,11 +85,11 @@
            "call/lazy-expand"
            "source-delay/bridge"
            "rail/enter-right"
-           "rail/invoke-delay"
+           "call/invoke-delay"
            "call/lazy-expand"
            "source-delay/bridge"
            "rail/return-left"
-           "rail/invoke-delay"))
+           "call/invoke-delay"))
    (list "mk-l3-flip-lazy"
          "fives/fours"
          '("core/fresh-substitute"
@@ -97,11 +97,11 @@
            "call/lazy-expand"
            "source-delay/bridge"
            "flip/delay-swap-left"
-           "flip/invoke-delay"
+           "call/invoke-delay"
            "call/lazy-expand"
            "source-delay/bridge"
            "flip/delay-swap-left"
-           "flip/invoke-delay"))
+           "call/invoke-delay"))
    (list "mk-l3-dfs-lazy"
          "same"
          '("core/fresh-substitute"
@@ -111,7 +111,7 @@
            "source-delay/bridge"
            "dfs/delay-through-left"
            "dfs/delay-through-left"
-           "dfs/invoke-delay"
+           "call/invoke-delay"
            "core/unify-success"
            "disj/bubble-left-answer"))))
 

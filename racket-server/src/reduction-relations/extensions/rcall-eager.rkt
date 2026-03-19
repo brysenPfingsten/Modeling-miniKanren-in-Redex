@@ -2,7 +2,7 @@
 
 (require redex/reduction-semantics
          "./common.rkt"
-         "./context-l1.rkt"
+         "../../extensions/l1-calls-delay.rkt"
          "./core-l1.rkt")
 
 (check-redundancy #t)
@@ -27,13 +27,8 @@
          (where g_new ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
          "call/eager-expand"]
 
-    [--> (Γ (delay (proceed (g σ))) as)
-         (Γ (proceed (g σ)) as)
-         "call/eager-invoke-delay"]
-
     [--> (Γ (delay s_1) as)
          (Γ s_1 as)
-         (side-condition (not (redex-match? L1/K (proceed pr) (term s_1))))
          "call/invoke-delay"]
 
     [--> (Γ (in-hole K (proceed (g σ))) as)

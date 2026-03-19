@@ -2,6 +2,7 @@
 
 (require redex/reduction-semantics
          "./common.rkt"
+         "../../extensions/l3-union-base.rkt"
          "./rdisj-l3-common.rkt"
          "./core-l3.rkt")
 
@@ -28,9 +29,9 @@
          (where g_new ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
          "call/lazy-expand"]
 
-    [--> (Γ (in-hole Kdelay (delay (proceed ((r t ... tag) σ)))) as)
-         (Γ (in-hole Kdelay (proceed ((r t ... tag) σ))) as)
-         "call/lazy-invoke-delay"]
+    [--> (Γ (in-hole Kdelay (delay s_1)) as)
+         (Γ (in-hole Kdelay s_1) as)
+         "call/invoke-delay"]
 
     [--> (Γ (in-hole Kleft (in-hole Kcore (proceed ((r t ... tag) σ)))) as)
          (Γ (in-hole Kleft (in-hole Kcore (g_new σ))) as)

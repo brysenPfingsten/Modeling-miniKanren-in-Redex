@@ -118,7 +118,7 @@
 
     (define step2* (apply-reduction-relation/tag-with-names Rl1-call-lazy cfg1))
     (define-values (step2-name cfg2) (single-named-step step2*))
-    (check-equal? step2-name "call/lazy-invoke-delay")
+    (check-equal? step2-name "call/invoke-delay")
 
     (define step3* (apply-reduction-relation/tag-with-names Rl1-call-lazy cfg2))
     (define-values (step3-name cfg3) (single-named-step step3*))
@@ -132,7 +132,7 @@
 
     (define step2* (apply-reduction-relation/tag-with-names Rl1-call-eager cfg1))
     (define-values (step2-name cfg2) (single-named-step step2*))
-    (check-equal? step2-name "call/eager-invoke-delay")
+    (check-equal? step2-name "call/invoke-delay")
 
     (define step3* (apply-reduction-relation/tag-with-names Rl1-call-eager cfg2))
     (define-values (step3-name cfg3) (single-named-step step3*))

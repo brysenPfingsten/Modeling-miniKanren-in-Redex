@@ -1,8 +1,9 @@
 #lang racket
 (require redex/reduction-semantics
-         "../core-definitions.rkt"
-         "../wf-core.rkt"
-         "./step-utils.rkt")
+         "../../core-definitions.rkt"
+         "../../extensions/l0-core.rkt"
+         "../../wf-core.rkt"
+         "../step-utils.rkt")
 
 (check-redundancy #t)
 
@@ -21,7 +22,7 @@
 
 (define -->e
   (reduction-relation
-    Core
+    L0
 
     [--> ((g_1 ∧ g_2 tag) (state sub dis c trail tag_1))
          ((g_1 (state sub dis c trail tag_1)) × g_2 c)
@@ -81,17 +82,17 @@
 
     ))
 
-(define -->*e (context-closure -->e Core Es))
+(define -->*e (context-closure -->e L0/K K))
 
 (define -->collect
   (reduction-relation
-   Core
+   L0/K
    #:domain config
    [--> (Γ (⊤ σ_new) as_old)
         (Γ (empty-tree) (append-answer as_old σ_new))
         "Collect Single Answer"]))
 
-(define -->cfg/work (context-closure -->*e Core (Γ hole as)))
+(define -->cfg/work (context-closure -->*e L0/K (Γ hole as)))
 
 (define -->cfg
   (union-reduction-relations

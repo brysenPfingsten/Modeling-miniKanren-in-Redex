@@ -90,13 +90,6 @@
       ((⊤ σ) + as)]
   [end-config (Γ (empty-tree) as)]
   [c (u_!_ ...)]
-  ;-----------------Evaluation Contexts------------------
-
-  ; Search Tree
-  [Es hole
-      (Es × g c)
-  ]
-
   ;---------------------Binding Forms--------------------
   #:binding-forms
   (∃ (x ...) g #:refers-to (shadow x ...))

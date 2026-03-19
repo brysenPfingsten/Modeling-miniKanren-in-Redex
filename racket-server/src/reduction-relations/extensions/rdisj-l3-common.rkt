@@ -2,7 +2,7 @@
 
 (require redex/reduction-semantics
          "../../core-definitions.rkt"
-         "./context-l3.rkt")
+         "../../extensions/l3-union-base.rkt")
 
 (check-redundancy #t)
 

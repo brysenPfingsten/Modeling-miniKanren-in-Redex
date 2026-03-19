@@ -1,6 +1,7 @@
 #lang racket
 
-(require "./l1-calls-delay.rkt"
+(require "./l0-core.rkt"
+         "./l1-calls-delay.rkt"
          "./l2-left-disjunction.rkt"
          "./l3-union-base.rkt"
          "./l4-railroad-syntax.rkt")

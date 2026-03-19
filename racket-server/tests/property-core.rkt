@@ -9,7 +9,7 @@
          (prefix-in gk: "./generator-kernel.rkt")
          "../src/core-definitions.rkt"
          "../src/wf-core.rkt"
-         "../src/reduction-relations/core-reduction-relations.rkt")
+         "../src/reduction-relations/core/core-reduction-relations.rkt")
 
 ;; Randomized test tuning constants.
 ;; Edit these values directly when you want different pressure/coverage.

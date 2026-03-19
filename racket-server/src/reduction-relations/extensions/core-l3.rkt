@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "./context-l3.rkt"
+         "../../extensions/l3-union-base.rkt"
          "./core-common.rkt"
          "./context-pipeline.rkt")
 

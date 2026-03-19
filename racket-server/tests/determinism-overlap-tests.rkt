@@ -10,7 +10,7 @@
          "../src/wf-core.rkt"
          "../src/wf-variants.rkt"
          "../src/extensions/variant-languages.rkt"
-         (prefix-in core: "../src/reduction-relations/core-reduction-relations.rkt")
+         (prefix-in core: "../src/reduction-relations/core/core-reduction-relations.rkt")
          "../src/reduction-relations/extensions/variant-relations.rkt"
          "../src/model-registry.rkt"
          "../src/model-surface-policy.rkt"

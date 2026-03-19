@@ -1,15 +1,12 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../core-definitions.rkt")
+         "./l0-core.rkt")
 
 (check-redundancy #t)
 
-(provide L0
-         L1)
-
-;; L0 is the base Core syntax.
-(define-extended-language L0 Core)
+(provide L1
+         L1/K)
 
 ;; L1 adds relation calls and delay/proceed administrative nodes.
 (define-extended-language L1 L0
@@ -19,3 +16,5 @@
       (g σ)]
   [s .... (delay s)
      (proceed pr)])
+
+(define-union-language L1/K L1 L0/K)

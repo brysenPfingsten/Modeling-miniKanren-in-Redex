@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "./context-l1.rkt"
+         "../../extensions/l1-calls-delay.rkt"
          "./core-common.rkt"
          "./context-pipeline.rkt")
 

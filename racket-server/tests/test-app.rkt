@@ -350,7 +350,7 @@
              (check-equal? (session-model-id ses) "mk-l3-flip-lazy")
              (define names (collect-step-names ses 24))
              (check-not-false (member "flip/delay-swap-left" names))
-             (check-not-false (member "flip/invoke-delay" names))
+             (check-not-false (member "call/invoke-delay" names))
              (check-false (member "rail/enter-right" names))
              (check-false (member "rail/return-left" names)))
 
@@ -361,7 +361,7 @@
              (define names (collect-step-names ses 24))
              (check-not-false (member "rail/enter-right" names))
              (check-not-false (member "rail/return-left" names))
-             (check-not-false (member "rail/invoke-delay" names))
+             (check-not-false (member "call/invoke-delay" names))
              (check-false (member "flip/delay-swap-left" names)))
 
   (test-case "rail eager model emits eager call rules after init"

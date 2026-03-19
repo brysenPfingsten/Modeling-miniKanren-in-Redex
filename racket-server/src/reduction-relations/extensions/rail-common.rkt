@@ -2,7 +2,7 @@
 
 (require redex/reduction-semantics
          "../../core-definitions.rkt"
-         "./context-l3.rkt")
+         "../../extensions/l4-railroad-syntax.rkt")
 
 (check-redundancy #t)
 
@@ -13,25 +13,10 @@
 ;; railroad rules must be structurally disjoint from other scheduler rules.
 ;; Do not introduce dynamic precedence fences that inspect available rule names.
 
-;; L4/K is a strict context/language extension of L3/K:
-;; add right-pointing disjunction syntax and allow scheduler/strategy
-;; contexts to descend through +-> positions.
-(define-extended-language L4/K
-  L3/K
-  [s .... (s +-> s)]
-  [K .... (s +-> K)]
-  [Kleft .... (s +-> Kleft)]
-  [Ksched .... (s +-> Ksched)])
-
 (define (extend-with-rail-rules base-rel)
   (extend-reduction-relation
     base-rel
     L4/K
-    [--> (Γ (in-hole Kdelay (delay s_1)) as)
-         (Γ (in-hole Kdelay s_1) as)
-         (side-condition (not (redex-match? L4/K (proceed pr) (term s_1))))
-         "rail/invoke-delay"]
-
     [--> (Γ (in-hole Ksched ((delay s_1) <-+ s_2)) as)
          (Γ (in-hole Ksched (delay (s_1 +-> s_2))) as)
          "rail/enter-right"]
