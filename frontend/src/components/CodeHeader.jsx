@@ -34,7 +34,14 @@ export default function CodeHeader({
       <legend className="select-label">{groupLabel}</legend>
       <div className="radio-options">
         {options.map(({ value: optionValue, label }) => (
-          <label key={optionValue} className="radio-option">
+          <label
+            key={optionValue}
+            className={[
+              "radio-option",
+              value === optionValue ? "checked" : "",
+              isFrozen ? "disabled" : "",
+            ].filter(Boolean).join(" ")}
+          >
             <input
               type="radio"
               name={name}
@@ -52,74 +59,87 @@ export default function CodeHeader({
 
   return (
     <div className="code-header">
-      <a href="https://minikanren.org" target="_blank">
+      <a href="https://minikanren.org" target="_blank" rel="noreferrer">
         <img src={logoSrc} alt="Logo" className="logo"/>
       </a>
 
       <div className="header-controls">
-        <label className="select-group">
-          <span className="select-label">Example</span>
-          <select
-            className="select"
-            value={exampleValue}
-            onChange={(e) => onExampleChange(e.target.value)}
-            disabled={isFrozen}
-          >
-            {renderOptions(availableExamples)}
-          </select>
-        </label>
+        <section className="control-section control-section-program">
+          <div className="control-section-title">Program</div>
+          <div className="control-section-body">
+            <label className="select-group">
+              <span className="select-label">Example</span>
+              <select
+                className="select"
+                value={exampleValue}
+                onChange={(e) => onExampleChange(e.target.value)}
+                disabled={isFrozen}
+              >
+                {renderOptions(availableExamples)}
+              </select>
+            </label>
 
-        {renderRadioGroup(
-          "Surface Language",
-          "source-mode",
-          sourceModeValue,
-          sourceModeOptions,
-          onSourceModeChange,
-        )}
+            {renderRadioGroup(
+              "Surface Language",
+              "source-mode",
+              sourceModeValue,
+              sourceModeOptions,
+              onSourceModeChange,
+            )}
+          </div>
+        </section>
 
         {sourceModeValue === "mini" && (
-          <>
+          <section className="control-section control-section-compile">
+            <div className="control-section-title">Compilation</div>
+            <div className="control-section-body">
+              {renderRadioGroup(
+                "Conj Associativity",
+                "conj-assoc",
+                compileProfile.conjAssoc,
+                conjAssocOptions,
+                (value) => onCompileProfileChange("conjAssoc", value),
+              )}
+
+              {renderRadioGroup(
+                "Disj Associativity",
+                "disj-assoc",
+                compileProfile.disjAssoc,
+                disjAssocOptions,
+                (value) => onCompileProfileChange("disjAssoc", value),
+              )}
+
+              {renderRadioGroup(
+                "Delay Placement",
+                "delay-placement",
+                compileProfile.delayPlacement,
+                delayPlacementOptions,
+                (value) => onCompileProfileChange("delayPlacement", value),
+              )}
+            </div>
+          </section>
+        )}
+
+        <section className="control-section control-section-search">
+          <div className="control-section-title">Search</div>
+          <div className="control-section-body">
             {renderRadioGroup(
-              "Conj Associativity",
-              "conj-assoc",
-              compileProfile.conjAssoc,
-              conjAssocOptions,
-              (value) => onCompileProfileChange("conjAssoc", value),
+              "Hoist",
+              "search-hoist",
+              searchStrategy.hoist,
+              hoistOptions,
+              (value) => onSearchStrategyChange("hoist", value),
             )}
 
             {renderRadioGroup(
-              "Disj Associativity",
-              "disj-assoc",
-              compileProfile.disjAssoc,
-              disjAssocOptions,
-              (value) => onCompileProfileChange("disjAssoc", value),
+              "Scheduler",
+              "search-scheduler",
+              searchStrategy.scheduler,
+              schedulerOptions,
+              (value) => onSearchStrategyChange("scheduler", value),
             )}
-
-            {renderRadioGroup(
-              "Delay Placement",
-              "delay-placement",
-              compileProfile.delayPlacement,
-              delayPlacementOptions,
-              (value) => onCompileProfileChange("delayPlacement", value),
-            )}
-          </>
-        )}
-
-        {renderRadioGroup(
-          "Hoist",
-          "search-hoist",
-          searchStrategy.hoist,
-          hoistOptions,
-          (value) => onSearchStrategyChange("hoist", value),
-        )}
-
-        {renderRadioGroup(
-          "Scheduler",
-          "search-scheduler",
-          searchStrategy.scheduler,
-          schedulerOptions,
-          (value) => onSearchStrategyChange("scheduler", value),
-        )}
+          </div>
+        </section>
       </div>
     </div>
   );
