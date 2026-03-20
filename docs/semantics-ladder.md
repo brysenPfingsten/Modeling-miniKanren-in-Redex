@@ -1,14 +1,17 @@
-# Semantics Ladder
+# Semantics Organization
 
-This repo now treats the backend semantics as a levelled family:
+This repo now has two semantic views living side by side:
 
-- `L0`: core goals, states, search trees, and answer streams
-- `L1`: `L0` plus relation calls and operational delay forms
-- `L2`: `L0` plus left disjunction
-- `L3`: the join of `L1` and `L2`
-- `L4`: `L3` plus railroad/right-disjunction syntax
+- the legacy/public `L0 -> L4` ladder under `racket-server/src/languages`,
+  `racket-server/src/wf`, and `racket-server/src/reduction-relations`
+- the internal feature-based search lattice under
+  `racket-server/src/search-lattice`
 
-## Family Tree
+The app/API boundary now runs through the internal search lattice.
+
+## Public Ladder
+
+The canonical parser target is still the legacy flat `L4/config` shape.
 
 ```mermaid
 flowchart TD
@@ -25,80 +28,108 @@ flowchart TD
   L3 --> L4
 ```
 
-## Module Layout
+This ladder remains useful for:
 
-### Languages
+- canonical parsing and transpilation
+- legacy/public reduction relations
+- legacy/public well-formedness checks
 
-| Level | File | Adds |
-| --- | --- | --- |
-| `L0` | `racket-server/src/languages/l0.rkt` | Base terms, states, search trees, `L0/Kconj` |
-| `L1` | `racket-server/src/languages/l1-calls-delay.rkt` | Relation calls, `suspend`, `delay`, `proceed` |
-| `L2` | `racket-server/src/languages/l2-disjunction-left.rkt` | Goal disjunction, left-search-tree disjunction, `Kdisj` |
-| `L3` | `racket-server/src/languages/l3-base.rkt` | Joined language, inheriting `Kconj` and `Kdisj` |
-| `L4` | `racket-server/src/languages/l4-railroad.rkt` | Railroad `+->` syntax, extending `Kdisj` |
+## Internal Search Lattice
 
-### Well-Formedness
+The internal stepper family is organized by features instead of numbered levels:
 
-| Level | File |
-| --- | --- |
-| `L0` | `racket-server/src/wf/l0.rkt` |
-| `L1` | `racket-server/src/wf/l1.rkt` |
-| `L2` | `racket-server/src/wf/l2.rkt` |
-| `L3` | `racket-server/src/wf/l3.rkt` |
-| `L4` | `racket-server/src/wf/l4.rkt` |
-| Boundary helpers | `racket-server/src/wf/all.rkt` |
+- `core`
+- `delay`
+- `disj`
+- `search-base`
+- `search-dfs`
+- `search-flip`
+- `rail`
+- `calls` as an overlay
 
-### Public Reduction Relations
+The important split is that the search lattice is call-free until the `calls`
+overlay is added.
 
-| Relation family | File |
-| --- | --- |
-| `Rl0-core` | `racket-server/src/reduction-relations/l0.rkt` |
-| `Rl1-call-eager` | `racket-server/src/reduction-relations/l1-call-eager.rkt` |
-| `Rl1-call-lazy` | `racket-server/src/reduction-relations/l1-call-lazy.rkt` |
-| `Rl2-disj-left` | `racket-server/src/reduction-relations/l2-disj-left.rkt` |
-| `Rl3-base-eager` | `racket-server/src/reduction-relations/l3-base-eager.rkt` |
-| `Rl3-base-lazy` | `racket-server/src/reduction-relations/l3-base-lazy.rkt` |
-| `Rl3-dfs-eager` | `racket-server/src/reduction-relations/l3-dfs-eager.rkt` |
-| `Rl3-dfs-lazy` | `racket-server/src/reduction-relations/l3-dfs-lazy.rkt` |
-| `Rl3-flip-eager` | `racket-server/src/reduction-relations/l3-flip-eager.rkt` |
-| `Rl3-flip-lazy` | `racket-server/src/reduction-relations/l3-flip-lazy.rkt` |
-| `Rl4-rail-eager` | `racket-server/src/reduction-relations/l4-rail-eager.rkt` |
-| `Rl4-rail-lazy` | `racket-server/src/reduction-relations/l4-rail-lazy.rkt` |
+```mermaid
+flowchart TD
+  CORE["core"]
+  DELAY["delay"]
+  DISJ["disj"]
+  DISJSEQ["disj/seq"]
+  DISJFUSED["disj/fused"]
+  SBSEQ["search-base/seq"]
+  SBFUSED["search-base/fused"]
+  DFSSEQ["search-dfs/seq"]
+  DFSFUSED["search-dfs/fused"]
+  FLIPSEQ["search-flip/seq"]
+  FLIPFUSED["search-flip/fused"]
+  RAILSEQ["rail/seq"]
+  RAILFUSED["rail/fused"]
+  CALLS["calls overlay"]
 
-Shared rule fragments live under `racket-server/src/reduction-relations/private/`.
+  CORE --> DELAY
+  CORE --> DISJ
+  DISJ --> DISJSEQ
+  DISJ --> DISJFUSED
+  DELAY --> SBSEQ
+  DELAY --> SBFUSED
+  DISJSEQ --> SBSEQ
+  DISJFUSED --> SBFUSED
+  SBSEQ --> DFSSEQ
+  SBFUSED --> DFSFUSED
+  SBSEQ --> FLIPSEQ
+  SBFUSED --> FLIPFUSED
+  SBSEQ --> RAILSEQ
+  SBFUSED --> RAILFUSED
+  DELAY --> CALLS
+```
 
-## Step-Name Vocabulary
+## Hoist Axis
 
-Active step names are normalized by level/family:
+The key semantic axis added by the internal lattice is hoisting:
 
-- `l0/...`
-- `l1/...`
-- `l2/...`
-- `l3-base/...`
-- `l3-dfs/...`
-- `l3-flip/...`
-- `l4-rail/...`
+- `seq` means early hoist / staged contexts
+  - pending conjunction is distributed across visible disjunction promptly
+  - runtime contexts use `K` plus `KDisj`
+- `fused` means late hoist / mixed contexts
+  - mixed `conj/disj` shapes can remain stable longer
+  - runtime contexts extend `K` directly
 
-This keeps traces aligned with the public reducer lattice instead of the old assembly pipeline.
+This hoist question is separate from scheduler policy:
 
-## Surfaced vs Hidden Models
+- `dfs`
+- `flip`
+- `rail`
 
-Only the intended `L3` and `L4` models are surfaced in the UI:
+and separate from source compilation choices such as delay placement.
 
-| Surfaced | Hidden/internal |
-| --- | --- |
-| `l3-dfs-lazy` | `l0-core` |
-| `l3-flip-lazy` | `l1-call-lazy` |
-| `l4-rail-lazy` | `l1-call-eager` |
-| `l3-dfs-eager` | `l2-disj-left` |
-| `l3-flip-eager` | `l3-base-lazy` |
-| `l4-rail-eager` | `l3-base-eager` |
+## Why The App Uses The Search Lattice
 
-## Runtime Contract
+The GUI/API boundary now uses structured strategy selection:
 
-- The frontend chooses a model by sending `model` in `POST /api/post/init`.
-- The canonical parser target remains `"L4/config"`.
-- `step-once` wrappers are deterministic:
-  - `0` successors means done
-  - `1` successor means step
-  - more than `1` successor is a determinism bug
+- `sourceMode`
+- optional `compileProfile` for `mini`
+- `searchStrategy = { hoist, scheduler }`
+
+The app flow is:
+
+1. parse/transpile surface input to canonical flat `L4/config`
+2. validate that canonical target
+3. adapt the flat config to the internal `+calls` search-lattice shape
+4. run relation-aware internal `wf`
+5. step using the reducer selected by `searchStrategy`
+
+The app/runtime seam lives in:
+
+- `racket-server/src/search-strategy.rkt`
+- `racket-server/src/search-runtime.rkt`
+
+## Stable Conclusions Worth Carrying
+
+- The early-vs-late hoist question already appears at the plain
+  conjunction/disjunction layer. It is not fundamentally about relation calls.
+- Delay/suspension and scheduler policy are separate axes from hoisting.
+- The internal search lattice makes those axes explicit without surfacing every
+  intermediate machine in the GUI.
+- Relation calls are better understood as an overlay on delayed search, not as
+  part of the core search lattice itself.
