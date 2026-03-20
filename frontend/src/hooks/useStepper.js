@@ -62,11 +62,11 @@ export default function useStepper({ onSuccess = () => {}} = {}) {
   return {
     tree,
     stepInfo,
-    init: async (codeText, sourceMode, compileProfile, model) => {
+    init: async (codeText, sourceMode, compileProfile, searchStrategy) => {
       const result = await send(
         'POST',
         '/api/post/init',
-        buildInitOptions(codeText, sourceMode, compileProfile, model),
+        buildInitOptions(codeText, sourceMode, compileProfile, searchStrategy),
       );
       if (result.success) onSuccess();
       if (!result.success) return [result.success, result.error];

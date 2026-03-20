@@ -6,13 +6,14 @@
          web-server/http/request-structs
          web-server/http/response-structs
          net/url-structs
-         "../src/model-registry.rkt")
+         "../src/search-strategy.rkt")
 
 (provide response-body->string
          make-post-request
          make-post-init-request
          make-post-source-convert-request
          default-source-options
+         default-search-strategy-options
          assert-step-payload-shape)
 
 (define default-source-options
@@ -20,6 +21,9 @@
           'compileProfile (hasheq 'conjAssoc "left"
                                   'disjAssoc "right"
                                   'delayPlacement "relbody")))
+
+(define default-search-strategy-options
+  (search-strategy->jsexpr default-search-strategy))
 
 (define (response-body->string response)
   (define out (open-output-string))
@@ -41,18 +45,21 @@
    5000
    "127.0.0.1"))
 
-(define (ensure-init-model payload [model-id #f])
-  (cond
-    [model-id (hash-set payload 'model model-id)]
-    [(hash-has-key? payload 'model) payload]
-    [else (hash-set payload 'model default-model-id)]))
+(define (strategy->payload strategy)
+  (search-strategy->jsexpr (normalize-search-strategy strategy)))
 
-(define (make-post-init-request src [payload #f] #:model [model-id #f])
+(define (ensure-init-search-strategy payload [strategy #f])
+  (cond
+    [strategy (hash-set payload 'searchStrategy (strategy->payload strategy))]
+    [(hash-has-key? payload 'searchStrategy) payload]
+    [else (hash-set payload 'searchStrategy default-search-strategy-options)]))
+
+(define (make-post-init-request src [payload #f] #:strategy [strategy #f])
   (make-post-request "init"
-                     (ensure-init-model
+                     (ensure-init-search-strategy
                       (or payload
                           (hash-set default-source-options 'text src))
-                      model-id)))
+                      strategy)))
 
 (define (make-post-source-convert-request src [payload #f])
   (make-post-request "source-convert"

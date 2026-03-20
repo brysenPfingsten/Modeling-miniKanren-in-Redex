@@ -9,8 +9,12 @@ import CustomAlert     from './components/CustomAlert';
 import useStepper      from './hooks/useStepper';
 import Resizable       from './components/Resizable';
 import Sidebar from './components/Sidebar';
-import { DEFAULT_MODEL_OPTIONS, MODEL_IDS } from './utils/model_ids.js';
 import { exampleById } from './utils/example_programs.js';
+import {
+  DEFAULT_SEARCH_STRATEGY,
+  HOIST_OPTIONS,
+  SCHEDULER_OPTIONS,
+} from './utils/search_strategy.js';
 import {
   buildSourceOptions,
   CONJ_ASSOC_OPTIONS,
@@ -28,8 +32,7 @@ function App() {
   const [selectedExampleId, setSelectedExampleId] = useState('');
   const [sourceMode, setSourceMode] = useState(DEFAULT_SOURCE_MODE);
   const [compileProfile, setCompileProfile] = useState(DEFAULT_COMPILE_PROFILE);
-  const [model, setModel] = useState(MODEL_IDS.L4_RAIL_LAZY);
-  const [serverModelOptions, setServerModelOptions] = useState([]);
+  const [searchStrategy, setSearchStrategy] = useState(DEFAULT_SEARCH_STRATEGY);
   const [isFrozen, setFrozen] = useState(false);
   const [alert, setAlert] = useState({ isOpen: false, message: '' });
   const treeRef = useRef();
@@ -98,7 +101,7 @@ function App() {
     }
 
     originalCodeRef.current = code;
-    const [success, progOrError] = await init(code, sourceMode, compileProfile, model);
+    const [success, progOrError] = await init(code, sourceMode, compileProfile, searchStrategy);
     if (success) {
       setFrozen(true);
       setCode(progOrError);
@@ -183,36 +186,6 @@ function App() {
     }
   }, [code]);
 
-  useEffect(() => {
-    let active = true;
-    const loadModels = async () => {
-      try {
-        const response = await fetch('api/get/models');
-        if (!response.ok) return;
-        const models = await response.json();
-        if (!Array.isArray(models) || models.length === 0) return;
-        const nextOptions = models
-          .filter((m) => m && m.id && m.label)
-          .map((m) => ({ value: m.id, label: m.label }));
-        if (nextOptions.length === 0) return;
-        if (!active) return;
-        setServerModelOptions(nextOptions);
-        setModel((currentModel) =>
-          nextOptions.some((opt) => opt.value === currentModel)
-            ? currentModel
-            : nextOptions[0].value
-        );
-      } catch (_) {
-        // Keep local fallback model options on fetch failure.
-      }
-    };
-    loadModels();
-    return () => { active = false; };
-  }, []);
-
-  const modelOptions = serverModelOptions.length > 0
-    ? serverModelOptions
-    : DEFAULT_MODEL_OPTIONS;
   const toolbarDisabled = {
     ...disabled,
     start: disabled.start || (!isFrozen && (code.trim() === "" || isExampleLoading)),
@@ -240,9 +213,9 @@ function App() {
     setSelectedExampleId(exampleId);
   };
 
-  const handleModelChange = (nextModel) => {
+  const handleSearchStrategyChange = (axis, value) => {
     if (isFrozen) return;
-    setModel(nextModel);
+    setSearchStrategy((current) => ({ ...current, [axis]: value }));
   };
 
   const handleCodeChange = (nextCode) => {
@@ -268,11 +241,12 @@ function App() {
             disjAssocOptions={DISJ_ASSOC_OPTIONS}
             delayPlacementOptions={DELAY_PLACEMENT_OPTIONS}
             onCompileProfileChange={handleCompileProfileChange}
-            modelValue={model}
-            modelOptions={modelOptions}
-            onModelChange={handleModelChange}
+            searchStrategy={searchStrategy}
+            hoistOptions={HOIST_OPTIONS}
+            schedulerOptions={SCHEDULER_OPTIONS}
+            onSearchStrategyChange={handleSearchStrategyChange}
             isFrozen={isFrozen}
-           />
+          />
           <div className="editor-area">
             <CodeEditor 
               codeText={code} 

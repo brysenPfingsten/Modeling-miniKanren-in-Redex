@@ -14,9 +14,10 @@ export default function CodeHeader({
   disjAssocOptions = [],
   delayPlacementOptions = [],
   onCompileProfileChange,
-  modelValue,
-  modelOptions = [],
-  onModelChange,
+  searchStrategy,
+  hoistOptions = [],
+  schedulerOptions = [],
+  onSearchStrategyChange,
   isFrozen,
 }) {
   const availableExamples = exampleOptions();
@@ -27,6 +28,27 @@ export default function CodeHeader({
         {label}
       </option>
     ));
+
+  const renderRadioGroup = (groupLabel, name, value, options, onChange) => (
+    <fieldset className="radio-group">
+      <legend className="select-label">{groupLabel}</legend>
+      <div className="radio-options">
+        {options.map(({ value: optionValue, label }) => (
+          <label key={optionValue} className="radio-option">
+            <input
+              type="radio"
+              name={name}
+              value={optionValue}
+              checked={value === optionValue}
+              onChange={(e) => onChange(e.target.value)}
+              disabled={isFrozen}
+            />
+            <span>{label}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
 
   return (
     <div className="code-header">
@@ -47,65 +69,57 @@ export default function CodeHeader({
           </select>
         </label>
 
-        <label className="select-group">
-          <span className="select-label">Source</span>
-          <select
-            className="select"
-            value={sourceModeValue}
-            onChange={(e) => onSourceModeChange(e.target.value)}
-            disabled={isFrozen}
-          >
-            {renderOptions(sourceModeOptions)}
-          </select>
-        </label>
+        {renderRadioGroup(
+          "Surface Language",
+          "source-mode",
+          sourceModeValue,
+          sourceModeOptions,
+          onSourceModeChange,
+        )}
 
-        <label className="select-group">
-          <span className="select-label">Conj</span>
-          <select
-            className="select"
-            value={compileProfile.conjAssoc}
-            onChange={(e) => onCompileProfileChange("conjAssoc", e.target.value)}
-            disabled={isFrozen}
-          >
-            {renderOptions(conjAssocOptions)}
-          </select>
-        </label>
+        {sourceModeValue === "mini" && (
+          <>
+            {renderRadioGroup(
+              "Conj Associativity",
+              "conj-assoc",
+              compileProfile.conjAssoc,
+              conjAssocOptions,
+              (value) => onCompileProfileChange("conjAssoc", value),
+            )}
 
-        <label className="select-group">
-          <span className="select-label">Disj</span>
-          <select
-            className="select"
-            value={compileProfile.disjAssoc}
-            onChange={(e) => onCompileProfileChange("disjAssoc", e.target.value)}
-            disabled={isFrozen}
-          >
-            {renderOptions(disjAssocOptions)}
-          </select>
-        </label>
+            {renderRadioGroup(
+              "Disj Associativity",
+              "disj-assoc",
+              compileProfile.disjAssoc,
+              disjAssocOptions,
+              (value) => onCompileProfileChange("disjAssoc", value),
+            )}
 
-        <label className="select-group">
-          <span className="select-label">Delay</span>
-          <select
-            className="select"
-            value={compileProfile.delayPlacement}
-            onChange={(e) => onCompileProfileChange("delayPlacement", e.target.value)}
-            disabled={isFrozen}
-          >
-            {renderOptions(delayPlacementOptions)}
-          </select>
-        </label>
+            {renderRadioGroup(
+              "Delay Placement",
+              "delay-placement",
+              compileProfile.delayPlacement,
+              delayPlacementOptions,
+              (value) => onCompileProfileChange("delayPlacement", value),
+            )}
+          </>
+        )}
 
-        <label className="select-group">
-          <span className="select-label">Model</span>
-          <select
-            className="select"
-            value={modelValue}
-            onChange={(e) => onModelChange(e.target.value)}
-            disabled={isFrozen}
-          >
-            {renderOptions(modelOptions)}
-          </select>
-        </label>
+        {renderRadioGroup(
+          "Hoist",
+          "search-hoist",
+          searchStrategy.hoist,
+          hoistOptions,
+          (value) => onSearchStrategyChange("hoist", value),
+        )}
+
+        {renderRadioGroup(
+          "Scheduler",
+          "search-scheduler",
+          searchStrategy.scheduler,
+          schedulerOptions,
+          (value) => onSearchStrategyChange("scheduler", value),
+        )}
       </div>
     </div>
   );

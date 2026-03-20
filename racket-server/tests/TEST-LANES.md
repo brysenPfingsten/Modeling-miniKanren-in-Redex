@@ -31,15 +31,17 @@ Runs pure frontend unit tests.
 npm --prefix frontend test
 ```
 
-## Lane D: Model×Example API-Flow Matrix (automated GUI-proxy)
+## Lane D: Strategy×Example API-Flow Matrix (automated GUI-proxy)
 
-Runs full surfaced-model/example stepping audit without manual clicking:
-- init with selected model (`POST /api/post/init`, payload includes `model`)
+Runs full surfaced strategy/example stepping audit without manual clicking:
+- init with selected search strategy (`POST /api/post/init`, payload includes `searchStrategy`)
 - step up to 25 or termination (`GET /api/get/next`)
 - assert payload shape each step (`step`, `stepName`, JSON `program`)
 
 Coverage policy:
-- Surfaced models only (`L3/L4`): full example matrix.
+- Surfaced strategies only:
+  - `hoist`: `early`, `late`
+  - `scheduler`: `dfs`, `flip`, `rail`
 
 ```sh
 raco test racket-server/tests/model-example-matrix-tests.rkt
@@ -47,5 +49,11 @@ raco test racket-server/tests/model-example-matrix-tests.rkt
 
 ## Notes
 
+- Public GUI/API runs are now selected structurally by:
+  - `sourceMode`
+  - optional `compileProfile` for `mini`
+  - `searchStrategy = { hoist, scheduler }`
+- The app boundary adapts canonical flat configs into the internal
+  `search-lattice` `+calls` machines before stepping.
 - Deprecated legacy suites are archived under `racket-server/tests/archive/legacy-deprecated/`.
 - Supported lanes are `A`/`B`/`C`/`D` above.

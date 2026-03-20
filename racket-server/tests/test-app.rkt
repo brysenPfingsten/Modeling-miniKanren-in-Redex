@@ -5,7 +5,7 @@
          web-server/http/request-structs
          json
          "../src/app.rkt"
-         "../src/model-surface-policy.rkt"
+         "../src/search-strategy.rkt"
          "../src/zipper.rkt"
          "../src/transpiler.rkt"
          "./test-http-helpers.rkt")
@@ -215,7 +215,7 @@
               (define ses (session zip stepper 1))
               (check-exn exn:fail:syntax? (thunk (init! ses sample-req 'testid))))
 
-  (test-case "init! rejects missing model in payload"
+  (test-case "init! defaults missing searchStrategy in payload"
               (define sample-req
                 (make-post-request "init"
                                    (hasheq 'text "(run* (q) (== q 'ok))"
@@ -224,30 +224,41 @@
               (define zip (zipper '() #f '() 0))
               (define stepper identity)
               (define ses (session zip stepper 1))
-              (check-exn exn:fail?
-                         (thunk (init! ses sample-req 'missing-model-id))))
+              (define response (init! ses sample-req 'default-strategy-id))
+              (check-equal? (response-code response) 200)
+              (check-equal? (session-search-strategy ses) default-search-strategy))
 
-  (test-case "init! rejects unknown model in payload"
+  (test-case "init! rejects invalid searchStrategy hoist in payload"
               (define sample-req
                 (make-post-init-request
                  "(run* (q) (== q 'ok))"
-                 #:model "nope"))
+                 (hasheq 'text "(run* (q) (== q 'ok))"
+                         'sourceMode "mini"
+                         'compileProfile (hash-ref default-source-options 'compileProfile)
+                         'searchStrategy (hasheq 'hoist "sideways"
+                                                 'scheduler "rail"))))
               (define zip (zipper '() #f '() 0))
               (define stepper identity)
               (define ses (session zip stepper 1))
               (check-exn exn:fail?
-                         (thunk (init! ses sample-req 'unknown-model-id))))
+                         (thunk (init! ses sample-req 'invalid-hoist-id))))
 
-  (test-case "init! rejects hidden internal model in payload"
+  (test-case "init! rejects invalid searchStrategy scheduler in payload"
               (define sample-req
-                (make-post-init-request disj-delay-program #:model "l0-core"))
+                (make-post-init-request
+                 disj-delay-program
+                 (hasheq 'text disj-delay-program
+                         'sourceMode "mini"
+                         'compileProfile (hash-ref default-source-options 'compileProfile)
+                         'searchStrategy (hasheq 'hoist "late"
+                                                 'scheduler "zigzag"))))
               (define zip (zipper '() #f '() 0))
               (define stepper identity)
               (define ses (session zip stepper 1))
               (check-exn exn:fail?
-                         (thunk (init! ses sample-req 'incompat-id))))
+                         (thunk (init! ses sample-req 'invalid-scheduler-id))))
 
-  (test-case "init! accepts model payload and updates session state"
+  (test-case "init! accepts searchStrategy payload and updates session state"
               (define zip (zipper '() #f '() 0))
               (define ses (session zip step/const-tree-output 1))
               (define response
@@ -255,13 +266,14 @@
                  ses
                  (make-post-init-request
                   disj-delay-program
-                  #:model "l3-flip-lazy")
-                 'init-model-id))
+                  #:strategy (search-strategy "late" "flip"))
+                 'init-search-strategy-id))
               (check-equal? (response-code response) 200)
-              (check-equal? (session-model-id ses) "l3-flip-lazy")
+              (check-equal? (session-search-strategy ses)
+                            (search-strategy "late" "flip"))
               (define names (collect-step-names ses 24))
-              (check-not-false (member "l3-flip/delay-swap-left" names))
-              (check-false (member "l4-rail/enter-right" names)))
+              (check-not-false (member "search-flip-fused-calls/delay-swap-left" names))
+              (check-false (member "rail-fused-calls/enter-right" names)))
   )
 
 (define-test-suite RESET!
@@ -340,42 +352,56 @@
               (check-equal? (zipper-idx new-zipper) 1))
   )
 
-(define-test-suite INIT-MODEL!
-  #:before (thunk (displayln "Running tests for init model binding!..."))
-  #:after (thunk (displayln "Finished running tests for init model binding!."))
+(define-test-suite INIT-SEARCH-STRATEGY!
+  #:before (thunk (displayln "Running tests for init search strategy binding!..."))
+  #:after (thunk (displayln "Finished running tests for init search strategy binding!."))
 
-  (test-case "flip model emits flip delay/disjunction rules (no railroad disjunction rules)"
+  (test-case "late flip strategy emits flip rules and no rail rules"
              (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
-             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program #:model "l3-flip-lazy") 'testid)) 200)
-             (check-equal? (session-model-id ses) "l3-flip-lazy")
+             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program #:strategy (search-strategy "late" "flip")) 'testid)) 200)
+             (check-equal? (session-search-strategy ses) (search-strategy "late" "flip"))
              (define names (collect-step-names ses 24))
-             (check-not-false (member "l3-flip/delay-swap-left" names))
-             (check-not-false (member "l3-base/invoke-delay" names))
-             (check-false (member "l4-rail/enter-right" names))
-             (check-false (member "l4-rail/return-left" names)))
+             (check-not-false (member "search-flip-fused-calls/delay-swap-left" names))
+             (check-not-false (member "delay/invoke-delay" names))
+             (check-false (member "rail-fused-calls/enter-right" names))
+             (check-false (member "rail-fused-calls/return-left" names)))
 
-  (test-case "rail model emits railroad delay/disjunction rules (no flip disjunction rule)"
+  (test-case "early rail strategy emits railroad rules and no flip rule"
              (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
-             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program #:model "l4-rail-lazy") 'testid)) 200)
-             (check-equal? (session-model-id ses) "l4-rail-lazy")
+             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program #:strategy (search-strategy "early" "rail")) 'testid)) 200)
+             (check-equal? (session-search-strategy ses) (search-strategy "early" "rail"))
              (define names (collect-step-names ses 24))
-             (check-not-false (member "l4-rail/enter-right" names))
-             (check-not-false (member "l4-rail/return-left" names))
-             (check-not-false (member "l3-base/invoke-delay" names))
-             (check-false (member "l3-flip/delay-swap-left" names)))
+             (check-not-false (member "rail-seq-calls/enter-right" names))
+             (check-not-false (member "rail-seq-calls/return-left" names))
+             (check-not-false (member "delay/invoke-delay" names))
+             (check-false (member "search-flip-seq-calls/delay-swap-left" names)))
 
-  (test-case "rail eager model emits eager call rules after init"
-             (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
-             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program #:model "l4-rail-eager") 'testid)) 200)
-             (check-equal? (session-model-id ses) "l4-rail-eager")
-             (define names (collect-step-names ses 24))
-             (check-not-false (member "l3-base/eager-expand" names))
-             (check-false (member "l3-base/lazy-expand-on-resume" names)))
-
-  (test-case "rail lazy disjunction-delay profile does not also suspend plain relcalls"
+  (test-case "late dfs relcall-delay profile expands calls without eager/lazy resume rules"
              (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
              (check-equal?
               (response-code
+               (init!
+                ses
+                (make-post-init-request
+                 disj-delay-program
+                 (hasheq 'text disj-delay-program
+                         'sourceMode "mini"
+                         'compileProfile (hasheq 'conjAssoc "left"
+                                                 'disjAssoc "right"
+                                                 'delayPlacement "relcall"))
+                 #:strategy (search-strategy "late" "dfs"))
+                'testid))
+              200)
+             (check-equal? (session-search-strategy ses) (search-strategy "late" "dfs"))
+             (define names (collect-step-names ses 24))
+             (check-not-false (member "search-base-fused-calls/expand" names))
+             (check-false (ormap (lambda (nm)
+                                   (regexp-match? #rx"eager|lazy|proceed" nm))
+                                 names)))
+
+  (test-case "disj delay placement does not also suspend plain relcalls"
+             (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
+             (define response
                (init!
                 ses
                 (make-post-init-request
@@ -385,35 +411,16 @@
                          'compileProfile (hasheq 'conjAssoc "right"
                                                  'disjAssoc "left"
                                                  'delayPlacement "disj"))
-                 #:model "l4-rail-lazy")
+                 #:strategy (search-strategy "early" "rail"))
                 'testid))
-             200)
-             (check-equal? (session-model-id ses) "l4-rail-lazy")
-             (define names (collect-step-names ses 16))
-             (check-not-false (member "l3-base/suspend-goal" names))
-             (check-false (member "l3-base/lazy-expand-on-resume" names))
-             (check-not-false (member "l3-base/lazy-expand" names))))
-
-(define-test-suite LIST-MODELS!
-  #:before (thunk (displayln "Running tests for list-models!..."))
-  #:after (thunk (displayln "Finished running tests for list-models!."))
-
-  (test-case "list-models! returns known backend models with parser contract"
-             (define response (list-models!))
              (check-equal? (response-code response) 200)
-             (define models (string->jsexpr (response-body->string response)))
-             (check-true (list? models))
-             (check-equal? (length models) (length surfaced-model-ids))
-             (define ids (for/list ([m (in-list models)])
-                           (hash-ref m 'id #f)))
-             (check-equal? (sort ids string<?)
-                           (sort surfaced-model-ids string<?))
-             (check-true (for/and ([m (in-list models)])
-                           (and (hash-has-key? m 'parserProfile)
-                                (hash-has-key? m 'parserTarget)
-                                (hash-has-key? m 'capabilities)
-                                (equal? (hash-ref m 'parserTarget #f)
-                                        canonical-parser-target-id))))))
+             (check-equal? (session-search-strategy ses) (search-strategy "early" "rail"))
+             (define names (collect-step-names ses 16))
+             (check-not-false (member "delay/suspend-goal" names))
+             (check-not-false (member "search-base-seq-calls/expand" names))
+             (check-false (ormap (lambda (nm)
+                                   (regexp-match? #rx"eager|lazy|proceed" nm))
+                                 names))))
 
 (define-test-suite SOURCE-CONVERT!
   (test-case "source-convert! lowers mini source to direct micro source with Zzz"
@@ -449,8 +456,7 @@
   INIT!
   RESET!
   BACK!
-  INIT-MODEL!
-  LIST-MODELS!
+  INIT-SEARCH-STRATEGY!
   SOURCE-CONVERT!
 )
 

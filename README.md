@@ -52,41 +52,56 @@ raco test racket-server/tests/test-all.rkt
 npm --prefix frontend test
 ```
 
-### **4) Model×Example API-flow matrix lane**
+### **4) Strategy×Example API-flow matrix lane**
 
-Automates model selection + example execution checks across the full cross-product
-using backend endpoints (init-with-model/step), up to 25 steps or termination.
+Automates structured search-strategy selection + example execution checks across
+the surfaced cross-product using backend endpoints, up to 25 steps or
+termination.
 
 ```sh
 raco test racket-server/tests/model-example-matrix-tests.rkt
 ```
 
-## **Backend Model Registry**
+## **Backend Init Contract**
 
-The backend now exposes available stepping models through:
+The GUI/API boundary no longer exposes raw backend model ids. A run is selected
+structurally instead.
 
-```text
-GET /api/get/models
-```
+`POST /api/post/init` accepts:
+- `text`
+- `sourceMode` = `"mini"` or `"micro"`
+- optional `compileProfile` when `sourceMode = "mini"`
+- `searchStrategy`, a JSON object with:
+  - `hoist` = `"early"` or `"late"`
+  - `scheduler` = `"dfs"`, `"flip"`, or `"rail"`
 
-Each entry includes:
-- `id` (used by `POST /api/post/init` payload field `model`)
-- `label` (display name)
-- `parserProfile` (currently `"surface->l4"` for all registered models)
-- `parserTarget` (currently `"L4/config"` for all registered models)
+Default surfaced strategy:
+- `hoist = "early"`
+- `scheduler = "rail"`
 
-Execution contract:
-- `POST /api/post/init` is the supported way to choose the model for a run.
-- `POST /api/post/init` accepts only surfaced model ids returned by `GET /api/get/models`.
-- Init payloads should include `text`, `sourceMode`, optional `compileProfile`, and `model`.
+Execution notes:
+- `compileProfile` controls source-to-micro compilation choices such as
+  conjunction associativity, disjunction associativity, and delay placement.
+- `searchStrategy` controls the backend stepping machine independently of the
+  source compilation settings.
+- The backend still parses to the canonical flat target config, then adapts that
+  program into the internal search-lattice `+calls` configuration selected by
+  `searchStrategy`.
 
-## **Semantics Ladder**
+## **Semantics Organization**
 
-The backend is now organized as an explicit `L0 -> L1/L2 -> L3 -> L4` ladder:
+The repo now has two semantic organization layers:
 
-- languages: `racket-server/src/languages/*.rkt`
-- well-formedness: `racket-server/src/wf/*.rkt`
-- public reducers: `racket-server/src/reduction-relations/*.rkt`
+- legacy/public ladder:
+  - languages: `racket-server/src/languages/*.rkt`
+  - well-formedness: `racket-server/src/wf/*.rkt`
+  - public reducers: `racket-server/src/reduction-relations/*.rkt`
+- internal feature-based search lattice:
+  - languages: `racket-server/src/search-lattice/languages/*.rkt`
+  - well-formedness: `racket-server/src/search-lattice/wf/*.rkt`
+  - reducers: `racket-server/src/search-lattice/reduction-relations/*.rkt`
+  - app/runtime seam: `racket-server/src/search-runtime.rkt`
+  - structured strategy API: `racket-server/src/search-strategy.rkt`
 
 The short architecture note lives in:
 
@@ -101,8 +116,9 @@ Use this if you are jumping in with no project history:
   - `parserTarget = "L4/config"`
 - Backend canonical entry points live in:
   - `racket-server/src/transpiler.rkt` (`parse-prog/canonical`)
-  - `racket-server/src/app.rkt` (`init!` enforces canonical config shape)
-  - `racket-server/src/model-registry.rkt` (exposes parser contract in `/api/get/models`)
+  - `racket-server/src/app.rkt` (`init!` validates canonical shape, then checks the internal search target selected by `searchStrategy`)
+  - `racket-server/src/search-runtime.rkt` (canonical-flat <-> internal search-lattice adapter, stepper lookup, internal wf checks)
+  - `racket-server/src/search-strategy.rkt` (structured surfaced strategy contract)
 - Canonical WF stack is split by layer:
   - `racket-server/src/wf/kernel.rkt` (shared term/state/substitution checks)
   - `racket-server/src/wf/l0.rkt`
@@ -111,6 +127,8 @@ Use this if you are jumping in with no project history:
   - `racket-server/src/wf/l3.rkt`
   - `racket-server/src/wf/l4.rkt`
   - `racket-server/src/wf/all.rkt` (target/runtime helpers)
+- Internal search-lattice WF for the GUI/API boundary lives in:
+  - `racket-server/src/search-lattice/wf/*.rkt`
 - Frontend examples are source-of-truth in:
   - `frontend/src/utils/example_programs.js`
 - Integration test auto-loads all frontend examples and checks parse + lift to canonical target:

@@ -10,13 +10,13 @@
          "syntax-checking.rkt"
          "sexpr-read.rkt"
          "zipper.rkt"
-         "model-registry.rkt"
-         "model-surface-policy.rkt")
+         "search-strategy.rkt"
+         "search-runtime.rkt")
 
 (provide step! back! reset! init! init-session!
          make-stepper step step-name
-         session session-zipper session-stepper session-nqv session-model-id
-         source-convert! list-models!)
+         session session-zipper session-stepper session-nqv session-search-strategy
+         source-convert!)
 
 (define (request->payload req)
   (bytes->jsexpr (request-post-data/raw req)))
@@ -29,14 +29,17 @@
                                source-mode))
   (values source-mode compile-profile))
 
+(define (payload->search-strategy payload)
+  (normalize-search-strategy (hash-ref payload 'searchStrategy #f)))
+
 (define-struct step (name prog) #:transparent)
 (define-struct session 
   ([zipper #:mutable] 
    [stepper #:mutable]
    [nqv #:mutable]
-   [model-id #:mutable #:auto])
+   [search-strategy #:mutable #:auto])
   #:transparent
-  #:auto-value default-model-id)
+  #:auto-value default-search-strategy)
 (define session-table (make-hash))
 
 
@@ -114,18 +117,11 @@
   (match-let ([(session zip step nqv _) ses])
     (step zip nqv)))
 
-(define (lookup-surfaced-model-spec model-id)
-  (for/first ([spec (in-list surfaced-model-specs)]
-              #:when (equal? (model-spec-id spec) model-id))
-    spec))
-
-(define (bind-session-model! ses model-id)
-  (define maybe-spec (lookup-surfaced-model-spec model-id))
-  (unless maybe-spec
-    (error 'init! (format "Unsupported model selected for init: ~a" model-id)))
-  (set-session-model-id! ses (model-spec-id maybe-spec))
-  (set-session-stepper! ses (make-stepper (model-spec-step-once maybe-spec)))
-  maybe-spec)
+(define (bind-session-search-strategy! ses strategy)
+  (define normalized (normalize-search-strategy strategy))
+  (set-session-search-strategy! ses normalized)
+  (set-session-stepper! ses (make-stepper (lookup-search-step-once normalized)))
+  normalized)
 
 ;; init!: session request string -> response
 ;; Purpose: To initialize the given session
@@ -134,10 +130,8 @@
   (define raw-prog (hash-ref payload 'text))
   (define-values (source-mode compile-profile)
     (payload->source-options payload))
-  (define model-id (hash-ref payload 'model #f))
-  (unless (string? model-id)
-    (error 'init! "Missing model in init payload"))
-  (define maybe-spec (bind-session-model! ses model-id))
+  (define search-strategy
+    (payload->search-strategy payload))
   (when (equal? source-mode "mini")
     (check-syntax-capture-error raw-prog))
   (define sexpr-prog (read-all-sexprs (open-input-string raw-prog)))   ;; Read the program into sexpressions
@@ -149,6 +143,8 @@
     (error 'init! (format "transpiler produced a program outside canonical target ~a"
                           canonical-parser-target-id)))
   (check-canonical-well-formed model-prog canonical-parser-target-id)
+  (check-search-config search-strategy model-prog)
+  (bind-session-search-strategy! ses search-strategy)
   (init-session! ses model-prog)                                       ;; Initialize all state variables
   (match-define (session zip _ nqv _) ses)                             ;; Get zipper and number query vars
   (define init-step (zipper-curr zip))                                ;; Get the initial program
@@ -208,16 +204,6 @@
    #:code 200))
 
 
-;; list-models!: -> response
-;; Purpose: Returns known backend model ids and metadata for UI dispatch.
-(define (list-models!)
-  (response/jsexpr
-   (for/list ([spec (in-list surfaced-model-specs)])
-     (model-spec->jsexpr spec))
-   #:mime-type #"application/json; charset=utf-8"
-   #:code 200))
-
-
 ;; get-or-create-session-id: req -> string
 ;; Purpose: Gets the session id from cookies or creates a new one
 (define (cookie-field->string v)
@@ -240,12 +226,9 @@
 (define (get-session session-id)
   (hash-ref session-table session-id
             (lambda ()
-              (define default-step-once (lookup-model-step-once default-model-id))
-              (when (not default-step-once)
-                (error 'get-session
-                       (format "No default model found for id: ~a" default-model-id)))
               (define new-session (session (zipper '() #f '() 0) 
-                                           (make-stepper default-step-once)
+                                           (make-stepper (lookup-search-step-once
+                                                          default-search-strategy))
                                            1))
               (hash-set! session-table session-id new-session)
               new-session)))
@@ -262,7 +245,6 @@
   (let* ([session-id (get-or-create-session-id req)]
          [session (get-session session-id)])
     (match (get-path req)
-      ["get/models" (list-models!)]
       ["get/next"   (step! session)]
       ["post/init"  (init! session req session-id)]
       ["post/reset" (reset! session session-table session-id)]
