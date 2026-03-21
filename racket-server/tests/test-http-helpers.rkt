@@ -1,6 +1,7 @@
 #lang racket
 
 (require rackunit
+         racket/match
          racket/string
          json
          web-server/http/request-structs
@@ -77,17 +78,22 @@
 
 (define (assert-step-payload-shape payload where)
   (check-true (hash? payload) (format "~a: payload must be json object" where))
-  (check-true (exact-nonnegative-integer? (hash-ref payload 'step -1))
+  (match-define (hash* ['step step]
+                       ['stepName step-name]
+                       ['program program-json]
+                       #:open)
+    payload)
+  (check-true (exact-nonnegative-integer? step)
               (format "~a: missing/non-integer step" where))
-  (check-true (nonempty-string? (hash-ref payload 'stepName #f))
+  (check-true (nonempty-string? step-name)
               (format "~a: missing/non-string stepName" where))
-  (define program-json (hash-ref payload 'program #f))
   (check-true (string? program-json)
               (format "~a: missing/non-string program field" where))
   (define tree (string->jsexpr program-json))
   (check-true (hash? tree)
               (format "~a: program is not a json object" where))
-  (define root-name (hash-ref tree 'name #f))
+  (match-define (hash* ['name root-name] #:open)
+    tree)
   (check-true (nonempty-string? root-name)
               (format "~a: tree root missing name" where))
   (check-false (equal? root-name "Unknown")

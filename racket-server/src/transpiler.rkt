@@ -1,5 +1,6 @@
 #lang racket
-(require racket/pretty)
+(require racket/pretty
+         racket/list)
 
 (provide parse-prog/canonical
          parse-prog->ast
@@ -148,10 +149,9 @@
     [(konst b) #:when (boolean? b) (if b "#t" "#f")]
     [(konst n) #:when (number? n) (number->string n)]))
 
-;; TODO: What the hell is going on here. Seems like way to much edge casing just to get it wrong sometimes.
-;; Should probably (within compilation) capture what `type` of list/pair we are parsing.
-;; Something like cons list, quasi pair, quote pair, (list ...), etc and so the lists are actually reproducable
-;; Or, rather than building an AST, build both a CST so the output is the same as its input except with tags
+;; `kons` currently loses some concrete source distinctions among list/pair forms.
+;; Reconstructing the original surface spelling would require carrying either
+;; pair/list provenance through compilation or a parallel CST-style structure.
 
 (define (term->string t)
   (cond
@@ -559,7 +559,8 @@
     [_ #t]))
 
 (define (certify-guarded-mini-program ast profile)
-  (define placement (compile-profile-delay-placement profile))
+  (match-define (compile-profile _ _ placement)
+    profile)
   (match ast
     [(prog rels (run _ _ query-goal))
      (case (string->symbol placement)
@@ -902,23 +903,34 @@
 (define (next-hidden-id counter)
   (values (string-append "y" (number->string counter)) (add1 counter)))
 
+(define (flatten-guid-groups reversed-guid-groups [acc '()])
+  (match reversed-guid-groups
+    ['() acc]
+    [(cons guid-group rest)
+     (flatten-guid-groups rest (append guid-group acc))]))
+
+(define (transpile-canonical/list exprs count hidden-count [acc '()] [reversed-guid-groups '()])
+  (match exprs
+    ['()
+     (values (reverse acc)
+             count
+             hidden-count
+             (flatten-guid-groups reversed-guid-groups))]
+    [(cons expr rest)
+     (define-values (t-expr count^ hidden^ expr-guids)
+       (transpile-canonical expr count hidden-count))
+     (transpile-canonical/list rest
+                               count^
+                               hidden^
+                               (cons t-expr acc)
+                               (cons expr-guids reversed-guid-groups))]))
+
 (define (transpile-canonical expr count hidden-count)
   (match expr
     [(prog rels q)
      #:when (prog? expr)
      (define-values (trs count1 hidden1 guids1)
-       (let loop ([rest rels] [acc '()] [count* count] [hidden* hidden-count] [guids '()])
-         (match rest
-           ['()
-            (values (reverse acc) count* hidden* guids)]
-           [(cons rel rels-tail)
-            (define-values (trel count** hidden** rel-guids)
-              (transpile-canonical rel count* hidden*))
-            (loop rels-tail
-                  (cons trel acc)
-                  count**
-                  hidden**
-                  (append guids rel-guids))])))
+       (transpile-canonical/list rels count hidden-count))
      (define-values (tq count2 hidden2 guids2)
        (transpile-canonical q count1 hidden1))
      (values `(,trs ,tq (empty-stream)) count2 hidden2 (append guids1 guids2))]
@@ -927,18 +939,7 @@
      #:when (fresh? expr)
      (define-values (id count1) (next-g-id "f" count))
      (define-values (tvars count2 hidden1 guids1)
-       (let loop ([rest vars] [acc '()] [count* count1] [hidden* hidden-count] [guids '()])
-         (match rest
-           ['()
-            (values (reverse acc) count* hidden* guids)]
-           [(cons v vars-tail)
-            (define-values (tv count** hidden** var-guids)
-              (transpile-canonical v count* hidden*))
-            (loop vars-tail
-                  (cons tv acc)
-                  count**
-                  hidden**
-                  (append guids var-guids))])))
+       (transpile-canonical/list vars count1 hidden-count))
      (define-values (tgoal count3 hidden2 guids2)
        (transpile-canonical goal count2 hidden1))
      (values `(∃ ,tvars ,tgoal ,(id->label id))
@@ -1045,18 +1046,7 @@
      (define-values (tname count2 hidden1 guids1)
        (transpile-canonical name count1 hidden-count))
      (define-values (tterms count3 hidden2 guids2)
-       (let loop ([rest terms] [acc '()] [count* count2] [hidden* hidden1] [guids '()])
-         (match rest
-           ['()
-            (values (reverse acc) count* hidden* guids)]
-           [(cons t terms-tail)
-            (define-values (tt count** hidden** term-guids)
-              (transpile-canonical t count* hidden*))
-            (loop terms-tail
-                  (cons tt acc)
-                  count**
-                  hidden**
-                  (append guids term-guids))])))
+       (transpile-canonical/list terms count2 hidden1))
      (values `(,tname ,@tterms ,(id->label id))
              count3 hidden2
              (cons id (append guids1 guids2)))]
@@ -1094,18 +1084,7 @@
      (define-values (tname count1 hidden1 guids1)
        (transpile-canonical name count hidden-count))
      (define-values (tlop count2 hidden2 guids2)
-       (let loop ([rest lop] [acc '()] [count* count1] [hidden* hidden1] [guids '()])
-         (match rest
-           ['()
-            (values (reverse acc) count* hidden* guids)]
-           [(cons v lop-tail)
-            (define-values (tv count** hidden** lop-guids)
-              (transpile-canonical v count* hidden*))
-            (loop lop-tail
-                  (cons tv acc)
-                  count**
-                  hidden**
-                  (append guids lop-guids))])))
+       (transpile-canonical/list lop count1 hidden1))
      (define-values (tgoal count3 hidden3 guids3)
        (transpile-canonical goal count2 hidden2))
      (values `(,tname ,tlop ,tgoal)
@@ -1116,18 +1095,7 @@
      #:when (run? expr)
      (define-values (id count1) (next-g-id "f" count))
      (define-values (tq count2 hidden1 guids1)
-       (let loop ([rest qs] [acc '()] [count* count1] [hidden* hidden-count] [guids '()])
-         (match rest
-           ['()
-            (values (reverse acc) count* hidden* guids)]
-           [(cons q qs-tail)
-            (define-values (tqv count** hidden** query-guids)
-              (transpile-canonical q count* hidden*))
-            (loop qs-tail
-                  (cons tqv acc)
-                  count**
-                  hidden**
-                  (append guids query-guids))])))
+       (transpile-canonical/list qs count1 hidden-count))
      (define-values (tg count3 hidden2 guids2)
        (transpile-canonical goal count2 hidden1))
      (values `((∃ ,tq ,tg ,(id->label id))

@@ -61,36 +61,39 @@
                [nqv (num-query-vars/canonical prog)]))
 
 (define (step->response a-step a-idx nqv)
-  (match-let ([(step name prog) a-step])
-    (response/jsexpr
-     (hasheq 'stepName name
-             'step a-idx
-             'program (to-json/canonical prog nqv))
-     #:mime-type #"application/json; charset=utf-8")))
+  (match-define (step name prog)
+    a-step)
+  (response/jsexpr
+   (hasheq 'stepName name
+           'step a-idx
+           'program (to-json/canonical prog nqv))
+   #:mime-type #"application/json; charset=utf-8"))
 
 (define (step->response/start a-step nqv)
-  (match-let ([(step name prog) a-step])
-    (response/jsexpr
-     (hasheq 'stepName name
-             'step 0
-             'program (to-json/canonical prog nqv))
-     #:mime-type #"application/json; charset=utf-8"
-     #:headers (list (make-header #"X-Is-Start" #"true")))))
+  (match-define (step name prog)
+    a-step)
+  (response/jsexpr
+   (hasheq 'stepName name
+           'step 0
+           'program (to-json/canonical prog nqv))
+   #:mime-type #"application/json; charset=utf-8"
+   #:headers (list (make-header #"X-Is-Start" #"true"))))
 
 (define (step/html/cookie->response a-step tagged-prog session-id nqv)
-  (match-let ([(step name prog) a-step])
-    (response/jsexpr
-     (hasheq 'stepName name
-             'step 0
-             'program (to-json/canonical prog nqv)
-             'htmlGuids tagged-prog)
-     #:mime-type #"application/json; charset=utf-8"
-     #:headers
-     (list
-      (make-header
-       #"Set-Cookie"
-       (string->bytes/utf-8
-        (format "session-id=~a; Path=/; SameSite=Lax" session-id)))))))
+  (match-define (step name prog)
+    a-step)
+  (response/jsexpr
+   (hasheq 'stepName name
+           'step 0
+           'program (to-json/canonical prog nqv)
+           'htmlGuids tagged-prog)
+   #:mime-type #"application/json; charset=utf-8"
+   #:headers
+   (list
+    (make-header
+     #"Set-Cookie"
+     (string->bytes/utf-8
+      (format "session-id=~a; Path=/; SameSite=Lax" session-id))))))
 
 (define (send-end-step)
   (response/jsexpr (json-null)
@@ -99,28 +102,27 @@
 
 (define (make-stepper step-term)
   (lambda (z nqv)
-    (define-values (maybe-next z^)
-      (zipper-forward z))
+    (define-values (maybe-next z^) (zipper-forward z))
     (cond
       [(step? maybe-next)
-       (values (step->response maybe-next (zipper-idx z^) nqv)
-               z^)]
+       (values (step->response maybe-next (zipper-idx z^) nqv) z^)]
       [else
-       (match (step-term (step-prog (zipper-curr z)))
+       (match-define (zipper _ curr _ _) z)
+       (match (step-term (step-prog curr))
          ['()
           (values (send-end-step) z)]
          [(cons (list name new-prog) _)
           (define new-step (step name new-prog))
           (define z^^ (zipper-add z new-step))
-          (values (step->response new-step (zipper-idx z^^) nqv)
-                  z^^)])])))
+          (values (step->response new-step (zipper-idx z^^) nqv) z^^)])])))
 
 (define (step! ses)
-  (match-let ([(session zip stepper nqv _) ses])
-    (define-values (response zip^)
-      (stepper zip nqv))
-    (values response
-            (struct-copy session ses [zipper zip^]))))
+  (match-define (session zip stepper nqv _)
+    ses)
+  (define-values (response zip^)
+    (stepper zip nqv))
+  (values response
+          (struct-copy session ses [zipper zip^])))
 
 (define (bind-session-search-strategy ses strategy)
   (define normalized (normalize-search-strategy strategy))
@@ -164,12 +166,12 @@
 
 (define (reset! ses)
   (match-define (session z _ nqv _) ses)
+  (match-define (zipper prev curr _ _) z)
   (define init-step
     (cond
-      [(step? (zipper-curr z))
-       (zipper-curr z)]
+      [(step? curr) curr]
       [else
-       (for/first ([entry (in-list (reverse (zipper-prev z)))]
+       (for/first ([entry (in-list (reverse prev))]
                    #:when (step? entry))
          entry)]))
   (unless (step? init-step)
@@ -182,17 +184,20 @@
 
 (define (back! ses)
   (match-define (session z _ nqv _) ses)
+  (match-define (zipper _ curr _ _) z)
   (define-values (maybe-back z^)
     (zipper-back z))
   (define current-step
     (cond
       [(step? maybe-back) maybe-back]
-      [(step? (zipper-curr z)) (zipper-curr z)]
+      [(step? curr) curr]
       [else (error 'back! "session has no current step")]))
   (define response
-    (if (zero? (zipper-idx z^))
-        (step->response/start current-step nqv)
-        (step->response current-step (zipper-idx z^) nqv)))
+    (cond
+      [(zero? (zipper-idx z^))
+       (step->response/start current-step nqv)]
+      [else
+       (step->response current-step (zipper-idx z^) nqv)]))
   (values response
           (struct-copy session ses [zipper z^])))
 

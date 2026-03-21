@@ -255,27 +255,39 @@
     [_ (values #f #f #f 0)]))
 
 (define (check-wf-guarded-property label pred)
-  (define wf-hits 0)
-  (define fail-count 0)
-  (define nonempty-c-hits 0)
-  (define exists-node-hits 0)
-  (define conj-node-hits 0)
-  (define max-c-size-seen 0)
-  (define fail-samples '())
-
-  (for ([_ (in-range PROPERTY-ATTEMPTS)])
-    (define cfg (generate-wf-config/constructive))
-    (set! wf-hits (add1 wf-hits))
-    (define-values (nonempty-c? has-exists? has-conj? cmax) (config-coverage cfg))
-    (when nonempty-c? (set! nonempty-c-hits (add1 nonempty-c-hits)))
-    (when has-exists? (set! exists-node-hits (add1 exists-node-hits)))
-    (when has-conj? (set! conj-node-hits (add1 conj-node-hits)))
-    (set! max-c-size-seen (max max-c-size-seen cmax))
-    (unless (pred cfg)
-      (set! fail-count (add1 fail-count))
-      ;; Store only the first three failures for readable output truncation.
-      (when (< (length fail-samples) 3)
-        (set! fail-samples (cons cfg fail-samples)))))
+  (define-values (wf-hits
+                  fail-count
+                  nonempty-c-hits
+                  exists-node-hits
+                  conj-node-hits
+                  max-c-size-seen
+                  fail-samples)
+    (for/fold ([wf-hits 0]
+               [fail-count 0]
+               [nonempty-c-hits 0]
+               [exists-node-hits 0]
+               [conj-node-hits 0]
+               [max-c-size-seen 0]
+               [fail-samples '()])
+              ([_ (in-range PROPERTY-ATTEMPTS)])
+      (define cfg
+        (generate-wf-config/constructive))
+      (define-values (nonempty-c? has-exists? has-conj? cmax)
+        (config-coverage cfg))
+      (define ok?
+        (pred cfg))
+      (values (add1 wf-hits)
+              (if ok? fail-count (add1 fail-count))
+              (if nonempty-c? (add1 nonempty-c-hits) nonempty-c-hits)
+              (if has-exists? (add1 exists-node-hits) exists-node-hits)
+              (if has-conj? (add1 conj-node-hits) conj-node-hits)
+              (max max-c-size-seen cmax)
+              (cond
+                [(or ok? (>= (length fail-samples) 3))
+                 fail-samples]
+                [else
+                 ;; Store only the first three failures for readable output truncation.
+                 (cons cfg fail-samples)]))))
 
   (displayln
    (format "[property-core] ~a attempts=~a wf-hits=~a (~a%%) fails=~a nonempty-c=~a exists=~a conj=~a max-c=~a seed=~a"

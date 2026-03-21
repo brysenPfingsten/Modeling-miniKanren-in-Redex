@@ -469,7 +469,8 @@
              (define response (source-convert! req))
              (check-equal? (response-code response) 200)
              (define body (string->jsexpr (response-body->string response)))
-             (define rendered (hash-ref body 'source #f))
+             (match-define (hash* ['source rendered] #:open)
+               body)
              (check-true (string? rendered))
              (check-not-false (regexp-match? #rx"Zzz" rendered)))
 

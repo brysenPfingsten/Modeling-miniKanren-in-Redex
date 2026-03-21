@@ -45,7 +45,8 @@
   (define templates (extract-template-map js-src))
   (for/list ([entry (in-list (extract-example-refs js-src))])
     (match-define (list _id label value-var) entry)
-    (define maybe-src (hash-ref templates value-var #f))
+    (define maybe-src
+      (hash-ref templates value-var #f))
     (unless maybe-src
       (error 'frontend-example-programs
              (format "example value ~a (label ~a) has no matching template definition"

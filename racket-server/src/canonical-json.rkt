@@ -302,30 +302,6 @@
                                                    (dis->reify/canonical dis)
                                                    (state-c-bound/canonical c)
                                                    num-query-variables)))]
-    [`(proceed ((,r ,t ... ,tag-call) (state ,sub ,dis ,c ,trail ,tag-state)))
-     (hasheq 'name "Proceed"
-             'id (label->id tag-call)
-             'stateId (label->id tag-state)
-             'goal (goal->json/canonical `(,r ,@t ,tag-call))
-             'sub (sub->json/canonical sub)
-             'disequalities (dis->json/canonical dis)
-             'trail (trail->json/canonical trail)
-             'reified (reify/canonical (sub->reify/canonical sub)
-                                       (dis->reify/canonical dis)
-                                       (state-c-bound/canonical c)
-                                       num-query-variables))]
-    [`(proceed (,g (state ,sub ,dis ,c ,trail ,tag-state)))
-     (hasheq 'name "Proceed"
-             'id (label->id tag-state)
-             'stateId (label->id tag-state)
-             'goal (goal->json/canonical g)
-             'sub (sub->json/canonical sub)
-             'disequalities (dis->json/canonical dis)
-             'trail (trail->json/canonical trail)
-             'reified (reify/canonical (sub->reify/canonical sub)
-                                       (dis->reify/canonical dis)
-                                       (state-c-bound/canonical c)
-                                       num-query-variables))]
     [`(,s_1 <-+ ,s_2)
      (hasheq 'name "<-+"
              'children (list (tree->json/canonical s_1 num-query-variables)
@@ -345,7 +321,9 @@
      (state->answer-json/canonical σ num-query-variables)]
     [`((⊤ ,σ) + ,s_tail)
      (define tail-json (tree->json/canonical s_tail num-query-variables))
-     (define tail-empty? (equal? (hash-ref tail-json 'name #f) "Empty"))
+     (match-define (hash* ['name tail-name] #:open)
+       tail-json)
+     (define tail-empty? (equal? tail-name "Empty"))
      (state->answer-json/canonical σ
                                    num-query-variables
                                    (and (not tail-empty?) tail-json))]
@@ -386,8 +364,6 @@
      (num-query-vars/work s_1)]
     [`(delay ,s_1)
      (num-query-vars/work s_1)]
-    [`(proceed (,g ,_σ))
-     (goal-query-vars/canonical g)]
     [_ 0]))
 
 (define (num-query-vars/canonical cfg)
