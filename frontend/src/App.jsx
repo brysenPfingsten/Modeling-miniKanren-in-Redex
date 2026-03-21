@@ -1,13 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Scrollbar } from 'react-scrollbars-custom';
-import CodeHeader      from './components/CodeHeader.jsx';
-import CodeEditor      from './components/CodeEditor';
-import Toolbar         from './components/Toolbar';
-import StepInfo        from './components/StepInfo';
-import TreeCanvas      from './components/TreeCanvas';
-import CustomAlert     from './components/CustomAlert';
-import useStepper      from './hooks/useStepper';
-import Resizable       from './components/Resizable';
+import CodeHeader from './components/CodeHeader.jsx';
+import CodeEditor from './components/CodeEditor';
+import Toolbar from './components/Toolbar';
+import StepInfo from './components/StepInfo';
+import TreeCanvas from './components/TreeCanvas';
+import CustomAlert from './components/CustomAlert';
+import useStepper from './hooks/useStepper';
+import Resizable from './components/Resizable';
 import Sidebar from './components/Sidebar';
 import { exampleById } from './utils/example_programs.js';
 import {
@@ -24,16 +24,23 @@ import {
   DISJ_ASSOC_OPTIONS,
   SOURCE_MODE_OPTIONS,
 } from './utils/source_defaults.js';
-import './styles.css'
+import {
+  deriveToolbarState,
+  nextSelectedExampleId,
+} from './utils/app_state.js';
+import './styles.css';
 
 function App() {
   const [code, setCode] = useState('');
   const originalCodeRef = useRef('');
   const [selectedExampleId, setSelectedExampleId] = useState('');
+  const [selectedExampleSource, setSelectedExampleSource] = useState('');
   const [sourceMode, setSourceMode] = useState(DEFAULT_SOURCE_MODE);
   const [compileProfile, setCompileProfile] = useState(DEFAULT_COMPILE_PROFILE);
   const [searchStrategy, setSearchStrategy] = useState(DEFAULT_SEARCH_STRATEGY);
   const [isFrozen, setFrozen] = useState(false);
+  const [isAtStart, setIsAtStart] = useState(true);
+  const [isAtEnd, setIsAtEnd] = useState(false);
   const [alert, setAlert] = useState({ isOpen: false, message: '' });
   const treeRef = useRef();
   const {
@@ -42,21 +49,13 @@ function App() {
   } = useStepper({
     onSuccess: () => { setGoalId(null); }
   });
-  const [disabled, setDisabled] = useState({
-    start: false,
-    reset: true,
-    back: true,
-    step: true,
-  });
   const [substitutionData, setSubstitutionData] = useState([]);
   const [trailData, setTrailData] = useState([]);
   const [goalId, setGoalId] = useState(null);
   const [stateId, setStateId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isExampleLoading, setIsExampleLoading] = useState(false);
-  
-  const [ darkMode, setDarkMode ] = useState(false);
-  const programmaticCodeUpdateRef = useRef(false);
+  const [darkMode, setDarkMode] = useState(false);
 
   const convertExampleToMicro = async (sourceText, profile = compileProfile) => {
     const response = await fetch('api/post/source-convert', {
@@ -88,8 +87,8 @@ function App() {
   };
 
   const applyExampleSource = (nextCode, exampleId) => {
-    programmaticCodeUpdateRef.current = true;
     setSelectedExampleId(exampleId);
+    setSelectedExampleSource(nextCode);
     setCode(nextCode);
   };
 
@@ -105,46 +104,51 @@ function App() {
     if (success) {
       setFrozen(true);
       setCode(progOrError);
-      setDisabled({start: true, reset: false, back: true, step: false});
+      setIsAtStart(true);
+      setIsAtEnd(false);
     } else {
       setAlert({ isOpen: true, message: progOrError });
     }
   };
-  
+
   const handleStep = async () => {
-    const [success, isDone] = await step();
-    if (isDone) { // no more reductions
-      setDisabled({start: true, reset: false, back: false, step: true});
-    } else if (success) { // success but more reductions
-      setDisabled(prev => ({...prev, back: false}));
+    const [success, stepDone, error] = await step();
+    if (!success) {
+      setAlert({ isOpen: true, message: error });
+      return;
     }
+    setIsAtStart(false);
+    setIsAtEnd(stepDone);
   };
 
   const handleBack = async () => {
-    const [_, isLast] = await back();
-    if (isLast) {  // TODO: Change this to isStart on both sides
-      setDisabled(prev => ({...prev, back: true}));
-    } else {
-      setDisabled(prev => ({...prev, step: false}));
+    const [success, atStart, error] = await back();
+    if (!success) {
+      setAlert({ isOpen: true, message: error });
+      return;
     }
-  }
+    setIsAtStart(atStart);
+    setIsAtEnd(false);
+  };
 
   const handleReset = async () => {
-    const success = await reset();  
-    if (success) {
-      programmaticCodeUpdateRef.current = true;
-      setCode(originalCodeRef.current);
-      setFrozen(false);
-      setDisabled({start: false, reset: true, back: true, step: true});
+    const [success, error] = await reset();
+    if (!success) {
+      setAlert({ isOpen: true, message: error });
+      return;
     }
-  }
-  
+    setCode(originalCodeRef.current);
+    setFrozen(false);
+    setIsAtStart(true);
+    setIsAtEnd(false);
+  };
+
   useEffect(() => {
     if (tree && treeRef.current) {
       treeRef.current.redraw(tree);
       treeRef.current.updateSidebar(stateId);
-      }
-  }, [tree]);
+    }
+  }, [tree, stateId]);
 
   useEffect(() => {
     if (isFrozen || !selectedExampleId) {
@@ -163,11 +167,11 @@ function App() {
         );
         if (!active || nextCode == null) return;
         applyExampleSource(nextCode, selectedExampleId);
-      } catch (err) {
+      } catch (error) {
         if (!active) return;
         setAlert({
           isOpen: true,
-          message: err?.message || "Unable to load example.",
+          message: error?.message || "Unable to load example.",
         });
       } finally {
         if (active) {
@@ -180,16 +184,13 @@ function App() {
     return () => { active = false; };
   }, [selectedExampleId, sourceMode, compileProfile, isFrozen]);
 
-  useEffect(() => {
-    if (programmaticCodeUpdateRef.current) {
-      programmaticCodeUpdateRef.current = false;
-    }
-  }, [code]);
-
-  const toolbarDisabled = {
-    ...disabled,
-    start: disabled.start || (!isFrozen && (code.trim() === "" || isExampleLoading)),
-  };
+  const toolbarState = deriveToolbarState({
+    isFrozen,
+    code,
+    isExampleLoading,
+    isAtStart,
+    isAtEnd,
+  });
 
   const handleSourceModeChange = (nextSourceMode) => {
     if (isFrozen) return;
@@ -201,15 +202,15 @@ function App() {
 
   const handleCompileProfileChange = (axis, value) => {
     if (isFrozen) return;
-    if (selectedExampleId && sourceMode === "micro") {
-      setIsExampleLoading(true);
-    }
     setCompileProfile((current) => ({ ...current, [axis]: value }));
   };
 
   const handleExampleChange = (exampleId) => {
     if (isFrozen) return;
     setIsExampleLoading(Boolean(exampleId));
+    if (!exampleId) {
+      setSelectedExampleSource('');
+    }
     setSelectedExampleId(exampleId);
   };
 
@@ -219,9 +220,12 @@ function App() {
   };
 
   const handleCodeChange = (nextCode) => {
-    if (!programmaticCodeUpdateRef.current) {
-      setSelectedExampleId("");
-    }
+    setSelectedExampleId((currentId) =>
+      nextSelectedExampleId({
+        selectedExampleId: currentId,
+        selectedExampleSource,
+        nextCode,
+      }));
     setCode(nextCode);
   };
 
@@ -248,29 +252,32 @@ function App() {
             isFrozen={isFrozen}
           />
           <div className="editor-area">
-            <CodeEditor 
-              codeText={code} 
+            <CodeEditor
+              codeText={code}
               setCodeText={handleCodeChange}
-              isFrozen={isFrozen} 
+              isFrozen={isFrozen}
               isDark={darkMode}
               goalId={goalId}
               onTagClick={setGoalId}
             />
           </div>
-          <Toolbar 
+          <Toolbar
             onStart={handleInit}
             onStep={handleStep}
             onBack={handleBack}
             onReset={handleReset}
-            disabled={toolbarDisabled}
+            canStart={toolbarState.canStart}
+            canReset={toolbarState.canReset}
+            canBack={toolbarState.canBack}
+            canStep={toolbarState.canStep}
           />
         </div>
-        
+
         <div className="right-pane">
           <StepInfo {...stepInfo} darkMode={darkMode} setDarkMode={setDarkMode} />
           <Scrollbar style={{ width: '100%', height: '100%' }}>
             <div style={{ display: 'block', width: 'max-content', margin: '0 auto' }}>
-              <TreeCanvas 
+              <TreeCanvas
                 ref={treeRef}
                 onNodeClick={({ substitutionData, trailData, gId, sId }) => {
                   setSubstitutionData(substitutionData);
@@ -280,16 +287,16 @@ function App() {
                 }}
                 selectedGoalId={goalId}
                 selectedStateId={stateId}
-                />
+              />
             </div>
           </Scrollbar>
         </div>
-      </Resizable>  
+      </Resizable>
       <Sidebar
-        substitutionData={substitutionData} 
-        trailData={trailData} 
+        substitutionData={substitutionData}
+        trailData={trailData}
         isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(o => !o)}
+        onToggle={() => setSidebarOpen((open) => !open)}
       />
       <CustomAlert
         isOpen={alert.isOpen}
