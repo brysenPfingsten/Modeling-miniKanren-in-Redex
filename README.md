@@ -38,7 +38,11 @@ Use the lane that matches what you are validating.
 raco test racket-server/tests/test-all-headless.rkt
 ```
 
-Includes syntax-compat checks that frontend example programs parse and lift to `L4` target syntax.
+Includes the modern runtime surface only:
+- helper/property checks
+- search-lattice/internal runtime tests
+- frontend example compatibility
+- structured strategy overlap/confidence/matrix checks
 
 ### **2) App/API regression lane**
 
@@ -60,6 +64,15 @@ termination.
 
 ```sh
 raco test racket-server/tests/model-example-matrix-tests.rkt
+```
+
+### **5) Legacy ladder lane**
+
+Runs the retained eager/lazy/proceed-era research suites outside the default
+modern gate.
+
+```sh
+raco test racket-server/tests/test-all-legacy.rkt
 ```
 
 ## **Backend Init Contract**
@@ -90,18 +103,18 @@ Execution notes:
 
 ## **Semantics Organization**
 
-The repo now has two semantic organization layers:
+The repo now has one authoritative runtime path and one archived legacy ladder:
 
-- legacy/public ladder:
-  - languages: `racket-server/src/languages/*.rkt`
-  - well-formedness: `racket-server/src/wf/*.rkt`
-  - public reducers: `racket-server/src/reduction-relations/*.rkt`
-- internal feature-based search lattice:
+- authoritative runtime:
   - languages: `racket-server/src/search-lattice/languages/*.rkt`
   - well-formedness: `racket-server/src/search-lattice/wf/*.rkt`
   - reducers: `racket-server/src/search-lattice/reduction-relations/*.rkt`
-  - app/runtime seam: `racket-server/src/search-runtime.rkt`
+  - strategy registry + canonical adapter: `racket-server/src/search-runtime.rkt`
   - structured strategy API: `racket-server/src/search-strategy.rkt`
+- archived legacy ladder (research-only / non-default):
+  - languages: `racket-server/archive/legacy-ladder/src/languages/*.rkt`
+  - well-formedness: `racket-server/archive/legacy-ladder/src/wf/*.rkt`
+  - reducers: `racket-server/archive/legacy-ladder/src/reduction-relations/*.rkt`
 
 The short architecture note lives in:
 
@@ -111,22 +124,19 @@ The short architecture note lives in:
 
 Use this if you are jumping in with no project history:
 
-- Canonical parser/transpiler target is **L4 config syntax**:
-  - `parserProfile = "surface->l4"`
-  - `parserTarget = "L4/config"`
+- Canonical parser/transpiler target is the neutral flat search target:
+  - `parserProfile = "surface->canonical"`
+  - `parserTarget = "canonical/config"`
 - Backend canonical entry points live in:
   - `racket-server/src/transpiler.rkt` (`parse-prog/canonical`)
   - `racket-server/src/app.rkt` (`init!` validates canonical shape, then checks the internal search target selected by `searchStrategy`)
-  - `racket-server/src/search-runtime.rkt` (canonical-flat <-> internal search-lattice adapter, stepper lookup, internal wf checks)
+  - `racket-server/src/search-runtime.rkt` (strategy registry, canonical-flat <-> internal search-lattice adapter, stepper lookup, internal wf checks)
   - `racket-server/src/search-strategy.rkt` (structured surfaced strategy contract)
-- Canonical WF stack is split by layer:
-  - `racket-server/src/wf/kernel.rkt` (shared term/state/substitution checks)
-  - `racket-server/src/wf/l0.rkt`
-  - `racket-server/src/wf/l1.rkt`
-  - `racket-server/src/wf/l2.rkt`
-  - `racket-server/src/wf/l3.rkt`
-  - `racket-server/src/wf/l4.rkt`
-  - `racket-server/src/wf/all.rkt` (target/runtime helpers)
+- Canonical WF/target checks now live in the search-lattice side:
+  - `racket-server/src/search-lattice/languages/canonical-core-lang.rkt`
+  - `racket-server/src/search-lattice/languages/canonical-lang.rkt`
+  - `racket-server/src/search-lattice/wf/canonical-core-wf.rkt`
+  - `racket-server/src/search-lattice/wf/all.rkt` (canonical target registry + search-lattice wf exports)
 - Internal search-lattice WF for the GUI/API boundary lives in:
   - `racket-server/src/search-lattice/wf/*.rkt`
 - Frontend examples are source-of-truth in:
