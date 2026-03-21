@@ -2,10 +2,7 @@
 
 (require racket/match)
 
-(provide search-strategy
-         search-strategy?
-         search-strategy-hoist
-         search-strategy-scheduler
+(provide (struct-out search-strategy)
          default-search-strategy
          all-surfaced-search-strategies
          search-strategy->jsexpr
@@ -25,8 +22,10 @@
         (search-strategy "late" "rail")))
 
 (define (search-strategy->jsexpr strategy)
-  (hasheq 'hoist (search-strategy-hoist strategy)
-          'scheduler (search-strategy-scheduler strategy)))
+  (match-define (search-strategy hoist scheduler)
+    strategy)
+  (hasheq 'hoist hoist
+          'scheduler scheduler))
 
 (define (normalize-axis maybe-value valid-values key)
   (match maybe-value

@@ -13,7 +13,7 @@
          "../src/transpiler.rkt"
          "../src/zipper.rkt"
          "./test-http-helpers.rkt"
-         "./variant-test-support.rkt"
+         "./runtime-test-support.rkt"
          "./example-compat-tests.rkt")
 
 (provide MODEL-EXAMPLE-MATRIX)
@@ -29,9 +29,9 @@
   '("appendoh 1" "fives/fours" "same"))
 
 (define (strategy-label strategy)
-  (format "~a/~a"
-          (search-strategy-hoist strategy)
-          (search-strategy-scheduler strategy)))
+  (match-define (search-strategy hoist scheduler)
+    strategy)
+  (format "~a/~a" hoist scheduler))
 
 (define (step1-name+cfg succ)
   (match succ
@@ -42,86 +42,121 @@
   (and (exn:fail? e)
        (regexp-match? #px"not in domain" (exn-message e))))
 
+(define (incompatible-result)
+  (hasheq 'status 'incompatible
+          'steps 0
+          'last-rule ""))
+
+(define (classify-terminal cfg steps last-rule)
+  (hasheq 'status (if (final-config? cfg) 'value 'stuck)
+          'steps steps
+          'last-rule last-rule))
+
+(define (classify-nondeterministic succs steps)
+  (define rule-names
+    (for/list ([next-succ (in-list succs)])
+      (match next-succ
+        [(list name _cfg) (format "~a" name)]
+        [_ "<unknown>"])))
+  (hasheq 'status 'nondeterministic
+          'steps steps
+          'last-rule (string-join rule-names " | ")))
+
+(define (classify-config maybe-step-once cfg [steps 0] [last-rule ""])
+  (with-handlers ([domain-error?
+                   (lambda (_e)
+                     (incompatible-result))])
+    (match (maybe-step-once cfg)
+      ['()
+       (classify-terminal cfg steps last-rule)]
+      [(list _succ) #:when (>= steps MATRIX-STEP-CAP)
+       (hasheq 'status 'cap
+               'steps steps
+               'last-rule last-rule)]
+      [(list succ)
+       (define-values (nm cfg1)
+         (step1-name+cfg succ))
+       (classify-config maybe-step-once
+                        cfg1
+                        (add1 steps)
+                        nm)]
+      [succs
+       (classify-nondeterministic succs steps)])))
+
+(define (classify-compatible-pair strategy src)
+  (with-handlers ([domain-error?
+                   (lambda (_e)
+                     (incompatible-result))])
+    (define sexprs
+      (read-all-sexprs (open-input-string src)))
+    (define-values (cfg0 _html)
+      (parse-prog/canonical sexprs))
+    (cond
+      [(and (search-config-in-domain? strategy cfg0)
+            (search-config-well-formed? strategy cfg0))
+       (classify-config (lookup-search-step-once strategy) cfg0)]
+      [else
+       (incompatible-result)])))
+
 (define (classify-pair strategy src should-compat?)
-  (if (not should-compat?)
-      (hasheq 'status 'incompatible
-              'steps 0
-              'last-rule "")
-      (let ()
-        (define sexprs (read-all-sexprs (open-input-string src)))
-        (define-values (cfg0 _html) (parse-prog/canonical sexprs))
-        (define maybe-step-once (lookup-search-step-once strategy))
-        (with-handlers ([domain-error?
-                         (lambda (_e)
-                           (hasheq 'status 'incompatible
-                                   'steps 0
-                                   'last-rule ""))])
-          (if (and (search-config-in-domain? strategy cfg0)
-                   (search-config-well-formed? strategy cfg0))
-              (let loop ([cfg cfg0] [steps 0] [last-rule ""])
-                (define next* (maybe-step-once cfg))
-                (cond
-                  [(null? next*)
-                   (hasheq 'status (if (final-config? cfg) 'value 'stuck)
-                           'steps steps
-                           'last-rule last-rule)]
-                  [(> (length next*) 1)
-                   (define rule-names
-                     (for/list ([succ (in-list next*)])
-                       (match succ
-                         [(list name _cfg) (format "~a" name)]
-                         [_ "<unknown>"])))
-                   (hasheq 'status 'nondeterministic
-                           'steps steps
-                           'last-rule (string-join rule-names " | "))]
-                  [(>= steps MATRIX-STEP-CAP)
-                   (hasheq 'status 'cap
-                           'steps steps
-                           'last-rule last-rule)]
-                  [else
-                   (define-values (nm cfg1) (step1-name+cfg (first next*)))
-                   (loop cfg1 (add1 steps) nm)]))
-              (hasheq 'status 'incompatible
-                      'steps 0
-                      'last-rule ""))))))
+  (cond
+    [(not should-compat?) (incompatible-result)]
+    [else (classify-compatible-pair strategy src)]))
 
 (define (summarize rows)
   (for/fold ([h (hash)])
             ([r (in-list rows)])
-    (define k (list (hash-ref r 'strategy) (hash-ref r 'status)))
+    (match-define (hash* ['strategy strategy]
+                         ['status status]
+                         #:open)
+      r)
+    (define k (list strategy status))
     (hash-set h k (add1 (hash-ref h k 0)))))
 
-(define (run-api-steps! ses strategy label)
-  (let loop ([i 0] [last-rule ""])
-    (if (>= i MATRIX-STEP-CAP)
-        (hasheq 'status 'cap
+(define (run-api-steps! ses strategy label [i 0] [last-rule ""])
+  (cond
+    [(>= i MATRIX-STEP-CAP)
+     (hasheq 'status 'cap
+             'steps i
+             'last-rule last-rule)]
+    [else
+     (define-values (step-resp ses^)
+       (step! ses))
+     (match (response-body->string step-resp)
+       ["null"
+        (hasheq 'status 'done
                 'steps i
-                'last-rule last-rule)
-        (let* ([step-resp (step! ses)]
-               [step-body (response-body->string step-resp)])
-          (if (string=? step-body "null")
-              (hasheq 'status 'done
-                      'steps i
-                      'last-rule last-rule)
-              (let ([payload (string->jsexpr step-body)])
-                (assert-step-payload-shape payload
-                                           (format "~a / ~a step ~a"
-                                                   (strategy-label strategy)
-                                                   label
-                                                   i))
-                (loop (add1 i) (hash-ref payload 'stepName ""))))))))
+                'last-rule last-rule)]
+       [step-body
+       (define payload
+          (string->jsexpr step-body))
+        (match-define (hash* ['stepName step-name] #:open)
+          payload)
+        (assert-step-payload-shape payload
+                                   (format "~a / ~a step ~a"
+                                           (strategy-label strategy)
+                                           label
+                                           i))
+        (run-api-steps! ses^
+                        strategy
+                        label
+                        (add1 i)
+                        step-name)])]))
 
 (define (make-default-session)
-  (session (zipper '() #f '() 0)
-           (make-stepper (lookup-search-step-once default-search-strategy))
-           1))
+  (make-empty-session))
 
 (define (make-heavy-row strategy label result)
+  (match-define (hash* ['status status]
+                       ['steps steps]
+                       ['last-rule last-rule]
+                       #:open)
+    result)
   (hasheq 'strategy (strategy-label strategy)
           'label label
-          'status (hash-ref result 'status)
-          'steps (hash-ref result 'steps)
-          'last-rule (hash-ref result 'last-rule)))
+          'status status
+          'steps steps
+          'last-rule last-rule))
 
 (define (collect-heavy-rows specs examples runner)
   (for*/list ([spec (in-list specs)]
@@ -137,36 +172,57 @@
                            #:context [context "heavy"])
   (when forbid-nondeterministic?
     (for ([r (in-list rows)])
-      (check-false (eq? (hash-ref r 'status) 'nondeterministic)
+      (match-define (hash* ['strategy strategy]
+                           ['label label]
+                           ['status status]
+                           ['last-rule last-rule]
+                           #:open)
+        r)
+      (check-false (eq? status 'nondeterministic)
                    (format "~a: unexpected nondeterminism for ~a / ~a (choices=~a)"
                            context
-                           (hash-ref r 'strategy)
-                           (hash-ref r 'label)
-                           (hash-ref r 'last-rule)))))
+                           strategy
+                           label
+                           last-rule))))
   (for ([r (in-list rows)])
-    (check-false (member (hash-ref r 'status) disallowed-statuses)
+    (match-define (hash* ['strategy strategy]
+                         ['label label]
+                         ['status status]
+                         ['last-rule last-rule]
+                         #:open)
+      r)
+    (check-false (member status disallowed-statuses)
                  (format "~a: surfaced pair failed for ~a / ~a (status=~a last-rule=~a)"
                          context
-                         (hash-ref r 'strategy)
-                         (hash-ref r 'label)
-                         (hash-ref r 'status)
-                         (hash-ref r 'last-rule))))
+                         strategy
+                         label
+                         status
+                         last-rule)))
   (when check-primary-rail?
     (for ([strategy (in-list PRIMARY-STRATEGIES)])
       (define row
         (for/first ([r (in-list rows)]
-                    #:when (and (equal? (hash-ref r 'strategy)
+                    #:do [(match-define (hash* ['strategy row-strategy]
+                                               ['label row-label]
+                                               #:open)
+                             r)]
+                    #:when (and (equal? row-strategy
                                         (strategy-label strategy))
-                                (equal? (hash-ref r 'label) "fives/fours")))
+                                (equal? row-label "fives/fours")))
           r))
       (check-not-false row
                        (format "missing matrix row for ~a / fives/fours"
                                (strategy-label strategy)))
-      (check-false (eq? (hash-ref row 'status) 'stuck)
+      (match-define (hash* ['status status]
+                           ['last-rule last-rule]
+                           ['steps steps]
+                           #:open)
+        row)
+      (check-false (eq? status 'stuck)
                    (format "stuck regression for ~a / fives/fours (last-rule=~a, steps=~a)"
                            (strategy-label strategy)
-                           (hash-ref row 'last-rule)
-                           (hash-ref row 'steps))))))
+                           last-rule
+                           steps)))))
 
 (define (run-heavy-row/api strategy label src)
   (define ses (make-default-session))
@@ -175,10 +231,11 @@
                      (hasheq 'status 'init-error
                              'steps 0
                              'last-rule (exn-message e)))])
-    (define init-resp (init! ses (make-post-init-request src #:strategy strategy) 'matrix-id))
+    (define-values (init-resp ses^)
+      (init! ses (make-post-init-request src #:strategy strategy) 'matrix-id))
     (check-equal? (response-code init-resp) 200
                   (format "init failed for ~a / ~a" (strategy-label strategy) label))
-    (check-equal? (session-search-strategy ses) strategy
+    (check-equal? (session-search-strategy ses^) strategy
                   (format "session strategy binding drifted for ~a / ~a"
                           (strategy-label strategy)
                           label))
@@ -186,7 +243,7 @@
                                (format "~a / ~a init"
                                        (strategy-label strategy)
                                        label))
-    (run-api-steps! ses strategy label)))
+    (run-api-steps! ses^ strategy label)))
 
 (define/provide-test-suite MODEL-EXAMPLE-MATRIX
   (test-case "matrix lane: structured strategies cover the frontend example corpus"

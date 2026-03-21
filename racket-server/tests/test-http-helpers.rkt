@@ -54,20 +54,22 @@
     [(hash-has-key? payload 'searchStrategy) payload]
     [else (hash-set payload 'searchStrategy default-search-strategy-options)]))
 
-(define (make-post-init-request src [payload #f] #:strategy [strategy #f])
+(define (make-post-init-request src
+                                [payload (hash-set default-source-options 'text src)]
+                                #:strategy [strategy #f])
   (make-post-request "init"
                      (ensure-init-search-strategy
-                      (or payload
-                          (hash-set default-source-options 'text src))
+                      payload
                       strategy)))
 
-(define (make-post-source-convert-request src [payload #f])
+(define (make-post-source-convert-request src
+                                          [payload
+                                           (hasheq 'text src
+                                                   'sourceMode "mini"
+                                                   'compileProfile (hash-ref default-source-options 'compileProfile)
+                                                   'targetSourceMode "micro")])
   (make-post-request "source-convert"
-                     (or payload
-                         (hasheq 'text src
-                                 'sourceMode "mini"
-                                 'compileProfile (hash-ref default-source-options 'compileProfile)
-                                 'targetSourceMode "micro"))))
+                     payload))
 
 (define (nonempty-string? v)
   (and (string? v)

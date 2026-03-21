@@ -44,16 +44,25 @@
 
 (define (check-sample-program-response response expected-step expected-step-name)
   (define payload (string->jsexpr (response-body->string response)))
-  (check-equal? (hash-ref payload 'step #f) expected-step)
-  (check-equal? (hash-ref payload 'stepName #f) expected-step-name)
-  (check-equal? (string->jsexpr (hash-ref payload 'program #f))
+  (match-define (hash* ['step step]
+                       ['stepName step-name]
+                       ['program program]
+                       #:open)
+    payload)
+  (check-equal? step expected-step)
+  (check-equal? step-name expected-step-name)
+  (check-equal? (string->jsexpr program)
                 sample-program-jsexpr))
 
 (define (json-contains-name? node target)
   (match node
-    [(? hash? h)
-     (or (equal? (hash-ref h 'name #f) target)
-         (json-contains-name? (hash-ref h 'children '()) target))]
+    [(hash* ['name name]
+            ['children children]
+            #:open)
+     (or (equal? name target)
+         (json-contains-name? children target))]
+    [(hash* ['name name] #:open)
+     (equal? name target)]
     [(list xs ...) (ormap (lambda (x) (json-contains-name? x target)) xs)]
     [_ #f]))
 
@@ -78,19 +87,19 @@
           [(== q 'dog)])]
        [(same q 'fish)]))")
 
-(define (collect-step-names ses limit [i 0] [acc '()])
+(define (collect-step-names ses remaining)
   (cond
-    [(>= i limit) (reverse acc)]
+    [(zero? remaining) '()]
     [else
-     (define response (step! ses))
-     (define out (response-body->string response))
-     (if (string=? out "null")
-         (reverse acc)
-         (collect-step-names ses
-                             limit
-                             (add1 i)
-                             (cons (hash-ref (string->jsexpr out) 'stepName #f)
-                                   acc)))]))
+     (define-values (response ses^) (step! ses))
+     (match (response-body->string response)
+       ["null" '()]
+       [out
+        (match-define (hash* ['stepName step-name] #:open)
+          (string->jsexpr out))
+        (cons step-name
+              (collect-step-names ses^
+                                  (sub1 remaining)))])]))
 
 (define-test-suite STEP!
   #:before (thunk (displayln "Running tests for step!..."))
@@ -99,58 +108,62 @@
   (test-case "step! sends null reponse with header if no more reductions and does not affect zipper"
               (define zip (zipper '() (step "foo" '(() ())) '() 1))
               (define stepper (make-stepper (λ (_) '())))
-              (define ses (session zip stepper 1))
-              (define response (step! ses))
+              (define ses (session zip stepper 1 default-search-strategy))
+              (define-values (response ses^) (step! ses))
               (check-equal? (response-code response) 200)
               (check-equal? (response-message response) #"OK")
               (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
               (check-equal? (response-headers response)
                             (list (make-header #"X-Done" #"true")))
               (check-equal? (response-body->string response) "null")
-              (define new-zipper (session-zipper ses))
+              (match-define (session new-zipper _ _ _) ses^)
               (check-equal? zip new-zipper))
 
   (test-case "step! advances via stepper when no future cache and updates state"
               (define zip (zipper '() (step "foo" sample-tree) '() 1))
               (define stepper step/const-tree-output)
-              (define ses (session zip stepper 1))
-              (define response (step! ses))
+              (define ses (session zip stepper 1 default-search-strategy))
+              (define-values (response ses^) (step! ses))
               (check-equal? (response-code response) 200)
               (check-equal? (response-message response) #"OK")
               (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
               (check-equal? (response-headers response) '())
               (check-sample-program-response response 2 "foo")
-              (define new-zipper (session-zipper ses))
-              (check-equal? (zipper-prev new-zipper) (list (step "foo" sample-tree)))
-              (check-equal? (step-name (zipper-curr new-zipper)) "foo")
-              (check-equal? (zipper-next new-zipper) '())
-              (check-equal? (zipper-idx   new-zipper) 2))
+              (match-define (session (zipper prev curr next idx) _ _ _) ses^)
+              (check-equal? prev (list (step "foo" sample-tree)))
+              (check-equal? (step-name curr) "foo")
+              (check-equal? next '())
+              (check-equal? idx 2))
 
   (test-case "step! gets next tree in the state if it is cached and updates state"
               (define zip (zipper '() (step "foo" sample-tree) (list (step "bar" sample-tree)) 1))
               (define stepper step/const-tree-output)
-              (define ses (session zip stepper 1))
-              (define response (step! ses))
+              (define ses (session zip stepper 1 default-search-strategy))
+              (define-values (response ses^) (step! ses))
               (check-equal? (response-code response) 200)
               (check-equal? (response-message response) #"OK")
               (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
               (check-equal? (response-headers response) '())
               (check-sample-program-response response 2 "bar")
-              (define new-zipper (session-zipper ses))
-              (check-equal? (zipper-prev new-zipper) (list (step "foo" sample-tree)))
-              (check-equal? (zipper-curr new-zipper) (step "bar" sample-tree))
-              (check-equal? (zipper-next new-zipper) '())
-              (check-equal? (zipper-idx   new-zipper) 2)
+              (match-define (session (zipper prev curr next idx) _ _ _) ses^)
+              (check-equal? prev (list (step "foo" sample-tree)))
+              (check-equal? curr (step "bar" sample-tree))
+              (check-equal? next '())
+              (check-equal? idx 2)
               )
 
   (test-case "step! serializes top-level answer stream ahead of remaining work"
               (define zip (zipper '() (step "foo" sample-tree) '() 1))
-              (define ses (session zip step/streamed-answer-output 1))
-              (define response (step! ses))
+              (define ses (session zip step/streamed-answer-output 1 default-search-strategy))
+              (define-values (response _ses^) (step! ses))
               (check-equal? (response-code response) 200)
               (define payload (string->jsexpr (response-body->string response)))
-              (define program-json (string->jsexpr (hash-ref payload 'program #f)))
-              (check-equal? (hash-ref program-json 'name #f) "Answer")
+              (match-define (hash* ['program program] #:open)
+                payload)
+              (define program-json (string->jsexpr program))
+              (match-define (hash* ['name name] #:open)
+                program-json)
+              (check-equal? name "Answer")
               (check-false (json-contains-name? program-json "Emit")))
 )
 
@@ -160,10 +173,8 @@
 
   (test-case "init! parses, updates state, and sends response with json and string prog"
               (define sample-req (make-post-init-request "(run* (q) (== 'a 'a))"))
-              (define zip (zipper '() #f '() 0))
-              (define stepper identity)
-              (define ses (session zip stepper 1))
-              (define response (init! ses sample-req 'testid))
+              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
+              (define-values (response _ses^) (init! ses sample-req 'testid))
               (check-equal? (response-code response) 200)
               (check-equal? (response-message response) #"OK")
               (check-equal? (response-mime response) 
@@ -171,26 +182,36 @@
               (check-equal? (response-headers response) 
                             (list (header #"Set-Cookie" #"session-id=testid; Path=/; SameSite=Lax")))
               (define json-response (string->jsexpr (response-body->string response)))
-              (check-equal? (hash-ref json-response 'stepName #f) "Initialize Program")
-              (check-equal? (hash-ref json-response 'step #f) 0)
-              (check-not-false (hash-ref json-response 'program #f))
-              (check-not-false (hash-ref json-response 'htmlGuids #f)))
+              (match-define (hash* ['stepName step-name]
+                                   ['step step]
+                                   ['program program]
+                                   ['htmlGuids html-guids]
+                                   #:open)
+                json-response)
+              (check-equal? step-name "Initialize Program")
+              (check-equal? step 0)
+              (check-not-false program)
+              (check-not-false html-guids))
 
   (test-case "init! defaults missing source options to canonical mini profile"
               (define sample-req
                 (make-post-init-request
                  "(run* (q) (== 'a 'a))"
                  (hasheq 'text "(run* (q) (== 'a 'a))")))
-              (define zip (zipper '() #f '() 0))
-              (define stepper identity)
-              (define ses (session zip stepper 1))
-              (define response (init! ses sample-req 'defaultid))
+              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
+              (define-values (response _ses^) (init! ses sample-req 'defaultid))
               (check-equal? (response-code response) 200)
               (define json-response (string->jsexpr (response-body->string response)))
-              (check-equal? (hash-ref json-response 'stepName #f) "Initialize Program")
-              (check-equal? (hash-ref json-response 'step #f) 0)
-              (check-not-false (hash-ref json-response 'program #f))
-              (check-not-false (hash-ref json-response 'htmlGuids #f)))
+              (match-define (hash* ['stepName step-name]
+                                   ['step step]
+                                   ['program program]
+                                   ['htmlGuids html-guids]
+                                   #:open)
+                json-response)
+              (check-equal? step-name "Initialize Program")
+              (check-equal? step 0)
+              (check-not-false program)
+              (check-not-false html-guids))
 
   (test-case "init! serializes direct micro Zzz as goal delay"
               (define sample-req
@@ -198,22 +219,26 @@
                  "(run* (q) (Zzz (== q 'cat)))"
                  (hasheq 'text "(run* (q) (Zzz (== q 'cat)))"
                          'sourceMode "micro")))
-              (define zip (zipper '() #f '() 0))
-              (define stepper identity)
-              (define ses (session zip stepper 1))
-              (define response (init! ses sample-req 'goal-delay-id))
+              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
+              (define-values (response _ses^) (init! ses sample-req 'goal-delay-id))
               (check-equal? (response-code response) 200)
               (define payload (string->jsexpr (response-body->string response)))
-              (define program-json (string->jsexpr (hash-ref payload 'program #f)))
+              (match-define (hash* ['program program] #:open)
+                payload)
+              (define program-json (string->jsexpr program))
+              (match-define (hash* ['name name] #:open)
+                program-json)
               (check-true (json-contains-name? program-json "Goal-Delay"))
-              (check-false (equal? (hash-ref program-json 'name #f) "Delay")))
+              (check-false (equal? name "Delay")))
 
   (test-case "init! throws error if program is not syntactically correct"
               (define sample-req (make-post-init-request "(run* (== 'a 'a))"))
-              (define zip (zipper '() #f '() 0))
-              (define stepper identity)
-              (define ses (session zip stepper 1))
-              (check-exn exn:fail:syntax? (thunk (init! ses sample-req 'testid))))
+              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
+              (check-exn exn:fail:syntax?
+                         (thunk
+                          (call-with-values
+                           (lambda () (init! ses sample-req 'testid))
+                           list))))
 
   (test-case "init! defaults missing searchStrategy in payload"
               (define sample-req
@@ -221,12 +246,10 @@
                                    (hasheq 'text "(run* (q) (== q 'ok))"
                                            'sourceMode "mini"
                                            'compileProfile (hash-ref default-source-options 'compileProfile))))
-              (define zip (zipper '() #f '() 0))
-              (define stepper identity)
-              (define ses (session zip stepper 1))
-              (define response (init! ses sample-req 'default-strategy-id))
+              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
+              (define-values (response ses^) (init! ses sample-req 'default-strategy-id))
               (check-equal? (response-code response) 200)
-              (check-equal? (session-search-strategy ses) default-search-strategy))
+              (check-equal? (session-search-strategy ses^) default-search-strategy))
 
   (test-case "init! rejects invalid searchStrategy hoist in payload"
               (define sample-req
@@ -237,11 +260,12 @@
                          'compileProfile (hash-ref default-source-options 'compileProfile)
                          'searchStrategy (hasheq 'hoist "sideways"
                                                  'scheduler "rail"))))
-              (define zip (zipper '() #f '() 0))
-              (define stepper identity)
-              (define ses (session zip stepper 1))
+              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
               (check-exn exn:fail?
-                         (thunk (init! ses sample-req 'invalid-hoist-id))))
+                         (thunk
+                          (call-with-values
+                           (lambda () (init! ses sample-req 'invalid-hoist-id))
+                           list))))
 
   (test-case "init! rejects invalid searchStrategy scheduler in payload"
               (define sample-req
@@ -252,16 +276,19 @@
                          'compileProfile (hash-ref default-source-options 'compileProfile)
                          'searchStrategy (hasheq 'hoist "late"
                                                  'scheduler "zigzag"))))
-              (define zip (zipper '() #f '() 0))
-              (define stepper identity)
-              (define ses (session zip stepper 1))
+              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
               (check-exn exn:fail?
-                         (thunk (init! ses sample-req 'invalid-scheduler-id))))
+                         (thunk
+                          (call-with-values
+                           (lambda () (init! ses sample-req 'invalid-scheduler-id))
+                           list))))
 
   (test-case "init! accepts searchStrategy payload and updates session state"
-              (define zip (zipper '() #f '() 0))
-              (define ses (session zip step/const-tree-output 1))
-              (define response
+              (define ses (session (make-empty-zipper)
+                                   step/const-tree-output
+                                   1
+                                   default-search-strategy))
+              (define-values (response ses^)
                 (init!
                  ses
                  (make-post-init-request
@@ -269,9 +296,9 @@
                   #:strategy (search-strategy "late" "flip"))
                  'init-search-strategy-id))
               (check-equal? (response-code response) 200)
-              (check-equal? (session-search-strategy ses)
+              (check-equal? (session-search-strategy ses^)
                             (search-strategy "late" "flip"))
-              (define names (collect-step-names ses 24))
+              (define names (collect-step-names ses^ 24))
               (check-not-false (member "search-flip-fused-calls/delay-swap-left" names))
               (check-false (member "rail-fused-calls/enter-right" names)))
   )
@@ -284,34 +311,34 @@
              (define zip (zipper (list 'a 'b 'c (step "Initialize Program" sample-tree))
                                    'd '() 5))
              (define stepper identity)
-             (define ses (session zip stepper 1))
-             (define ses-table (make-hash))
-             (hash-set! ses-table 'testid ses)
-             (define response (reset! ses ses-table 'testid))
+             (define ses (session zip stepper 1 default-search-strategy))
+             (define-values (response ses^) (reset! ses))
              (check-equal? (response-code response) 200)
              (check-equal? (response-message response) #"OK")
              (check-equal? (response-mime response) 
                            APPLICATION/JSON-MIME-TYPE)
              (check-equal? (response-headers response) 
-                           (list (header #"X-Is-Last" #"true")))
+                           (list (header #"X-Is-Start" #"true")))
              (check-sample-program-response response 0 "Initialize Program")
-             (check-false (hash-ref ses-table 'testid false)))
+             (match-define (session (zipper prev curr next idx) _ _ _) ses^)
+             (check-equal? prev '())
+             (check-equal? curr (step "Initialize Program" sample-tree))
+             (check-equal? next '())
+             (check-equal? idx 0))
 
 
   (test-case "reset! empties state and sends current state with header when it doesn't have a prev cache"
              (define zip (zipper '() (step "Initialize Program" sample-tree) '() 0))
              (define stepper identity)
-             (define ses (session zip stepper 1))
-             (define ses-table (make-hash))
-             (hash-set! ses-table 'testid ses)
-             (define response (reset! ses ses-table 'testid))
+             (define ses (session zip stepper 1 default-search-strategy))
+             (define-values (response ses^) (reset! ses))
              (check-equal? (response-code response) 200)
              (check-equal? (response-message response) #"OK")
              (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
              (check-equal? (response-headers response)
-                           (list (make-header #"X-Is-Last" #"true")))
+                           (list (make-header #"X-Is-Start" #"true")))
              (check-sample-program-response response 0 "Initialize Program")
-             (check-false (hash-ref ses-table 'testid false)))
+             (check-equal? (session-zipper ses^) zip))
   )
 
 (define-test-suite BACK!
@@ -319,37 +346,44 @@
   #:after (thunk (displayln "Finished running tests for back!."))
 
   (test-case "back! sends initial state with header when only one thing in prev cache and updates state"
-             (define zip (zipper (list (step "Initialize Program" sample-tree)) 'test '() 1))
+             (define zip (zipper (list (step "Initialize Program" sample-tree))
+                                 (step "next" sample-tree)
+                                 '()
+                                 1))
              (define stepper identity)
-             (define ses (session zip stepper 1))
-             (define response (back! ses))
+             (define ses (session zip stepper 1 default-search-strategy))
+             (define-values (response ses^) (back! ses))
              (check-equal? (response-code response) 200)
              (check-equal? (response-message response) #"OK")
              (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
              (check-equal? (response-headers response)
-                           (list (header #"X-Is-Last" #"true")))
+                           (list (header #"X-Is-Start" #"true")))
              (check-sample-program-response response 0 "Initialize Program")
-             (define new-zipper (session-zipper ses))
-             (check-equal? (zipper-prev new-zipper) '())
-             (check-equal? (zipper-curr new-zipper) (step "Initialize Program" sample-tree))
-             (check-equal? (zipper-next new-zipper) '(test))
-             (check-equal? (zipper-idx new-zipper) 0))
+             (match-define (session (zipper prev curr next idx) _ _ _) ses^)
+             (check-equal? prev '())
+             (check-equal? curr (step "Initialize Program" sample-tree))
+             (check-equal? next (list (step "next" sample-tree)))
+             (check-equal? idx 0))
 
   (test-case "back! sends initial state when multiple things in prev cache and updates state"
-              (define zip (zipper (list (step "Initialize Program" sample-tree) 'test1) 'test2 '() 2))
+              (define zip (zipper (list (step "Initialize Program" sample-tree)
+                                        (step "test1" sample-tree))
+                                  (step "test2" sample-tree)
+                                  '()
+                                  2))
               (define stepper identity)
-              (define ses (session zip stepper 1))
-              (define response (back! ses))
+              (define ses (session zip stepper 1 default-search-strategy))
+              (define-values (response ses^) (back! ses))
               (check-equal? (response-code response) 200)
               (check-equal? (response-message response) #"OK")
               (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
               (check-equal? (response-headers response) '())
               (check-sample-program-response response 1 "Initialize Program")
-              (define new-zipper (session-zipper ses))
-              (check-equal? (zipper-prev new-zipper) '(test1))
-              (check-equal? (zipper-curr new-zipper) (step "Initialize Program" sample-tree))
-              (check-equal? (zipper-next new-zipper) '(test2))
-              (check-equal? (zipper-idx new-zipper) 1))
+              (match-define (session (zipper prev curr next idx) _ _ _) ses^)
+              (check-equal? prev (list (step "test1" sample-tree)))
+              (check-equal? curr (step "Initialize Program" sample-tree))
+              (check-equal? next (list (step "test2" sample-tree)))
+              (check-equal? idx 1))
   )
 
 (define-test-suite INIT-SEARCH-STRATEGY!
@@ -357,29 +391,30 @@
   #:after (thunk (displayln "Finished running tests for init search strategy binding!."))
 
   (test-case "late flip strategy emits flip rules and no rail rules"
-             (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
-             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program #:strategy (search-strategy "late" "flip")) 'testid)) 200)
-             (check-equal? (session-search-strategy ses) (search-strategy "late" "flip"))
-             (define names (collect-step-names ses 24))
+             (define ses (session (make-empty-zipper) step/const-tree-output 1 default-search-strategy))
+             (define-values (response ses^) (init! ses (make-post-init-request disj-delay-program #:strategy (search-strategy "late" "flip")) 'testid))
+             (check-equal? (response-code response) 200)
+             (check-equal? (session-search-strategy ses^) (search-strategy "late" "flip"))
+             (define names (collect-step-names ses^ 24))
              (check-not-false (member "search-flip-fused-calls/delay-swap-left" names))
              (check-not-false (member "delay/invoke-delay" names))
              (check-false (member "rail-fused-calls/enter-right" names))
              (check-false (member "rail-fused-calls/return-left" names)))
 
   (test-case "early rail strategy emits railroad rules and no flip rule"
-             (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
-             (check-equal? (response-code (init! ses (make-post-init-request disj-delay-program #:strategy (search-strategy "early" "rail")) 'testid)) 200)
-             (check-equal? (session-search-strategy ses) (search-strategy "early" "rail"))
-             (define names (collect-step-names ses 24))
+             (define ses (session (make-empty-zipper) step/const-tree-output 1 default-search-strategy))
+             (define-values (response ses^) (init! ses (make-post-init-request disj-delay-program #:strategy (search-strategy "early" "rail")) 'testid))
+             (check-equal? (response-code response) 200)
+             (check-equal? (session-search-strategy ses^) (search-strategy "early" "rail"))
+             (define names (collect-step-names ses^ 24))
              (check-not-false (member "rail-seq-calls/enter-right" names))
              (check-not-false (member "rail-seq-calls/return-left" names))
              (check-not-false (member "delay/invoke-delay" names))
              (check-false (member "search-flip-seq-calls/delay-swap-left" names)))
 
   (test-case "late dfs relcall-delay profile expands calls without eager/lazy resume rules"
-             (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
-             (check-equal?
-              (response-code
+             (define ses (session (make-empty-zipper) step/const-tree-output 1 default-search-strategy))
+             (define-values (response ses^)
                (init!
                 ses
                 (make-post-init-request
@@ -391,17 +426,17 @@
                                                  'delayPlacement "relcall"))
                  #:strategy (search-strategy "late" "dfs"))
                 'testid))
-              200)
-             (check-equal? (session-search-strategy ses) (search-strategy "late" "dfs"))
-             (define names (collect-step-names ses 24))
+             (check-equal? (response-code response) 200)
+             (check-equal? (session-search-strategy ses^) (search-strategy "late" "dfs"))
+             (define names (collect-step-names ses^ 24))
              (check-not-false (member "search-base-fused-calls/expand" names))
              (check-false (ormap (lambda (nm)
                                    (regexp-match? #rx"eager|lazy|proceed" nm))
                                  names)))
 
   (test-case "disj delay placement does not also suspend plain relcalls"
-             (define ses (session (zipper '() #f '() 0) step/const-tree-output 1))
-             (define response
+             (define ses (session (make-empty-zipper) step/const-tree-output 1 default-search-strategy))
+             (define-values (response ses^)
                (init!
                 ses
                 (make-post-init-request
@@ -414,8 +449,8 @@
                  #:strategy (search-strategy "early" "rail"))
                 'testid))
              (check-equal? (response-code response) 200)
-             (check-equal? (session-search-strategy ses) (search-strategy "early" "rail"))
-             (define names (collect-step-names ses 16))
+             (check-equal? (session-search-strategy ses^) (search-strategy "early" "rail"))
+             (define names (collect-step-names ses^ 16))
              (check-not-false (member "delay/suspend-goal" names))
              (check-not-false (member "search-base-seq-calls/expand" names))
              (check-false (ormap (lambda (nm)

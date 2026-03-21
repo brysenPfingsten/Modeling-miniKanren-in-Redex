@@ -1,6 +1,7 @@
 #lang racket
 
 (require rackunit
+         rackunit/text-ui
          redex/reduction-semantics
          (prefix-in lang: "../src/search-lattice/languages/all.rkt")
          (prefix-in red: "../src/search-lattice/reduction-relations/all.rkt")
@@ -20,7 +21,7 @@
      (values name cfg)]
     [_ (error 'named-step "expected exactly one tagged successor, got ~e" succ*)]))
 
-(module+ test
+(define/provide-test-suite SEARCH-LATTICE
   (test-case "feature languages reflect the new split and omit proceed"
     (check-true (redex-match? lang:delay-lang s '(delay (empty-tree))))
     (check-false (redex-match? lang:delay-lang s '(proceed (empty-tree))))
@@ -259,3 +260,6 @@
        (,gamma-delay
         (((delay (empty-tree)) +-> (⊤ ,sigma-b))
          (empty-stream)))))))
+
+(module+ test
+  (run-tests SEARCH-LATTICE))

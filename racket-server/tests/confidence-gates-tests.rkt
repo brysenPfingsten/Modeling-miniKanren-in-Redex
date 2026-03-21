@@ -13,12 +13,13 @@
          "../src/transpiler.rkt"
          "../src/sexpr-read.rkt"
          "./test-http-helpers.rkt"
-         "./variant-test-support.rkt"
+         "./runtime-test-support.rkt"
          "./example-compat-tests.rkt")
 
 (provide CONFIDENCE-GATES)
 
 (define TRACE-STEP-CAP 30)
+(define PAYLOAD-STEP-CAP 25)
 
 (define (example-src label)
   (for/first ([pr (in-list (frontend-example-programs))]
@@ -26,29 +27,42 @@
               #:when (equal? example-label label))
     src))
 
-(define (strategy-label strategy)
-  (format "~a/~a"
-          (search-strategy-hoist strategy)
-          (search-strategy-scheduler strategy)))
-
-(define (trace-steps strategy label [compile-profile #f])
+(define (example-cfg label [compile-profile #f])
   (define src (example-src label))
   (unless src
     (error 'trace-steps (format "missing example label: ~a" label)))
-  (define-values (cfg0 _html)
+  (define-values (cfg _html)
     (parse-prog/canonical (read-all-sexprs (open-input-string src))
                           #:compile-profile compile-profile))
-  (define step-once (lookup-search-step-once strategy))
-  (let loop ([cfg cfg0] [i 0] [acc '()])
-    (define next* (step-once cfg))
-    (cond
-      [(null? next*)
-       (values (reverse acc) (if (final-config? cfg) 'value 'stuck) cfg)]
-      [(>= i TRACE-STEP-CAP)
-       (values (reverse acc) 'cap cfg)]
-      [else
-       (match-define (list nm cfg1) (first next*))
-       (loop cfg1 (add1 i) (cons nm acc))])))
+  cfg)
+
+(define (strategy-label strategy)
+  (match-define (search-strategy hoist scheduler)
+    strategy)
+  (format "~a/~a" hoist scheduler))
+
+(define (trace-steps strategy
+                     label
+                     [compile-profile #f]
+                     [cfg (example-cfg label compile-profile)]
+                     [step-once (lookup-search-step-once strategy)]
+                     [i 0]
+                     [acc '()])
+  (define next*
+    (step-once cfg))
+  (match next*
+    ['()
+     (values (reverse acc) (if (final-config? cfg) 'value 'stuck) cfg)]
+    [(list _ ...) #:when (>= i TRACE-STEP-CAP)
+     (values (reverse acc) 'cap cfg)]
+    [(list (list nm cfg1) _ ...)
+     (trace-steps strategy
+                  label
+                  compile-profile
+                  cfg1
+                  step-once
+                  (add1 i)
+                  (cons nm acc))]))
 
 (define (named-step? nm)
   (and (string? nm)
@@ -59,6 +73,33 @@
              [last-step "<none>"])
             ([nm (in-list steps)])
     (values (add1 count) nm)))
+
+(define (count-non-null-step-payloads strategy label ses [i 0] [seen 0])
+  (cond
+    [(>= i PAYLOAD-STEP-CAP) seen]
+    [else
+     (define-values (step-resp next-session)
+       (step! ses))
+     (define body
+       (response-body->string step-resp))
+     (cond
+       [(string=? body "null")
+        (count-non-null-step-payloads strategy
+                                      label
+                                      next-session
+                                      (add1 i)
+                                      seen)]
+       [else
+        (assert-step-payload-shape (string->jsexpr body)
+                                   (format "~a / ~a step ~a"
+                                           (strategy-label strategy)
+                                           label
+                                           i))
+        (count-non-null-step-payloads strategy
+                                      label
+                                      next-session
+                                      (add1 i)
+                                      (add1 seen))])]))
 
 (define REPRESENTATIVE-TRACES
   (list
@@ -110,30 +151,18 @@
     (for ([pr (in-list pairs)])
       (match-define (list strategy label) pr)
       (define src (example-src label))
-      (define ses
-        (session (zipper '() #f '() 0)
-                 (make-stepper (lookup-search-step-once default-search-strategy))
-                 1))
-      (define init-resp (init! ses (make-post-init-request src #:strategy strategy) 'shape-id))
+      (define ses (make-empty-session))
+      (define-values (init-resp ses^) (init! ses (make-post-init-request src #:strategy strategy) 'shape-id))
       (check-equal? (response-code init-resp) 200
                     (format "init failed for ~a / ~a" (strategy-label strategy) label))
-      (check-equal? (session-search-strategy ses) strategy
+      (check-equal? (session-search-strategy ses^) strategy
                     (format "session strategy binding drifted for ~a / ~a"
                             (strategy-label strategy)
                             label))
       (assert-step-payload-shape (string->jsexpr (response-body->string init-resp))
                                  (format "~a / ~a init" (strategy-label strategy) label))
-      (define seen 0)
-      (for ([i (in-range 25)])
-        (define step-resp (step! ses))
-        (define body (response-body->string step-resp))
-        (unless (string=? body "null")
-          (set! seen (add1 seen))
-          (assert-step-payload-shape (string->jsexpr body)
-                                     (format "~a / ~a step ~a"
-                                             (strategy-label strategy)
-                                             label
-                                             i))))
+      (define seen
+        (count-non-null-step-payloads strategy label ses^))
       (check-true (> seen 0)
                   (format "~a / ~a produced no non-null steps"
                           (strategy-label strategy)

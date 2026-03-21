@@ -88,12 +88,12 @@
   [(invalid? sub ((t_1 t_2) (t_3 t_4) ...))
    (invalid? sub ((t_3 t_4) ...))])
 
-(define (fresh-u-symbol used)
-  (let loop ([n 0])
-    (define u (string->symbol (format "u:~a" n)))
-    (if (member u used)
-        (loop (add1 n))
-        u)))
+(define (fresh-u-symbol used [n 0])
+  (define u
+    (string->symbol (format "u:~a" n)))
+  (cond
+    [(member u used) (fresh-u-symbol used (add1 n))]
+    [else u]))
 
 (define-metafunction core-lang
   fresh-substitution : c d -> ((x u) ...)
