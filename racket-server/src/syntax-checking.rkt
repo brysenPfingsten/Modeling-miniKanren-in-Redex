@@ -3,9 +3,10 @@
 (require redex/reduction-semantics
          racket/port
          racket/sandbox)
-(require "wf/all.rkt"
+(require "search-lattice/languages/canonical-core-lang.rkt"
+         "search-lattice/wf/all.rkt"
          "sexpr-read.rkt"
-         "languages/l0.rkt")
+         "transpiler.rkt")
 (provide canonical-core-shape?
          canonical-well-formed?
          canonical-target-well-formed?
@@ -16,28 +17,28 @@
 ;; Canonical-config -> boolean
 ;; Purpose: True when config is in the core judgment fragment shape.
 (define (canonical-core-shape? canonical-config)
-  (and (redex-match? L0 config canonical-config)
-       (judgment-holds (core-shape? ,canonical-config))))
+  (and (redex-match? canonical-core-lang config canonical-config)
+       (judgment-holds (core-shape?/canonical ,canonical-config))))
 
 ;; Canonical-config -> boolean
 ;; Purpose: True when canonical config satisfies core wf-config? judgment.
 (define (canonical-well-formed? canonical-config)
-  (and (redex-match? L0 config canonical-config)
-       (judgment-holds (wf-config? ,canonical-config))))
+  (and (redex-match? canonical-core-lang config canonical-config)
+       (judgment-holds (wf-config/canonical-core? ,canonical-config))))
 
 ;; Canonical-config String -> boolean
 ;; Purpose: True when canonical config is in the selected target language domain.
-(define (canonical-target-in-domain? canonical-config [target-id "L4/config"])
+(define (canonical-target-in-domain? canonical-config [target-id canonical-parser-target-id])
   (config-in-target-domain? target-id canonical-config))
 
 ;; Canonical-config String -> boolean
 ;; Purpose: True when canonical config is wf under the selected target judgment.
-(define (canonical-target-well-formed? canonical-config [target-id "L4/config"])
+(define (canonical-target-well-formed? canonical-config [target-id canonical-parser-target-id])
   (wf-config/target? target-id canonical-config))
 
 ;; Canonical-config String -> String or Error
 ;; Purpose: Canonical target-specific wf gate used by runtime and tests.
-(define (check-canonical-well-formed canonical-config [target-id "L4/config"])
+(define (check-canonical-well-formed canonical-config [target-id canonical-parser-target-id])
   (if (and (canonical-target-in-domain? canonical-config target-id)
            (canonical-target-well-formed? canonical-config target-id))
       ""

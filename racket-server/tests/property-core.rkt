@@ -7,9 +7,9 @@
          redex/reduction-semantics
          (prefix-in rt: "../src/random-test-support.rkt")
          (prefix-in gk: "./generator-kernel.rkt")
-         "../src/languages/l0.rkt"
-         "../src/wf/l0.rkt"
-         "../src/reduction-relations/l0.rkt")
+         "../src/search-lattice/languages/core-lang.rkt"
+         "../src/search-lattice/wf/core-wf.rkt"
+         "../src/search-lattice/reduction-relations/core-red.rkt")
 
 ;; Randomized test tuning constants.
 ;; Edit these values directly when you want different pressure/coverage.
@@ -19,7 +19,6 @@
 (define PROPERTY-SEED 424242)
 (define PROPERTY-U-POOL-SIZE 24)
 (define PROPERTY-X-POOL-SIZE 16)
-(define PROPERTY-R-POOL-SIZE 16)
 (define PROPERTY-C-MAX 4)
 (define PROPERTY-C-EXTRA-MAX 2)
 (define PROPERTY-MIN-NONEMPTY-C-HITS 1)
@@ -30,7 +29,6 @@
 (gk:require-positive 'PROPERTY-TERM-SIZE PROPERTY-TERM-SIZE 'property-core)
 (gk:require-positive 'PROPERTY-U-POOL-SIZE PROPERTY-U-POOL-SIZE 'property-core)
 (gk:require-positive 'PROPERTY-X-POOL-SIZE PROPERTY-X-POOL-SIZE 'property-core)
-(gk:require-positive 'PROPERTY-R-POOL-SIZE PROPERTY-R-POOL-SIZE 'property-core)
 (gk:require-positive 'PROPERTY-C-MAX PROPERTY-C-MAX 'property-core)
 (gk:require-nonnegative 'PROPERTY-C-EXTRA-MAX PROPERTY-C-EXTRA-MAX 'property-core)
 (unless (<= PROPERTY-C-MAX PROPERTY-U-POOL-SIZE)
@@ -56,35 +54,32 @@
 
 (define PROPERTY-RNG (rt:make-seeded-rng PROPERTY-SEED))
 
-(define (prandom n)
-  (rt:rng-random PROPERTY-RNG n))
-
 (define (final-config? cfg)
-  (redex-match? L0 end-config cfg))
+  (redex-match? core-lang end-cfg cfg))
 
 (define (wf-config-term? cfg)
-  (judgment-holds (wf-config? ,cfg)))
+  (judgment-holds (wf-cfg/core? ,cfg)))
 
 (define (core-shape-term? cfg)
-  (judgment-holds (core-shape? ,cfg)))
+  (redex-match? core-lang cfg cfg))
 
 (define (unique-decomposition? cfg)
-  (define next* (apply-reduction-relation Rl0-core cfg))
+  (define next* (apply-reduction-relation core-red cfg))
   (cond
     [(final-config? cfg) (null? next*)]
     [else (= (length next*) 1)]))
 
 (define (progress? cfg)
   (or (final-config? cfg)
-      (not (null? (apply-reduction-relation Rl0-core cfg)))))
+      (not (null? (apply-reduction-relation core-red cfg)))))
 
 (define (wf-preserved? cfg)
-  (for/and ([cfg^ (in-list (apply-reduction-relation Rl0-core cfg))])
+  (for/and ([cfg^ (in-list (apply-reduction-relation core-red cfg))])
     (wf-config-term? cfg^)))
 
 (define (core-shape-preserved? cfg)
   (and (core-shape-term? cfg)
-       (for/and ([cfg^ (in-list (apply-reduction-relation Rl0-core cfg))])
+       (for/and ([cfg^ (in-list (apply-reduction-relation core-red cfg))])
          (core-shape-term? cfg^))))
 
 ;; Pool sizes bound generated test-data diversity only; they do not bound the
@@ -94,9 +89,6 @@
 
 (define X-POOL
   (gk:make-x-pool PROPERTY-X-POOL-SIZE))
-
-(define R-POOL
-  (gk:make-r-pool PROPERTY-R-POOL-SIZE))
 
 (define (extend-c c max-extra)
   (when (> (length c) PROPERTY-C-MAX)
@@ -175,21 +167,9 @@
        ,(gen-goal '() c^ (sub1 depth))
        ,c^)]))
 
-(define (gen-rel-def r)
-  (define d (rt:random-distinct/rng PROPERTY-RNG X-POOL (prandom 3)))
-  `(,r
-    ,d
-    ,(gen-goal d '() (max-depth))))
-
-(define (gen-rel-env)
-  (define count (prandom 3))
-  (map gen-rel-def
-       (rt:random-distinct/rng PROPERTY-RNG R-POOL count)))
-
 (define (generate-wf-config/constructive)
   (define cfg
-    `(,(gen-rel-env)
-      ,(gen-tree '() (max-depth))
+    `(,(gen-tree '() (max-depth))
       (empty-stream)))
   (unless (wf-config-term? cfg)
     (error 'generate-wf-config/constructive
@@ -263,8 +243,15 @@
              (or has-exists? tree-exists)
              (or has-conj? tree-conj)
              (max tree-cmax stream-cmax))]
-    [`(,Gamma ,s_work)
-     (config-coverage `(,Gamma ,s_work (empty-stream)))]
+    [`(,s_work ,as)
+     (define-values (tree-nonempty tree-exists tree-conj tree-cmax)
+       (tree-coverage s_work))
+     (define-values (stream-nonempty stream-cmax)
+       (answer-stream-coverage as))
+     (values (or tree-nonempty stream-nonempty)
+             tree-exists
+             tree-conj
+             (max tree-cmax stream-cmax))]
     [_ (values #f #f #f 0)]))
 
 (define (check-wf-guarded-property label pred)
@@ -339,13 +326,12 @@
   #:before
   (thunk
    (displayln
-    (format "Running core property tests (attempts=~a, term-size=~a, seed=~a, pools u/x/r=~a/~a/~a, c-max=~a, c-extra-max=~a)..."
+    (format "Running core property tests (attempts=~a, term-size=~a, seed=~a, pools u/x=~a/~a, c-max=~a, c-extra-max=~a)..."
             PROPERTY-ATTEMPTS
             PROPERTY-TERM-SIZE
             PROPERTY-SEED
             PROPERTY-U-POOL-SIZE
             PROPERTY-X-POOL-SIZE
-            PROPERTY-R-POOL-SIZE
             PROPERTY-C-MAX
             PROPERTY-C-EXTRA-MAX)))
   #:after (thunk (displayln "Finished core property tests."))

@@ -6,11 +6,7 @@
          render-micro-source
          default-source-mode
          normalize-source-mode
-         compile-profile
-         compile-profile?
-         compile-profile-conj-assoc
-         compile-profile-disj-assoc
-         compile-profile-delay-placement
+         (struct-out compile-profile)
          canonical-compile-profile
          canonical-compile-profile-jsexpr
          normalize-compile-profile
@@ -42,15 +38,17 @@
 ;-----------------------------------------------
 
 ;; Canonical parser target for backend stepping.
-(define canonical-parser-profile "surface->l4")
-(define canonical-parser-target-id "L4/config")
+(define canonical-parser-profile "surface->canonical")
+(define canonical-parser-target-id "canonical/config")
 
 (define default-source-mode "mini")
 
 (define (compile-profile->jsexpr profile)
-  (hasheq 'conjAssoc (compile-profile-conj-assoc profile)
-          'disjAssoc (compile-profile-disj-assoc profile)
-          'delayPlacement (compile-profile-delay-placement profile)))
+  (match-define (compile-profile conj-assoc disj-assoc delay-placement)
+    profile)
+  (hasheq 'conjAssoc conj-assoc
+          'disjAssoc disj-assoc
+          'delayPlacement delay-placement))
 
 (define canonical-compile-profile
   (compile-profile "left" "right" "relbody"))
@@ -467,6 +465,8 @@
     [_ goal]))
 
 (define (surface-goal->micro goal profile)
+  (match-define (compile-profile conj-assoc disj-assoc _)
+    profile)
   (match goal
     [(fresh vars g)
      (fresh vars (surface-goal->micro g profile))]
@@ -474,12 +474,12 @@
      (combine-disj
       (for/list ([clause (in-list clauses)])
         (surface-goal->micro clause profile))
-      (compile-profile-disj-assoc profile))]
+      disj-assoc)]
     [(conj _ _)
      (combine-conj
       (for/list ([piece (in-list (flatten-conj-tree goal))])
         (surface-goal->micro piece profile))
-      (compile-profile-conj-assoc profile))]
+      conj-assoc)]
     [(disj g1 g2)
      (disj (surface-goal->micro g1 profile)
            (surface-goal->micro g2 profile))]
@@ -494,6 +494,8 @@
     [else goal]))
 
 (define (mini-ast->normalized-micro ast profile)
+  (match-define (compile-profile _ _ delay-placement)
+    profile)
   (match ast
     [(prog rels (run n q goal))
      (define normalized-rels
@@ -503,16 +505,16 @@
            (surface-goal->micro rel-goal profile))
          (defrel name
                  lop
-                 (if (equal? (compile-profile-delay-placement profile) "relbody")
+                 (if (equal? delay-placement "relbody")
                      (compiled-delay-goal normalized-goal)
                      (apply-delay-placement normalized-goal
-                                            (compile-profile-delay-placement profile)
+                                            delay-placement
                                             compiled-delay-goal)))))
      (prog normalized-rels
            (run n
                 q
                 (apply-delay-placement (surface-goal->micro goal profile)
-                                       (compile-profile-delay-placement profile)
+                                       delay-placement
                                        compiled-delay-goal)))]
     [_ (error 'mini-ast->normalized-micro
               "unexpected source AST shape: ~e"

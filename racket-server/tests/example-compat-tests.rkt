@@ -7,7 +7,7 @@
          racket/match
          "../src/transpiler.rkt"
          "../src/sexpr-read.rkt"
-         "../src/languages/l4-railroad.rkt")
+         "../src/search-lattice/languages/canonical-lang.rkt")
 
 (provide EXAMPLE-COMPAT
          frontend-example-programs)
@@ -62,9 +62,9 @@
 (define (assert-example-compat! name src)
   (define-values (canonical html) (parse-src/canonical src))
   (check-true (string? html) (format "~a should produce html-guid source" name))
-  (check-true (redex-match? L4 config canonical)
-              (format "~a should lift into L4 config syntax" name))
-  (check-true (redex-match? L4 config canonical)
+  (check-true (redex-match? canonical-lang config canonical)
+              (format "~a should lift into canonical config syntax" name))
+  (check-true (redex-match? canonical-lang config canonical)
               (format "~a should satisfy canonical target predicate (~a)"
                       name
                       canonical-parser-target-id)))
@@ -87,8 +87,8 @@
                               #:source-mode "micro"))
       (check-true (string? html)
                   (format "~a rendered micro should produce html-guid source" label))
-      (check-true (redex-match? L4 config canonical)
-                  (format "~a rendered micro should lift into L4 config syntax" label)))))
+      (check-true (redex-match? canonical-lang config canonical)
+                  (format "~a rendered micro should lift into canonical config syntax" label)))))
 
 (module+ test
   (run-tests EXAMPLE-COMPAT))

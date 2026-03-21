@@ -1,6 +1,8 @@
 #lang racket
 
 (require "./core-lang.rkt"
+         "./canonical-core-lang.rkt"
+         "./canonical-lang.rkt"
          "./delay-lang.rkt"
          "./disj-lang.rkt"
          "./disj-seq-lang.rkt"
@@ -16,6 +18,8 @@
          "./rail-fused-calls-lang.rkt")
 
 (provide (all-from-out "./core-lang.rkt")
+         (all-from-out "./canonical-core-lang.rkt")
+         (all-from-out "./canonical-lang.rkt")
          (all-from-out "./delay-lang.rkt")
          (all-from-out "./disj-lang.rkt")
          (all-from-out "./disj-seq-lang.rkt")

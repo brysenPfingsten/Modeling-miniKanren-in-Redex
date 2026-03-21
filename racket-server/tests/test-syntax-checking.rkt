@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../src/syntax-checking.rkt"
-         "../src/languages/l0.rkt"
+         "../src/search-lattice/languages/canonical-core-lang.rkt"
          "../src/sexpr-read.rkt"
          "../src/transpiler.rkt")
 (require redex/reduction-semantics
@@ -16,13 +16,13 @@
 
 (define-test-suite WELL-FORMED
   (test-case "Well-formed canonical config is accepted"
-             (check-true (redex-match? L0 config WELL-FORMED-CONFIG))
+             (check-true (redex-match? canonical-core-lang config WELL-FORMED-CONFIG))
              (check-true (canonical-core-shape? WELL-FORMED-CONFIG))
              (check-true (canonical-well-formed? WELL-FORMED-CONFIG))
              (check-not-exn (λ () (check-canonical-well-formed WELL-FORMED-CONFIG)) ""))
 
   (test-case "Malformed canonical config is rejected"
-             (check-true (redex-match? L0 config BAD-FORMED-CONFIG))
+             (check-true (redex-match? canonical-core-lang config BAD-FORMED-CONFIG))
              (check-true (canonical-core-shape? BAD-FORMED-CONFIG))
              (check-false (canonical-well-formed? BAD-FORMED-CONFIG))
              (check-exn exn:fail?
@@ -38,28 +38,28 @@
              (check-exn exn:fail?
                         (λ () (check-canonical-well-formed bad-canonical))))
 
-  (test-case "Canonical L4 gate accepts non-core shape directly"
+  (test-case "Canonical gate accepts non-core shape directly"
              (define non-core-canonical '(() (delay (empty-tree)) (empty-stream)))
              (check-false (canonical-core-shape? non-core-canonical))
-             (check-true (canonical-target-in-domain? non-core-canonical "L4/config"))
-             (check-true (canonical-target-well-formed? non-core-canonical "L4/config"))
+             (check-true (canonical-target-in-domain? non-core-canonical "canonical/config"))
+             (check-true (canonical-target-well-formed? non-core-canonical "canonical/config"))
              (check-not-exn
               (λ () (check-canonical-well-formed non-core-canonical))))
 
   (test-case "Canonical gate rejects out-of-target-domain term"
              (define out-of-domain-canonical '(bogus))
-             (check-false (canonical-target-in-domain? out-of-domain-canonical "L4/config"))
+             (check-false (canonical-target-in-domain? out-of-domain-canonical "canonical/config"))
              (check-exn exn:fail?
                         (λ () (check-canonical-well-formed out-of-domain-canonical))))
 
-  (test-case "Surface parser emits canonical config accepted by L4 gate"
+  (test-case "Surface parser emits canonical config accepted by canonical gate"
              (define src
                "(defrel (same x y) (== x y))
 (run* (q) (same q 'cat))")
              (define-values (canonical _html)
                (parse-prog/canonical (read-all-sexprs (open-input-string src))))
-             (check-true (canonical-target-in-domain? canonical "L4/config"))
-             (check-true (canonical-target-well-formed? canonical "L4/config"))
+             (check-true (canonical-target-in-domain? canonical "canonical/config"))
+             (check-true (canonical-target-well-formed? canonical "canonical/config"))
              (check-not-exn
               (λ () (check-canonical-well-formed canonical)))))
 

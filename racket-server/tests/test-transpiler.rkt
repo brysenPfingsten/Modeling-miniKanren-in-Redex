@@ -3,8 +3,8 @@
          rackunit/text-ui
          racket/list
          redex/reduction-semantics
-         (prefix-in l4: "../src/languages/l4-railroad.rkt")
-         (prefix-in j: "../src/wf/all.rkt")
+         (prefix-in canonical: "../src/search-lattice/languages/canonical-lang.rkt")
+         (prefix-in wf: "../src/search-lattice/wf/all.rkt")
          "../src/sexpr-read.rkt"
          "../src/transpiler.rkt")
 
@@ -151,7 +151,7 @@
     (define PROG '((run* (q) (== 1 1) (== 2 2) (== 3 3))))
     (define-values (cfg _) (parse-prog/canonical PROG))
     (define goal (query-goal-of cfg))
-    (check-true (redex-match? l4:L4 g (term ,goal)))
+    (check-true (redex-match? canonical:canonical-lang g (term ,goal)))
     (check-true
      (match goal
        [`((,_ ∧ ,_ ,_) ∧ ,_ ,_) #t]
@@ -167,7 +167,7 @@
                       [(same q 'fish)]))))
     (define-values (cfg _) (parse-prog/canonical PROG))
     (define goal (query-goal-of cfg))
-    (check-true (redex-match? l4:L4 g (term ,goal)))
+    (check-true (redex-match? canonical:canonical-lang g (term ,goal)))
     (check-true
      (match goal
        [`((,_ ∨ (,_ ∨ ,_ ,_) ,_) ∨ ,_ ,_) #t]
@@ -213,21 +213,23 @@
       (define-values (conj-cfg _conj-html)
         (parse-src/canonical conj-source #:compile-profile profile))
       (define conj-goal (query-goal-of conj-cfg))
-      (if (equal? conj-assoc "left")
-          (check-true
-           (match conj-goal
-             [`((,_ ∧ ,_ ,_) ∧ ,_ ,_) #t]
-             [_ #f])
-           (format "expected left-associated conjunction for profile ~e, got ~e"
-                   profile
-                   conj-goal))
-          (check-true
-           (match conj-goal
-             [`(,_ ∧ (,_ ∧ ,_ ,_) ,_) #t]
-             [_ #f])
-           (format "expected right-associated conjunction for profile ~e, got ~e"
-                   profile
-                   conj-goal)))
+      (cond
+        [(equal? conj-assoc "left")
+         (check-true
+          (match conj-goal
+            [`((,_ ∧ ,_ ,_) ∧ ,_ ,_) #t]
+            [_ #f])
+          (format "expected left-associated conjunction for profile ~e, got ~e"
+                  profile
+                  conj-goal))]
+        [else
+         (check-true
+          (match conj-goal
+            [`(,_ ∧ (,_ ∧ ,_ ,_) ,_) #t]
+            [_ #f])
+          (format "expected right-associated conjunction for profile ~e, got ~e"
+                  profile
+                  conj-goal))])
 
       (define-values (disj-cfg _disj-html)
         (parse-src/canonical disj-source #:compile-profile profile))
@@ -242,21 +244,23 @@
                     (format "disjunction delay placement mismatch for profile ~e: ~e"
                             profile
                             disj-goal))
-      (if (equal? disj-assoc "left")
-          (check-true
-           (match stripped-disj
-             [`((,_ ∨ ,_ ,_) ∨ ,_ ,_) #t]
-             [_ #f])
-           (format "expected left-associated disjunction for profile ~e, got ~e"
-                   profile
-                   disj-inner))
-          (check-true
-           (match stripped-disj
-             [`(,_ ∨ (,_ ∨ ,_ ,_) ,_) #t]
-             [_ #f])
-           (format "expected right-associated disjunction for profile ~e, got ~e"
-                   profile
-                   disj-inner)))))
+      (cond
+        [(equal? disj-assoc "left")
+         (check-true
+          (match stripped-disj
+            [`((,_ ∨ ,_ ,_) ∨ ,_ ,_) #t]
+            [_ #f])
+          (format "expected left-associated disjunction for profile ~e, got ~e"
+                  profile
+                  disj-inner))]
+        [else
+         (check-true
+          (match stripped-disj
+            [`(,_ ∨ (,_ ∨ ,_ ,_) ,_) #t]
+            [_ #f])
+          (format "expected right-associated disjunction for profile ~e, got ~e"
+                  profile
+                  disj-inner))])))
 
   (test-case "delay placement distinguishes query relcalls from relation bodies"
     (for* ([conj-assoc (in-list '("left" "right"))]
@@ -310,8 +314,8 @@
   (test-case "direct micro source accepts binary conj/disj, Zzz, and disequality"
     (define-values (cfg html)
       (parse-src/canonical micro-source #:source-mode "micro"))
-    (check-true (redex-match? l4:L4 config cfg))
-    (check-true (j:wf-config/target? "L4/config" cfg))
+    (check-true (redex-match? canonical:canonical-lang config cfg))
+    (check-true (wf:wf-config/target? "canonical/config" cfg))
     (check-true (string? html)))
 
   (test-case "direct micro source rejects source-level delay spelling"
@@ -384,7 +388,7 @@
     (define-values (cfg _html)
       (parse-src/canonical "(run* (q) (=/= q 'cat))"))
     (define goal (query-goal-of cfg))
-    (check-true (redex-match? l4:L4 g (term ,goal)))
+    (check-true (redex-match? canonical:canonical-lang g (term ,goal)))
     (check-true
      (match goal
        [`(,_ != ,_ ,_) #t]
@@ -394,7 +398,7 @@
     (define-values (cfg _html)
       (parse-src/canonical "(run* (q) (=/= q 'cat))" #:source-mode "micro"))
     (define goal (query-goal-of cfg))
-    (check-true (redex-match? l4:L4 g (term ,goal)))
+    (check-true (redex-match? canonical:canonical-lang g (term ,goal)))
     (check-true
      (match goal
        [`(,_ != ,_ ,_) #t]
@@ -402,21 +406,21 @@
 
 (define-test-suite CANONICAL-TRANSLATION
   (test-case
-   "run*-only canonical translation is L4/config and wf"
+   "run*-only canonical translation is canonical/config and wf"
    (define-values (cfg html)
      (parse-src/canonical "(run* (q) (== 'a 'a))"))
-   (check-true (redex-match? l4:L4 config cfg))
-   (check-true (j:wf-config/target? "L4/config" cfg))
+   (check-true (redex-match? canonical:canonical-lang config cfg))
+   (check-true (wf:wf-config/target? "canonical/config" cfg))
    (check-true (string? html)))
 
   (test-case
-   "defrel+run* canonical translation is L4/config and wf"
+   "defrel+run* canonical translation is canonical/config and wf"
    (define-values (cfg html)
      (parse-src/canonical
       "(defrel (same x y) (== x y))
 (run* (q) (same q 'cat))"))
-   (check-true (redex-match? l4:L4 config cfg))
-   (check-true (j:wf-config/target? "L4/config" cfg))
+   (check-true (redex-match? canonical:canonical-lang config cfg))
+   (check-true (wf:wf-config/target? "canonical/config" cfg))
    (check-true (string? html)))
 
   (test-case
@@ -425,8 +429,8 @@
      (parse-src/canonical
       "(defrel (same x y) (== x y))
 (run* (q) (same q))"))
-   (check-true (redex-match? l4:L4 config cfg))
-   (check-false (j:wf-config/target? "L4/config" cfg)))
+   (check-true (redex-match? canonical:canonical-lang config cfg))
+   (check-false (wf:wf-config/target? "canonical/config" cfg)))
 
   )
 

@@ -148,12 +148,12 @@
    (invalid? sub ((t_3 t_4) ...))])
 
 ;; Pick the least-indexed u:n not already present in `used`.
-(define (fresh-u-symbol used)
-  (let loop ([n 0])
-    (define u (string->symbol (format "u:~a" n)))
-    (if (member u used)
-        (loop (add1 n))
-        u)))
+(define (fresh-u-symbol used [n 0])
+  (define u
+    (string->symbol (format "u:~a" n)))
+  (cond
+    [(member u used) (fresh-u-symbol used (add1 n))]
+    [else u]))
 
 ;; Build ((x u) ...) where each u is fresh w.r.t. c and previously chosen u's.
 (define-metafunction L0

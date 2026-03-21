@@ -2,6 +2,7 @@
 
 (require redex/reduction-semantics
          "../languages/calls-lang.rkt"
+         "./calls-arity.rkt"
          "./core-wf.rkt")
 
 (provide wf-goal/calls?
@@ -11,6 +12,14 @@
          wf-config/calls?)
 
 (check-redundancy #t)
+
+(define-metafunction
+  calls-lang
+  relcall-arity-ok? : r (t ...) ((r d g) ...) -> boolean
+  [(relcall-arity-ok? r_call (t ...) ((r_1 d_1 g_1) ...))
+   ,(relcall-arity-ok/host (term r_call)
+                           (term (t ...))
+                           (term ((r_1 d_1 g_1) ...)))])
 
 (define-judgment-form
   calls-lang
@@ -41,9 +50,10 @@
    ------------------- "=/=-wf/calls"
    (wf-goal/calls? (t_1 != t_2 tag) Γ (x_1 ...) c)]
   [(wf-term? t (x_1 ...) c) ...
+   (where #t (relcall-arity-ok? r (t ...) ((r_1 d_1 g_1) ...)))
    ------------------- "relcall-wf/calls"
    (wf-goal/calls? (r t ... tag)
-                   ((r_1 d_1 g_1) ... (r d g_env) (r_2 d_2 g_2) ...)
+                   ((r_1 d_1 g_1) ...)
                    (x_1 ...)
                    c)])
 
