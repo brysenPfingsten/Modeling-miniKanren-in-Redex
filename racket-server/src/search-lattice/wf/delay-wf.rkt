@@ -45,12 +45,12 @@
   #:mode (wf-frontier/delay? I I)
   [------------------- "empty frontier residual is wf/delay"
    (wf-frontier/delay? (empty-tree) c)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
    ------------------- "raw answer/state wf/delay"
    (wf-frontier/delay? (⊤ (state sub dis c_i trail tag)) c)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
    (wf-frontier/delay? f_tail c)
@@ -70,13 +70,13 @@
    (wf-frontier/delay? f_inner c_3)
    ------------------- "freshened frontier wf/delay"
    (wf-frontier/delay? (Freshened c_1 f_inner) c_2)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-goal/delay? g () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
    ------------------- "goal/state wf/delay"
    (wf-frontier/delay? (g (state sub dis c_i trail tag)) c)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-frontier/delay? f c_i)
    (wf-goal/delay? g () c_i)
    ------------------- "conj wf/delay"

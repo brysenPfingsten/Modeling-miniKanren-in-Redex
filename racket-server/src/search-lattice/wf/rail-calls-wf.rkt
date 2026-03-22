@@ -66,12 +66,12 @@
   #:mode (wf-frontier/rail-calls? I I I)
   [------------------- "empty frontier residual is wf/rail-calls"
    (wf-frontier/rail-calls? (empty-tree) Γ c)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
    ------------------- "raw answer/state wf/rail-calls"
    (wf-frontier/rail-calls? (⊤ (state sub dis c_i trail tag)) Γ c)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
    (wf-frontier/rail-calls? f_tail Γ c)
@@ -91,13 +91,13 @@
    (wf-frontier/rail-calls? f_inner Γ c_3)
    ------------------- "freshened frontier wf/rail-calls"
    (wf-frontier/rail-calls? (Freshened c_1 f_inner) Γ c_2)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-goal/rail-calls? g Γ () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
    ------------------- "goal/state wf/rail-calls"
    (wf-frontier/rail-calls? (g (state sub dis c_i trail tag)) Γ c)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-frontier/rail-calls? f Γ c_i)
    (wf-goal/rail-calls? g Γ () c_i)
    ------------------- "conj wf/rail-calls"

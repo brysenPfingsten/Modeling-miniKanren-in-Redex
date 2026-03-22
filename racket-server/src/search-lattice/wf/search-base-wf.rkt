@@ -49,12 +49,12 @@
   #:mode (wf-frontier/search-base? I I)
   [------------------- "empty frontier residual is wf/search-base"
    (wf-frontier/search-base? (empty-tree) c)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
    ------------------- "raw answer/state wf/search-base"
    (wf-frontier/search-base? (⊤ (state sub dis c_i trail tag)) c)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
    (wf-frontier/search-base? f_tail c)
@@ -74,13 +74,13 @@
    (wf-frontier/search-base? f_inner c_3)
    ------------------- "freshened frontier wf/search-base"
    (wf-frontier/search-base? (Freshened c_1 f_inner) c_2)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-goal/search-base? g () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
    ------------------- "goal/state wf/search-base"
    (wf-frontier/search-base? (g (state sub dis c_i trail tag)) c)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-frontier/search-base? f c_i)
    (wf-goal/search-base? g () c_i)
    ------------------- "conj wf/search-base"

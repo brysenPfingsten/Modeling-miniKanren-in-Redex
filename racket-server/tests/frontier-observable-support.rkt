@@ -5,6 +5,9 @@
 (provide count-bounced
          count-answers
          count-freshened
+         state-c-agrees-with-scope?
+         frontier-c-scope-agreement?
+         config-c-scope-agreement?
          frontier-exact-scope?
          config-exact-scope?
          trace-deterministic)
@@ -41,59 +44,108 @@
      (lvars-in a (lvars-in d acc))]
     [_ acc]))
 
-(define (state-exact-scope? st scope)
+(define (state-c-agrees-with-scope? st scope)
   (match st
     [`(state ,sub ,dis ,c ,trail ,_tag)
-     (and (same-members? c scope)
-          (subset? (lvars-in sub) scope)
+     (same-members? c scope)]
+    [_ #f]))
+
+(define (state-lvars-contained? st scope)
+  (match st
+    [`(state ,sub ,dis ,_ ,trail ,_tag)
+     (and (subset? (lvars-in sub) scope)
           (subset? (lvars-in dis) scope)
           (subset? (lvars-in trail) scope))]
     [_ #f]))
 
-(define (frontier-exact-scope? f [scope '()])
+(define (frontier-c-scope-agreement? f [scope '()])
   (match f
     ['(empty-tree) #t]
     ['Bounced #t]
     [(list 'Bounced '+ rest)
-     (frontier-exact-scope? rest scope)]
+     (frontier-c-scope-agreement? rest scope)]
     [(list (list '⊤ st) '+ rest)
-     (and (state-exact-scope? st scope)
-          (frontier-exact-scope? rest scope))]
+     (and (state-c-agrees-with-scope? st scope)
+          (frontier-c-scope-agreement? rest scope))]
     [(list prefix '+ rest)
-     (and (frontier-exact-scope? prefix scope)
-          (frontier-exact-scope? rest scope))]
+     (and (frontier-c-scope-agreement? prefix scope)
+          (frontier-c-scope-agreement? rest scope))]
     [(list 'Freshened intro inner)
      (and (distinct? intro)
           (for/and ([u (in-list intro)])
             (not (member? u scope)))
-          (frontier-exact-scope? inner (append intro scope)))]
+          (frontier-c-scope-agreement? inner (append intro scope)))]
     [(list '⊤ st)
-     (state-exact-scope? st scope)]
-    [(list g st)
-     (and (state-exact-scope? st scope)
-          (subset? (lvars-in g) scope))]
-    [(list inner '× g c)
+     (state-c-agrees-with-scope? st scope)]
+    [(list _ st)
+     (state-c-agrees-with-scope? st scope)]
+    [(list inner '× _ c)
      (and (same-members? c scope)
-          (subset? (lvars-in g) scope)
-          (frontier-exact-scope? inner scope))]
+          (frontier-c-scope-agreement? inner scope))]
     [(list 'delay inner)
-     (frontier-exact-scope? inner scope)]
+     (frontier-c-scope-agreement? inner scope)]
     [(list left '<-+ right)
-     (and (frontier-exact-scope? left scope)
-          (frontier-exact-scope? right scope))]
+     (and (frontier-c-scope-agreement? left scope)
+          (frontier-c-scope-agreement? right scope))]
     [(list left '+-> right)
-     (and (frontier-exact-scope? left scope)
-          (frontier-exact-scope? right scope))]
+     (and (frontier-c-scope-agreement? left scope)
+          (frontier-c-scope-agreement? right scope))]
     [_ #f]))
 
+(define (frontier-lvars-contained? f [scope '()])
+  (match f
+    ['(empty-tree) #t]
+    ['Bounced #t]
+    [(list 'Bounced '+ rest)
+     (frontier-lvars-contained? rest scope)]
+    [(list (list '⊤ st) '+ rest)
+     (and (state-lvars-contained? st scope)
+          (frontier-lvars-contained? rest scope))]
+    [(list prefix '+ rest)
+     (and (frontier-lvars-contained? prefix scope)
+          (frontier-lvars-contained? rest scope))]
+    [(list 'Freshened intro inner)
+     (and (distinct? intro)
+          (for/and ([u (in-list intro)])
+            (not (member? u scope)))
+          (frontier-lvars-contained? inner (append intro scope)))]
+    [(list '⊤ st)
+     (state-lvars-contained? st scope)]
+    [(list g st)
+     (and (state-lvars-contained? st scope)
+          (subset? (lvars-in g) scope))]
+    [(list inner '× g c)
+     (and (subset? (lvars-in g) scope)
+          (frontier-lvars-contained? inner scope))]
+    [(list 'delay inner)
+     (frontier-lvars-contained? inner scope)]
+    [(list left '<-+ right)
+     (and (frontier-lvars-contained? left scope)
+          (frontier-lvars-contained? right scope))]
+    [(list left '+-> right)
+     (and (frontier-lvars-contained? left scope)
+          (frontier-lvars-contained? right scope))]
+    [_ #f]))
+
+(define (frontier-exact-scope? f [scope '()])
+  (and (frontier-c-scope-agreement? f scope)
+       (frontier-lvars-contained? f scope)))
+
+(define (config-c-scope-agreement? cfg)
+  (or (frontier-c-scope-agreement? cfg)
+      (match cfg
+        [(list gamma f) #:when (and (list? gamma)
+                                    (frontier-c-scope-agreement? f))
+         #t]
+        [_ #f])))
+
 (define (config-exact-scope? cfg)
-  (cond
-    [(frontier-exact-scope? cfg) #t]
-    [else
-     (match cfg
-       [(list gamma f) #:when (list? gamma)
-        (frontier-exact-scope? f)]
-       [_ #f])]))
+  (or (frontier-exact-scope? cfg)
+      (match cfg
+        [(list gamma f) #:when (and (list? gamma)
+                                    (frontier-exact-scope? f))
+         #t]
+        [_ #f])))
 
 (define (count-bounced datum)
   (match datum

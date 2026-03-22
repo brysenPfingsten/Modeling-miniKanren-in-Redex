@@ -42,6 +42,7 @@
       (define-values (steps final-cfg status)
         (trace-deterministic entry scoped-delay-fresh TRACE-CAP))
       (check-equal? status 'done)
+      (check-true (config-c-scope-agreement? final-cfg))
       (check-true (config-exact-scope? final-cfg))
       (check-equal? (count-step-name steps "core/fresh-substitute") 1)
       (check-true (>= (count-freshened final-cfg) 1))
@@ -65,6 +66,7 @@
                         (Bounced +
                                   ((succeed (label "ok"))
                                    (state () () (u:0) () (label "s")))))))
+      (check-true (config-c-scope-agreement? next))
       (check-true (config-exact-scope? next))))
 
   (test-case "Bounced accounting matches invoke-delay steps across representative machines"
@@ -91,6 +93,7 @@
         (trace-deterministic rel cfg TRACE-CAP))
       (check-true (or (eq? status 'done)
                       (eq? status 'cap)))
+      (check-true (config-c-scope-agreement? final-cfg))
       (check-true (config-exact-scope? final-cfg))
       (check-equal? (count-bounced final-cfg)
                     (count-step-name steps "delay/invoke-delay")

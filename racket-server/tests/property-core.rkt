@@ -91,7 +91,18 @@
      (match (apply-reduction-relation/tag-with-names core-red cfg)
        ['() #t]
        [(list (list _ cfg^))
-        (trace-exact-scope? cfg^ (sub1 remaining))]
+       (trace-exact-scope? cfg^ (sub1 remaining))]
+       [_ #f])]))
+
+(define (trace-c-scope-agreement? cfg [remaining SOURCE-TRACE-CAP])
+  (cond
+    [(negative? remaining) #f]
+    [(not (config-c-scope-agreement? cfg)) #f]
+    [else
+     (match (apply-reduction-relation/tag-with-names core-red cfg)
+       ['() #t]
+       [(list (list _ cfg^))
+        (trace-c-scope-agreement? cfg^ (sub1 remaining))]
        [_ #f])]))
 
 (define (count-step-name steps expected [count 0])
@@ -108,6 +119,7 @@
   (define-values (steps final-cfg status)
     (trace-deterministic core-red cfg))
   (and (eq? status 'done)
+       (config-c-scope-agreement? final-cfg)
        (config-exact-scope? final-cfg)
        (<= (count-step-name steps "core/fresh-substitute")
            (count-freshened final-cfg))))
@@ -120,12 +132,22 @@
 (define X-POOL
   (gk:make-x-pool PROPERTY-X-POOL-SIZE))
 
-(define (extend-c c max-extra)
-  (when (> (length c) PROPERTY-C-MAX)
-    (error 'extend-c
-           (format "incoming c is too large: |c|=~a, PROPERTY-C-MAX=~a"
-                   (length c) PROPERTY-C-MAX)))
-  (gk:extend-c/rng PROPERTY-RNG c U-POOL PROPERTY-C-MAX max-extra))
+(define (fresh-scope-extension c)
+  (define unused
+    (filter (lambda (u) (not (member u c))) U-POOL))
+  (define room
+    (min PROPERTY-C-EXTRA-MAX
+         (- PROPERTY-C-MAX (length c))
+         (length unused)))
+  (cond
+    [(zero? room)
+     (values '() c)]
+    [else
+     (define intro
+       (rt:random-distinct/rng PROPERTY-RNG
+                               unused
+                               (add1 (rt:rng-random PROPERTY-RNG room))))
+     (values intro (append intro c))]))
 
 (define (make-label prefix)
   (gk:make-label/rng PROPERTY-RNG prefix))
@@ -181,25 +203,44 @@
 (define (max-depth)
   PROPERTY-MAX-DEPTH)
 
+(define (gen-live-tree c depth)
+  (define options
+    (append '(goal-state)
+            (if (zero? depth) '() '(conj-tree freshened-tree))))
+  (case (pick-one options)
+    [(goal-state)
+     `(,(gen-goal '() c depth)
+       ,(gen-state c))]
+    [(conj-tree)
+     `(,(gen-tree c (sub1 depth))
+       ×
+       ,(gen-goal '() c (sub1 depth))
+       ,c)]
+    [(freshened-tree)
+     (define-values (intro c^)
+       (fresh-scope-extension c))
+     (cond
+       [(null? intro)
+        (gen-live-tree c (sub1 depth))]
+       [else
+        `(Freshened ,intro ,(gen-live-tree c^ (sub1 depth)))])]))
+
 (define (gen-tree c depth)
   (define options
-    (append '(empty answer goal-state)
-            (if (zero? depth) '() '(conj-tree))))
+    (append '(empty goal-state)
+            (if (zero? depth) '() '(conj-tree freshened-tree))))
   (case (pick-one options)
     [(empty) '(empty-tree)]
-    [(answer)
-     (define c^ (extend-c c PROPERTY-C-EXTRA-MAX))
-     `(⊤ ,(gen-state c^))]
-    [(goal-state)
-     (define c^ (extend-c c PROPERTY-C-EXTRA-MAX))
-     `(,(gen-goal '() c^ depth)
-       ,(gen-state c^))]
-    [(conj-tree)
-     (define c^ (extend-c c PROPERTY-C-EXTRA-MAX))
-     `(,(gen-tree c^ (sub1 depth))
-       ×
-       ,(gen-goal '() c^ (sub1 depth))
-       ,c^)]))
+    [(goal-state) (gen-live-tree c depth)]
+    [(conj-tree) (gen-live-tree c depth)]
+    [(freshened-tree)
+     (define-values (intro c^)
+       (fresh-scope-extension c))
+     (cond
+       [(null? intro)
+        (gen-live-tree c depth)]
+       [else
+        `(Freshened ,intro ,(gen-live-tree c^ (sub1 depth)))])]))
 
 (define (generate-wf-config/constructive)
   (define cfg
@@ -226,6 +267,8 @@
 (define (tree-coverage s)
   (match s
     [`(empty-tree) (values #f #f #f 0)]
+    [`(Freshened ,_ ,s-inner)
+     (tree-coverage s-inner)]
     [`(⊤ ,st) (define csz (state-c-size st))
               (values (> csz 0) #f #f csz)]
     [`(,g ,st) (define csz (state-c-size st))
@@ -388,6 +431,10 @@
     (check-wf-guarded-property "core-shape-preserved" core-shape-preserved?))
   (test-case "Source-guarded exact Freshened scoping"
     (check-source-guarded-property "exact-scope" config-exact-scope?))
+  (test-case "Source-guarded exact c/scope agreement"
+    (check-source-guarded-property "c-scope-agreement" config-c-scope-agreement?))
+  (test-case "Source-guarded exact c/scope agreement through trace"
+    (check-source-guarded-property "trace-c-scope-agreement" trace-c-scope-agreement?))
   (test-case "Source-guarded exact Freshened scoping through trace"
     (check-source-guarded-property "trace-exact-scope" trace-exact-scope?))
   (test-case "Source-guarded Freshened accounting"

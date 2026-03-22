@@ -66,12 +66,12 @@
   #:mode (wf-frontier/search-base-calls? I I I)
   [------------------- "empty frontier residual is wf/search-base-calls"
    (wf-frontier/search-base-calls? (empty-tree) Γ c)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
    ------------------- "raw answer/state wf/search-base-calls"
    (wf-frontier/search-base-calls? (⊤ (state sub dis c_i trail tag)) Γ c)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
    (wf-frontier/search-base-calls? f_tail Γ c)
@@ -91,13 +91,13 @@
    (wf-frontier/search-base-calls? f_inner Γ c_3)
    ------------------- "freshened frontier wf/search-base-calls"
    (wf-frontier/search-base-calls? (Freshened c_1 f_inner) Γ c_2)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-goal/search-base-calls? g Γ () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
    ------------------- "goal/state wf/search-base-calls"
    (wf-frontier/search-base-calls? (g (state sub dis c_i trail tag)) Γ c)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-frontier/search-base-calls? f Γ c_i)
    (wf-goal/search-base-calls? g Γ () c_i)
    ------------------- "conj wf/search-base-calls"

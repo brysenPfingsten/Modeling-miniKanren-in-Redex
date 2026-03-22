@@ -49,12 +49,12 @@
   #:mode (wf-frontier/rail? I I)
   [------------------- "empty frontier residual is wf/rail"
    (wf-frontier/rail? (empty-tree) c)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
    ------------------- "raw answer/state wf/rail"
    (wf-frontier/rail? (⊤ (state sub dis c_i trail tag)) c)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
    (wf-frontier/rail? f_tail c)
@@ -74,13 +74,13 @@
    (wf-frontier/rail? f_inner c_3)
    ------------------- "freshened frontier wf/rail"
    (wf-frontier/rail? (Freshened c_1 f_inner) c_2)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-goal/rail? g () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
    ------------------- "goal/state wf/rail"
    (wf-frontier/rail? (g (state sub dis c_i trail tag)) c)]
-  [(lvars-subset? c c_i)
+  [(lvars-same-members? c c_i)
    (wf-frontier/rail? f c_i)
    (wf-goal/rail? g () c_i)
    ------------------- "conj wf/rail"
