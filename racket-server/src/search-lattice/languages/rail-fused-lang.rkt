@@ -13,4 +13,5 @@
   [end-f ....
          (pref + end-f)]
   [w .... (f +-> f)]
-  [K .... (f +-> K)])
+  [KCorePath .... (f +-> KCorePath)]
+  [KScopePath .... (f +-> KScopePath)])

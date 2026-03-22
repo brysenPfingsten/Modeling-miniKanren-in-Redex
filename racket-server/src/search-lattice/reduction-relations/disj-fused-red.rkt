@@ -14,20 +14,25 @@
 (check-redundancy #t)
 
 (define core-redex/disj (extend-core-redex disj-fused-lang))
-(define-search-frontier/one-stage core-frontier/disj core-redex/disj disj-fused-lang K)
+(define-search-frontier/two-stage/no-collector
+  core-frontier/disj
+  core-redex/disj
+  disj-fused-lang
+  K
+  KCorePath)
 
 (define disj-extra
   (reduction-relation
    disj-fused-lang
    #:domain f
-   [--> (in-hole K ((g_1 ∨ g_2 tag) σ))
-        (in-hole K ((g_1 σ) <-+ (g_2 σ)))
+   [--> (in-hole KScopePath (in-hole K ((g_1 ∨ g_2 tag) σ)))
+        (in-hole KScopePath (in-hole K ((g_1 σ) <-+ (g_2 σ))))
         "disj-fused/goal-to-tree"]
-   [--> (in-hole K (((⊤ σ_new) <-+ f_rest) × g c))
-        (in-hole K ((g σ_new) <-+ (f_rest × g c)))
+   [--> (in-hole KScopePath (in-hole K (((⊤ σ_new) <-+ f_rest) × g c)))
+        (in-hole KScopePath (in-hole K ((g σ_new) <-+ (f_rest × g c))))
         "disj-fused/continue-left-answer"]
-   [--> (in-hole K (((empty-tree) <-+ f_rest) × g c))
-        (in-hole K (f_rest × g c))
+   [--> (in-hole KScopePath (in-hole K (((empty-tree) <-+ f_rest) × g c)))
+        (in-hole KScopePath (in-hole K (f_rest × g c)))
         "disj-fused/continue-left-fail"]))
 
 (define disj-frontier-extra
@@ -57,7 +62,8 @@
   (union-reduction-relations
    disj-local
    disj-frontier
-   core-frontier/disj))
+   core-frontier/disj
+   (make-core-collector disj-fused-lang)))
 
 (define (step-once prog)
   (step-once/deterministic disj-fused-red prog))

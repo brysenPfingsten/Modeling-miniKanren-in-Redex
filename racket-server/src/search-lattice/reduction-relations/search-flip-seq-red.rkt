@@ -14,8 +14,8 @@
   (extend-reduction-relation
    search-base-seq-red
    search-base-seq-lang
-   [--> (in-hole Q (in-hole KBranch ((delay f_1) <-+ f_2)))
-        (in-hole Q (in-hole KBranch (delay (f_2 <-+ f_1))))
+   [--> (in-hole Q (in-hole KScopePath ((delay f_1) <-+ f_2)))
+        (in-hole Q (in-hole KScopePath (delay (f_2 <-+ f_1))))
         "search-flip-seq/delay-swap-left"]))
 
 (define (step-once prog)

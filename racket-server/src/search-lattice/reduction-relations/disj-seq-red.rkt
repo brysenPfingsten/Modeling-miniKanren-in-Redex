@@ -14,22 +14,22 @@
 (check-redundancy #t)
 
 (define core-redex/disj (extend-core-redex disj-seq-lang))
-(define-search-frontier/two-stage
+(define-search-frontier/two-stage/no-collector
   core-frontier/disj
   core-redex/disj
   disj-seq-lang
-  KBase
-  KBranch)
+  K
+  KCorePath)
 
 (define disj-extra
   (reduction-relation
    disj-seq-lang
    #:domain f
-   [--> (in-hole KBranch (in-hole KBase ((g_1 ∨ g_2 tag) σ)))
-        (in-hole KBranch (in-hole KBase ((g_1 σ) <-+ (g_2 σ))))
+   [--> (in-hole KScopePath (in-hole K ((g_1 ∨ g_2 tag) σ)))
+        (in-hole KScopePath (in-hole K ((g_1 σ) <-+ (g_2 σ))))
         "disj-seq/goal-to-tree"]
-   [--> (in-hole KBranch (in-hole KBase ((f_1 <-+ f_2) × g c)))
-        (in-hole KBranch (in-hole KBase ((f_1 × g c) <-+ (f_2 × g c))))
+   [--> (in-hole KScopePath (in-hole K ((f_1 <-+ f_2) × g c)))
+        (in-hole KScopePath (in-hole K ((f_1 × g c) <-+ (f_2 × g c))))
         "disj-seq/distribute-over-conj"]))
 
 (define disj-frontier-extra
@@ -55,11 +55,14 @@
 (define disj-local
   (context-closure disj-extra disj-seq-lang Q))
 
-(define disj-seq-red
+(define disj-seq-red/raw
   (union-reduction-relations
    disj-local
    disj-frontier
-   core-frontier/disj))
+   core-frontier/disj
+   (make-core-collector disj-seq-lang)))
+
+(define disj-seq-red disj-seq-red/raw)
 
 (define (step-once prog)
   (step-once/deterministic disj-seq-red prog))

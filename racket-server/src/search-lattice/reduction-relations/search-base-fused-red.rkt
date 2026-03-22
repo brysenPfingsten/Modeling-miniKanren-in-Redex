@@ -13,21 +13,22 @@
 (check-redundancy #t)
 
 (define core-redex/search-base-fused (extend-core-redex search-base-fused-lang))
-(define-search-frontier/one-stage
+(define-search-frontier/two-stage/no-collector
   core-frontier/search-base-fused
   core-redex/search-base-fused
   search-base-fused-lang
-  K)
+  K
+  KCorePath)
 
 (define delay-local
   (reduction-relation
    search-base-fused-lang
    #:domain f
-   [--> (in-hole K ((suspend g tag) σ))
-        (in-hole K (delay (g σ)))
+   [--> (in-hole KScopePath (in-hole K ((suspend g tag) σ)))
+        (in-hole KScopePath (in-hole K (delay (g σ))))
         "delay/suspend-goal"]
-   [--> (in-hole K ((delay f_1) × g c))
-        (in-hole K (delay (f_1 × g c)))
+   [--> (in-hole KScopePath (in-hole K ((delay f_1) × g c)))
+        (in-hole KScopePath (in-hole K (delay (f_1 × g c))))
         "delay/delay-through-conj"]))
 
 (define delay-frontier-extra
@@ -42,28 +43,32 @@
   (reduction-relation
    search-base-fused-lang
    #:domain f
-   [--> (in-hole K ((Freshened c_1 f_left) × g c_2))
-        (in-hole K (Freshened c_1 (f_left × g c_2)))
+   [--> (in-hole KScopePath (in-hole K ((Freshened c_1 f_left) × g c_2)))
+        (in-hole KScopePath
+                 (in-hole K
+                          (Freshened c_1
+                                     (f_left × g c_new))))
+        (where c_new ,(append (term c_1) (term c_2)))
         "core/continue-scoped-conj"]))
 
 (define search-extra
   (reduction-relation
    search-base-fused-lang
    #:domain f
-   [--> (in-hole K ((g_1 ∨ g_2 tag) σ))
-        (in-hole K ((g_1 σ) <-+ (g_2 σ)))
+   [--> (in-hole KScopePath (in-hole K ((g_1 ∨ g_2 tag) σ)))
+        (in-hole KScopePath (in-hole K ((g_1 σ) <-+ (g_2 σ))))
         "search-base-fused/goal-to-tree"]
-   [--> (in-hole K (((⊤ σ_new) + f_rest) × g c))
-        (in-hole K ((g σ_new) <-+ (f_rest × g c)))
+   [--> (in-hole KScopePath (in-hole K (((⊤ σ_new) + f_rest) × g c)))
+        (in-hole KScopePath (in-hole K ((g σ_new) <-+ (f_rest × g c))))
         "search-base-fused/continue-left-prefix-answer"]
-   [--> (in-hole K ((Bounced + f_rest) × g c))
-        (in-hole K (Bounced + (f_rest × g c)))
+   [--> (in-hole KScopePath (in-hole K ((Bounced + f_rest) × g c)))
+        (in-hole KScopePath (in-hole K (Bounced + (f_rest × g c))))
         "search-base-fused/continue-left-prefix-bounce"]
-   [--> (in-hole K (((⊤ σ_new) <-+ f_rest) × g c))
-        (in-hole K ((g σ_new) <-+ (f_rest × g c)))
+   [--> (in-hole KScopePath (in-hole K (((⊤ σ_new) <-+ f_rest) × g c)))
+        (in-hole KScopePath (in-hole K ((g σ_new) <-+ (f_rest × g c))))
         "search-base-fused/continue-left-answer"]
-   [--> (in-hole K (((empty-tree) <-+ f_rest) × g c))
-        (in-hole K (f_rest × g c))
+   [--> (in-hole KScopePath (in-hole K (((empty-tree) <-+ f_rest) × g c)))
+        (in-hole KScopePath (in-hole K (f_rest × g c)))
         "search-base-fused/continue-left-fail"]))
 
 (define search-frontier-extra
@@ -104,7 +109,8 @@
    search-frontier
    delay-frontier
    delay-extra
-   core-frontier/search-base-fused))
+   core-frontier/search-base-fused
+   (make-core-collector search-base-fused-lang)))
 
 (define (step-once prog)
   (step-once/deterministic search-base-fused-red prog))

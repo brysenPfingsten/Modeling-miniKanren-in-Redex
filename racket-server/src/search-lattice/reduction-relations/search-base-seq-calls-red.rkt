@@ -20,8 +20,8 @@
   (reduction-relation
    search-base-seq-calls-lang
    #:domain config
-   [--> (Γ (in-hole Q (in-hole KBranch (in-hole KBase ((r t ... tag) σ)))))
-        (Γ (in-hole Q (in-hole KBranch (in-hole KBase (g_new σ)))))
+   [--> (Γ (in-hole Q (in-hole KScopePath (in-hole K ((r t ... tag) σ)))))
+        (Γ (in-hole Q (in-hole KScopePath (in-hole K (g_new σ)))))
         (where g_new
                ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
         "search-base-seq-calls/expand"]))

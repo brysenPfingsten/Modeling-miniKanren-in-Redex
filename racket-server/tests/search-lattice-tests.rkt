@@ -29,8 +29,8 @@
     (check-true (redex-match? lang:delay-lang f '(delay (empty-tree))))
     (check-false (redex-match? lang:delay-lang f '(proceed (empty-tree))))
     (check-true (redex-match? lang:calls-lang g '(r:delay (label "call"))))
-    (check-true (redex-match? lang:disj-seq-lang KBranch (term (hole <-+ (empty-tree)))))
-    (check-true (redex-match? lang:disj-fused-lang K (term (hole <-+ (empty-tree)))))
+    (check-true (redex-match? lang:disj-seq-lang KCorePath (term (hole <-+ (empty-tree)))))
+    (check-true (redex-match? lang:disj-fused-lang KCorePath (term (hole <-+ (empty-tree)))))
     (check-true (redex-match? lang:rail-seq-lang f '((empty-tree) +-> (empty-tree))))
     (check-true (redex-match? lang:rail-fused-lang f '((empty-tree) +-> (empty-tree))))
     (check-true (redex-match? lang:calls-lang config (term ,cfg-call))))
@@ -191,8 +191,8 @@
        (reduction-relation
         search-base-seq-calls-lang
         #:domain config
-        [--> (Γ (in-hole KBranch (in-hole KBase ((r t ... tag) σ))))
-             (Γ (in-hole KBranch (in-hole KBase (g_new σ))))
+        [--> (Γ (in-hole KScopePath (in-hole K ((r t ... tag) σ))))
+             (Γ (in-hole KScopePath (in-hole K (g_new σ))))
              (where g_new
                     ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
              "alt-search-dfs-seq-calls/expand"])))
@@ -205,8 +205,8 @@
        (reduction-relation
         rail-fused-calls-lang
         #:domain config
-        [--> (Γ (in-hole K ((r t ... tag) σ)))
-             (Γ (in-hole K (g_new σ)))
+        [--> (Γ (in-hole KScopePath (in-hole K ((r t ... tag) σ))))
+             (Γ (in-hole KScopePath (in-hole K (g_new σ))))
              (where g_new
                     ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
              "alt-rail-fused-calls/expand"])))

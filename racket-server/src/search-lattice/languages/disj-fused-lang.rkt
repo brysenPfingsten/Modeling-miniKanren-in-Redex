@@ -12,4 +12,11 @@
         (Freshened c end-f)]
   [end-f ....
          (pref + end-f)]
-  [K .... (K <-+ f)])
+  [K ::= hole
+        (K × g c)]
+  [KCorePath ::= hole
+                 (Freshened c KCorePath)
+                 (KCorePath <-+ f)]
+  [KScopePath ::= hole
+                  (Freshened c KScopePath)
+                  (KScopePath <-+ f)])

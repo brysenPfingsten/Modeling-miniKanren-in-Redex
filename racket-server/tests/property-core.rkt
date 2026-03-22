@@ -111,7 +111,10 @@
     [(cons step-name rest)
      (count-step-name rest
                       expected
-                      (if (string=? step-name expected)
+                      (if (or (string=? step-name expected)
+                              (and (string=? expected "core/fresh-substitute")
+                                   (string-prefix? "core/fresh-substitute"
+                                                   step-name)))
                           (add1 count)
                           count))]))
 
