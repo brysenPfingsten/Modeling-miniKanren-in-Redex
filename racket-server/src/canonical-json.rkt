@@ -270,45 +270,36 @@
     [f f]
     [_ '(empty-tree)]))
 
-(define (closed-frontier->json/canonical f num-query-variables [rest-json #f])
-  (match f
-    ['(empty-tree)
-     (or rest-json (hasheq 'name "Empty"))]
-    [`(,pref + ,f-tail)
-     (prefix->json/canonical pref
-                             num-query-variables
-                             (closed-frontier->json/canonical f-tail
-                                                              num-query-variables
-                                                              rest-json))]
-    [_ (tree->json/canonical f num-query-variables)]))
-
 (define (prefix->json/canonical pref num-query-variables [rest-json #f])
   (match pref
-    [`(Freshened ,c-intro ,f-inner)
+    [`(Freshened ,c-intro ,tag)
      (hasheq 'name "Freshened"
+             'id (label->id tag)
              'vars (map term->json/canonical c-intro)
-             'children (list (closed-frontier->json/canonical f-inner
-                                                              num-query-variables
-                                                              rest-json)))]
+             'children (list (or rest-json (hasheq 'name "Empty"))))]
     [`(⊤ ,σ)
      (state->answer-json/canonical σ num-query-variables rest-json)]
     ['Bounced
      (hasheq 'name "Bounced"
              'children (list (or rest-json (hasheq 'name "Empty"))))]
-    [_ (hasheq 'name "Unknown")]))
+    [_ (error 'prefix->json/canonical
+              "unknown frontier prefix shape: ~e"
+              pref)]))
 
 (define (tree->json/canonical s num-query-variables)
   (match s
     ['(empty-tree)
      (hasheq 'name "Empty")]
-    [`(,pref + ,s_tail)
-     (prefix->json/canonical pref
+    [`(Scoped ,_ ,s_1)
+     (tree->json/canonical s_1 num-query-variables)]
+    ['Bounced
+     (prefix->json/canonical 'Bounced num-query-variables)]
+    [`((ScopeEnd ,_) + ,s_tail)
+     (tree->json/canonical s_tail num-query-variables)]
+    [`(,head + ,s_tail)
+     (prefix->json/canonical head
                              num-query-variables
                              (tree->json/canonical s_tail num-query-variables))]
-    [`(Freshened ,c-intro ,f-inner)
-     (hasheq 'name "Freshened"
-             'vars (map term->json/canonical c-intro)
-             'children (list (tree->json/canonical f-inner num-query-variables)))]
     [`(,g (state ,sub ,dis ,c ,trail ,tag))
      #:when (not (equal? g '⊤))
      (hash-union (goal->json/canonical g)
@@ -337,7 +328,9 @@
              'children (list (tree->json/canonical s_1 num-query-variables)))]
     [`(⊤ ,σ)
      (state->answer-json/canonical σ num-query-variables)]
-    [_ (hasheq 'name "Unknown")]))
+    [_ (error 'tree->json/canonical
+              "unknown tree/frontier shape: ~e"
+              s)]))
 
 (define (config->tree-json/canonical cfg num-query-variables)
   (tree->json/canonical
@@ -359,14 +352,18 @@
 
 (define (prefix-query-vars/work pref)
   (match pref
-    [`(Freshened ,_ ,f-inner)
-     (num-query-vars/work f-inner)]
+    [`(Freshened ,_ ,_) 0]
+    [`(ScopeEnd ,_) 0]
     [_ 0]))
 
 (define (num-query-vars/work s)
   (match s
-    [`(Freshened ,_ ,f-inner)
-     (num-query-vars/work f-inner)]
+    [`(Scoped ,_ ,s_1)
+     (num-query-vars/work s_1)]
+    [`((ScopeEnd ,_) + ,s_1)
+     (num-query-vars/work s_1)]
+    [`((Freshened ,_ ,_) + ,s_1)
+     (num-query-vars/work s_1)]
     [`(,pref + ,s_1)
      (max (prefix-query-vars/work pref)
           (num-query-vars/work s_1))]

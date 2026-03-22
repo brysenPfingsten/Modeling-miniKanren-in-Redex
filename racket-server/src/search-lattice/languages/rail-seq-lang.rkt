@@ -8,10 +8,6 @@
 (check-redundancy #t)
 
 (define-extended-language rail-seq-lang search-base-seq-lang
-  [pref ....
-        (Freshened c end-f)]
-  [end-f ....
-         (pref + end-f)]
   [w .... (f +-> f)]
   [KCorePath .... (f +-> KCorePath)]
   [KScopePath .... (f +-> KScopePath)])

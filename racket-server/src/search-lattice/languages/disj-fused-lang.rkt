@@ -8,15 +8,11 @@
 (check-redundancy #t)
 
 (define-extended-language disj-fused-lang disj-lang
-  [pref ....
-        (Freshened c end-f)]
-  [end-f ....
-         (pref + end-f)]
   [K ::= hole
         (K × g c)]
   [KCorePath ::= hole
-                 (Freshened c KCorePath)
+                 (Scoped c KCorePath)
                  (KCorePath <-+ f)]
   [KScopePath ::= hole
-                  (Freshened c KScopePath)
+                  (Scoped c KScopePath)
                   (KScopePath <-+ f)])

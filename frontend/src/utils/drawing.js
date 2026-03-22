@@ -174,11 +174,22 @@ function drawFreshNode(group, data) {
 }
 
 function drawRelCallNode(group, data) {
-    const rel = data?.rel || "call";
-    const args = Array.isArray(data?.args) ? data.args : [];
-    const argsText = args.map(t => (t && t.var) ? t.var : termToString(t)).join(' ');
-    const textContent = `(${rel}${argsText ? ` ${argsText}` : ""})`;
-    return drawTextNode(group, textContent);
+  const rel = data?.rel || "call";
+  const args = Array.isArray(data?.args) ? data.args : [];
+  const argsText = args.map(t => (t && t.var) ? t.var : termToString(t)).join(' ');
+  const textContent = `(${rel}${argsText ? ` ${argsText}` : ""})`;
+  return drawTextNode(group, textContent);
+}
+
+function drawFreshenedNode(group, data) {
+    const vars = Array.isArray(data?.vars) ? data.vars : [];
+    const varsText = vars.map(v => termToString(v)).join(' ');
+    const textContent = varsText ? `Freshened ${varsText}` : "Freshened";
+    return drawTextNode(group, textContent, 12);
+}
+
+function drawBouncedNode(group) {
+    return drawCircle(group, "#fff2cc", "Bounce", "black", "10px");
 }
 
 
@@ -224,6 +235,8 @@ const nodeDrawFunctions = {
     "Delay": drawDelayNode,
     "Conjunction": drawConjunctionNode,
     "Fresh": drawFreshNode,
+    "Freshened": drawFreshenedNode,
+    "Bounced": drawBouncedNode,
     "Rel-Call": drawRelCallNode,
     "Goal-Delay": drawGoalDelayNode,
     "Goal-Conj": drawGoalConjNode,
@@ -244,6 +257,9 @@ export function drawTree(nodeGroups) {
             const isPartial = data.partial ? true : false;
             const hasAnswer = data.hasAnswer ? true : false;
             applyStroke(shape, hasSub, isPartial, hasAnswer);
+        } else {
+            console.error("Unknown tree node", data);
+            drawTextNode(group, `Unknown: ${data?.name ?? "?"}`, 10);
         }
     });
 }

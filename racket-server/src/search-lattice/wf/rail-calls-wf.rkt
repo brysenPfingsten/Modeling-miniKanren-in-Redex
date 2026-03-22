@@ -62,7 +62,7 @@
 
 (define-judgment-form
   rail-seq-calls-lang
-  #:contract (wf-frontier/rail-calls? f Γ c)
+  #:contract (wf-frontier/rail-calls? cfg Γ c)
   #:mode (wf-frontier/rail-calls? I I I)
   [------------------- "empty frontier residual is wf/rail-calls"
    (wf-frontier/rail-calls? (empty-tree) Γ c)]
@@ -74,23 +74,25 @@
   [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
-   (wf-frontier/rail-calls? f_tail Γ c)
+   (wf-frontier/rail-calls? cfg_tail Γ c)
    ------------------- "observable answer prefix wf/rail-calls"
-   (wf-frontier/rail-calls? ((⊤ (state sub dis c_i trail tag)) + f_tail) Γ c)]
-  [(wf-frontier/rail-calls? f_tail Γ c)
+   (wf-frontier/rail-calls? ((⊤ (state sub dis c_i trail tag)) + cfg_tail) Γ c)]
+  [(wf-frontier/rail-calls? cfg_tail Γ c)
    ------------------- "bounced prefix wf/rail-calls"
-   (wf-frontier/rail-calls? (Bounced + f_tail) Γ c)]
-  [(lvars-fresh-extension? c_1 c_2)
-   (where c_3 (c-append c_1 c_2))
-   (wf-frontier/rail-calls? f_obs Γ c_3)
-   (wf-frontier/rail-calls? f_tail Γ c_2)
-   ------------------- "freshened observable prefix wf/rail-calls"
-   (wf-frontier/rail-calls? ((Freshened c_1 f_obs) + f_tail) Γ c_2)]
-  [(lvars-fresh-extension? c_1 c_2)
-   (where c_3 (c-append c_1 c_2))
-   (wf-frontier/rail-calls? f_inner Γ c_3)
-   ------------------- "freshened frontier wf/rail-calls"
-   (wf-frontier/rail-calls? (Freshened c_1 f_inner) Γ c_2)]
+   (wf-frontier/rail-calls? (Bounced + cfg_tail) Γ c)]
+  [(lvars-fresh-extension? c_1 c)
+   (wf-frontier/rail-calls? cfg_tail Γ c)
+   ------------------- "freshened event prefix wf/rail-calls"
+   (wf-frontier/rail-calls? ((Freshened c_1 tag_1) + cfg_tail) Γ c)]
+  [(where c_2 ,(scope-pop/host (term c_1) (term c_current)))
+   (wf-frontier/rail-calls? cfg_tail Γ c_2)
+   ------------------- "scope end prefix wf/rail-calls"
+   (wf-frontier/rail-calls? ((ScopeEnd c_1) + cfg_tail) Γ c_current)]
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-frontier/rail-calls? cfg_tail Γ c_2)
+   ------------------- "scoped wrapper wf/rail-calls"
+   (wf-frontier/rail-calls? (Scoped c_1 cfg_tail) Γ c)]
   [(lvars-same-members? c c_i)
    (wf-goal/rail-calls? g Γ () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
@@ -127,6 +129,6 @@
   #:contract (wf-config/rail-calls? config)
   #:mode (wf-config/rail-calls? I)
   [(wf-rel-env/rail-calls? Γ)
-   (wf-frontier/rail-calls? f Γ ())
+   (wf-frontier/rail-calls? cfg Γ ())
    ----------------------- "program-wf/rail-calls"
-   (wf-config/rail-calls? (Γ f))])
+   (wf-config/rail-calls? (Γ cfg))])

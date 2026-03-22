@@ -66,6 +66,23 @@
     [(list xs ...) (ormap (lambda (x) (json-contains-name? x target)) xs)]
     [_ #f]))
 
+(define (collect-json-ids node [acc '()])
+  (match node
+    [(hash* ['id id]
+            ['children children]
+            #:open)
+     (collect-json-ids children (cons id acc))]
+    [(hash* ['children children] #:open)
+     (collect-json-ids children acc)]
+    [(list xs ...)
+     (for/fold ([ids acc]) ([x (in-list xs)])
+       (collect-json-ids x ids))]
+    [_ acc]))
+
+(define (all-json-ids-appear-in-source? source node)
+  (for/and ([id (in-list (collect-json-ids node))])
+    (regexp-match? (regexp-quote (format "[[~a]]" id)) source)))
+
 (define disj-delay-program
   "(defrel (same x y)
      (== x y))
@@ -225,6 +242,26 @@
               (match-define (hash* ['name name] #:open) program-json)
               (check-true (json-contains-name? program-json "Goal-Delay"))
               (check-false (equal? name "Delay")))
+
+  (test-case "init!/step! preserve source ids across tagged source and tree JSON"
+              (define sample-req
+                (make-post-init-request same-program))
+              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
+              (define-values (response ses^) (init! ses sample-req 'source-id-test))
+              (define init-payload (string->jsexpr (response-body->string response)))
+              (match-define (hash* ['program init-program]
+                                   ['htmlGuids html-guids]
+                                   #:open)
+                init-payload)
+              (check-true
+               (all-json-ids-appear-in-source? html-guids
+                                               (string->jsexpr init-program)))
+              (define-values (step-response _ses^^) (step! ses^))
+              (define step-payload (string->jsexpr (response-body->string step-response)))
+              (match-define (hash* ['program step-program] #:open) step-payload)
+              (check-true
+               (all-json-ids-appear-in-source? html-guids
+                                               (string->jsexpr step-program))))
 
   (test-case "init! throws error if program is not syntactically correct"
               (define sample-req (make-post-init-request "(run* (== 'a 'a))"))

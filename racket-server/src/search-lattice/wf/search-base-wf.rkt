@@ -45,7 +45,7 @@
 
 (define-judgment-form
   search-base-seq-lang
-  #:contract (wf-frontier/search-base? f c)
+  #:contract (wf-frontier/search-base? cfg c)
   #:mode (wf-frontier/search-base? I I)
   [------------------- "empty frontier residual is wf/search-base"
    (wf-frontier/search-base? (empty-tree) c)]
@@ -57,23 +57,25 @@
   [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
-   (wf-frontier/search-base? f_tail c)
+   (wf-frontier/search-base? cfg_tail c)
    ------------------- "observable answer prefix wf/search-base"
-   (wf-frontier/search-base? ((⊤ (state sub dis c_i trail tag)) + f_tail) c)]
-  [(wf-frontier/search-base? f_tail c)
+   (wf-frontier/search-base? ((⊤ (state sub dis c_i trail tag)) + cfg_tail) c)]
+  [(wf-frontier/search-base? cfg_tail c)
    ------------------- "bounced prefix wf/search-base"
-   (wf-frontier/search-base? (Bounced + f_tail) c)]
-  [(lvars-fresh-extension? c_1 c_2)
-   (where c_3 (c-append c_1 c_2))
-   (wf-frontier/search-base? f_obs c_3)
-   (wf-frontier/search-base? f_tail c_2)
-   ------------------- "freshened observable prefix wf/search-base"
-   (wf-frontier/search-base? ((Freshened c_1 f_obs) + f_tail) c_2)]
-  [(lvars-fresh-extension? c_1 c_2)
-   (where c_3 (c-append c_1 c_2))
-   (wf-frontier/search-base? f_inner c_3)
-   ------------------- "freshened frontier wf/search-base"
-   (wf-frontier/search-base? (Freshened c_1 f_inner) c_2)]
+   (wf-frontier/search-base? (Bounced + cfg_tail) c)]
+  [(lvars-fresh-extension? c_1 c)
+   (wf-frontier/search-base? cfg_tail c)
+   ------------------- "freshened event prefix wf/search-base"
+   (wf-frontier/search-base? ((Freshened c_1 tag_1) + cfg_tail) c)]
+  [(where c_2 ,(scope-pop/host (term c_1) (term c_current)))
+   (wf-frontier/search-base? cfg_tail c_2)
+   ------------------- "scope end prefix wf/search-base"
+   (wf-frontier/search-base? ((ScopeEnd c_1) + cfg_tail) c_current)]
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-frontier/search-base? cfg_tail c_2)
+   ------------------- "scoped wrapper wf/search-base"
+   (wf-frontier/search-base? (Scoped c_1 cfg_tail) c)]
   [(lvars-same-members? c c_i)
    (wf-goal/search-base? g () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
@@ -97,6 +99,6 @@
   search-base-seq-lang
   #:contract (wf-cfg/search-base? cfg)
   #:mode (wf-cfg/search-base? I)
-  [(wf-frontier/search-base? f ())
+  [(wf-frontier/search-base? cfg ())
    ----------------------- "cfg-wf/search-base"
-   (wf-cfg/search-base? f)])
+   (wf-cfg/search-base? cfg)])

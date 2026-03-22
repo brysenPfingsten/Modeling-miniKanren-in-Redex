@@ -1,8 +1,10 @@
 #lang racket
 
-(require rackunit
+(require json
+         rackunit
          rackunit/text-ui
          redex/reduction-semantics
+         "../src/canonical-json.rkt"
          (prefix-in lang:
                     "../src/search-lattice/languages/all.rkt")
          "../src/search-lattice/languages/rail-fused-calls-lang.rkt"
@@ -83,6 +85,20 @@
     (check-true (redex-match? lang:search-base-seq-lang cfg seq-next))
     (check-true (redex-match? lang:search-base-fused-lang cfg fused-next)))
 
+  (test-case "canonical JSON preserves bounced observables under Freshened prefixes"
+    (define rendered
+      (string->jsexpr
+       (to-json/canonical
+        (term (() ((Freshened (u:0) (label "fresh"))
+                   +
+                   (Scoped (u:0)
+                           (Bounced + (empty-tree))))))
+        0)))
+    (check-equal? (hash-ref rendered 'name) "Freshened")
+    (check-equal? (hash-ref rendered 'id) "fresh")
+    (define child (first (hash-ref rendered 'children)))
+    (check-equal? (hash-ref child 'name) "Bounced"))
+
   (test-case "search-only scheduler variants differ only in delayed left-branch policy"
     (for ([entry (in-list
                   (list
@@ -126,7 +142,7 @@
       (named-step
        (apply-reduction-relation/tag-with-names
         red:rail-fused-red
-        (term ((empty-tree) +-> (Bounced + (empty-tree)))))))
+        (term ((empty-tree) +-> ((⊤ ,sigma-b) + (empty-tree)))))))
     (check-equal? (~a seq-name) "rail-seq/continue-right-prefix")
     (check-equal? (~a fused-name) "rail-fused/continue-right-prefix")
     (check-true (redex-match? lang:rail-seq-lang cfg seq-next))

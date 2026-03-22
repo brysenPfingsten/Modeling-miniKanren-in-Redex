@@ -42,7 +42,7 @@
 
 (define-judgment-form
   disj-seq-lang
-  #:contract (wf-frontier/disj? f c)
+  #:contract (wf-frontier/disj? cfg c)
   #:mode (wf-frontier/disj? I I)
   [------------------- "empty frontier residual is wf/disj"
    (wf-frontier/disj? (empty-tree) c)]
@@ -54,23 +54,25 @@
   [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
-   (wf-frontier/disj? f_tail c)
+   (wf-frontier/disj? cfg_tail c)
    ------------------- "observable answer prefix wf/disj"
-   (wf-frontier/disj? ((⊤ (state sub dis c_i trail tag)) + f_tail) c)]
-  [(wf-frontier/disj? f_tail c)
+   (wf-frontier/disj? ((⊤ (state sub dis c_i trail tag)) + cfg_tail) c)]
+  [(wf-frontier/disj? cfg_tail c)
    ------------------- "bounced prefix wf/disj"
-   (wf-frontier/disj? (Bounced + f_tail) c)]
-  [(lvars-fresh-extension? c_1 c_2)
-   (where c_3 (c-append c_1 c_2))
-   (wf-frontier/disj? f_obs c_3)
-   (wf-frontier/disj? f_tail c_2)
-   ------------------- "freshened observable prefix wf/disj"
-   (wf-frontier/disj? ((Freshened c_1 f_obs) + f_tail) c_2)]
-  [(lvars-fresh-extension? c_1 c_2)
-   (where c_3 (c-append c_1 c_2))
-   (wf-frontier/disj? f_inner c_3)
-   ------------------- "freshened frontier wf/disj"
-   (wf-frontier/disj? (Freshened c_1 f_inner) c_2)]
+   (wf-frontier/disj? (Bounced + cfg_tail) c)]
+  [(lvars-fresh-extension? c_1 c)
+   (wf-frontier/disj? cfg_tail c)
+   ------------------- "freshened event prefix wf/disj"
+   (wf-frontier/disj? ((Freshened c_1 tag_1) + cfg_tail) c)]
+  [(where c_2 ,(scope-pop/host (term c_1) (term c_current)))
+   (wf-frontier/disj? cfg_tail c_2)
+   ------------------- "scope end prefix wf/disj"
+   (wf-frontier/disj? ((ScopeEnd c_1) + cfg_tail) c_current)]
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-frontier/disj? cfg_tail c_2)
+   ------------------- "scoped wrapper wf/disj"
+   (wf-frontier/disj? (Scoped c_1 cfg_tail) c)]
   [(lvars-same-members? c c_i)
    (wf-goal/disj? g () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
@@ -91,6 +93,6 @@
   disj-seq-lang
   #:contract (wf-cfg/disj? cfg)
   #:mode (wf-cfg/disj? I)
-  [(wf-frontier/disj? f ())
+  [(wf-frontier/disj? cfg ())
    ----------------------- "cfg-wf/disj"
-   (wf-cfg/disj? f)])
+   (wf-cfg/disj? cfg)])

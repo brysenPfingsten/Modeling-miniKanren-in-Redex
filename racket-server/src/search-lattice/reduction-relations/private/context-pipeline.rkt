@@ -82,12 +82,9 @@
 
 (define-syntax-rule (define-calls-frontier/one-stage name rel lang ctx)
   (define name
+    (context-closure
      (context-closure
-      (context-closure
-       (context-closure
-        rel
-        lang
-        ctx)
+      (context-closure rel lang ctx)
       lang
       Q)
      lang
@@ -96,18 +93,15 @@
 (define-syntax-rule (define-calls-frontier/two-stage name rel lang ctx1 ctx2)
   (define name
     (context-closure
+     (context-closure
       (context-closure
-       (context-closure
-        (context-closure
-         rel
-         lang
-         ctx1)
-        lang
-        ctx2)
+       (context-closure rel lang ctx1)
        lang
-       Q)
+       ctx2)
       lang
-      (Γ hole))))
+      Q)
+     lang
+     (Γ hole))))
 
 (define-syntax-rule (define-calls-frontier/three-stage name rel lang ctx1 ctx2 ctx3)
   (define name

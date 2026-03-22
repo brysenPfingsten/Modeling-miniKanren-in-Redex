@@ -8,6 +8,7 @@
          lvars-subset?
          lvars-same-members?
          lvars-fresh-extension?
+         scope-pop/host
          wf-term?
          wf-sub?
          wf-dis?
@@ -95,6 +96,13 @@
           (length (remove-duplicates c-intro)))
        (for/and ([u (in-list c-intro)])
          (not (member u c-outer)))))
+
+(define (scope-pop/host intro current)
+  (define n (length intro))
+  (cond
+    [(< (length current) n) #f]
+    [(equal? intro (take current n)) (drop current n)]
+    [else #f]))
 
 (define-judgment-form
   core-lang

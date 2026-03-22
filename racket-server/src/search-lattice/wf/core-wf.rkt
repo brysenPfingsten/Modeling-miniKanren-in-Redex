@@ -39,7 +39,7 @@
 
 (define-judgment-form
   core-lang
-  #:contract (wf-frontier/core? f c)
+  #:contract (wf-frontier/core? cfg c)
   #:mode (wf-frontier/core? I I)
   [------------------- "empty frontier residual is wf/core"
    (wf-frontier/core? (empty-tree) c)]
@@ -51,23 +51,25 @@
   [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
-   (wf-frontier/core? f_tail c)
+   (wf-frontier/core? cfg_tail c)
    ------------------- "observable answer prefix wf/core"
-   (wf-frontier/core? ((⊤ (state sub dis c_i trail tag)) + f_tail) c)]
-  [(wf-frontier/core? f_tail c)
+   (wf-frontier/core? ((⊤ (state sub dis c_i trail tag)) + cfg_tail) c)]
+  [(wf-frontier/core? cfg_tail c)
    ------------------- "bounced prefix wf/core"
-   (wf-frontier/core? (Bounced + f_tail) c)]
-  [(lvars-fresh-extension? c_1 c_2)
-   (where c_3 (c-append c_1 c_2))
-   (wf-frontier/core? f_obs c_3)
-   (wf-frontier/core? f_tail c_2)
-   ------------------- "freshened observable prefix wf/core"
-   (wf-frontier/core? ((Freshened c_1 f_obs) + f_tail) c_2)]
-  [(lvars-fresh-extension? c_1 c_2)
-   (where c_3 (c-append c_1 c_2))
-   (wf-frontier/core? f_inner c_3)
-   ------------------- "freshened frontier wf/core"
-   (wf-frontier/core? (Freshened c_1 f_inner) c_2)]
+   (wf-frontier/core? (Bounced + cfg_tail) c)]
+  [(lvars-fresh-extension? c_1 c)
+   (wf-frontier/core? cfg_tail c)
+   ------------------- "freshened event prefix wf/core"
+   (wf-frontier/core? ((Freshened c_1 tag_1) + cfg_tail) c)]
+  [(where c_2 ,(scope-pop/host (term c_1) (term c_current)))
+   (wf-frontier/core? cfg_tail c_2)
+   ------------------- "scope end prefix wf/core"
+   (wf-frontier/core? ((ScopeEnd c_1) + cfg_tail) c_current)]
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-frontier/core? cfg_tail c_2)
+   ------------------- "scoped wrapper wf/core"
+   (wf-frontier/core? (Scoped c_1 cfg_tail) c)]
   [(lvars-same-members? c c_i)
    (wf-goal/core? g () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
@@ -84,6 +86,6 @@
   core-lang
   #:contract (wf-cfg/core? cfg)
   #:mode (wf-cfg/core? I)
-  [(wf-frontier/core? f ())
+  [(wf-frontier/core? cfg ())
    ----------------------- "cfg-wf/core"
-   (wf-cfg/core? f)])
+   (wf-cfg/core? cfg)])

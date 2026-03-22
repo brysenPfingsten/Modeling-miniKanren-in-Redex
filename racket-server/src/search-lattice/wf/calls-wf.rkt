@@ -58,7 +58,7 @@
 
 (define-judgment-form
   calls-lang
-  #:contract (wf-frontier/calls? f Γ c)
+  #:contract (wf-frontier/calls? cfg Γ c)
   #:mode (wf-frontier/calls? I I I)
   [------------------- "empty frontier residual is wf/calls"
    (wf-frontier/calls? (empty-tree) Γ c)]
@@ -70,23 +70,25 @@
   [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
-   (wf-frontier/calls? f_tail Γ c)
+   (wf-frontier/calls? cfg_tail Γ c)
    ------------------- "observable answer prefix wf/calls"
-   (wf-frontier/calls? ((⊤ (state sub dis c_i trail tag)) + f_tail) Γ c)]
-  [(wf-frontier/calls? f_tail Γ c)
+   (wf-frontier/calls? ((⊤ (state sub dis c_i trail tag)) + cfg_tail) Γ c)]
+  [(wf-frontier/calls? cfg_tail Γ c)
    ------------------- "bounced prefix wf/calls"
-   (wf-frontier/calls? (Bounced + f_tail) Γ c)]
-  [(lvars-fresh-extension? c_1 c_2)
-   (where c_3 (c-append c_1 c_2))
-   (wf-frontier/calls? f_obs Γ c_3)
-   (wf-frontier/calls? f_tail Γ c_2)
-   ------------------- "freshened observable prefix wf/calls"
-   (wf-frontier/calls? ((Freshened c_1 f_obs) + f_tail) Γ c_2)]
-  [(lvars-fresh-extension? c_1 c_2)
-   (where c_3 (c-append c_1 c_2))
-   (wf-frontier/calls? f_inner Γ c_3)
-   ------------------- "freshened frontier wf/calls"
-   (wf-frontier/calls? (Freshened c_1 f_inner) Γ c_2)]
+   (wf-frontier/calls? (Bounced + cfg_tail) Γ c)]
+  [(lvars-fresh-extension? c_1 c)
+   (wf-frontier/calls? cfg_tail Γ c)
+   ------------------- "freshened event prefix wf/calls"
+   (wf-frontier/calls? ((Freshened c_1 tag_1) + cfg_tail) Γ c)]
+  [(where c_2 ,(scope-pop/host (term c_1) (term c_current)))
+   (wf-frontier/calls? cfg_tail Γ c_2)
+   ------------------- "scope end prefix wf/calls"
+   (wf-frontier/calls? ((ScopeEnd c_1) + cfg_tail) Γ c_current)]
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-frontier/calls? cfg_tail Γ c_2)
+   ------------------- "scoped wrapper wf/calls"
+   (wf-frontier/calls? (Scoped c_1 cfg_tail) Γ c)]
   [(lvars-same-members? c c_i)
    (wf-goal/calls? g Γ () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
@@ -115,6 +117,6 @@
   #:contract (wf-config/calls? config)
   #:mode (wf-config/calls? I)
   [(wf-rel-env/calls? Γ)
-   (wf-frontier/calls? f Γ ())
+   (wf-frontier/calls? cfg Γ ())
    ----------------------- "program-wf/calls"
-   (wf-config/calls? (Γ f))])
+   (wf-config/calls? (Γ cfg))])

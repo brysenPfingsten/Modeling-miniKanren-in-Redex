@@ -33,6 +33,13 @@
   (and (subset? xs ys)
        (subset? ys xs)))
 
+(define (scope-pop intro scope)
+  (define n (length intro))
+  (cond
+    [(< (length scope) n) #f]
+    [(equal? intro (take scope n)) (drop scope n)]
+    [else #f]))
+
 (define (lvars-in datum [acc '()])
   (match datum
     ['() acc]
@@ -47,7 +54,7 @@
 (define (state-c-agrees-with-scope? st scope)
   (match st
     [`(state ,sub ,dis ,c ,trail ,_tag)
-     (same-members? c scope)]
+     (equal? c scope)]
     [_ #f]))
 
 (define (state-lvars-contained? st scope)
@@ -61,26 +68,30 @@
 (define (frontier-c-scope-agreement? f [scope '()])
   (match f
     ['(empty-tree) #t]
-    ['Bounced #t]
+    [(list 'Scoped intro inner)
+     (and (distinct? intro)
+          (subset? intro scope)
+          (frontier-c-scope-agreement? inner scope))]
     [(list 'Bounced '+ rest)
      (frontier-c-scope-agreement? rest scope)]
-    [(list (list '⊤ st) '+ rest)
-     (and (state-c-agrees-with-scope? st scope)
-          (frontier-c-scope-agreement? rest scope))]
-    [(list prefix '+ rest)
-     (and (frontier-c-scope-agreement? prefix scope)
-          (frontier-c-scope-agreement? rest scope))]
-    [(list 'Freshened intro inner)
+    [(list (list 'Freshened intro _tag) '+ rest)
      (and (distinct? intro)
           (for/and ([u (in-list intro)])
             (not (member? u scope)))
-          (frontier-c-scope-agreement? inner (append intro scope)))]
+          (frontier-c-scope-agreement? rest (append intro scope)))]
+    [(list (list 'ScopeEnd intro) '+ rest)
+     (match (scope-pop intro scope)
+       [#f #f]
+       [scope^ (frontier-c-scope-agreement? rest scope^)])]
+    [(list (list '⊤ st) '+ rest)
+     (and (state-c-agrees-with-scope? st scope)
+          (frontier-c-scope-agreement? rest scope))]
     [(list '⊤ st)
      (state-c-agrees-with-scope? st scope)]
     [(list _ st)
      (state-c-agrees-with-scope? st scope)]
     [(list inner '× _ c)
-     (and (same-members? c scope)
+     (and (equal? c scope)
           (frontier-c-scope-agreement? inner scope))]
     [(list 'delay inner)
      (frontier-c-scope-agreement? inner scope)]
@@ -95,27 +106,32 @@
 (define (frontier-lvars-contained? f [scope '()])
   (match f
     ['(empty-tree) #t]
-    ['Bounced #t]
+    [(list 'Scoped intro inner)
+     (and (distinct? intro)
+          (subset? intro scope)
+          (frontier-lvars-contained? inner scope))]
     [(list 'Bounced '+ rest)
      (frontier-lvars-contained? rest scope)]
-    [(list (list '⊤ st) '+ rest)
-     (and (state-lvars-contained? st scope)
-          (frontier-lvars-contained? rest scope))]
-    [(list prefix '+ rest)
-     (and (frontier-lvars-contained? prefix scope)
-          (frontier-lvars-contained? rest scope))]
-    [(list 'Freshened intro inner)
+    [(list (list 'Freshened intro _tag) '+ rest)
      (and (distinct? intro)
           (for/and ([u (in-list intro)])
             (not (member? u scope)))
-          (frontier-lvars-contained? inner (append intro scope)))]
+          (frontier-lvars-contained? rest (append intro scope)))]
+    [(list (list 'ScopeEnd intro) '+ rest)
+     (match (scope-pop intro scope)
+       [#f #f]
+       [scope^ (frontier-lvars-contained? rest scope^)])]
+    [(list (list '⊤ st) '+ rest)
+     (and (state-lvars-contained? st scope)
+          (frontier-lvars-contained? rest scope))]
     [(list '⊤ st)
      (state-lvars-contained? st scope)]
     [(list g st)
      (and (state-lvars-contained? st scope)
           (subset? (lvars-in g) scope))]
     [(list inner '× g c)
-     (and (subset? (lvars-in g) scope)
+     (and (equal? c scope)
+          (subset? (lvars-in g) scope)
           (frontier-lvars-contained? inner scope))]
     [(list 'delay inner)
      (frontier-lvars-contained? inner scope)]
@@ -152,16 +168,16 @@
     ['() 0]
     [(list gamma f) #:when (list? gamma)
      (count-bounced f)]
-    ['Bounced 1]
+    [(list 'Scoped _ inner)
+     (count-bounced inner)]
     [(list 'Bounced '+ rest)
      (add1 (count-bounced rest))]
+    [(list (list 'Freshened _ _) '+ rest)
+     (count-bounced rest)]
+    [(list (list 'ScopeEnd _) '+ rest)
+     (count-bounced rest)]
     [(list (list '⊤ _) '+ rest)
      (count-bounced rest)]
-    [(list prefix '+ rest)
-     (+ (count-bounced prefix)
-        (count-bounced rest))]
-    [(list 'Freshened _ inner)
-     (count-bounced inner)]
     [(list inner '× _ _)
      (count-bounced inner)]
     [(list 'delay inner)
@@ -179,13 +195,14 @@
     ['() 0]
     [(list gamma f) #:when (list? gamma)
      (count-answers f)]
+    [(list 'Scoped _ inner)
+     (count-answers inner)]
+    [(list (list 'Freshened _ _) '+ rest)
+     (count-answers rest)]
+    [(list (list 'ScopeEnd _) '+ rest)
+     (count-answers rest)]
     [(list (list '⊤ _) '+ rest)
      (add1 (count-answers rest))]
-    [(list prefix '+ rest)
-     (+ (count-answers prefix)
-        (count-answers rest))]
-    [(list 'Freshened _ inner)
-     (count-answers inner)]
     [(list 'Bounced '+ rest)
      (count-answers rest)]
     [(list '⊤ _)
@@ -207,15 +224,16 @@
     ['() 0]
     [(list gamma f) #:when (list? gamma)
      (count-freshened f)]
-    [(list 'Freshened _ inner)
-     (add1 (count-freshened inner))]
+    [(list 'Scoped _ inner)
+     (count-freshened inner)]
+    [(list (list 'Freshened _ _) '+ rest)
+     (add1 (count-freshened rest))]
+    [(list (list 'ScopeEnd _) '+ rest)
+     (count-freshened rest)]
     [(list (list '⊤ _) '+ rest)
      (count-freshened rest)]
     [(list 'Bounced '+ rest)
      (count-freshened rest)]
-    [(list prefix '+ rest)
-     (+ (count-freshened prefix)
-        (count-freshened rest))]
     [(list inner '× _ _)
      (count-freshened inner)]
     [(list 'delay inner)
@@ -228,17 +246,19 @@
         (count-freshened right))]
     [_ 0]))
 
-(define (trace-deterministic rel cfg [step-cap 64] [i 0] [acc '()])
-  (define next* (apply-reduction-relation/tag-with-names rel cfg))
+(define (trace-deterministic rel cfg [step-cap 64])
+  (define next*
+    (remove-duplicates
+     (apply-reduction-relation/tag-with-names rel cfg)))
   (match next*
     ['()
-     (values (reverse acc) cfg 'done)]
-    [(list _ ...) #:when (>= i step-cap)
-     (values (reverse acc) cfg 'cap)]
+     (values '() cfg 'done)]
+    [_ #:when (zero? step-cap)
+       (values '() cfg 'cap)]
     [(list (list name cfg1))
-     (trace-deterministic rel
-                          cfg1
-                          step-cap
-                          (add1 i)
-                          (cons (~a name) acc))]
-    [_ (values (reverse acc) cfg 'nondeterministic)]))
+     (define-values (steps cfg^ status)
+       (trace-deterministic rel cfg1 (sub1 step-cap)))
+     (values (cons (~a name) steps)
+             cfg^
+             status)]
+    [_ (values '() cfg 'nondeterministic)]))

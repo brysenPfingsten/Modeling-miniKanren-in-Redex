@@ -62,7 +62,7 @@
 
 (define-judgment-form
   search-base-seq-calls-lang
-  #:contract (wf-frontier/search-base-calls? f Γ c)
+  #:contract (wf-frontier/search-base-calls? cfg Γ c)
   #:mode (wf-frontier/search-base-calls? I I I)
   [------------------- "empty frontier residual is wf/search-base-calls"
    (wf-frontier/search-base-calls? (empty-tree) Γ c)]
@@ -74,23 +74,25 @@
   [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
-   (wf-frontier/search-base-calls? f_tail Γ c)
+   (wf-frontier/search-base-calls? cfg_tail Γ c)
    ------------------- "observable answer prefix wf/search-base-calls"
-   (wf-frontier/search-base-calls? ((⊤ (state sub dis c_i trail tag)) + f_tail) Γ c)]
-  [(wf-frontier/search-base-calls? f_tail Γ c)
+   (wf-frontier/search-base-calls? ((⊤ (state sub dis c_i trail tag)) + cfg_tail) Γ c)]
+  [(wf-frontier/search-base-calls? cfg_tail Γ c)
    ------------------- "bounced prefix wf/search-base-calls"
-   (wf-frontier/search-base-calls? (Bounced + f_tail) Γ c)]
-  [(lvars-fresh-extension? c_1 c_2)
-   (where c_3 (c-append c_1 c_2))
-   (wf-frontier/search-base-calls? f_obs Γ c_3)
-   (wf-frontier/search-base-calls? f_tail Γ c_2)
-   ------------------- "freshened observable prefix wf/search-base-calls"
-   (wf-frontier/search-base-calls? ((Freshened c_1 f_obs) + f_tail) Γ c_2)]
-  [(lvars-fresh-extension? c_1 c_2)
-   (where c_3 (c-append c_1 c_2))
-   (wf-frontier/search-base-calls? f_inner Γ c_3)
-   ------------------- "freshened frontier wf/search-base-calls"
-   (wf-frontier/search-base-calls? (Freshened c_1 f_inner) Γ c_2)]
+   (wf-frontier/search-base-calls? (Bounced + cfg_tail) Γ c)]
+  [(lvars-fresh-extension? c_1 c)
+   (wf-frontier/search-base-calls? cfg_tail Γ c)
+   ------------------- "freshened event prefix wf/search-base-calls"
+   (wf-frontier/search-base-calls? ((Freshened c_1 tag_1) + cfg_tail) Γ c)]
+  [(where c_2 ,(scope-pop/host (term c_1) (term c_current)))
+   (wf-frontier/search-base-calls? cfg_tail Γ c_2)
+   ------------------- "scope end prefix wf/search-base-calls"
+   (wf-frontier/search-base-calls? ((ScopeEnd c_1) + cfg_tail) Γ c_current)]
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-frontier/search-base-calls? cfg_tail Γ c_2)
+   ------------------- "scoped wrapper wf/search-base-calls"
+   (wf-frontier/search-base-calls? (Scoped c_1 cfg_tail) Γ c)]
   [(lvars-same-members? c c_i)
    (wf-goal/search-base-calls? g Γ () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
@@ -123,6 +125,6 @@
   #:contract (wf-config/search-base-calls? config)
   #:mode (wf-config/search-base-calls? I)
   [(wf-rel-env/search-base-calls? Γ)
-   (wf-frontier/search-base-calls? f Γ ())
+   (wf-frontier/search-base-calls? cfg Γ ())
    ----------------------- "program-wf/search-base-calls"
-   (wf-config/search-base-calls? (Γ f))])
+   (wf-config/search-base-calls? (Γ cfg))])

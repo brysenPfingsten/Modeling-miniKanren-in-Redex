@@ -14,17 +14,13 @@
 
 (define-extended-language rail-fused-calls-lang
   rail-fused-calls/join
-  [pref ....
-        (Freshened c end-f)]
-  [end-f ....
-         (pref + end-f)]
   [K ::= hole
         (K × g c)]
   [KCorePath ::= hole
-                 (Freshened c KCorePath)
+                 (Scoped c KCorePath)
                  (KCorePath <-+ f)
                  (f +-> KCorePath)]
   [KScopePath ::= hole
-                  (Freshened c KScopePath)
+                  (Scoped c KScopePath)
                   (KScopePath <-+ f)
                   (f +-> KScopePath)])

@@ -53,8 +53,20 @@
 
 (define PROPERTY-RNG (rt:make-seeded-rng PROPERTY-SEED))
 
+(define (final-frontier? f)
+  (match f
+    ['(empty-tree) #t]
+    [`(Scoped ,_ ,inner) (final-frontier? inner)]
+    [`((⊤ ,_) + ,rest) (final-frontier? rest)]
+    [`((Freshened ,_ ,_) + ,rest) (final-frontier? rest)]
+    [`((ScopeEnd ,_) + ,rest) (final-frontier? rest)]
+    [`(Bounced + ,rest) (final-frontier? rest)]
+    [_ #f]))
+
 (define (final-config? cfg)
-  (redex-match? core-lang end-cfg cfg))
+  (match cfg
+    [`(,_gamma ,f) (final-frontier? f)]
+    [_ (final-frontier? cfg)]))
 
 (define (wf-config-term? cfg)
   (judgment-holds (wf-cfg/core? ,cfg)))
@@ -222,11 +234,13 @@
     [(freshened-tree)
      (define-values (intro c^)
        (fresh-scope-extension c))
-     (cond
-       [(null? intro)
-        (gen-live-tree c (sub1 depth))]
-       [else
-        `(Freshened ,intro ,(gen-live-tree c^ (sub1 depth)))])]))
+       (cond
+         [(null? intro)
+          (gen-live-tree c (sub1 depth))]
+         [else
+        `((Freshened ,intro ,(make-label "fresh"))
+          +
+          (Scoped ,intro ,(gen-live-tree c^ (sub1 depth))))])]))
 
 (define (gen-tree c depth)
   (define options
@@ -239,11 +253,13 @@
     [(freshened-tree)
      (define-values (intro c^)
        (fresh-scope-extension c))
-     (cond
-       [(null? intro)
-        (gen-live-tree c depth)]
-       [else
-        `(Freshened ,intro ,(gen-live-tree c^ (sub1 depth)))])]))
+       (cond
+         [(null? intro)
+          (gen-live-tree c depth)]
+         [else
+        `((Freshened ,intro ,(make-label "fresh"))
+          +
+          (Scoped ,intro ,(gen-live-tree c^ (sub1 depth))))])]))
 
 (define (generate-wf-config/constructive)
   (define cfg
@@ -270,7 +286,11 @@
 (define (tree-coverage s)
   (match s
     [`(empty-tree) (values #f #f #f 0)]
-    [`(Freshened ,_ ,s-inner)
+    [`((Freshened ,_ ,_) + ,s-inner)
+     (tree-coverage s-inner)]
+    [`((ScopeEnd ,_) + ,s-inner)
+     (tree-coverage s-inner)]
+    [`(Scoped ,_ ,s-inner)
      (tree-coverage s-inner)]
     [`(⊤ ,st) (define csz (state-c-size st))
               (values (> csz 0) #f #f csz)]

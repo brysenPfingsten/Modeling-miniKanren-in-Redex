@@ -31,18 +31,24 @@
 (define rail-frontier-extra
   (reduction-relation
    rail-fused-lang
-   #:domain f
+   #:domain cfg
+   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> ((Freshened c_1 tag_1) + f_right)))))
+        (in-hole Q (in-hole KScopePath (in-hole K ((Freshened c_1 tag_1) + (f_left +-> f_right)))))
+        "rail-fused/continue-right-freshened-prefix"]
+   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> ((ScopeEnd c_1) + f_right)))))
+        (in-hole Q (in-hole KScopePath (in-hole K ((ScopeEnd c_1) + (f_left +-> f_right)))))
+        "rail-fused/continue-right-scope-end-prefix"]
    [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> ((⊤ σ_new) <-+ f_right)))))
         (in-hole Q (in-hole KScopePath (in-hole K ((⊤ σ_new) + (f_left +-> f_right)))))
         "rail-fused/promote-right-left-answer"]
    [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> ((empty-tree) <-+ f_right)))))
         (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> f_right))))
         "rail-fused/skip-right-left-fail"]
-   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> (pref_1 + f_right)))))
-        (in-hole Q (in-hole KScopePath (in-hole K (pref_1 + (f_left +-> f_right)))))
+   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> ((⊤ σ_new) + f_right)))))
+        (in-hole Q (in-hole KScopePath (in-hole K ((⊤ σ_new) + (f_left +-> f_right)))))
         "rail-fused/continue-right-prefix"]
-   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> pref_1))))
-        (in-hole Q (in-hole KScopePath (in-hole K (pref_1 + f_left))))
+   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> (⊤ σ_new)))))
+        (in-hole Q (in-hole KScopePath (in-hole K ((⊤ σ_new) + f_left))))
         "rail-fused/promote-right-observable"]
    [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> (empty-tree)))))
         (in-hole Q (in-hole KScopePath (in-hole K f_left)))
@@ -53,9 +59,10 @@
 
 (define rail-fused-red
   (union-reduction-relations
+   lifted-search-base-fused-red
    rail-local
    rail-frontier-extra
-   lifted-search-base-fused-red))
+   ))
 
 (define (step-once prog)
   (step-once/deterministic rail-fused-red prog))

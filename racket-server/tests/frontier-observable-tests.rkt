@@ -26,7 +26,7 @@
                           count))]))
 
 (define (named-step succ*)
-  (match succ*
+  (match (remove-duplicates succ*)
     [(list (list name cfg))
      (values (~a name) cfg)]
     [_ (error 'named-step "expected exactly one tagged successor, got ~e" succ*)]))
@@ -54,9 +54,11 @@
 
   (test-case "delay pops do not escape their Freshened wrapper"
     (define scoped-delay
-      (term (Freshened (u:0)
-                       (delay ((succeed (label "ok"))
-                               (state () () (u:0) () (label "s")))))))
+      (term ((Freshened (u:0) (label "fresh")) +
+             (Scoped
+              (u:0)
+              (delay ((succeed (label "ok"))
+                      (state () () (u:0) () (label "s"))))))))
     (for ([rel (in-list (list red:delay-red
                               red:search-base-seq-red
                               red:search-base-fused-red))])
@@ -65,10 +67,12 @@
       (check-equal? step-name "delay/invoke-delay")
       (check-equal?
        next
-       (term (Freshened (u:0)
-                        (Bounced +
-                                  ((succeed (label "ok"))
-                                   (state () () (u:0) () (label "s")))))))
+       (term ((Freshened (u:0) (label "fresh")) +
+              (Scoped
+               (u:0)
+               (Bounced +
+                        ((succeed (label "ok"))
+                         (state () () (u:0) () (label "s"))))))))
       (check-true (config-c-scope-agreement? next))
       (check-true (config-exact-scope? next))))
 

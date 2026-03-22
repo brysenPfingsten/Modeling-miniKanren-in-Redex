@@ -33,6 +33,7 @@ import './styles.css';
 function App() {
   const [code, setCode] = useState('');
   const originalCodeRef = useRef('');
+  const initialTaggedCodeRef = useRef('');
   const [selectedExampleId, setSelectedExampleId] = useState('');
   const [selectedExampleSource, setSelectedExampleSource] = useState('');
   const [sourceMode, setSourceMode] = useState(DEFAULT_SOURCE_MODE);
@@ -43,12 +44,6 @@ function App() {
   const [isAtEnd, setIsAtEnd] = useState(false);
   const [alert, setAlert] = useState({ isOpen: false, message: '' });
   const treeRef = useRef();
-  const {
-    tree, stepInfo,
-    init, step, reset, back
-  } = useStepper({
-    onSuccess: () => { setGoalId(null); }
-  });
   const [substitutionData, setSubstitutionData] = useState([]);
   const [trailData, setTrailData] = useState([]);
   const [goalId, setGoalId] = useState(null);
@@ -56,6 +51,20 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isExampleLoading, setIsExampleLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+
+  const clearSelection = () => {
+    setGoalId(null);
+    setStateId(null);
+    setSubstitutionData([]);
+    setTrailData([]);
+  };
+
+  const {
+    tree, stepInfo,
+    init, step, reset, back
+  } = useStepper({
+    onSuccess: clearSelection
+  });
 
   const convertExampleToMicro = async (sourceText, profile = compileProfile) => {
     const response = await fetch('/api/post/source-convert', {
@@ -102,8 +111,9 @@ function App() {
     originalCodeRef.current = code;
     const [success, progOrError] = await init(code, sourceMode, compileProfile, searchStrategy);
     if (success) {
+      initialTaggedCodeRef.current = progOrError || code;
       setFrozen(true);
-      setCode(progOrError);
+      setCode(initialTaggedCodeRef.current);
       setIsAtStart(true);
       setIsAtEnd(false);
     } else {
@@ -137,8 +147,8 @@ function App() {
       setAlert({ isOpen: true, message: error });
       return;
     }
-    setCode(originalCodeRef.current);
-    setFrozen(false);
+    setCode(initialTaggedCodeRef.current || originalCodeRef.current);
+    setFrozen(true);
     setIsAtStart(true);
     setIsAtEnd(false);
   };

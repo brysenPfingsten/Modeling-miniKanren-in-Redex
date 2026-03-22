@@ -14,25 +14,24 @@
 (check-redundancy #t)
 
 (define-language core-lang
-  [cfg f]
+  [cfg w
+       (head + cfg)]
   [d (x_!_ ...)]
 
   [f w
-     (pref + f)
-     (Freshened c f)]
+     (cell + f)]
 
-  [evt (⊤ σ)
-       Bounced]
-  [pref evt
-        (Freshened c obs-f)]
-  [obs-f evt
-         end-f
-         (Freshened c obs-f)]
+  [head cell
+        Bounced]
+  [cell (⊤ σ)
+        (Freshened c tag)
+        (ScopeEnd c)]
 
   [w (empty-tree)
      (g σ)
      (f × g c)
-     (⊤ σ)]
+     (⊤ σ)
+     (Scoped c cfg)]
 
   [eq (t =? t tag)]
   [neq (t != t tag)]
@@ -64,20 +63,18 @@
   [dis ((t t) ...)]
   [maybe-sub sub #f]
   [trail (eq ...)]
-  [end-f (empty-tree)
-         (pref + end-f)]
-  [end-cfg end-f]
   [c (u_!_ ...)]
 
   ;; Base active-work context.
   [K ::= hole
-         (K × g c)
-         (Freshened c K)]
+         (K × g c)]
+  [KScoped ::= hole
+              (Scoped c KScoped)]
   [Q ::= hole
-         (pref + Q)]
+         (head + Q)
+         (Scoped c KScoped)]
   [P ::= hole
-         (pref + P)
-         (Freshened c P)]
+         (head + P)]
 
   #:binding-forms
   (∃ (x ...) g #:refers-to (shadow x ...)))

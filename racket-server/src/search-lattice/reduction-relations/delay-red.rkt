@@ -28,9 +28,9 @@
 (define delay-frontier-extra
   (reduction-relation
    delay-lang
-   #:domain f
-   [--> (in-hole P (delay f_1))
-        (in-hole P (Bounced + f_1))
+   #:domain cfg
+   [--> (in-hole Q (delay f_1))
+        (in-hole Q (Bounced + f_1))
         "delay/invoke-delay"]))
 
 (define delay-extra
@@ -40,9 +40,9 @@
 
 (define delay-red
   (union-reduction-relations
-   delay-extra
    delay-frontier
-   core-frontier/delay))
+   core-frontier/delay
+   delay-extra))
 
 (define (step-once prog)
   (step-once/deterministic delay-red prog))

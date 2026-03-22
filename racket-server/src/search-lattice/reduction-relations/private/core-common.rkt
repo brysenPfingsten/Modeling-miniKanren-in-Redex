@@ -10,6 +10,13 @@
 
 (check-redundancy #t)
 
+(define (scope-pop/host intro current)
+  (define n (length intro))
+  (cond
+    [(< (length current) n) #f]
+    [(equal? intro (take current n)) (drop current n)]
+    [else #f]))
+
 (define core-redex/core
   (reduction-relation
    core-lang
@@ -23,6 +30,30 @@
    [--> ((fail tag) σ)
         (empty-tree)
         "core/fail"]
+   [--> (Scoped c_i (⊤ σ))
+        (Scoped c_i ((⊤ σ) + (empty-tree)))
+        "core/collect-scoped-answer"]
+   [--> (Scoped c_i (head_1 + cfg_tail))
+        (head_1 + (Scoped c_i cfg_tail))
+        "core/continue-scoped-prefix"]
+   [--> (Scoped c_i (empty-tree))
+        ((ScopeEnd c_i) + (empty-tree))
+        "core/close-scope"]
+   [--> ((Scoped c_1 f_left) × g c_2)
+        (Scoped c_1 (f_left × g c_new))
+        (where c_new ,(append (term c_1) (term c_2)))
+        "core/continue-scoped-conj"]
+   [--> (((Freshened c_1 tag_1) + (Scoped c_1 f_left)) × g c_2)
+        ((Freshened c_1 tag_1) + (Scoped c_1 (f_left × g c_new)))
+        (where c_new ,(append (term c_1) (term c_2)))
+        "core/continue-left-prefix-freshened"]
+   [--> (((ScopeEnd c_1) + f_rest) × g c_current)
+        ((ScopeEnd c_1) + (f_rest × g c_outer))
+        (where c_outer ,(scope-pop/host (term c_1) (term c_current)))
+        "core/continue-left-prefix-scope-end"]
+   [--> ((Bounced + f_rest) × g c)
+        (Bounced + (f_rest × g c))
+        "core/continue-left-prefix-bounced"]
    [--> ((⊤ σ) × g c)
         (g σ)
         "core/conj-bring-success"]
@@ -30,9 +61,12 @@
         (empty-tree)
         "core/conj-prune-fail"]
    [--> ((∃ d g tag) (state sub dis c trail tag_1))
-        (Freshened (u_1 ...)
-                   (g_new
-                    (state sub dis (u_1 ... ,@(term c)) trail tag_1)))
+        ((Freshened (u_1 ...) tag)
+         +
+         (Scoped
+          (u_1 ...)
+          (g_new
+           (state sub dis (u_1 ... ,@(term c)) trail tag_1))))
         (where ((x_1 u_1) ...)
                (fresh-substitution c d))
         (where g_new
@@ -69,12 +103,7 @@
 (define-syntax-rule (make-core-collector lang)
   (reduction-relation
    lang
-   #:domain f
-   [--> (in-hole P (Freshened c_1 (pref_1 + f_tail)))
-        (in-hole P ((Freshened c_1 pref_1)
-                    +
-                    (Freshened c_1 f_tail)))
-        "core/continue-scoped-prefix"]
+   #:domain cfg
    [--> (in-hole P (⊤ σ_new))
         (in-hole P ((⊤ σ_new) + (empty-tree)))
         "core/collect-single-answer"]))

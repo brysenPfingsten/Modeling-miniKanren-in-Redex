@@ -41,7 +41,7 @@
 
 (define-judgment-form
   delay-lang
-  #:contract (wf-frontier/delay? f c)
+  #:contract (wf-frontier/delay? cfg c)
   #:mode (wf-frontier/delay? I I)
   [------------------- "empty frontier residual is wf/delay"
    (wf-frontier/delay? (empty-tree) c)]
@@ -53,23 +53,25 @@
   [(lvars-same-members? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
-   (wf-frontier/delay? f_tail c)
+   (wf-frontier/delay? cfg_tail c)
    ------------------- "observable answer prefix wf/delay"
-   (wf-frontier/delay? ((⊤ (state sub dis c_i trail tag)) + f_tail) c)]
-  [(wf-frontier/delay? f_tail c)
+   (wf-frontier/delay? ((⊤ (state sub dis c_i trail tag)) + cfg_tail) c)]
+  [(wf-frontier/delay? cfg_tail c)
    ------------------- "bounced prefix wf/delay"
-   (wf-frontier/delay? (Bounced + f_tail) c)]
-  [(lvars-fresh-extension? c_1 c_2)
-   (where c_3 (c-append c_1 c_2))
-   (wf-frontier/delay? f_obs c_3)
-   (wf-frontier/delay? f_tail c_2)
-   ------------------- "freshened observable prefix wf/delay"
-   (wf-frontier/delay? ((Freshened c_1 f_obs) + f_tail) c_2)]
-  [(lvars-fresh-extension? c_1 c_2)
-   (where c_3 (c-append c_1 c_2))
-   (wf-frontier/delay? f_inner c_3)
-   ------------------- "freshened frontier wf/delay"
-   (wf-frontier/delay? (Freshened c_1 f_inner) c_2)]
+   (wf-frontier/delay? (Bounced + cfg_tail) c)]
+  [(lvars-fresh-extension? c_1 c)
+   (wf-frontier/delay? cfg_tail c)
+   ------------------- "freshened event prefix wf/delay"
+   (wf-frontier/delay? ((Freshened c_1 tag_1) + cfg_tail) c)]
+  [(where c_2 ,(scope-pop/host (term c_1) (term c_current)))
+   (wf-frontier/delay? cfg_tail c_2)
+   ------------------- "scope end prefix wf/delay"
+   (wf-frontier/delay? ((ScopeEnd c_1) + cfg_tail) c_current)]
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-frontier/delay? cfg_tail c_2)
+   ------------------- "scoped wrapper wf/delay"
+   (wf-frontier/delay? (Scoped c_1 cfg_tail) c)]
   [(lvars-same-members? c c_i)
    (wf-goal/delay? g () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
@@ -89,6 +91,6 @@
   delay-lang
   #:contract (wf-cfg/delay? cfg)
   #:mode (wf-cfg/delay? I)
-  [(wf-frontier/delay? f ())
+  [(wf-frontier/delay? cfg ())
    ----------------------- "cfg-wf/delay"
-   (wf-cfg/delay? f)])
+   (wf-cfg/delay? cfg)])

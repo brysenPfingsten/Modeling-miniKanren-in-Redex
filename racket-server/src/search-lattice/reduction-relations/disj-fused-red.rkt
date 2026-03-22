@@ -39,11 +39,17 @@
   (reduction-relation
    disj-fused-lang
    #:domain f
-   [--> ((pref_1 <-+ f_mid) <-+ f_right)
-        (pref_1 <-+ (f_mid <-+ f_right))
+   [--> (((Freshened c_1 tag_1) + f_left) <-+ f_right)
+        ((Freshened c_1 tag_1) + (f_left <-+ f_right))
+        "disj-fused/continue-left-freshened-prefix"]
+   [--> (((ScopeEnd c_1) + f_left) <-+ f_right)
+        ((ScopeEnd c_1) + (f_left <-+ f_right))
+        "disj-fused/continue-left-scope-end-prefix"]
+   [--> (((⊤ σ_new) <-+ f_mid) <-+ f_right)
+        ((⊤ σ_new) <-+ (f_mid <-+ f_right))
         "disj-fused/bubble-left-observable"]
-   [--> (pref_1 <-+ f_right)
-        (pref_1 + f_right)
+   [--> ((⊤ σ_new) <-+ f_right)
+        ((⊤ σ_new) + f_right)
         "disj-fused/promote-left-observable"]
    [--> (((empty-tree) <-+ f_mid) <-+ f_right)
         ((empty-tree) <-+ (f_mid <-+ f_right))
@@ -53,16 +59,16 @@
         "disj-fused/skip-left-fail"]))
 
 (define disj-frontier
-  (context-closure disj-frontier-extra disj-fused-lang P))
+  (context-closure disj-frontier-extra disj-fused-lang Q))
 
 (define disj-local
   (context-closure disj-extra disj-fused-lang Q))
 
 (define disj-fused-red
   (union-reduction-relations
+   core-frontier/disj
    disj-local
    disj-frontier
-   core-frontier/disj
    (make-core-collector disj-fused-lang)))
 
 (define (step-once prog)

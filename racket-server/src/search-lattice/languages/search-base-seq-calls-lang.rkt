@@ -14,15 +14,11 @@
 
 (define-extended-language search-base-seq-calls-lang
   search-base-seq-calls/join
-  [pref ....
-        (Freshened c end-f)]
-  [end-f ....
-         (pref + end-f)]
   [K ::= hole
         (K × g c)]
   [KCorePath ::= hole
-                 (Freshened c KCorePath)
+                 (Scoped c KCorePath)
                  (KCorePath <-+ f)]
   [KScopePath ::= hole
-                  (Freshened c KScopePath)
+                  (Scoped c KScopePath)
                   (KScopePath <-+ f)])
