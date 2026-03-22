@@ -58,7 +58,7 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
 
   const convertExampleToMicro = async (sourceText, profile = compileProfile) => {
-    const response = await fetch('api/post/source-convert', {
+    const response = await fetch('/api/post/source-convert', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -385,7 +385,7 @@
   }
 
   .selected-tag-deco {
-    background-color: rgba(0,123,255,0.3);
+    background-color: rgba(180, 27, 89, 0.22);
   }
 
   /* ============================= */
@@ -404,7 +404,7 @@
   g.node circle.highlighted,
   g.node rect.highlighted,
   g.node polygon.highlighted {
-    stroke: rgb(0, 103, 138) !important;
+    stroke: rgb(180, 27, 89) !important;
     stroke-width: 8px   !important;
   }
 
