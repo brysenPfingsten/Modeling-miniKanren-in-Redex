@@ -25,22 +25,19 @@
     (for ([strategy (in-list all-surfaced-search-strategies)])
       (match-define (strategy-spec spec-strategy _ in-domain? well-formed?)
         (lookup-strategy-spec strategy))
-      (define internal-cfg (canonical-flat->calls-config cfg0))
       (check-equal? spec-strategy
                     strategy)
-      (check-equal? (in-domain? internal-cfg)
+      (check-equal? (in-domain? cfg0)
                     (search-config-in-domain? strategy cfg0))
-      (check-equal? (well-formed? internal-cfg)
+      (check-equal? (well-formed? cfg0)
                     (search-config-well-formed? strategy cfg0))))
 
   (test-case "strategy lookup returns the same internal stepper as the registry"
     (define-values (cfg0 _html) (parse-src/canonical (example-src "fives/fours")))
     (for ([strategy (in-list all-surfaced-search-strategies)])
       (match-define (strategy-spec _ step-once _ _) (lookup-strategy-spec strategy))
-      (define internal-cfg
-        (canonical-flat->calls-config cfg0))
-      (check-equal? (step-once internal-cfg)
-                    ((lookup-search-step-once strategy) internal-cfg)))))
+      (check-equal? (step-once cfg0)
+                    ((lookup-search-step-once strategy) cfg0)))))
 
 (module+ test
   (run-tests SEARCH-RUNTIME))

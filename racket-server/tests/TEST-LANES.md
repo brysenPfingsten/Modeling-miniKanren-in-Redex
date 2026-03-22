@@ -55,7 +55,7 @@ raco test racket-server/tests/model-example-matrix-tests.rkt
   - `sourceMode`
   - optional `compileProfile` for `mini`
   - `searchStrategy = { hoist, scheduler }`
-- The app boundary adapts canonical flat configs into the internal
-  `search-lattice` `+calls` machines before stepping.
+- The app boundary parses directly into the canonical `search-lattice`
+  `+calls` machines before stepping.
 - The default headless lane is modern-only.
 - Supported lanes are `A`/`B`/`C`/`D` above.

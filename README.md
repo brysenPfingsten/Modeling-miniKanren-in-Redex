@@ -88,8 +88,8 @@ Execution notes:
   conjunction associativity, disjunction associativity, and delay placement.
 - `searchStrategy` controls the backend stepping machine independently of the
   source compilation settings.
-- The backend still parses to the canonical flat target config, then adapts that
-  program into the internal search-lattice `+calls` configuration selected by
+- The backend parses directly to the canonical search-lattice target config and
+  then steps that program under the internal `+calls` configuration selected by
   `searchStrategy`.
 
 ## **Semantics Organization**
@@ -100,7 +100,7 @@ The repo now has one authoritative runtime path:
   - languages: `racket-server/src/search-lattice/languages/*.rkt`
   - well-formedness: `racket-server/src/search-lattice/wf/*.rkt`
   - reducers: `racket-server/src/search-lattice/reduction-relations/*.rkt`
-  - strategy registry + canonical adapter: `racket-server/src/search-runtime.rkt`
+  - strategy registry: `racket-server/src/search-runtime.rkt`
   - structured strategy API: `racket-server/src/search-strategy.rkt`
 
 The short architecture note lives in:
@@ -111,13 +111,13 @@ The short architecture note lives in:
 
 Use this if you are jumping in with no project history:
 
-- Canonical parser/transpiler target is the neutral flat search target:
+- Canonical parser/transpiler target is the neutral search target:
   - `parserProfile = "surface->canonical"`
   - `parserTarget = "canonical/config"`
 - Backend canonical entry points live in:
   - `racket-server/src/transpiler.rkt` (`parse-prog/canonical`)
   - `racket-server/src/app.rkt` (`init!` validates canonical shape, then checks the internal search target selected by `searchStrategy`)
-  - `racket-server/src/search-runtime.rkt` (strategy registry, canonical-flat <-> internal search-lattice adapter, stepper lookup, internal wf checks)
+  - `racket-server/src/search-runtime.rkt` (strategy registry, stepper lookup, internal wf checks)
   - `racket-server/src/search-strategy.rkt` (structured surfaced strategy contract)
 - Canonical WF/target checks now live in the search-lattice side:
   - `racket-server/src/search-lattice/languages/canonical-core-lang.rkt`

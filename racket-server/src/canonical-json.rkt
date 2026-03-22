@@ -1,8 +1,7 @@
 #lang racket
 
 (require json
-         racket/hash
-         "./search-lattice/canonical-adapter.rkt")
+         racket/hash)
 
 (provide to-json/canonical
          num-query-vars/canonical)
@@ -262,8 +261,8 @@
 
 (define (normalize-config/canonical cfg)
   (match cfg
-    [`(,_gamma ,_s ,_as) (canonical-flat->calls-config cfg)]
-    [_ cfg]))
+    [`(,_gamma ,_f) cfg]
+    [f f]))
 
 (define (project-config-tree/canonical cfg)
   (match (normalize-config/canonical cfg)
@@ -362,8 +361,6 @@
 
 (define (num-query-vars/canonical cfg)
   (match cfg
-    [`(,_gamma ,s_work ,_as)
-     (num-query-vars/work s_work)]
     [`(,_gamma ,s)
      (num-query-vars/work s)]
     [_ 0]))

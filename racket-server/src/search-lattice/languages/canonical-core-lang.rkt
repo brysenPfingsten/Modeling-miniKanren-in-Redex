@@ -11,15 +11,12 @@
   [r (variable-prefix r:)]
   [d (x_!_ ...)]
   [Γ ((r d g) ...)]
-  [s (empty-tree)
+  [w (empty-tree)
      (g σ)
-     (s × g c)
+     (w × g c)
      (⊤ σ)]
-  [as (empty-stream)
-      (⊤ σ)
-      ((⊤ σ) + as)]
-  [config (Γ s as)]
-  [end-config (Γ (empty-tree) as)]
+  [config (Γ w)]
+  [end-config (Γ (empty-tree))]
 
   #:binding-forms
   (config #:refers-to (shadow r ...)

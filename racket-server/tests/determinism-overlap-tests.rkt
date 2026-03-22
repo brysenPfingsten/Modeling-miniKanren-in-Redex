@@ -115,7 +115,7 @@
     (and (search-config-in-domain? strategy cfg0)
          (search-config-well-formed? strategy cfg0)
          (hash 'strategy strategy
-               'cfg (canonical-flat->calls-config cfg0)))))
+               'cfg cfg0))))
 
 (define (drop-false xs)
   (for/list ([x (in-list xs)]

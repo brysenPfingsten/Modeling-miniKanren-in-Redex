@@ -12,9 +12,9 @@
      (g ∨ g tag)
      (suspend g tag)
      (r t ... tag)]
-  [s ....
-     (delay s)
-     (s <-+ s)]
+  [w ....
+     (delay w)
+     (w <-+ w)]
 
   #:binding-forms
   (config #:refers-to (shadow r ...)

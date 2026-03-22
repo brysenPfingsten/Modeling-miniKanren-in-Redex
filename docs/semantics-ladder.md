@@ -85,11 +85,10 @@ The GUI/API boundary now uses structured strategy selection:
 
 The app flow is:
 
-1. parse/transpile surface input to canonical flat `canonical/config`
+1. parse/transpile surface input to canonical `canonical/config`
 2. validate that canonical target
-3. adapt the flat config to the internal `+calls` search-lattice shape
-4. run relation-aware internal `wf`
-5. step using the reducer selected by `searchStrategy`
+3. run relation-aware internal `wf`
+4. step using the reducer selected by `searchStrategy`
 
 The app/runtime seam lives in:
 

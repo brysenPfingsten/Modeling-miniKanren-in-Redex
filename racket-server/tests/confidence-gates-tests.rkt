@@ -41,8 +41,7 @@
 (define (trace-steps strategy
                      label
                      [compile-profile #f]
-                     [cfg (canonical-flat->calls-config
-                           (example-cfg label compile-profile))]
+                     [cfg (example-cfg label compile-profile)]
                      [step-once (lookup-search-step-once strategy)]
                      [i 0]
                      [acc '()])

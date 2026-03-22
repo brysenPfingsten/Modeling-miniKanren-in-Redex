@@ -7,7 +7,6 @@
          "../src/app.rkt"
          "../src/search-runtime.rkt"
          "../src/search-strategy.rkt"
-         "../src/search-lattice/canonical-adapter.rkt"
          "../src/sexpr-read.rkt"
          "../src/transpiler.rkt"
          "../src/zipper.rkt"
@@ -86,11 +85,10 @@
                      (incompatible-result))])
     (define sexprs (read-all-sexprs (open-input-string src)))
     (define-values (cfg0 _html) (parse-prog/canonical sexprs))
-    (define internal-cfg (canonical-flat->calls-config cfg0))
     (cond
       [(and (search-config-in-domain? strategy cfg0)
             (search-config-well-formed? strategy cfg0))
-       (classify-config (lookup-search-step-once strategy) internal-cfg)]
+       (classify-config (lookup-search-step-once strategy) cfg0)]
       [else
        (incompatible-result)])))
 
