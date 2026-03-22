@@ -1,12 +1,10 @@
 #lang racket
 
-(require rackunit
-         racket/match
-         racket/string
-         json
+(require json
+         net/url-structs
+         rackunit
          web-server/http/request-structs
          web-server/http/response-structs
-         net/url-structs
          "../src/search-strategy.rkt")
 
 (provide response-body->string
@@ -92,8 +90,7 @@
   (define tree (string->jsexpr program-json))
   (check-true (hash? tree)
               (format "~a: program is not a json object" where))
-  (match-define (hash* ['name root-name] #:open)
-    tree)
+  (match-define (hash* ['name root-name] #:open) tree)
   (check-true (nonempty-string? root-name)
               (format "~a: tree root missing name" where))
   (check-false (equal? root-name "Unknown")

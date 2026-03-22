@@ -1,6 +1,4 @@
 #lang racket
-(require racket/pretty
-         racket/list)
 
 (provide parse-prog/canonical
          parse-prog->ast
@@ -44,12 +42,11 @@
 
 (define default-source-mode "mini")
 
-(define (compile-profile->jsexpr profile)
-  (match-define (compile-profile conj-assoc disj-assoc delay-placement)
-    profile)
+(define/match (compile-profile->jsexpr profile)
+  [((compile-profile conj-assoc disj-assoc delay-placement))
   (hasheq 'conjAssoc conj-assoc
           'disjAssoc disj-assoc
-          'delayPlacement delay-placement))
+          'delayPlacement delay-placement)])
 
 (define canonical-compile-profile
   (compile-profile "left" "right" "relbody"))
@@ -464,9 +461,8 @@
      (compiled-delay-goal (wrap-disjs g wrapper))]
     [_ goal]))
 
-(define (surface-goal->micro goal profile)
-  (match-define (compile-profile conj-assoc disj-assoc _)
-    profile)
+(define/match (surface-goal->micro goal profile)
+  [(goal (and profile (compile-profile conj-assoc disj-assoc _)))
   (match goal
     [(fresh vars g)
      (fresh vars (surface-goal->micro g profile))]
@@ -485,7 +481,7 @@
            (surface-goal->micro g2 profile))]
     [(delay-goal g)
      (delay-goal (surface-goal->micro g profile))]
-    [_ goal]))
+    [_ goal])])
 
 (define (apply-delay-placement goal placement [wrapper delay-goal])
   (case (string->symbol placement)
@@ -493,32 +489,30 @@
     [(disj) (wrap-disjs goal wrapper)]
     [else goal]))
 
-(define (mini-ast->normalized-micro ast profile)
-  (match-define (compile-profile _ _ delay-placement)
-    profile)
-  (match ast
-    [(prog rels (run n q goal))
-     (define normalized-rels
-       (for/list ([rel (in-list rels)])
-         (match-define (defrel name lop rel-goal) rel)
-         (define normalized-goal
-           (surface-goal->micro rel-goal profile))
-         (defrel name
-                 lop
-                 (if (equal? delay-placement "relbody")
-                     (compiled-delay-goal normalized-goal)
-                     (apply-delay-placement normalized-goal
-                                            delay-placement
-                                            compiled-delay-goal)))))
-     (prog normalized-rels
-           (run n
-                q
-                (apply-delay-placement (surface-goal->micro goal profile)
-                                       delay-placement
-                                       compiled-delay-goal)))]
-    [_ (error 'mini-ast->normalized-micro
-              "unexpected source AST shape: ~e"
-              ast)]))
+(define/match (mini-ast->normalized-micro ast profile)
+  [((prog rels (run n q goal))
+    (and profile (compile-profile _ _ delay-placement)))
+   (define normalized-rels
+     (for/list ([rel (in-list rels)])
+       (match-define (defrel name lop rel-goal) rel)
+       (define normalized-goal (surface-goal->micro rel-goal profile))
+       (defrel name
+               lop
+               (if (equal? delay-placement "relbody")
+                   (compiled-delay-goal normalized-goal)
+                   (apply-delay-placement normalized-goal
+                                          delay-placement
+                                          compiled-delay-goal)))))
+   (prog normalized-rels
+         (run n
+              q
+              (apply-delay-placement (surface-goal->micro goal profile)
+                                     delay-placement
+                                     compiled-delay-goal)))]
+  [(ast _)
+   (error 'mini-ast->normalized-micro
+          "unexpected source AST shape: ~e"
+          ast)])
 
 (define (relbody-certifies? goal)
   (match goal
@@ -558,53 +552,51 @@
           (disj-certifies? g2))]
     [_ #t]))
 
-(define (certify-guarded-mini-program ast profile)
-  (match-define (compile-profile _ _ placement)
-    profile)
-  (match ast
-    [(prog rels (run _ _ query-goal))
-     (case (string->symbol placement)
-       [(relbody)
-        (unless (andmap (lambda (rel)
-                          (match rel
-                            [(defrel _ _ goal) (relbody-certifies? goal)]
-                            [_ #f]))
-                        rels)
-          (error 'certify-guarded-mini-program
-                 "relbody profile did not produce delayed relation bodies"))
-        (when (contains-delay-goal? query-goal)
-          (error 'certify-guarded-mini-program
-                 "relbody profile should not delay the query"))]
-       [(relcall)
-        (unless (andmap (lambda (rel)
-                          (match rel
-                            [(defrel _ _ goal) (relcall-certifies? goal)]
-                            [_ #f]))
-                        rels)
-          (error 'certify-guarded-mini-program
-                 "relcall profile did not delay every relation call in bodies"))
-        (unless (relcall-certifies? query-goal)
-          (error 'certify-guarded-mini-program
-                 "relcall profile did not delay every relation call in query"))]
-       [(disj)
-        (unless (andmap (lambda (rel)
-                          (match rel
-                            [(defrel _ _ goal) (disj-certifies? goal)]
-                            [_ #f]))
-                        rels)
-          (error 'certify-guarded-mini-program
-                 "disj profile did not delay every disjunction in bodies"))
-        (unless (disj-certifies? query-goal)
-          (error 'certify-guarded-mini-program
-                 "disj profile did not delay every disjunction in query"))]
-       [else
+(define/match (certify-guarded-mini-program ast profile)
+  [((prog rels (run _ _ query-goal)) (compile-profile _ _ placement))
+   (case (string->symbol placement)
+     [(relbody)
+      (unless (andmap (lambda (rel)
+                        (match rel
+                          [(defrel _ _ goal) (relbody-certifies? goal)]
+                          [_ #f]))
+                      rels)
         (error 'certify-guarded-mini-program
-               "unknown delay placement ~e"
-               placement)])
-     ast]
-    [_ (error 'certify-guarded-mini-program
-              "unexpected normalized program shape: ~e"
-              ast)]))
+               "relbody profile did not produce delayed relation bodies"))
+      (when (contains-delay-goal? query-goal)
+        (error 'certify-guarded-mini-program
+               "relbody profile should not delay the query"))]
+     [(relcall)
+      (unless (andmap (lambda (rel)
+                        (match rel
+                          [(defrel _ _ goal) (relcall-certifies? goal)]
+                          [_ #f]))
+                      rels)
+        (error 'certify-guarded-mini-program
+               "relcall profile did not delay every relation call in bodies"))
+      (unless (relcall-certifies? query-goal)
+        (error 'certify-guarded-mini-program
+               "relcall profile did not delay every relation call in query"))]
+     [(disj)
+      (unless (andmap (lambda (rel)
+                        (match rel
+                          [(defrel _ _ goal) (disj-certifies? goal)]
+                          [_ #f]))
+                      rels)
+        (error 'certify-guarded-mini-program
+               "disj profile did not delay every disjunction in bodies"))
+      (unless (disj-certifies? query-goal)
+        (error 'certify-guarded-mini-program
+               "disj profile did not delay every disjunction in query"))]
+     [else
+      (error 'certify-guarded-mini-program
+             "unknown delay placement ~e"
+             placement)])
+   ast]
+  [(ast _)
+   (error 'certify-guarded-mini-program
+          "unexpected normalized program shape: ~e"
+          ast)])
 
 (define (parse-run/surface-mini r)
   (match r

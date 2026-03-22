@@ -2,7 +2,6 @@
 
 (require rackunit
          rackunit/text-ui
-         racket/match
          "../src/zipper.rkt")
 
 (define z1 (zipper '() 1 '() 0))
@@ -16,8 +15,7 @@
 
   (test-case "zipper-reset returns an empty zipper"
     (define z^ (zipper-reset z1))
-    (match-define (zipper prev curr next idx)
-      z^)
+    (match-define (zipper prev curr next idx) z^)
     (check-equal? prev '())
     (check-false curr)
     (check-equal? next '())
@@ -25,8 +23,7 @@
 
   (test-case "zipper-add pushes the current entry into history"
     (define z^ (zipper-add z1 100))
-    (match-define (zipper prev curr next idx)
-      z^)
+    (match-define (zipper prev curr next idx) z^)
     (check-equal? prev '(1))
     (check-equal? curr 100)
     (check-equal? next '())
@@ -35,8 +32,7 @@
 
   (test-case "zipper-add seeds an empty zipper at index zero"
     (define z^ (zipper-add init-zip 100))
-    (match-define (zipper prev curr next idx)
-      z^)
+    (match-define (zipper prev curr next idx) z^)
     (check-equal? prev '())
     (check-equal? curr 100)
     (check-equal? next '())
@@ -44,8 +40,7 @@
 
   (test-case "zipper-back walks to the previous entry without mutating input"
     (define-values (elem z^) (zipper-back z3))
-    (match-define (zipper prev curr next idx)
-      z^)
+    (match-define (zipper prev curr next idx) z^)
     (check-equal? elem 1)
     (check-equal? prev '())
     (check-equal? curr 1)
@@ -60,8 +55,7 @@
 
   (test-case "zipper-forward on a cached future advances without mutating input"
     (define-values (elem z^) (zipper-forward z2))
-    (match-define (zipper prev curr next idx)
-      z^)
+    (match-define (zipper prev curr next idx) z^)
     (check-equal? elem 4)
     (check-equal? prev '(3 1 2))
     (check-equal? curr 4)

@@ -2,8 +2,8 @@
 
 (require redex/reduction-semantics
          "../languages/search-base-seq-lang.rkt"
-         "./search-base-seq-red.rkt"
-         "./private/step-utils.rkt")
+         "./private/step-utils.rkt"
+         "./search-base-seq-red.rkt")
 
 (provide search-dfs-seq-red
          step-once)

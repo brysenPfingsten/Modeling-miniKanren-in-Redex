@@ -3,9 +3,9 @@
 (require redex/reduction-semantics
          "../languages/core-lang.rkt"
          "../languages/rail-seq-lang.rkt"
-         "./search-base-seq-red.rkt"
          "./private/common.rkt"
-         "./private/step-utils.rkt")
+         "./private/step-utils.rkt"
+         "./search-base-seq-red.rkt")
 
 (provide rail-seq-red
          step-once)

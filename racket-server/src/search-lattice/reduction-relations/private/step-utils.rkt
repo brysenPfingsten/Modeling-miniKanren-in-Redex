@@ -1,7 +1,6 @@
 #lang racket
 
-(require racket/match
-         redex/reduction-semantics)
+(require redex/reduction-semantics)
 
 (provide step-once/deterministic)
 

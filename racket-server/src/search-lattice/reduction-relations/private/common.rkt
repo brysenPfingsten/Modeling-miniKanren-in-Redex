@@ -1,7 +1,5 @@
 #lang racket
 
-(require racket/match)
-
 (provide instantiate-call-host
          subst-goal-host
          append-answer-host)

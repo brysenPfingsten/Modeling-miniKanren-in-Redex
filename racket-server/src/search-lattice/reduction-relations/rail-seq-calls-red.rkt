@@ -2,9 +2,9 @@
 
 (require redex/reduction-semantics
          "../languages/rail-seq-calls-lang.rkt"
-         "./search-base-seq-calls-red.rkt"
          "./private/common.rkt"
-         "./private/step-utils.rkt")
+         "./private/step-utils.rkt"
+         "./search-base-seq-calls-red.rkt")
 
 (provide rail-seq-calls-red
          step-once)

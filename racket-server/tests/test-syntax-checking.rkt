@@ -1,12 +1,12 @@
 #lang racket
 
-(require "../src/syntax-checking.rkt"
+(require rackunit
+         rackunit/text-ui
+         redex/reduction-semantics
          "../src/search-lattice/languages/canonical-core-lang.rkt"
          "../src/sexpr-read.rkt"
+         "../src/syntax-checking.rkt"
          "../src/transpiler.rkt")
-(require redex/reduction-semantics
-         rackunit
-         rackunit/text-ui)
 
 (define WELL-FORMED-CONFIG (term (() (empty-tree) (empty-stream))))
 (define BAD-FORMED-CONFIG

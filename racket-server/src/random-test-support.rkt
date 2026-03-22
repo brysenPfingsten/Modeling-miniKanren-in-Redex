@@ -1,7 +1,5 @@
 #lang racket
 
-(require racket/list)
-
 (provide make-seeded-rng
          rng-random
          remove-at

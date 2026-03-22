@@ -2,10 +2,10 @@
 
 (require redex/reduction-semantics
          "../languages/search-base-fused-calls-lang.rkt"
-         "./search-base-fused-red.rkt"
          "./private/common.rkt"
          "./private/context-pipeline.rkt"
-         "./private/step-utils.rkt")
+         "./private/step-utils.rkt"
+         "./search-base-fused-red.rkt")
 
 (provide search-base-fused-calls-red
          step-once)

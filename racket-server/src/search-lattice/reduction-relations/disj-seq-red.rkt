@@ -3,9 +3,9 @@
 (require redex/reduction-semantics
          "../languages/core-lang.rkt"
          "../languages/disj-seq-lang.rkt"
-         "./private/core-common.rkt"
          "./private/common.rkt"
          "./private/context-pipeline.rkt"
+         "./private/core-common.rkt"
          "./private/step-utils.rkt")
 
 (provide disj-seq-red

@@ -1,13 +1,12 @@
 #lang racket
 
-(require rackunit
+(require racket/runtime-path
+         rackunit
          rackunit/text-ui
          redex/reduction-semantics
-         racket/runtime-path
-         racket/match
-         "../src/transpiler.rkt"
+         "../src/search-lattice/languages/canonical-lang.rkt"
          "../src/sexpr-read.rkt"
-         "../src/search-lattice/languages/canonical-lang.rkt")
+         "../src/transpiler.rkt")
 
 (provide EXAMPLE-COMPAT
          frontend-example-programs)
@@ -45,8 +44,7 @@
   (define templates (extract-template-map js-src))
   (for/list ([entry (in-list (extract-example-refs js-src))])
     (match-define (list _id label value-var) entry)
-    (define maybe-src
-      (hash-ref templates value-var #f))
+    (define maybe-src (hash-ref templates value-var #f))
     (unless maybe-src
       (error 'frontend-example-programs
              (format "example value ~a (label ~a) has no matching template definition"

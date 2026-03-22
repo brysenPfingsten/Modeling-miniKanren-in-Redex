@@ -3,15 +3,15 @@
 (require redex/reduction-semantics
          "../canonical-adapter.rkt"
          "../languages/canonical-lang.rkt"
+         "./calls-wf.rkt"
          "./canonical-core-wf.rkt"
          "./core-wf.rkt"
          "./delay-wf.rkt"
          "./disj-wf.rkt"
-         "./search-base-wf.rkt"
+         "./rail-calls-wf.rkt"
          "./rail-wf.rkt"
-         "./calls-wf.rkt"
          "./search-base-calls-wf.rkt"
-         "./rail-calls-wf.rkt")
+         "./search-base-wf.rkt")
 
 (provide (all-from-out "./canonical-core-wf.rkt")
          (all-from-out "./core-wf.rkt")

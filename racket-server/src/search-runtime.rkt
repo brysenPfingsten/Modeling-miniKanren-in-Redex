@@ -1,23 +1,24 @@
 #lang racket
 
-(require racket/match
-         redex/reduction-semantics
-         "search-strategy.rkt"
+(require redex/reduction-semantics
          "./search-lattice/canonical-adapter.rkt"
-         (prefix-in lang: "./search-lattice/languages/all.rkt")
-         (prefix-in wf: "./search-lattice/wf/all.rkt")
-         (rename-in "./search-lattice/reduction-relations/search-dfs-seq-calls-red.rkt"
-                    [step-once step-once/search-dfs-seq-calls])
-         (rename-in "./search-lattice/reduction-relations/search-dfs-fused-calls-red.rkt"
-                    [step-once step-once/search-dfs-fused-calls])
-         (rename-in "./search-lattice/reduction-relations/search-flip-seq-calls-red.rkt"
-                    [step-once step-once/search-flip-seq-calls])
-         (rename-in "./search-lattice/reduction-relations/search-flip-fused-calls-red.rkt"
-                    [step-once step-once/search-flip-fused-calls])
+         (prefix-in lang:
+                    "./search-lattice/languages/all.rkt")
+         (rename-in "./search-lattice/reduction-relations/rail-fused-calls-red.rkt"
+                    [step-once step-once/rail-fused-calls])
          (rename-in "./search-lattice/reduction-relations/rail-seq-calls-red.rkt"
                     [step-once step-once/rail-seq-calls])
-         (rename-in "./search-lattice/reduction-relations/rail-fused-calls-red.rkt"
-                    [step-once step-once/rail-fused-calls]))
+         (rename-in "./search-lattice/reduction-relations/search-dfs-fused-calls-red.rkt"
+                    [step-once step-once/search-dfs-fused-calls])
+         (rename-in "./search-lattice/reduction-relations/search-dfs-seq-calls-red.rkt"
+                    [step-once step-once/search-dfs-seq-calls])
+         (rename-in "./search-lattice/reduction-relations/search-flip-fused-calls-red.rkt"
+                    [step-once step-once/search-flip-fused-calls])
+         (rename-in "./search-lattice/reduction-relations/search-flip-seq-calls-red.rkt"
+                    [step-once step-once/search-flip-seq-calls])
+         (prefix-in wf:
+                    "./search-lattice/wf/all.rkt")
+         "search-strategy.rkt")
 
 (provide (struct-out strategy-spec)
          all-strategy-specs
@@ -31,10 +32,9 @@
 
 (struct strategy-spec (strategy step-once in-domain? well-formed?) #:transparent)
 
-(define (strategy-key strategy)
-  (match-define (search-strategy hoist scheduler)
-    strategy)
-  (list hoist scheduler))
+(define/match (strategy-key strategy)
+  [((search-strategy hoist scheduler))
+   (list hoist scheduler)])
 
 (define all-strategy-specs
   (list
@@ -83,8 +83,7 @@
 
 (define spec-by-key
   (for/hash ([spec (in-list all-strategy-specs)])
-    (match-define (strategy-spec strategy _ _ _)
-      spec)
+    (match-define (strategy-spec strategy _ _ _) spec)
     (values (strategy-key strategy)
             spec)))
 
@@ -98,11 +97,9 @@
                      normalized))))
 
 (define (lookup-search-step-once strategy)
-  (match-define (strategy-spec normalized step-internal _ _)
-    (lookup-strategy-spec strategy))
+  (match-define (strategy-spec normalized step-internal _ _) (lookup-strategy-spec strategy))
   (lambda (cfg)
-    (define next*
-      (step-internal (canonical-flat->calls-config cfg)))
+    (define next* (step-internal (canonical-flat->calls-config cfg)))
     (match next*
       ['() '()]
       [(list (list name cfg^))

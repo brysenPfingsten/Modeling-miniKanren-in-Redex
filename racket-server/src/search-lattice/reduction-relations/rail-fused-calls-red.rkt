@@ -2,9 +2,9 @@
 
 (require redex/reduction-semantics
          "../languages/rail-fused-calls-lang.rkt"
-         "./search-base-fused-calls-red.rkt"
          "./private/common.rkt"
-         "./private/step-utils.rkt")
+         "./private/step-utils.rkt"
+         "./search-base-fused-calls-red.rkt")
 
 (provide rail-fused-calls-red
          step-once)

@@ -1,10 +1,11 @@
 #lang racket
 (require rackunit
          rackunit/text-ui
-         racket/list
          redex/reduction-semantics
-         (prefix-in canonical: "../src/search-lattice/languages/canonical-lang.rkt")
-         (prefix-in wf: "../src/search-lattice/wf/all.rkt")
+         (prefix-in canonical:
+                    "../src/search-lattice/languages/canonical-lang.rkt")
+         (prefix-in wf:
+                    "../src/search-lattice/wf/all.rkt")
          "../src/sexpr-read.rkt"
          "../src/transpiler.rkt")
 

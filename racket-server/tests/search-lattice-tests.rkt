@@ -3,16 +3,19 @@
 (require rackunit
          rackunit/text-ui
          redex/reduction-semantics
-         (prefix-in lang: "../src/search-lattice/languages/all.rkt")
-         (prefix-in red: "../src/search-lattice/reduction-relations/all.rkt")
-         (prefix-in wf: "../src/search-lattice/wf/all.rkt")
-         "../src/search-lattice/languages/search-base-seq-calls-lang.rkt"
+         (prefix-in lang:
+                    "../src/search-lattice/languages/all.rkt")
          "../src/search-lattice/languages/rail-fused-calls-lang.rkt"
-         (only-in "../src/search-lattice/reduction-relations/search-base-seq-calls-red.rkt"
-                  search-base-seq-calls-red)
+         "../src/search-lattice/languages/search-base-seq-calls-lang.rkt"
+         (prefix-in red:
+                    "../src/search-lattice/reduction-relations/all.rkt")
+         "../src/search-lattice/reduction-relations/private/common.rkt"
          (only-in "../src/search-lattice/reduction-relations/search-base-fused-calls-red.rkt"
                   search-base-fused-calls-red)
-         "../src/search-lattice/reduction-relations/private/common.rkt"
+         (only-in "../src/search-lattice/reduction-relations/search-base-seq-calls-red.rkt"
+                  search-base-seq-calls-red)
+         (prefix-in wf:
+                    "../src/search-lattice/wf/all.rkt")
          "./search-lattice-support.rkt")
 
 (define (named-step succ*)

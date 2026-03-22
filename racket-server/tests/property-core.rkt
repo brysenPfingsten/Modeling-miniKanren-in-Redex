@@ -2,8 +2,6 @@
 
 (require rackunit
          rackunit/text-ui
-         racket/format
-         racket/list
          redex/reduction-semantics
          (prefix-in rt: "../src/random-test-support.rkt")
          (prefix-in gk: "./generator-kernel.rkt")

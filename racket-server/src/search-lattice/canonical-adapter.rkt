@@ -1,7 +1,5 @@
 #lang racket
 
-(require racket/match)
-
 (provide canonical-flat->calls-config
          calls-config->canonical-flat)
 

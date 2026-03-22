@@ -2,8 +2,8 @@
 
 (require redex/reduction-semantics
          "../languages/delay-lang.rkt"
-         "./private/core-common.rkt"
          "./private/context-pipeline.rkt"
+         "./private/core-common.rkt"
          "./private/step-utils.rkt")
 
 (provide delay-red

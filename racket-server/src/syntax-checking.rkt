@@ -1,12 +1,13 @@
 #lang racket
 
-(require redex/reduction-semantics
-         racket/port
-         racket/sandbox)
-(require "search-lattice/languages/canonical-core-lang.rkt"
+(require racket/port
+         racket/sandbox
+         redex/reduction-semantics
+         "search-lattice/languages/canonical-core-lang.rkt"
          "search-lattice/wf/all.rkt"
          "sexpr-read.rkt"
          "transpiler.rkt")
+
 (provide canonical-core-shape?
          canonical-well-formed?
          canonical-target-well-formed?

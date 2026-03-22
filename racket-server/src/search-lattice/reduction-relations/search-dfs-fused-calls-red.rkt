@@ -2,8 +2,8 @@
 
 (require redex/reduction-semantics
          "../languages/search-base-fused-calls-lang.rkt"
-         "./search-base-fused-calls-red.rkt"
-         "./private/step-utils.rkt")
+         "./private/step-utils.rkt"
+         "./search-base-fused-calls-red.rkt")
 
 (provide search-dfs-fused-calls-red
          step-once)

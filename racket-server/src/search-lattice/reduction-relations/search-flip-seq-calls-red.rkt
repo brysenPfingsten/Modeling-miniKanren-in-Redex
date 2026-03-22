@@ -2,8 +2,8 @@
 
 (require redex/reduction-semantics
          "../languages/search-base-seq-calls-lang.rkt"
-         "./search-base-seq-calls-red.rkt"
-         "./private/step-utils.rkt")
+         "./private/step-utils.rkt"
+         "./search-base-seq-calls-red.rkt")
 
 (provide search-flip-seq-calls-red
          step-once)

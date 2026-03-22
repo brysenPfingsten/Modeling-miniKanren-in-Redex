@@ -1,18 +1,16 @@
 #lang racket
 
-(require web-server/servlet-env
-         web-server/http
+(require json
          net/url-structs
-         json
-         racket/string)
-
-(require "canonical-json.rkt"
-         "transpiler.rkt"
-         "syntax-checking.rkt"
-         "sexpr-read.rkt"
-         "zipper.rkt"
+         web-server/http
+         web-server/servlet-env
+         "canonical-json.rkt"
+         "search-runtime.rkt"
          "search-strategy.rkt"
-         "search-runtime.rkt")
+         "sexpr-read.rkt"
+         "syntax-checking.rkt"
+         "transpiler.rkt"
+         "zipper.rkt")
 
 (provide step!
          back!
@@ -51,49 +49,46 @@
 
 (define session-table (make-hash))
 
-(define (init-session ses prog)
-  (match-define (session zip _ _ _) ses)
-  (define seeded-zipper
-    (zipper-add (zipper-reset zip)
-                (step "Initialize Program" prog)))
-  (struct-copy session ses
-               [zipper seeded-zipper]
-               [nqv (num-query-vars/canonical prog)]))
+(define/match (init-session ses prog)
+  [((and ses (session zip _ _ _)) prog)
+   (define seeded-zipper
+     (zipper-add (zipper-reset zip)
+                 (step "Initialize Program" prog)))
+   (struct-copy session ses
+                [zipper seeded-zipper]
+                [nqv (num-query-vars/canonical prog)])])
 
-(define (step->response a-step a-idx nqv)
-  (match-define (step name prog)
-    a-step)
-  (response/jsexpr
-   (hasheq 'stepName name
-           'step a-idx
-           'program (to-json/canonical prog nqv))
-   #:mime-type #"application/json; charset=utf-8"))
+(define/match (step->response a-step a-idx nqv)
+  [((step name prog) a-idx nqv)
+   (response/jsexpr
+    (hasheq 'stepName name
+            'step a-idx
+            'program (to-json/canonical prog nqv))
+    #:mime-type #"application/json; charset=utf-8")])
 
-(define (step->response/start a-step nqv)
-  (match-define (step name prog)
-    a-step)
-  (response/jsexpr
-   (hasheq 'stepName name
-           'step 0
-           'program (to-json/canonical prog nqv))
-   #:mime-type #"application/json; charset=utf-8"
-   #:headers (list (make-header #"X-Is-Start" #"true"))))
+(define/match (step->response/start a-step nqv)
+  [((step name prog) nqv)
+   (response/jsexpr
+    (hasheq 'stepName name
+            'step 0
+            'program (to-json/canonical prog nqv))
+    #:mime-type #"application/json; charset=utf-8"
+    #:headers (list (make-header #"X-Is-Start" #"true")))])
 
-(define (step/html/cookie->response a-step tagged-prog session-id nqv)
-  (match-define (step name prog)
-    a-step)
-  (response/jsexpr
-   (hasheq 'stepName name
-           'step 0
-           'program (to-json/canonical prog nqv)
-           'htmlGuids tagged-prog)
-   #:mime-type #"application/json; charset=utf-8"
-   #:headers
-   (list
-    (make-header
-     #"Set-Cookie"
-     (string->bytes/utf-8
-      (format "session-id=~a; Path=/; SameSite=Lax" session-id))))))
+(define/match (step/html/cookie->response a-step tagged-prog session-id nqv)
+  [((step name prog) tagged-prog session-id nqv)
+   (response/jsexpr
+    (hasheq 'stepName name
+            'step 0
+            'program (to-json/canonical prog nqv)
+            'htmlGuids tagged-prog)
+    #:mime-type #"application/json; charset=utf-8"
+    #:headers
+    (list
+     (make-header
+      #"Set-Cookie"
+      (string->bytes/utf-8
+       (format "session-id=~a; Path=/; SameSite=Lax" session-id)))))])
 
 (define (send-end-step)
   (response/jsexpr (json-null)
@@ -116,13 +111,10 @@
           (define z^^ (zipper-add z new-step))
           (values (step->response new-step (zipper-idx z^^) nqv) z^^)])])))
 
-(define (step! ses)
-  (match-define (session zip stepper nqv _)
-    ses)
-  (define-values (response zip^)
-    (stepper zip nqv))
-  (values response
-          (struct-copy session ses [zipper zip^])))
+(define/match (step! ses)
+  [((and ses (session zip stepper nqv _)))
+   (define-values (response zip^) (stepper zip nqv))
+   (values response (struct-copy session ses [zipper zip^]))])
 
 (define (bind-session-search-strategy ses strategy)
   (define normalized (normalize-search-strategy strategy))
@@ -133,14 +125,11 @@
 (define (init! ses req ses-id)
   (define payload (request->payload req))
   (define raw-prog (hash-ref payload 'text))
-  (define-values (source-mode compile-profile)
-    (payload->source-options payload))
-  (define search-strategy
-    (payload->search-strategy payload))
+  (define-values (source-mode compile-profile) (payload->source-options payload))
+  (define search-strategy (payload->search-strategy payload))
   (when (equal? source-mode "mini")
     (check-syntax-capture-error raw-prog))
-  (define sexpr-prog
-    (read-all-sexprs (open-input-string raw-prog)))
+  (define sexpr-prog (read-all-sexprs (open-input-string raw-prog)))
   (define-values (model-prog html-prog)
     (parse-prog/canonical sexpr-prog
                           #:source-mode source-mode
@@ -152,54 +141,48 @@
   (check-canonical-well-formed model-prog canonical-parser-target-id)
   (check-search-config search-strategy model-prog)
   (define ses^
-    (init-session
-     (bind-session-search-strategy ses search-strategy)
-     model-prog))
+    (init-session (bind-session-search-strategy ses search-strategy) model-prog))
   (match-define (session init-zipper _ nqv _) ses^)
-  (define init-step
-    (zipper-curr init-zipper))
+  (define init-step (zipper-curr init-zipper))
   (values (step/html/cookie->response init-step
                                       html-prog
                                       ses-id
                                       nqv)
           ses^))
 
-(define (reset! ses)
-  (match-define (session z _ nqv _) ses)
-  (match-define (zipper prev curr _ _) z)
-  (define init-step
-    (cond
-      [(step? curr) curr]
-      [else
-       (for/first ([entry (in-list (reverse prev))]
-                   #:when (step? entry))
-         entry)]))
-  (unless (step? init-step)
-    (error 'reset! "session has no initial program to reset to"))
-  (define ses^
-    (struct-copy session ses
-                 [zipper (zipper-add (make-empty-zipper) init-step)]))
-  (values (step->response/start init-step nqv)
-          ses^))
+(define/match (reset! ses)
+  [((and ses (session (and z (zipper prev curr _ _)) _ nqv _)))
+   (define init-step
+     (cond
+       [(step? curr) curr]
+       [else
+        (for/first ([entry (in-list (reverse prev))]
+                    #:when (step? entry))
+          entry)]))
+   (unless (step? init-step)
+     (error 'reset! "session has no initial program to reset to"))
+   (define ses^
+     (struct-copy session ses
+                  [zipper (zipper-add (make-empty-zipper) init-step)]))
+   (values (step->response/start init-step nqv)
+           ses^)])
 
-(define (back! ses)
-  (match-define (session z _ nqv _) ses)
-  (match-define (zipper _ curr _ _) z)
-  (define-values (maybe-back z^)
-    (zipper-back z))
-  (define current-step
-    (cond
-      [(step? maybe-back) maybe-back]
-      [(step? curr) curr]
-      [else (error 'back! "session has no current step")]))
-  (define response
-    (cond
-      [(zero? (zipper-idx z^))
-       (step->response/start current-step nqv)]
-      [else
-       (step->response current-step (zipper-idx z^) nqv)]))
-  (values response
-          (struct-copy session ses [zipper z^])))
+(define/match (back! ses)
+  [((and ses (session (and z (zipper _ curr _ _)) _ nqv _)))
+   (define-values (maybe-back z^) (zipper-back z))
+   (define current-step
+     (cond
+       [(step? maybe-back) maybe-back]
+       [(step? curr) curr]
+       [else (error 'back! "session has no current step")]))
+   (define response
+     (cond
+       [(zero? (zipper-idx z^))
+        (step->response/start current-step nqv)]
+       [else
+        (step->response current-step (zipper-idx z^) nqv)]))
+   (values response
+           (struct-copy session ses [zipper z^]))])
 
 (define (source-convert! req)
   (define payload (request->payload req))
@@ -210,12 +193,10 @@
     (error 'source-convert!
            "unsupported target source mode: ~a"
            target-source-mode))
-  (define-values (source-mode compile-profile)
-    (payload->source-options payload))
+  (define-values (source-mode compile-profile) (payload->source-options payload))
   (when (equal? source-mode "mini")
     (check-syntax-capture-error raw-prog))
-  (define sexpr-prog
-    (read-all-sexprs (open-input-string raw-prog)))
+  (define sexpr-prog (read-all-sexprs (open-input-string raw-prog)))
   (response/jsexpr
    (hasheq 'source
            (render-micro-source sexpr-prog

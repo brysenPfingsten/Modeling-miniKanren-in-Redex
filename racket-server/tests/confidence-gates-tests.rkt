@@ -1,20 +1,18 @@
 #lang racket
 
-(require rackunit
+(require json
+         rackunit
          rackunit/text-ui
-         racket/match
-         racket/string
-         json
          web-server/http/response-structs
          "../src/app.rkt"
          "../src/search-runtime.rkt"
          "../src/search-strategy.rkt"
-         "../src/zipper.rkt"
-         "../src/transpiler.rkt"
          "../src/sexpr-read.rkt"
-         "./test-http-helpers.rkt"
+         "../src/transpiler.rkt"
+         "../src/zipper.rkt"
+         "./example-compat-tests.rkt"
          "./runtime-test-support.rkt"
-         "./example-compat-tests.rkt")
+         "./test-http-helpers.rkt")
 
 (provide CONFIDENCE-GATES)
 
@@ -36,10 +34,9 @@
                           #:compile-profile compile-profile))
   cfg)
 
-(define (strategy-label strategy)
-  (match-define (search-strategy hoist scheduler)
-    strategy)
-  (format "~a/~a" hoist scheduler))
+(define/match (strategy-label strategy)
+  [((search-strategy hoist scheduler))
+   (format "~a/~a" hoist scheduler)])
 
 (define (trace-steps strategy
                      label
@@ -48,8 +45,7 @@
                      [step-once (lookup-search-step-once strategy)]
                      [i 0]
                      [acc '()])
-  (define next*
-    (step-once cfg))
+  (define next* (step-once cfg))
   (match next*
     ['()
      (values (reverse acc) (if (final-config? cfg) 'value 'stuck) cfg)]
@@ -78,10 +74,8 @@
   (cond
     [(>= i PAYLOAD-STEP-CAP) seen]
     [else
-     (define-values (step-resp next-session)
-       (step! ses))
-     (define body
-       (response-body->string step-resp))
+     (define-values (step-resp next-session) (step! ses))
+     (define body (response-body->string step-resp))
      (cond
        [(string=? body "null")
         (count-non-null-step-payloads strategy
@@ -161,8 +155,7 @@
                             label))
       (assert-step-payload-shape (string->jsexpr (response-body->string init-resp))
                                  (format "~a / ~a init" (strategy-label strategy) label))
-      (define seen
-        (count-non-null-step-payloads strategy label ses^))
+      (define seen (count-non-null-step-payloads strategy label ses^))
       (check-true (> seen 0)
                   (format "~a / ~a produced no non-null steps"
                           (strategy-label strategy)

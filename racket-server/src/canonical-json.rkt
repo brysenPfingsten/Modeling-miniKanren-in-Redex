@@ -56,18 +56,18 @@
     [_ t]))
 
 (define (sub->json/canonical sub)
-  (map (lambda (p)
-         (match-define (list u t) p)
-         (define key (or (u-symbol->natural u) u))
-         (hasheq 'key key
-                 'value (term->json/canonical t)))
+  (map (match-lambda
+         [(list u t)
+          (define key (or (u-symbol->natural u) u))
+          (hasheq 'key key
+                  'value (term->json/canonical t))])
        sub))
 
 (define (dis->json/canonical dis)
-  (map (lambda (p)
-         (match-define (list t1 t2) p)
-         (hasheq 'left (term->json/canonical t1)
-                 'right (term->json/canonical t2)))
+  (map (match-lambda
+         [(list t1 t2)
+          (hasheq 'left (term->json/canonical t1)
+                  'right (term->json/canonical t2))])
        dis))
 
 (define (trail->json/canonical trail)
@@ -123,8 +123,8 @@
     [`(str ,s) s]
     [other other]))
 
-(define (make-unify-clause query-vars n pair)
-  (match-define (list l r) pair)
+(define/match (make-unify-clause query-vars n pair)
+  [(query-vars n (list l r))
   (define lhs
     (if (< l n)
         (list-ref query-vars l)
@@ -133,10 +133,10 @@
     (if (and (number? r) (< r n))
         (list-ref query-vars r)
         (canonical-term->mk r)))
-  `(== ,lhs ,rhs))
+  `(== ,lhs ,rhs)])
 
-(define (make-diseq-clause query-vars n pair)
-  (match-define (list l r) pair)
+(define/match (make-diseq-clause query-vars n pair)
+  [(query-vars n (list l r))
   (define lhs
     (if (< l n)
         (list-ref query-vars l)
@@ -145,7 +145,7 @@
     (if (and (number? r) (< r n))
         (list-ref query-vars r)
         (canonical-term->mk r)))
-  `(=/= ,lhs ,rhs))
+  `(=/= ,lhs ,rhs)])
 
 (define (prepare-minikanren-namespace)
   (let ([ns (make-base-namespace)])
@@ -321,8 +321,7 @@
      (state->answer-json/canonical σ num-query-variables)]
     [`((⊤ ,σ) + ,s_tail)
      (define tail-json (tree->json/canonical s_tail num-query-variables))
-     (match-define (hash* ['name tail-name] #:open)
-       tail-json)
+     (match-define (hash* ['name tail-name] #:open) tail-json)
      (define tail-empty? (equal? tail-name "Empty"))
      (state->answer-json/canonical σ
                                    num-query-variables

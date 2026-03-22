@@ -95,8 +95,7 @@
      (match (response-body->string response)
        ["null" '()]
        [out
-        (match-define (hash* ['stepName step-name] #:open)
-          (string->jsexpr out))
+        (match-define (hash* ['stepName step-name] #:open) (string->jsexpr out))
         (cons step-name
               (collect-step-names ses^
                                   (sub1 remaining)))])]))
@@ -158,11 +157,9 @@
               (define-values (response _ses^) (step! ses))
               (check-equal? (response-code response) 200)
               (define payload (string->jsexpr (response-body->string response)))
-              (match-define (hash* ['program program] #:open)
-                payload)
+              (match-define (hash* ['program program] #:open) payload)
               (define program-json (string->jsexpr program))
-              (match-define (hash* ['name name] #:open)
-                program-json)
+              (match-define (hash* ['name name] #:open) program-json)
               (check-equal? name "Answer")
               (check-false (json-contains-name? program-json "Emit")))
 )
@@ -223,11 +220,9 @@
               (define-values (response _ses^) (init! ses sample-req 'goal-delay-id))
               (check-equal? (response-code response) 200)
               (define payload (string->jsexpr (response-body->string response)))
-              (match-define (hash* ['program program] #:open)
-                payload)
+              (match-define (hash* ['program program] #:open) payload)
               (define program-json (string->jsexpr program))
-              (match-define (hash* ['name name] #:open)
-                program-json)
+              (match-define (hash* ['name name] #:open) program-json)
               (check-true (json-contains-name? program-json "Goal-Delay"))
               (check-false (equal? name "Delay")))
 
@@ -469,8 +464,7 @@
              (define response (source-convert! req))
              (check-equal? (response-code response) 200)
              (define body (string->jsexpr (response-body->string response)))
-             (match-define (hash* ['source rendered] #:open)
-               body)
+             (match-define (hash* ['source rendered] #:open) body)
              (check-true (string? rendered))
              (check-not-false (regexp-match? #rx"Zzz" rendered)))
 

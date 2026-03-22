@@ -1,10 +1,8 @@
 #lang racket
 
-(require rackunit
+(require json
+         rackunit
          rackunit/text-ui
-         racket/match
-         racket/string
-         json
          web-server/http/response-structs
          "../src/app.rkt"
          "../src/search-runtime.rkt"
@@ -12,9 +10,9 @@
          "../src/sexpr-read.rkt"
          "../src/transpiler.rkt"
          "../src/zipper.rkt"
-         "./test-http-helpers.rkt"
+         "./example-compat-tests.rkt"
          "./runtime-test-support.rkt"
-         "./example-compat-tests.rkt")
+         "./test-http-helpers.rkt")
 
 (provide MODEL-EXAMPLE-MATRIX)
 
@@ -28,10 +26,9 @@
 (define REPRESENTATIVE-LABELS
   '("appendoh 1" "fives/fours" "same"))
 
-(define (strategy-label strategy)
-  (match-define (search-strategy hoist scheduler)
-    strategy)
-  (format "~a/~a" hoist scheduler))
+(define/match (strategy-label strategy)
+  [((search-strategy hoist scheduler))
+   (format "~a/~a" hoist scheduler)])
 
 (define (step1-name+cfg succ)
   (match succ
@@ -74,8 +71,7 @@
                'steps steps
                'last-rule last-rule)]
       [(list succ)
-       (define-values (nm cfg1)
-         (step1-name+cfg succ))
+       (define-values (nm cfg1) (step1-name+cfg succ))
        (classify-config maybe-step-once
                         cfg1
                         (add1 steps)
@@ -87,10 +83,8 @@
   (with-handlers ([domain-error?
                    (lambda (_e)
                      (incompatible-result))])
-    (define sexprs
-      (read-all-sexprs (open-input-string src)))
-    (define-values (cfg0 _html)
-      (parse-prog/canonical sexprs))
+    (define sexprs (read-all-sexprs (open-input-string src)))
+    (define-values (cfg0 _html) (parse-prog/canonical sexprs))
     (cond
       [(and (search-config-in-domain? strategy cfg0)
             (search-config-well-formed? strategy cfg0))
@@ -120,18 +114,15 @@
              'steps i
              'last-rule last-rule)]
     [else
-     (define-values (step-resp ses^)
-       (step! ses))
+     (define-values (step-resp ses^) (step! ses))
      (match (response-body->string step-resp)
        ["null"
         (hasheq 'status 'done
                 'steps i
                 'last-rule last-rule)]
        [step-body
-       (define payload
-          (string->jsexpr step-body))
-        (match-define (hash* ['stepName step-name] #:open)
-          payload)
+        (define payload (string->jsexpr step-body))
+        (match-define (hash* ['stepName step-name] #:open) payload)
         (assert-step-payload-shape payload
                                    (format "~a / ~a step ~a"
                                            (strategy-label strategy)
@@ -146,17 +137,17 @@
 (define (make-default-session)
   (make-empty-session))
 
-(define (make-heavy-row strategy label result)
-  (match-define (hash* ['status status]
-                       ['steps steps]
-                       ['last-rule last-rule]
-                       #:open)
-    result)
+(define/match (make-heavy-row strategy label result)
+  [(strategy label
+             (hash* ['status status]
+                    ['steps steps]
+                    ['last-rule last-rule]
+                    #:open))
   (hasheq 'strategy (strategy-label strategy)
           'label label
           'status status
           'steps steps
-          'last-rule last-rule))
+          'last-rule last-rule)])
 
 (define (collect-heavy-rows specs examples runner)
   (for*/list ([spec (in-list specs)]

@@ -2,8 +2,8 @@
 
 (require redex/reduction-semantics
          "../languages/core-lang.rkt"
-         "./private/core-common.rkt"
          "./private/context-pipeline.rkt"
+         "./private/core-common.rkt"
          "./private/step-utils.rkt")
 
 (provide core-red

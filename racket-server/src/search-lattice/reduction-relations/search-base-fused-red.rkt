@@ -2,9 +2,9 @@
 
 (require redex/reduction-semantics
          "../languages/search-base-fused-lang.rkt"
-         "./private/core-common.rkt"
          "./private/common.rkt"
          "./private/context-pipeline.rkt"
+         "./private/core-common.rkt"
          "./private/step-utils.rkt")
 
 (provide search-base-fused-red

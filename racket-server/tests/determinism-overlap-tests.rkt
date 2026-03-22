@@ -1,18 +1,19 @@
 #lang racket
 
-(require rackunit
+(require racket/runtime-path
+         rackunit
          rackunit/text-ui
-         racket/file
-         racket/list
-         racket/runtime-path
          redex/reduction-semantics
-         (prefix-in rt: "../src/random-test-support.rkt")
+         (prefix-in rt:
+                    "../src/random-test-support.rkt")
+         (prefix-in lang:
+                    "../src/search-lattice/languages/all.rkt")
+         (prefix-in wf:
+                    "../src/search-lattice/wf/all.rkt")
          "../src/search-runtime.rkt"
          "../src/search-strategy.rkt"
-         (prefix-in lang: "../src/search-lattice/languages/all.rkt")
-         (prefix-in wf: "../src/search-lattice/wf/all.rkt")
-         "../src/transpiler.rkt"
          "../src/sexpr-read.rkt"
+         "../src/transpiler.rkt"
          "./example-compat-tests.rkt"
          "./runtime-test-support.rkt")
 
@@ -39,10 +40,9 @@
 (define (parse-src/canonical src)
   (parse-prog/canonical (read-all-sexprs (open-input-string src))))
 
-(define (strategy-label strategy)
-  (match-define (search-strategy hoist scheduler)
-    strategy)
-  (format "~a/~a" hoist scheduler))
+(define/match (strategy-label strategy)
+  [((search-strategy hoist scheduler))
+   (format "~a/~a" hoist scheduler)])
 
 (define (trace-overlap-events strategy
                               cfg
@@ -113,8 +113,7 @@
   (for*/list ([strategy (in-list strategies)]
               [ex (in-list examples)])
     (match-define (cons _label src) ex)
-    (define-values (cfg0 _html)
-      (parse-src/canonical src))
+    (define-values (cfg0 _html) (parse-src/canonical src))
     (and (search-config-in-domain? strategy cfg0)
          (search-config-well-formed? strategy cfg0)
          (hash 'strategy strategy
