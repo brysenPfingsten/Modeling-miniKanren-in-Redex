@@ -13,7 +13,7 @@
 (define core-redex/core
   (reduction-relation
    core-lang
-   #:domain s
+   #:domain w
    [--> ((g_1 ∧ g_2 tag) (state sub dis c trail tag_1))
         ((g_1 (state sub dis c trail tag_1)) × g_2 c)
         "core/conj-distribute-state"]
@@ -30,8 +30,9 @@
         (empty-tree)
         "core/conj-prune-fail"]
    [--> ((∃ d g tag) (state sub dis c trail tag_1))
-        (g_new
-         (state sub dis (u_1 ... ,@(term c)) trail tag_1))
+        (Freshened (u_1 ...)
+                   (g_new
+                    (state sub dis (u_1 ... ,@(term c)) trail tag_1)))
         (where ((x_1 u_1) ...)
                (fresh-substitution c d))
         (where g_new
@@ -68,8 +69,7 @@
 (define-syntax-rule (make-core-collector lang)
   (reduction-relation
    lang
-   #:domain cfg
-   [--> ((⊤ σ_new) as_old)
-        ((empty-tree)
-         ,(append-answer-host (term as_old) (term σ_new)))
+   #:domain f
+   [--> (in-hole P (⊤ σ_new))
+        (in-hole P ((⊤ σ_new) + (empty-tree)))
         "core/collect-single-answer"]))

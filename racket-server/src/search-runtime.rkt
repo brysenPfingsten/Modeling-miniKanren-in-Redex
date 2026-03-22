@@ -24,7 +24,6 @@
          all-strategy-specs
          lookup-strategy-spec
          canonical-flat->calls-config
-         calls-config->canonical-flat
          lookup-search-step-once
          search-config-in-domain?
          search-config-well-formed?
@@ -97,18 +96,8 @@
                      normalized))))
 
 (define (lookup-search-step-once strategy)
-  (match-define (strategy-spec normalized step-internal _ _) (lookup-strategy-spec strategy))
-  (lambda (cfg)
-    (define next* (step-internal (canonical-flat->calls-config cfg)))
-    (match next*
-      ['() '()]
-      [(list (list name cfg^))
-       (list (list name (calls-config->canonical-flat cfg^)))]
-      [_ (error 'lookup-search-step-once
-                "unexpected successor set for ~e under ~e: ~e"
-                cfg
-                normalized
-                next*)])))
+  (match-define (strategy-spec _ step-once _ _) (lookup-strategy-spec strategy))
+  step-once)
 
 (define (search-config-in-domain? strategy cfg)
   ((strategy-spec-in-domain? (lookup-strategy-spec strategy))

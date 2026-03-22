@@ -9,4 +9,4 @@
 
 (define-extended-language disj-seq-lang disj-lang
   [KDisj ::= hole
-             (KDisj <-+ s)])
+             (KDisj <-+ f)])

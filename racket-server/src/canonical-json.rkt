@@ -1,7 +1,8 @@
 #lang racket
 
 (require json
-         racket/hash)
+         racket/hash
+         "./search-lattice/canonical-adapter.rkt")
 
 (provide to-json/canonical
          num-query-vars/canonical)
@@ -259,38 +260,28 @@
          base)]
     [_ (hasheq 'name "Answer")]))
 
-(define (project-work-tree/canonical s)
-  (match s
-    [`(,s_1 × ,g ,c)
-     `(,(project-work-tree/canonical s_1) × ,g ,c)]
-    [`(,s_1 <-+ ,s_2)
-     `(,(project-work-tree/canonical s_1) <-+ ,(project-work-tree/canonical s_2))]
-    [`(,s_1 +-> ,s_2)
-     `(,(project-work-tree/canonical s_1) +-> ,(project-work-tree/canonical s_2))]
-    [`(delay ,s_1)
-     `(delay ,(project-work-tree/canonical s_1))]
-    [_ s]))
-
-(define (append-stream-prefix/canonical as s)
-  (match as
-    ['(empty-stream) s]
-    [`(⊤ ,σ) `((⊤ ,σ) + ,s)]
-    [`((⊤ ,σ) + ,as_tail)
-     `((⊤ ,σ) + ,(append-stream-prefix/canonical as_tail s))]
-    [_ s]))
+(define (normalize-config/canonical cfg)
+  (match cfg
+    [`(,_gamma ,_s ,_as) (canonical-flat->calls-config cfg)]
+    [_ cfg]))
 
 (define (project-config-tree/canonical cfg)
-  (match cfg
-    [`(,_gamma ,s_work ,as)
-     (append-stream-prefix/canonical as (project-work-tree/canonical s_work))]
-    [`(,_gamma ,s)
-     (project-work-tree/canonical s)]
+  (match (normalize-config/canonical cfg)
+    [`(,_gamma ,f) f]
+    [f f]
     [_ '(empty-tree)]))
 
 (define (tree->json/canonical s num-query-variables)
   (match s
     ['(empty-tree)
      (hasheq 'name "Empty")]
+    [`(Freshened ,c-intro ,f-inner)
+     (hasheq 'name "Freshened"
+             'vars (map term->json/canonical c-intro)
+             'children (list (tree->json/canonical f-inner num-query-variables)))]
+    [`(Bounced + ,f-tail)
+     (hasheq 'name "Bounced"
+             'children (list (tree->json/canonical f-tail num-query-variables)))]
     [`(,g (state ,sub ,dis ,c ,trail ,tag))
      #:when (not (equal? g '⊤))
      (hash-union (goal->json/canonical g)
@@ -348,6 +339,10 @@
 
 (define (num-query-vars/work s)
   (match s
+    [`(Freshened ,_ ,f-inner)
+     (num-query-vars/work f-inner)]
+    [`(Bounced + ,f-tail)
+     (num-query-vars/work f-tail)]
     [`(,g ,_σ)
      (goal-query-vars/canonical g)]
     [`(,s_1 × ,g ,_c)

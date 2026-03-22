@@ -11,6 +11,13 @@
   [r (variable-prefix r:)]
   [d (x_!_ ...)]
   [Γ ((r d g) ...)]
+  [s (empty-tree)
+     (g σ)
+     (s × g c)
+     (⊤ σ)]
+  [as (empty-stream)
+      (⊤ σ)
+      ((⊤ σ) + as)]
   [config (Γ s as)]
   [end-config (Γ (empty-tree) as)]
 

@@ -16,15 +16,17 @@
   (extend-reduction-relation search-base-fused-red search-base-fused-calls-lang)
   search-base-fused-calls-lang)
 
-(define calls-extra
+(define calls-expand/raw
   (reduction-relation
    search-base-fused-calls-lang
    #:domain config
-   [--> (Γ ((in-hole K ((r t ... tag) σ)) as_1))
-        (Γ ((in-hole K (g_new σ)) as_1))
+   [--> (Γ (in-hole P (in-hole K ((r t ... tag) σ))))
+        (Γ (in-hole P (in-hole K (g_new σ))))
         (where g_new
                ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
         "search-base-fused-calls/expand"]))
+
+(define calls-extra calls-expand/raw)
 
 (define search-base-fused-calls-red
   (union-reduction-relations

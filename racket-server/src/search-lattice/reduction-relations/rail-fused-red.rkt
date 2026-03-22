@@ -14,27 +14,28 @@
 
 (define rail-fused-red
   (extend-reduction-relation
-   (extend-reduction-relation search-base-fused-red rail-fused-lang)
+   search-base-fused-red
    rail-fused-lang
-   [--> ((in-hole K ((delay s_1) <-+ s_2)) as_1)
-        ((in-hole K (delay (s_1 +-> s_2))) as_1)
+   [--> (in-hole P (in-hole K ((delay f_1) <-+ f_2)))
+        (in-hole P (in-hole K (delay (f_1 +-> f_2))))
         "rail-fused/enter-right"]
-   [--> ((in-hole K (s_2 +-> (delay s_1))) as_1)
-        ((in-hole K (delay (s_2 <-+ s_1))) as_1)
+   [--> (in-hole P (in-hole K (f_2 +-> (delay f_1))))
+        (in-hole P (in-hole K (delay (f_2 <-+ f_1))))
         "rail-fused/return-left"]
-   [--> ((in-hole K (s_left +-> ((⊤ σ_new) <-+ s_right))) as_1)
-        ((in-hole K (s_left +-> s_right))
-         ,(append-answer-host (term as_1) (term σ_new)))
+   [--> (in-hole P (in-hole K (f_left +-> ((⊤ σ_new) <-+ f_right))))
+        (in-hole P (in-hole K ((⊤ σ_new) + (f_left +-> f_right))))
         "rail-fused/promote-right-left-answer"]
-   [--> ((in-hole K (s_left +-> ((empty-tree) <-+ s_right))) as_1)
-        ((in-hole K (s_left +-> s_right)) as_1)
+   [--> (in-hole P (in-hole K (f_left +-> ((empty-tree) <-+ f_right))))
+        (in-hole P (in-hole K (f_left +-> f_right)))
         "rail-fused/skip-right-left-fail"]
-   [--> ((in-hole K (s_left +-> (⊤ σ_new))) as_1)
-        ((in-hole K s_left)
-         ,(append-answer-host (term as_1) (term σ_new)))
+   [--> (in-hole P (in-hole K (f_left +-> (evt + f_right))))
+        (in-hole P (in-hole K (evt + (f_left +-> f_right))))
+        "rail-fused/continue-right-prefix"]
+   [--> (in-hole P (in-hole K (f_left +-> (⊤ σ_new))))
+        (in-hole P (in-hole K ((⊤ σ_new) + f_left)))
         "rail-fused/promote-right-answer"]
-   [--> ((in-hole K (s_left +-> (empty-tree))) as_1)
-        ((in-hole K s_left) as_1)
+   [--> (in-hole P (in-hole K (f_left +-> (empty-tree))))
+        (in-hole P (in-hole K f_left))
         "rail-fused/skip-right-fail"]))
 
 (define (step-once prog)

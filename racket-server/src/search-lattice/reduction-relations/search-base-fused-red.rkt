@@ -14,8 +14,8 @@
 
 (define core-redex/search-base-fused (extend-core-redex search-base-fused-lang))
 (define core-collector/search-base-fused (make-core-collector search-base-fused-lang))
-(define-search-cfg/one-stage
-  core-cfg/search-base-fused
+ (define-search-frontier/one-stage
+  core-frontier/search-base-fused
   core-redex/search-base-fused
   search-base-fused-lang
   K)
@@ -23,49 +23,64 @@
 (define delay-extra
   (reduction-relation
    search-base-fused-lang
-   #:domain cfg
-   [--> ((in-hole K ((suspend g tag) σ)) as_1)
-        ((in-hole K (delay (g σ))) as_1)
+   #:domain f
+   [--> (in-hole K ((suspend g tag) σ))
+        (in-hole K (delay (g σ)))
         "delay/suspend-goal"]
-   [--> ((delay s_1) as_1)
-        (s_1 as_1)
+   [--> (delay f_1)
+        (Bounced + f_1)
         "delay/invoke-delay"]
-   [--> ((in-hole K ((delay s_1) × g c)) as_1)
-        ((in-hole K (delay (s_1 × g c))) as_1)
+   [--> (in-hole K ((delay f_1) × g c))
+        (in-hole K (delay (f_1 × g c)))
         "delay/delay-through-conj"]))
 
 (define search-extra
   (reduction-relation
    search-base-fused-lang
-   #:domain cfg
-   [--> ((in-hole K ((g_1 ∨ g_2 tag) σ)) as_1)
-        ((in-hole K ((g_1 σ) <-+ (g_2 σ))) as_1)
+   #:domain f
+   [--> (in-hole K ((g_1 ∨ g_2 tag) σ))
+        (in-hole K ((g_1 σ) <-+ (g_2 σ)))
         "search-base-fused/goal-to-tree"]
-   [--> ((in-hole K (((⊤ σ_new) <-+ s_rest) × g c)) as_1)
-        ((in-hole K ((g σ_new) <-+ (s_rest × g c))) as_1)
+   [--> (in-hole K (((⊤ σ_new) + f_rest) × g c))
+        (in-hole K ((g σ_new) <-+ (f_rest × g c)))
+        "search-base-fused/continue-left-prefix-answer"]
+   [--> (in-hole K ((Bounced + f_rest) × g c))
+        (in-hole K (Bounced + (f_rest × g c)))
+        "search-base-fused/continue-left-prefix-bounce"]
+   [--> (in-hole K (((⊤ σ_new) <-+ f_rest) × g c))
+        (in-hole K ((g σ_new) <-+ (f_rest × g c)))
         "search-base-fused/continue-left-answer"]
-   [--> ((in-hole K (((empty-tree) <-+ s_rest) × g c)) as_1)
-        ((in-hole K (s_rest × g c)) as_1)
+   [--> (in-hole K (((empty-tree) <-+ f_rest) × g c))
+        (in-hole K (f_rest × g c))
         "search-base-fused/continue-left-fail"]
-   [--> ((in-hole K (((⊤ σ_new) <-+ s_mid) <-+ s_right)) as_1)
-        ((in-hole K ((⊤ σ_new) <-+ (s_mid <-+ s_right))) as_1)
+   [--> ((evt + f_left) <-+ f_right)
+        (evt + (f_left <-+ f_right))
+        "search-base-fused/continue-left-prefix"]
+   [--> (in-hole K (((⊤ σ_new) <-+ f_mid) <-+ f_right))
+        (in-hole K ((⊤ σ_new) <-+ (f_mid <-+ f_right)))
         "search-base-fused/bubble-left-answer"]
-   [--> (((⊤ σ_new) <-+ s_right) as_1)
-        (s_right ,(append-answer-host (term as_1) (term σ_new)))
+   [--> ((⊤ σ_new) <-+ f_right)
+        ((⊤ σ_new) + f_right)
         "search-base-fused/promote-left-answer"]
-   [--> ((in-hole K (((empty-tree) <-+ s_mid) <-+ s_right)) as_1)
-        ((in-hole K ((empty-tree) <-+ (s_mid <-+ s_right))) as_1)
+   [--> (in-hole K (((empty-tree) <-+ f_mid) <-+ f_right))
+        (in-hole K ((empty-tree) <-+ (f_mid <-+ f_right)))
         "search-base-fused/bubble-left-fail"]
-   [--> (((empty-tree) <-+ s_right) as_1)
-        (s_right as_1)
+   [--> ((empty-tree) <-+ f_right)
+        f_right
         "search-base-fused/skip-left-fail"]))
+
+(define delay-frontier
+  (context-closure delay-extra search-base-fused-lang P))
+
+(define search-frontier
+  (context-closure search-extra search-base-fused-lang P))
 
 (define search-base-fused-red
   (union-reduction-relations
-   core-cfg/search-base-fused
-   core-collector/search-base-fused
-   delay-extra
-   search-extra))
+   search-frontier
+   delay-frontier
+   core-frontier/search-base-fused
+   core-collector/search-base-fused))
 
 (define (step-once prog)
   (step-once/deterministic search-base-fused-red prog))

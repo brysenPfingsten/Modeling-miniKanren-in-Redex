@@ -14,11 +14,11 @@
 (define core-redex/search (extend-core-redex core-lang))
 (define core-collector/search (make-core-collector core-lang))
 
-(define-search-cfg/one-stage core-cfg/search core-redex/search core-lang K)
+(define-search-frontier/one-stage core-frontier/search core-redex/search core-lang K)
 
 (define core-red
   (union-reduction-relations
-   core-cfg/search
+   core-frontier/search
    core-collector/search))
 
 (define (step-once prog)

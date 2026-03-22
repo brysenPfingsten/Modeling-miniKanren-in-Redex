@@ -15,38 +15,41 @@
 
 (define core-redex/disj (extend-core-redex disj-fused-lang))
 (define core-collector/disj (make-core-collector disj-fused-lang))
-(define-search-cfg/one-stage core-cfg/disj core-redex/disj disj-fused-lang K)
+ (define-search-frontier/one-stage core-frontier/disj core-redex/disj disj-fused-lang K)
 
 (define disj-extra
   (reduction-relation
    disj-fused-lang
-   #:domain cfg
-   [--> ((in-hole K ((g_1 ∨ g_2 tag) σ)) as_1)
-        ((in-hole K ((g_1 σ) <-+ (g_2 σ))) as_1)
+   #:domain f
+   [--> (in-hole K ((g_1 ∨ g_2 tag) σ))
+        (in-hole K ((g_1 σ) <-+ (g_2 σ)))
         "disj-fused/goal-to-tree"]
-   [--> ((in-hole K (((⊤ σ_new) <-+ s_rest) × g c)) as_1)
-        ((in-hole K ((g σ_new) <-+ (s_rest × g c))) as_1)
+   [--> (in-hole K (((⊤ σ_new) <-+ f_rest) × g c))
+        (in-hole K ((g σ_new) <-+ (f_rest × g c)))
         "disj-fused/continue-left-answer"]
-   [--> ((in-hole K (((empty-tree) <-+ s_rest) × g c)) as_1)
-        ((in-hole K (s_rest × g c)) as_1)
+   [--> (in-hole K (((empty-tree) <-+ f_rest) × g c))
+        (in-hole K (f_rest × g c))
         "disj-fused/continue-left-fail"]
-   [--> ((in-hole K (((⊤ σ_new) <-+ s_mid) <-+ s_right)) as_1)
-        ((in-hole K ((⊤ σ_new) <-+ (s_mid <-+ s_right))) as_1)
+   [--> (in-hole K (((⊤ σ_new) <-+ f_mid) <-+ f_right))
+        (in-hole K ((⊤ σ_new) <-+ (f_mid <-+ f_right)))
         "disj-fused/bubble-left-answer"]
-   [--> (((⊤ σ_new) <-+ s_right) as_1)
-        (s_right ,(append-answer-host (term as_1) (term σ_new)))
+   [--> ((⊤ σ_new) <-+ f_right)
+        ((⊤ σ_new) + f_right)
         "disj-fused/promote-left-answer"]
-   [--> ((in-hole K (((empty-tree) <-+ s_mid) <-+ s_right)) as_1)
-        ((in-hole K ((empty-tree) <-+ (s_mid <-+ s_right))) as_1)
+   [--> (in-hole K (((empty-tree) <-+ f_mid) <-+ f_right))
+        (in-hole K ((empty-tree) <-+ (f_mid <-+ f_right)))
         "disj-fused/bubble-left-fail"]
-   [--> (((empty-tree) <-+ s_right) as_1)
-        (s_right as_1)
+   [--> ((empty-tree) <-+ f_right)
+        f_right
         "disj-fused/skip-left-fail"]))
+
+(define disj-frontier
+  (context-closure disj-extra disj-fused-lang P))
 
 (define disj-fused-red
   (union-reduction-relations
-   disj-extra
-   core-cfg/disj
+   disj-frontier
+   core-frontier/disj
    core-collector/disj))
 
 (define (step-once prog)

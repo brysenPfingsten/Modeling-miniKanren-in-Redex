@@ -21,8 +21,8 @@
   (make-stepper (lambda (_) (list (list "foo" sample-tree)))))
 
 (define streamed-answer-tree
-  '(() ((succeed (label "ok")) (state () () () () (label "tail")))
-       (⊤ (state () () () () (label "answer")))))
+  '(() ((⊤ (state () () () () (label "answer")))
+        + ((succeed (label "ok")) (state () () () () (label "tail"))))))
 
 (define step/streamed-answer-output
   (make-stepper (lambda (_) (list (list "stream-step" streamed-answer-tree)))))

@@ -6,6 +6,7 @@
 
 (provide lvar-member?
          lvars-subset?
+         lvars-fresh-extension?
          wf-term?
          wf-sub?
          wf-dis?
@@ -73,6 +74,20 @@
    (lvars-subset? (u_rest ...) c_2)
    ------------------- "cons ⊆"
    (lvars-subset? (u u_rest ...) c_2)])
+
+(define (lvars-fresh-extension?/host c-intro c-outer)
+  (and (= (length c-intro)
+          (length (remove-duplicates c-intro)))
+       (for/and ([u (in-list c-intro)])
+         (not (member u c-outer)))))
+
+(define-judgment-form
+  core-lang
+  #:contract (lvars-fresh-extension? c c)
+  #:mode (lvars-fresh-extension? I I)
+  [(where #t ,(lvars-fresh-extension?/host (term c_1) (term c_2)))
+   ------------------- "fresh lvar extension"
+   (lvars-fresh-extension? c_1 c_2)])
 
 (define-judgment-form
   core-lang

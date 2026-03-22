@@ -167,8 +167,7 @@
 
 (define (generate-wf-config/constructive)
   (define cfg
-    `(,(gen-tree '() (max-depth))
-      (empty-stream)))
+    (gen-tree '() (max-depth)))
   (unless (wf-config-term? cfg)
     (error 'generate-wf-config/constructive
            (format "constructed non-wf config: ~s" cfg)))
@@ -206,50 +205,15 @@
              (max cmax1 csz))]
     [_ (values #f #f #f 0)]))
 
-(define (answer-stream-coverage as)
-  (match as
-    [`(empty-stream)
-     (values #f 0)]
-    [`(⊤ ,st)
-     (define csz (state-c-size st))
-     (values (> csz 0) csz)]
-    [`((⊤ ,st) + ,as2)
-     (define csz (state-c-size st))
-     (define-values (nonempty?2 cmax2) (answer-stream-coverage as2))
-     (values (or (> csz 0) nonempty?2)
-             (max csz cmax2))]
-    [_ (values #f 0)]))
-
 (define (config-coverage cfg)
   (match cfg
-    [`(,Gamma ,s_work ,as)
-     (define-values (has-exists? has-conj?)
-       (for/fold ([has-exists? #f]
-                  [has-conj? #f])
-                 ([rel (in-list Gamma)])
-         (match rel
-           [`(,_ ,_ ,g)
-            (define-values (hex hconj) (goal-flags g))
-            (values (or has-exists? hex)
-                    (or has-conj? hconj))]
-           [_ (values has-exists? has-conj?)])))
+    [s-work
      (define-values (tree-nonempty tree-exists tree-conj tree-cmax)
-       (tree-coverage s_work))
-     (define-values (stream-nonempty stream-cmax)
-       (answer-stream-coverage as))
-     (values (or tree-nonempty stream-nonempty)
-             (or has-exists? tree-exists)
-             (or has-conj? tree-conj)
-             (max tree-cmax stream-cmax))]
-    [`(,s_work ,as)
-     (define-values (tree-nonempty tree-exists tree-conj tree-cmax)
-       (tree-coverage s_work))
-     (define-values (stream-nonempty stream-cmax)
-       (answer-stream-coverage as))
-     (values (or tree-nonempty stream-nonempty)
+       (tree-coverage s-work))
+     (values tree-nonempty
              tree-exists
              tree-conj
-             (max tree-cmax stream-cmax))]
+             tree-cmax)]
     [_ (values #f #f #f 0)]))
 
 (define (check-wf-guarded-property label pred)

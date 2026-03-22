@@ -1,8 +1,7 @@
 #lang racket
 
 (provide instantiate-call-host
-         subst-goal-host
-         append-answer-host)
+         subst-goal-host)
 
 (define (x-symbol? s)
   (and (symbol? s)
@@ -66,15 +65,3 @@
            (length d)
            (length ts)))
   (subst-goal-host g (map list d ts)))
-
-(define (append-answer-host as sigma-new)
-  (match as
-    ['(empty-stream)
-     `(⊤ ,sigma-new)]
-    [`(⊤ ,sigma-old)
-     `((⊤ ,sigma-old) + (⊤ ,sigma-new))]
-    [`((⊤ ,sigma-old) + ,as-tail)
-     `((⊤ ,sigma-old) + ,(append-answer-host as-tail sigma-new))]
-    [_ (error 'append-answer-host
-              "unsupported answer stream shape: ~e"
-              as)]))

@@ -140,8 +140,10 @@
            canonical-parser-target-id))
   (check-canonical-well-formed model-prog canonical-parser-target-id)
   (check-search-config search-strategy model-prog)
+  (define internal-prog
+    (canonical-flat->calls-config model-prog))
   (define ses^
-    (init-session (bind-session-search-strategy ses search-strategy) model-prog))
+    (init-session (bind-session-search-strategy ses search-strategy) internal-prog))
   (match-define (session init-zipper _ nqv _) ses^)
   (define init-step (zipper-curr init-zipper))
   (values (step/html/cookie->response init-step

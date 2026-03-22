@@ -8,4 +8,4 @@
 (check-redundancy #t)
 
 (define-extended-language disj-fused-lang disj-lang
-  [K .... (K <-+ s)])
+  [K .... (K <-+ f)])

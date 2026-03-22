@@ -2,41 +2,41 @@
 
 (require redex/reduction-semantics)
 
-(provide define-search-cfg/one-stage
-         define-search-cfg/two-stage
-         define-calls-cfg/one-stage
-         define-calls-cfg/two-stage
+(provide define-search-frontier/one-stage
+         define-search-frontier/two-stage
+         define-calls-frontier/one-stage
+         define-calls-frontier/two-stage
          define-lift-search-to-calls)
 
-(define-syntax-rule (define-search-cfg/one-stage cfg-name rel lang ctx)
-  (define cfg-name
+(define-syntax-rule (define-search-frontier/one-stage name rel lang ctx)
+  (define name
     (context-closure
      (context-closure rel lang ctx)
      lang
-     (hole as))))
+     P)))
 
-(define-syntax-rule (define-search-cfg/two-stage cfg-name rel lang ctx1 ctx2)
-  (define cfg-name
+(define-syntax-rule (define-search-frontier/two-stage name rel lang ctx1 ctx2)
+  (define name
     (context-closure
      (context-closure
       (context-closure rel lang ctx1)
       lang
       ctx2)
      lang
-     (hole as))))
+     P)))
 
-(define-syntax-rule (define-calls-cfg/one-stage cfg-name rel lang ctx)
-  (define cfg-name
+(define-syntax-rule (define-calls-frontier/one-stage name rel lang ctx)
+  (define name
     (context-closure
      (context-closure
       (context-closure rel lang ctx)
       lang
-      (hole as))
+      P)
      lang
      (Γ hole))))
 
-(define-syntax-rule (define-calls-cfg/two-stage cfg-name rel lang ctx1 ctx2)
-  (define cfg-name
+(define-syntax-rule (define-calls-frontier/two-stage name rel lang ctx1 ctx2)
+  (define name
     (context-closure
      (context-closure
       (context-closure
@@ -44,7 +44,7 @@
        lang
        ctx2)
       lang
-      (hole as))
+      P)
      lang
      (Γ hole))))
 

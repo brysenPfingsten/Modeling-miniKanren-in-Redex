@@ -5,8 +5,7 @@
          "./core-wf.rkt")
 
 (provide wf-goal/delay?
-         wf-tree/delay?
-         wf-answer-stream/delay?
+         wf-frontier/delay?
          wf-cfg/delay?)
 
 (check-redundancy #t)
@@ -42,53 +41,48 @@
 
 (define-judgment-form
   delay-lang
-  #:contract (wf-tree/delay? s c)
-  #:mode (wf-tree/delay? I I)
-  [------------------- "empty tree is wf/delay"
-   (wf-tree/delay? (empty-tree) c)]
+  #:contract (wf-frontier/delay? f c)
+  #:mode (wf-frontier/delay? I I)
+  [------------------- "empty frontier residual is wf/delay"
+   (wf-frontier/delay? (empty-tree) c)]
   [(lvars-subset? c c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
-   ------------------- "single answer/state wf/delay"
-   (wf-tree/delay? (⊤ (state sub dis c_i trail tag)) c)]
+   ------------------- "raw answer/state wf/delay"
+   (wf-frontier/delay? (⊤ (state sub dis c_i trail tag)) c)]
+  [(lvars-subset? c c_i)
+   (wf-sub/wf+equiv-trail? sub c_i trail)
+   (wf-dis? dis c_i)
+   (wf-frontier/delay? f_tail c)
+   ------------------- "observable answer prefix wf/delay"
+   (wf-frontier/delay? ((⊤ (state sub dis c_i trail tag)) + f_tail) c)]
+  [(wf-frontier/delay? f_tail c)
+   ------------------- "bounced prefix wf/delay"
+   (wf-frontier/delay? (Bounced + f_tail) c)]
+  [(lvars-fresh-extension? c_1 c_2)
+   (where c_3 (c-append c_1 c_2))
+   (wf-frontier/delay? f_inner c_3)
+   ------------------- "freshened frontier wf/delay"
+   (wf-frontier/delay? (Freshened c_1 f_inner) c_2)]
   [(lvars-subset? c c_i)
    (wf-goal/delay? g () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)
    (wf-dis? dis c_i)
    ------------------- "goal/state wf/delay"
-   (wf-tree/delay? (g (state sub dis c_i trail tag)) c)]
+   (wf-frontier/delay? (g (state sub dis c_i trail tag)) c)]
   [(lvars-subset? c c_i)
-   (wf-tree/delay? s c_i)
+   (wf-frontier/delay? f c_i)
    (wf-goal/delay? g () c_i)
    ------------------- "conj wf/delay"
-   (wf-tree/delay? (s × g c_i) c)]
-  [(wf-tree/delay? s c)
+   (wf-frontier/delay? (f × g c_i) c)]
+  [(wf-frontier/delay? f c)
    ------------------- "delay wf/delay"
-   (wf-tree/delay? (delay s) c)])
-
-(define-judgment-form
-  delay-lang
-  #:contract (wf-answer-stream/delay? as c)
-  #:mode (wf-answer-stream/delay? I I)
-  [------------------- "empty answer stream wf/delay"
-   (wf-answer-stream/delay? (empty-stream) c)]
-  [(lvars-subset? c c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
-   ------------------- "single answer stream wf/delay"
-   (wf-answer-stream/delay? (⊤ (state sub dis c_i trail tag)) c)]
-  [(lvars-subset? c c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
-   (wf-answer-stream/delay? as_tail c)
-   ------------------- "answer stream wf/delay"
-   (wf-answer-stream/delay? ((⊤ (state sub dis c_i trail tag)) + as_tail) c)])
+   (wf-frontier/delay? (delay f) c)])
 
 (define-judgment-form
   delay-lang
   #:contract (wf-cfg/delay? cfg)
   #:mode (wf-cfg/delay? I)
-  [(wf-tree/delay? s ())
-   (wf-answer-stream/delay? as ())
+  [(wf-frontier/delay? f ())
    ----------------------- "cfg-wf/delay"
-   (wf-cfg/delay? (s as))])
+   (wf-cfg/delay? f)])
