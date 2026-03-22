@@ -5,6 +5,7 @@
          "./confidence-gates-tests.rkt"
          "./determinism-overlap-tests.rkt"
          "./example-compat-tests.rkt"
+         "./frontier-example-tests.rkt"
          "./frontier-observable-tests.rkt"
          "./helpers-tests.rkt"
          "./model-example-matrix-tests.rkt"
@@ -15,6 +16,7 @@
 (define-test-suite HEADLESS
   HELPERS-TESTS
   PROPERTY-CORE
+  FRONTIER-EXAMPLES
   FRONTIER-OBSERVABLES
   SEARCH-RUNTIME
   SEARCH-LATTICE

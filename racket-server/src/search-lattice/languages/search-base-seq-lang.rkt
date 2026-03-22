@@ -13,4 +13,10 @@
   disj-seq-lang)
 
 (define-extended-language search-base-seq-lang
-  search-base-seq/join)
+  search-base-seq/join
+  [K ::= hole
+         (K × g c)]
+  [pref ....
+        (Freshened c end-f)]
+  [end-f ....
+         (pref + end-f)])

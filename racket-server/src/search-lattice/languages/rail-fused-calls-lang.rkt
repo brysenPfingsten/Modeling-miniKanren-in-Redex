@@ -13,4 +13,8 @@
   rail-fused-lang)
 
 (define-extended-language rail-fused-calls-lang
-  rail-fused-calls/join)
+  rail-fused-calls/join
+  [pref ....
+        (Freshened c end-f)]
+  [end-f ....
+         (pref + end-f)])

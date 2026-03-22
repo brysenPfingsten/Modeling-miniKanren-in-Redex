@@ -14,8 +14,7 @@
 (check-redundancy #t)
 
 (define core-redex/disj (extend-core-redex disj-seq-lang))
-(define core-collector/disj (make-core-collector disj-seq-lang))
- (define-search-frontier/two-stage core-frontier/disj core-redex/disj disj-seq-lang K KDisj)
+(define-search-frontier/two-stage core-frontier/disj core-redex/disj disj-seq-lang K KDisj)
 
 (define disj-extra
   (reduction-relation
@@ -26,28 +25,36 @@
         "disj-seq/goal-to-tree"]
    [--> (in-hole KDisj (in-hole K ((f_1 <-+ f_2) × g c)))
         (in-hole KDisj (in-hole K ((f_1 × g c) <-+ (f_2 × g c))))
-        "disj-seq/distribute-over-conj"]
-   [--> (in-hole KDisj (((⊤ σ_new) <-+ f_mid) <-+ f_right))
-        (in-hole KDisj ((⊤ σ_new) <-+ (f_mid <-+ f_right)))
-        "disj-seq/bubble-left-answer"]
-   [--> ((⊤ σ_new) <-+ f_right)
-        ((⊤ σ_new) + f_right)
-        "disj-seq/promote-left-answer"]
-   [--> (in-hole KDisj (((empty-tree) <-+ f_mid) <-+ f_right))
-        (in-hole KDisj ((empty-tree) <-+ (f_mid <-+ f_right)))
+        "disj-seq/distribute-over-conj"]))
+
+(define disj-frontier-extra
+  (reduction-relation
+   disj-seq-lang
+   #:domain f
+   [--> ((pref_1 <-+ f_mid) <-+ f_right)
+        (pref_1 <-+ (f_mid <-+ f_right))
+        "disj-seq/bubble-left-observable"]
+   [--> (pref_1 <-+ f_right)
+        (pref_1 + f_right)
+        "disj-seq/promote-left-observable"]
+   [--> (((empty-tree) <-+ f_mid) <-+ f_right)
+        ((empty-tree) <-+ (f_mid <-+ f_right))
         "disj-seq/bubble-left-fail"]
    [--> ((empty-tree) <-+ f_right)
         f_right
         "disj-seq/skip-left-fail"]))
 
 (define disj-frontier
-  (context-closure disj-extra disj-seq-lang P))
+  (context-closure disj-frontier-extra disj-seq-lang P))
+
+(define disj-local
+  (context-closure disj-extra disj-seq-lang Q))
 
 (define disj-seq-red
   (union-reduction-relations
+   disj-local
    disj-frontier
-   core-frontier/disj
-   core-collector/disj))
+   core-frontier/disj))
 
 (define (step-once prog)
   (step-once/deterministic disj-seq-red prog))

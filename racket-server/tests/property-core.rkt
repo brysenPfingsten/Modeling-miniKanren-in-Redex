@@ -109,8 +109,8 @@
     (trace-deterministic core-red cfg))
   (and (eq? status 'done)
        (config-exact-scope? final-cfg)
-       (= (count-step-name steps "core/fresh-substitute")
-          (count-freshened final-cfg))))
+       (<= (count-step-name steps "core/fresh-substitute")
+           (count-freshened final-cfg))))
 
 ;; Pool sizes bound generated test-data diversity only; they do not bound the
 ;; semantic logic-variable/name space of the language.

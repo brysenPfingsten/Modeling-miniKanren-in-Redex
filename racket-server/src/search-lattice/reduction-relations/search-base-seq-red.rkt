@@ -13,27 +13,31 @@
 (check-redundancy #t)
 
 (define core-redex/search-base-seq (extend-core-redex search-base-seq-lang))
-(define core-collector/search-base-seq (make-core-collector search-base-seq-lang))
- (define-search-frontier/two-stage
+(define-search-frontier/two-stage
   core-frontier/search-base-seq
   core-redex/search-base-seq
   search-base-seq-lang
   K
   KDisj)
 
-(define delay-extra
+(define delay-local
   (reduction-relation
    search-base-seq-lang
    #:domain f
    [--> (in-hole KDisj (in-hole K ((suspend g tag) σ)))
         (in-hole KDisj (in-hole K (delay (g σ))))
         "delay/suspend-goal"]
-   [--> (delay f_1)
-        (Bounced + f_1)
-        "delay/invoke-delay"]
    [--> (in-hole KDisj (in-hole K ((delay f_1) × g c)))
         (in-hole KDisj (in-hole K (delay (f_1 × g c))))
         "delay/delay-through-conj"]))
+
+(define delay-frontier-extra
+  (reduction-relation
+   search-base-seq-lang
+   #:domain f
+   [--> (in-hole P (delay f_1))
+        (in-hole P (Bounced + f_1))
+        "delay/invoke-delay"]))
 
 (define search-extra
   (reduction-relation
@@ -50,35 +54,46 @@
         "search-base-seq/continue-left-prefix-bounce"]
    [--> (in-hole KDisj (in-hole K ((f_1 <-+ f_2) × g c)))
         (in-hole KDisj (in-hole K ((f_1 × g c) <-+ (f_2 × g c))))
-        "search-base-seq/distribute-over-conj"]
-   [--> ((evt + f_left) <-+ f_right)
-        (evt + (f_left <-+ f_right))
+        "search-base-seq/distribute-over-conj"]))
+
+(define search-frontier-extra
+  (reduction-relation
+   search-base-seq-lang
+   #:domain f
+   [--> ((pref_1 + f_left) <-+ f_right)
+        (pref_1 + (f_left <-+ f_right))
         "search-base-seq/continue-left-prefix"]
-   [--> (in-hole KDisj (((⊤ σ_new) <-+ f_mid) <-+ f_right))
-        (in-hole KDisj ((⊤ σ_new) <-+ (f_mid <-+ f_right)))
-        "search-base-seq/bubble-left-answer"]
-   [--> ((⊤ σ_new) <-+ f_right)
-        ((⊤ σ_new) + f_right)
-        "search-base-seq/promote-left-answer"]
-   [--> (in-hole KDisj (((empty-tree) <-+ f_mid) <-+ f_right))
-        (in-hole KDisj ((empty-tree) <-+ (f_mid <-+ f_right)))
+   [--> ((pref_1 <-+ f_mid) <-+ f_right)
+        (pref_1 <-+ (f_mid <-+ f_right))
+        "search-base-seq/bubble-left-observable"]
+   [--> (pref_1 <-+ f_right)
+        (pref_1 + f_right)
+        "search-base-seq/promote-left-observable"]
+   [--> (((empty-tree) <-+ f_mid) <-+ f_right)
+        ((empty-tree) <-+ (f_mid <-+ f_right))
         "search-base-seq/bubble-left-fail"]
    [--> ((empty-tree) <-+ f_right)
         f_right
         "search-base-seq/skip-left-fail"]))
 
-(define delay-frontier
-  (context-closure delay-extra search-base-seq-lang P))
+(define delay-extra
+  (context-closure delay-local search-base-seq-lang Q))
+
+(define delay-frontier delay-frontier-extra)
 
 (define search-frontier
-  (context-closure search-extra search-base-seq-lang P))
+  (context-closure search-frontier-extra search-base-seq-lang P))
+
+(define search-local
+  (context-closure search-extra search-base-seq-lang Q))
 
 (define search-base-seq-red
   (union-reduction-relations
+   search-local
    search-frontier
    delay-frontier
-   core-frontier/search-base-seq
-   core-collector/search-base-seq))
+   delay-extra
+   core-frontier/search-base-seq))
 
 (define (step-once prog)
   (step-once/deterministic search-base-seq-red prog))

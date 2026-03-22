@@ -13,26 +13,30 @@
 (check-redundancy #t)
 
 (define core-redex/search-base-fused (extend-core-redex search-base-fused-lang))
-(define core-collector/search-base-fused (make-core-collector search-base-fused-lang))
- (define-search-frontier/one-stage
+(define-search-frontier/one-stage
   core-frontier/search-base-fused
   core-redex/search-base-fused
   search-base-fused-lang
   K)
 
-(define delay-extra
+(define delay-local
   (reduction-relation
    search-base-fused-lang
    #:domain f
    [--> (in-hole K ((suspend g tag) σ))
         (in-hole K (delay (g σ)))
         "delay/suspend-goal"]
-   [--> (delay f_1)
-        (Bounced + f_1)
-        "delay/invoke-delay"]
    [--> (in-hole K ((delay f_1) × g c))
         (in-hole K (delay (f_1 × g c)))
         "delay/delay-through-conj"]))
+
+(define delay-frontier-extra
+  (reduction-relation
+   search-base-fused-lang
+   #:domain f
+   [--> (in-hole P (delay f_1))
+        (in-hole P (Bounced + f_1))
+        "delay/invoke-delay"]))
 
 (define search-extra
   (reduction-relation
@@ -52,35 +56,46 @@
         "search-base-fused/continue-left-answer"]
    [--> (in-hole K (((empty-tree) <-+ f_rest) × g c))
         (in-hole K (f_rest × g c))
-        "search-base-fused/continue-left-fail"]
-   [--> ((evt + f_left) <-+ f_right)
-        (evt + (f_left <-+ f_right))
+        "search-base-fused/continue-left-fail"]))
+
+(define search-frontier-extra
+  (reduction-relation
+   search-base-fused-lang
+   #:domain f
+   [--> ((pref_1 + f_left) <-+ f_right)
+        (pref_1 + (f_left <-+ f_right))
         "search-base-fused/continue-left-prefix"]
-   [--> (in-hole K (((⊤ σ_new) <-+ f_mid) <-+ f_right))
-        (in-hole K ((⊤ σ_new) <-+ (f_mid <-+ f_right)))
-        "search-base-fused/bubble-left-answer"]
-   [--> ((⊤ σ_new) <-+ f_right)
-        ((⊤ σ_new) + f_right)
-        "search-base-fused/promote-left-answer"]
-   [--> (in-hole K (((empty-tree) <-+ f_mid) <-+ f_right))
-        (in-hole K ((empty-tree) <-+ (f_mid <-+ f_right)))
+   [--> ((pref_1 <-+ f_mid) <-+ f_right)
+        (pref_1 <-+ (f_mid <-+ f_right))
+        "search-base-fused/bubble-left-observable"]
+   [--> (pref_1 <-+ f_right)
+        (pref_1 + f_right)
+        "search-base-fused/promote-left-observable"]
+   [--> (((empty-tree) <-+ f_mid) <-+ f_right)
+        ((empty-tree) <-+ (f_mid <-+ f_right))
         "search-base-fused/bubble-left-fail"]
    [--> ((empty-tree) <-+ f_right)
         f_right
         "search-base-fused/skip-left-fail"]))
 
-(define delay-frontier
-  (context-closure delay-extra search-base-fused-lang P))
+(define delay-extra
+  (context-closure delay-local search-base-fused-lang Q))
+
+(define delay-frontier delay-frontier-extra)
 
 (define search-frontier
-  (context-closure search-extra search-base-fused-lang P))
+  (context-closure search-frontier-extra search-base-fused-lang P))
+
+(define search-local
+  (context-closure search-extra search-base-fused-lang Q))
 
 (define search-base-fused-red
   (union-reduction-relations
+   search-local
    search-frontier
    delay-frontier
-   core-frontier/search-base-fused
-   core-collector/search-base-fused))
+   delay-extra
+   core-frontier/search-base-fused))
 
 (define (step-once prog)
   (step-once/deterministic search-base-fused-red prog))

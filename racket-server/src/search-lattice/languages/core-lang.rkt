@@ -18,11 +18,16 @@
   [d (x_!_ ...)]
 
   [f w
-     (evt + f)
+     (pref + f)
      (Freshened c f)]
 
   [evt (⊤ σ)
        Bounced]
+  [pref evt
+        (Freshened c obs-f)]
+  [obs-f evt
+         end-f
+         (Freshened c obs-f)]
 
   [w (empty-tree)
      (g σ)
@@ -60,16 +65,18 @@
   [maybe-sub sub #f]
   [trail (eq ...)]
   [end-f (empty-tree)
-         (evt + end-f)
-         (Freshened c end-f)]
+         (pref + end-f)]
   [end-cfg end-f]
   [c (u_!_ ...)]
 
   ;; Base active-work context.
   [K ::= hole
-         (K × g c)]
+         (K × g c)
+         (Freshened c K)]
+  [Q ::= hole
+         (pref + Q)]
   [P ::= hole
-         (evt + P)
+         (pref + P)
          (Freshened c P)]
 
   #:binding-forms

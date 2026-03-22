@@ -13,4 +13,8 @@
   disj-fused-lang)
 
 (define-extended-language search-base-fused-calls-lang
-  search-base-fused-calls/join)
+  search-base-fused-calls/join
+  [pref ....
+        (Freshened c end-f)]
+  [end-f ....
+         (pref + end-f)])

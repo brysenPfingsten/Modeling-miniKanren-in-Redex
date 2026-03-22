@@ -15,26 +15,26 @@
   (extend-reduction-relation
    search-base-fused-calls-red
    rail-fused-calls-lang
-   [--> (Γ (in-hole P (in-hole K ((delay f_1) <-+ f_2))))
-        (Γ (in-hole P (in-hole K (delay (f_1 +-> f_2)))))
+   [--> (Γ (in-hole Q (in-hole K ((delay f_1) <-+ f_2))))
+        (Γ (in-hole Q (in-hole K (delay (f_1 +-> f_2)))))
         "rail-fused-calls/enter-right"]
-   [--> (Γ (in-hole P (in-hole K (f_2 +-> (delay f_1)))))
-        (Γ (in-hole P (in-hole K (delay (f_2 <-+ f_1)))))
+   [--> (Γ (in-hole Q (in-hole K (f_2 +-> (delay f_1)))))
+        (Γ (in-hole Q (in-hole K (delay (f_2 <-+ f_1)))))
         "rail-fused-calls/return-left"]
-   [--> (Γ (in-hole P (in-hole K (f_left +-> ((⊤ σ_new) <-+ f_right)))))
-        (Γ (in-hole P (in-hole K ((⊤ σ_new) + (f_left +-> f_right)))))
+   [--> (Γ (in-hole Q (in-hole K (f_left +-> ((⊤ σ_new) <-+ f_right)))))
+        (Γ (in-hole Q (in-hole K ((⊤ σ_new) + (f_left +-> f_right)))))
         "rail-fused-calls/promote-right-left-answer"]
-   [--> (Γ (in-hole P (in-hole K (f_left +-> ((empty-tree) <-+ f_right)))))
-        (Γ (in-hole P (in-hole K (f_left +-> f_right))))
+   [--> (Γ (in-hole Q (in-hole K (f_left +-> ((empty-tree) <-+ f_right)))))
+        (Γ (in-hole Q (in-hole K (f_left +-> f_right))))
         "rail-fused-calls/skip-right-left-fail"]
-   [--> (Γ (in-hole P (in-hole K (f_left +-> (evt + f_right)))))
-        (Γ (in-hole P (in-hole K (evt + (f_left +-> f_right)))))
+   [--> (Γ (in-hole Q (in-hole K (f_left +-> (pref_1 + f_right)))))
+        (Γ (in-hole Q (in-hole K (pref_1 + (f_left +-> f_right)))))
         "rail-fused-calls/continue-right-prefix"]
-   [--> (Γ (in-hole P (in-hole K (f_left +-> (⊤ σ_new)))))
-        (Γ (in-hole P (in-hole K ((⊤ σ_new) + f_left))))
-        "rail-fused-calls/promote-right-answer"]
-   [--> (Γ (in-hole P (in-hole K (f_left +-> (empty-tree)))))
-        (Γ (in-hole P (in-hole K f_left)))
+   [--> (Γ (in-hole Q (in-hole K (f_left +-> pref_1))))
+        (Γ (in-hole Q (in-hole K (pref_1 + f_left))))
+        "rail-fused-calls/promote-right-observable"]
+   [--> (Γ (in-hole Q (in-hole K (f_left +-> (empty-tree)))))
+        (Γ (in-hole Q (in-hole K f_left)))
         "rail-fused-calls/skip-right-fail"]))
 
 (define (step-once prog)

@@ -8,5 +8,9 @@
 (check-redundancy #t)
 
 (define-extended-language rail-fused-lang search-base-fused-lang
+  [pref ....
+        (Freshened c end-f)]
+  [end-f ....
+         (pref + end-f)]
   [w .... (f +-> f)]
   [K .... (f +-> K)])

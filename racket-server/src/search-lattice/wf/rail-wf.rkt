@@ -65,6 +65,12 @@
    (wf-frontier/rail? (Bounced + f_tail) c)]
   [(lvars-fresh-extension? c_1 c_2)
    (where c_3 (c-append c_1 c_2))
+   (wf-frontier/rail? f_obs c_3)
+   (wf-frontier/rail? f_tail c_2)
+   ------------------- "freshened observable prefix wf/rail"
+   (wf-frontier/rail? ((Freshened c_1 f_obs) + f_tail) c_2)]
+  [(lvars-fresh-extension? c_1 c_2)
+   (where c_3 (c-append c_1 c_2))
    (wf-frontier/rail? f_inner c_3)
    ------------------- "freshened frontier wf/rail"
    (wf-frontier/rail? (Freshened c_1 f_inner) c_2)]

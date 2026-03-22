@@ -61,6 +61,12 @@
    (wf-frontier/delay? (Bounced + f_tail) c)]
   [(lvars-fresh-extension? c_1 c_2)
    (where c_3 (c-append c_1 c_2))
+   (wf-frontier/delay? f_obs c_3)
+   (wf-frontier/delay? f_tail c_2)
+   ------------------- "freshened observable prefix wf/delay"
+   (wf-frontier/delay? ((Freshened c_1 f_obs) + f_tail) c_2)]
+  [(lvars-fresh-extension? c_1 c_2)
+   (where c_3 (c-append c_1 c_2))
    (wf-frontier/delay? f_inner c_3)
    ------------------- "freshened frontier wf/delay"
    (wf-frontier/delay? (Freshened c_1 f_inner) c_2)]

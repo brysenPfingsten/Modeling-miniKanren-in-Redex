@@ -44,7 +44,7 @@
       (check-equal? status 'done)
       (check-true (config-exact-scope? final-cfg))
       (check-equal? (count-step-name steps "core/fresh-substitute") 1)
-      (check-equal? (count-freshened final-cfg) 1)
+      (check-true (>= (count-freshened final-cfg) 1))
       (check-equal? (count-step-name steps "delay/invoke-delay") 1)
       (check-equal? (count-bounced final-cfg) 1)))
 

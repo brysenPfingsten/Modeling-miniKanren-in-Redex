@@ -3,6 +3,7 @@
 (require redex/reduction-semantics)
 
 (provide count-bounced
+         count-answers
          count-freshened
          frontier-exact-scope?
          config-exact-scope?
@@ -25,6 +26,10 @@
   (for/and ([x (in-list xs)])
     (member? x ys)))
 
+(define (same-members? xs ys)
+  (and (subset? xs ys)
+       (subset? ys xs)))
+
 (define (lvars-in datum [acc '()])
   (match datum
     ['() acc]
@@ -39,7 +44,7 @@
 (define (state-exact-scope? st scope)
   (match st
     [`(state ,sub ,dis ,c ,trail ,_tag)
-     (and (equal? c scope)
+     (and (same-members? c scope)
           (subset? (lvars-in sub) scope)
           (subset? (lvars-in dis) scope)
           (subset? (lvars-in trail) scope))]
@@ -48,31 +53,35 @@
 (define (frontier-exact-scope? f [scope '()])
   (match f
     ['(empty-tree) #t]
-    [`(Bounced + ,rest)
+    ['Bounced #t]
+    [(list 'Bounced '+ rest)
      (frontier-exact-scope? rest scope)]
-    [`((⊤ ,st) + ,rest)
+    [(list (list '⊤ st) '+ rest)
      (and (state-exact-scope? st scope)
           (frontier-exact-scope? rest scope))]
-    [`(Freshened ,intro ,inner)
+    [(list prefix '+ rest)
+     (and (frontier-exact-scope? prefix scope)
+          (frontier-exact-scope? rest scope))]
+    [(list 'Freshened intro inner)
      (and (distinct? intro)
           (for/and ([u (in-list intro)])
             (not (member? u scope)))
           (frontier-exact-scope? inner (append intro scope)))]
-    [`(⊤ ,st)
+    [(list '⊤ st)
      (state-exact-scope? st scope)]
-    [`(,g ,st)
+    [(list g st)
      (and (state-exact-scope? st scope)
           (subset? (lvars-in g) scope))]
-    [`(,inner × ,g ,c)
-     (and (equal? c scope)
+    [(list inner '× g c)
+     (and (same-members? c scope)
           (subset? (lvars-in g) scope)
           (frontier-exact-scope? inner scope))]
-    [`(delay ,inner)
+    [(list 'delay inner)
      (frontier-exact-scope? inner scope)]
-    [`(,left <-+ ,right)
+    [(list left '<-+ right)
      (and (frontier-exact-scope? left scope)
           (frontier-exact-scope? right scope))]
-    [`(,left +-> ,right)
+    [(list left '+-> right)
      (and (frontier-exact-scope? left scope)
           (frontier-exact-scope? right scope))]
     [_ #f]))
@@ -82,52 +91,87 @@
     [(frontier-exact-scope? cfg) #t]
     [else
      (match cfg
-       [`(,_gamma ,f)
+       [(list gamma f) #:when (list? gamma)
         (frontier-exact-scope? f)]
        [_ #f])]))
 
 (define (count-bounced datum)
   (match datum
     ['() 0]
-    [`(,_gamma ,f)
+    [(list gamma f) #:when (list? gamma)
      (count-bounced f)]
-    [`(Bounced + ,rest)
+    ['Bounced 1]
+    [(list 'Bounced '+ rest)
      (add1 (count-bounced rest))]
-    [`((⊤ ,_) + ,rest)
+    [(list (list '⊤ _) '+ rest)
      (count-bounced rest)]
-    [`(Freshened ,_ ,inner)
+    [(list prefix '+ rest)
+     (+ (count-bounced prefix)
+        (count-bounced rest))]
+    [(list 'Freshened _ inner)
      (count-bounced inner)]
-    [`(,inner × ,_ ,_)
+    [(list inner '× _ _)
      (count-bounced inner)]
-    [`(delay ,inner)
+    [(list 'delay inner)
      (count-bounced inner)]
-    [`(,left <-+ ,right)
+    [(list left '<-+ right)
      (+ (count-bounced left)
         (count-bounced right))]
-    [`(,left +-> ,right)
+    [(list left '+-> right)
      (+ (count-bounced left)
         (count-bounced right))]
+    [_ 0]))
+
+(define (count-answers datum)
+  (match datum
+    ['() 0]
+    [(list gamma f) #:when (list? gamma)
+     (count-answers f)]
+    [(list (list '⊤ _) '+ rest)
+     (add1 (count-answers rest))]
+    [(list prefix '+ rest)
+     (+ (count-answers prefix)
+        (count-answers rest))]
+    [(list 'Freshened _ inner)
+     (count-answers inner)]
+    [(list 'Bounced '+ rest)
+     (count-answers rest)]
+    [(list '⊤ _)
+     1]
+    [(list inner '× _ _)
+     (count-answers inner)]
+    [(list 'delay inner)
+     (count-answers inner)]
+    [(list left '<-+ right)
+     (+ (count-answers left)
+        (count-answers right))]
+    [(list left '+-> right)
+     (+ (count-answers left)
+        (count-answers right))]
     [_ 0]))
 
 (define (count-freshened datum)
   (match datum
     ['() 0]
-    [`(,_gamma ,f)
+    [(list gamma f) #:when (list? gamma)
      (count-freshened f)]
-    [`(Freshened ,_ ,inner)
+    [(list 'Freshened _ inner)
      (add1 (count-freshened inner))]
-    [`((⊤ ,_) + ,rest)
+    [(list (list '⊤ _) '+ rest)
      (count-freshened rest)]
-    [`(Bounced + ,rest)
+    [(list 'Bounced '+ rest)
      (count-freshened rest)]
-    [`(,inner × ,_ ,_)
+    [(list prefix '+ rest)
+     (+ (count-freshened prefix)
+        (count-freshened rest))]
+    [(list inner '× _ _)
      (count-freshened inner)]
-    [`(delay ,inner)
+    [(list 'delay inner)
      (count-freshened inner)]
-    [`(,left <-+ ,right)
+    [(list left '<-+ right)
      (+ (count-freshened left)
         (count-freshened right))]
-    [`(,left +-> ,right)
+    [(list left '+-> right)
      (+ (count-freshened left)
         (count-freshened right))]
     [_ 0]))

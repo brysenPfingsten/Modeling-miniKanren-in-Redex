@@ -20,8 +20,8 @@
   (reduction-relation
    calls-lang
    #:domain config
-   [--> (Γ (in-hole P (in-hole K ((r t ... tag) σ))))
-        (Γ (in-hole P (in-hole K (g_new σ))))
+   [--> (Γ (in-hole Q (in-hole K ((r t ... tag) σ))))
+        (Γ (in-hole Q (in-hole K (g_new σ))))
         (where g_new
                ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
         "calls/expand"]))

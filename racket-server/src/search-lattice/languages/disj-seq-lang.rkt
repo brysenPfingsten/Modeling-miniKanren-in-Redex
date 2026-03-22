@@ -8,5 +8,12 @@
 (check-redundancy #t)
 
 (define-extended-language disj-seq-lang disj-lang
+  [pref ....
+        (Freshened c end-f)]
+  [end-f ....
+         (pref + end-f)]
+  [K ::= hole
+         (K × g c)]
   [KDisj ::= hole
+             (Freshened c KDisj)
              (KDisj <-+ f)])

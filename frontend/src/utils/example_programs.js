@@ -47,6 +47,26 @@ const hoistWitness = `(run 2 (q)
     [(== q 'witness)])
   (== q q))`;
 
+const freshWitness = `(run* (q)
+  (fresh (x)
+    (== x 'fresh)
+    (== q x)))`;
+
+const freshSharedDisj = `(run* (q)
+  (fresh (x)
+    (conde
+      [(== x 'left) (== q 'left)]
+      [(== x 'right) (== q 'right)])))`;
+
+const freshBranchDisj = `(run* (q)
+  (conde
+    [(fresh (x)
+       (== x 'left)
+       (== q 'left))]
+    [(fresh (x)
+       (== x 'right)
+       (== q 'right))]))`;
+
 const div3o = `(defrel (same-counto bn)
   (conde
    [(== bn \`(1 1))]
@@ -111,6 +131,21 @@ export const semanticExamples = Object.freeze([
     id: "core-fresh-conj-unify",
     label: "core/fresh+conj+unify",
     miniSource: coreFreshConjUnify,
+  }),
+  Object.freeze({
+    id: "fresh-witness",
+    label: "fresh witness",
+    miniSource: freshWitness,
+  }),
+  Object.freeze({
+    id: "fresh-shared-disj",
+    label: "fresh shared disj",
+    miniSource: freshSharedDisj,
+  }),
+  Object.freeze({
+    id: "fresh-branch-disj",
+    label: "fresh branch disj",
+    miniSource: freshBranchDisj,
   }),
   Object.freeze({
     id: "appendo",

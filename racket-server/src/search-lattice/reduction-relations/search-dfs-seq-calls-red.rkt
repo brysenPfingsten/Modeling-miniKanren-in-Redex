@@ -14,8 +14,8 @@
   (extend-reduction-relation
    search-base-seq-calls-red
    search-base-seq-calls-lang
-   [--> (Γ (in-hole P (in-hole KDisj ((delay f_1) <-+ f_2))))
-        (Γ (in-hole P (in-hole KDisj (delay (f_1 <-+ f_2)))))
+   [--> (Γ (in-hole Q (in-hole KDisj ((delay f_1) <-+ f_2))))
+        (Γ (in-hole Q (in-hole KDisj (delay (f_1 <-+ f_2)))))
         "search-dfs-seq-calls/delay-through-left"]))
 
 (define (step-once prog)

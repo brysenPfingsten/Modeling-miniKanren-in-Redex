@@ -82,6 +82,12 @@
    (wf-frontier/search-base-calls? (Bounced + f_tail) Γ c)]
   [(lvars-fresh-extension? c_1 c_2)
    (where c_3 (c-append c_1 c_2))
+   (wf-frontier/search-base-calls? f_obs Γ c_3)
+   (wf-frontier/search-base-calls? f_tail Γ c_2)
+   ------------------- "freshened observable prefix wf/search-base-calls"
+   (wf-frontier/search-base-calls? ((Freshened c_1 f_obs) + f_tail) Γ c_2)]
+  [(lvars-fresh-extension? c_1 c_2)
+   (where c_3 (c-append c_1 c_2))
    (wf-frontier/search-base-calls? f_inner Γ c_3)
    ------------------- "freshened frontier wf/search-base-calls"
    (wf-frontier/search-base-calls? (Freshened c_1 f_inner) Γ c_2)]

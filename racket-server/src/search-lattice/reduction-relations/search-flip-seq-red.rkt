@@ -14,8 +14,8 @@
   (extend-reduction-relation
    search-base-seq-red
    search-base-seq-lang
-   [--> (in-hole P (in-hole KDisj ((delay f_1) <-+ f_2)))
-        (in-hole P (in-hole KDisj (delay (f_2 <-+ f_1))))
+   [--> (in-hole Q (in-hole KDisj ((delay f_1) <-+ f_2)))
+        (in-hole Q (in-hole KDisj (delay (f_2 <-+ f_1))))
         "search-flip-seq/delay-swap-left"]))
 
 (define (step-once prog)

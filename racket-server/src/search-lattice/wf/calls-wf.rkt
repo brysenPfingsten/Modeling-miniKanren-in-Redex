@@ -78,6 +78,12 @@
    (wf-frontier/calls? (Bounced + f_tail) Γ c)]
   [(lvars-fresh-extension? c_1 c_2)
    (where c_3 (c-append c_1 c_2))
+   (wf-frontier/calls? f_obs Γ c_3)
+   (wf-frontier/calls? f_tail Γ c_2)
+   ------------------- "freshened observable prefix wf/calls"
+   (wf-frontier/calls? ((Freshened c_1 f_obs) + f_tail) Γ c_2)]
+  [(lvars-fresh-extension? c_1 c_2)
+   (where c_3 (c-append c_1 c_2))
    (wf-frontier/calls? f_inner Γ c_3)
    ------------------- "freshened frontier wf/calls"
    (wf-frontier/calls? (Freshened c_1 f_inner) Γ c_2)]

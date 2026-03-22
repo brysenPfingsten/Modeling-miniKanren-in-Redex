@@ -30,6 +30,9 @@
     ['(empty-tree) #t]
     [`((⊤ ,_) + ,rest) (final-frontier? rest)]
     [`(Bounced + ,rest) (final-frontier? rest)]
+    [`(,prefix + ,rest)
+     (and (final-frontier? prefix)
+          (final-frontier? rest))]
     [`(Freshened ,_ ,inner) (final-frontier? inner)]
     [_ #f]))
 

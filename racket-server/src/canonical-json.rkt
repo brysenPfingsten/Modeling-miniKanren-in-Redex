@@ -270,17 +270,45 @@
     [f f]
     [_ '(empty-tree)]))
 
+(define (closed-frontier->json/canonical f num-query-variables [rest-json #f])
+  (match f
+    ['(empty-tree)
+     (or rest-json (hasheq 'name "Empty"))]
+    [`(,pref + ,f-tail)
+     (prefix->json/canonical pref
+                             num-query-variables
+                             (closed-frontier->json/canonical f-tail
+                                                              num-query-variables
+                                                              rest-json))]
+    [_ (tree->json/canonical f num-query-variables)]))
+
+(define (prefix->json/canonical pref num-query-variables [rest-json #f])
+  (match pref
+    [`(Freshened ,c-intro ,f-inner)
+     (hasheq 'name "Freshened"
+             'vars (map term->json/canonical c-intro)
+             'children (list (closed-frontier->json/canonical f-inner
+                                                              num-query-variables
+                                                              rest-json)))]
+    [`(⊤ ,σ)
+     (state->answer-json/canonical σ num-query-variables rest-json)]
+    ['Bounced
+     (hasheq 'name "Bounced"
+             'children (list (or rest-json (hasheq 'name "Empty"))))]
+    [_ (hasheq 'name "Unknown")]))
+
 (define (tree->json/canonical s num-query-variables)
   (match s
     ['(empty-tree)
      (hasheq 'name "Empty")]
+    [`(,pref + ,s_tail)
+     (prefix->json/canonical pref
+                             num-query-variables
+                             (tree->json/canonical s_tail num-query-variables))]
     [`(Freshened ,c-intro ,f-inner)
      (hasheq 'name "Freshened"
              'vars (map term->json/canonical c-intro)
              'children (list (tree->json/canonical f-inner num-query-variables)))]
-    [`(Bounced + ,f-tail)
-     (hasheq 'name "Bounced"
-             'children (list (tree->json/canonical f-tail num-query-variables)))]
     [`(,g (state ,sub ,dis ,c ,trail ,tag))
      #:when (not (equal? g '⊤))
      (hash-union (goal->json/canonical g)
@@ -309,13 +337,6 @@
              'children (list (tree->json/canonical s_1 num-query-variables)))]
     [`(⊤ ,σ)
      (state->answer-json/canonical σ num-query-variables)]
-    [`((⊤ ,σ) + ,s_tail)
-     (define tail-json (tree->json/canonical s_tail num-query-variables))
-     (match-define (hash* ['name tail-name] #:open) tail-json)
-     (define tail-empty? (equal? tail-name "Empty"))
-     (state->answer-json/canonical σ
-                                   num-query-variables
-                                   (and (not tail-empty?) tail-json))]
     [_ (hasheq 'name "Unknown")]))
 
 (define (config->tree-json/canonical cfg num-query-variables)
@@ -336,12 +357,19 @@
                             (goal-query-vars/canonical g_2))]
     [_ 0]))
 
+(define (prefix-query-vars/work pref)
+  (match pref
+    [`(Freshened ,_ ,f-inner)
+     (num-query-vars/work f-inner)]
+    [_ 0]))
+
 (define (num-query-vars/work s)
   (match s
     [`(Freshened ,_ ,f-inner)
      (num-query-vars/work f-inner)]
-    [`(Bounced + ,f-tail)
-     (num-query-vars/work f-tail)]
+    [`(,pref + ,s_1)
+     (max (prefix-query-vars/work pref)
+          (num-query-vars/work s_1))]
     [`(,g ,_σ)
      (goal-query-vars/canonical g)]
     [`(,s_1 × ,g ,_c)
@@ -353,8 +381,6 @@
     [`(,s_1 +-> ,s_2)
      (max (num-query-vars/work s_1)
           (num-query-vars/work s_2))]
-    [`((⊤ ,_σ) + ,s_1)
-     (num-query-vars/work s_1)]
     [`(delay ,s_1)
      (num-query-vars/work s_1)]
     [_ 0]))

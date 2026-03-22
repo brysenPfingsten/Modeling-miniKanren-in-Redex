@@ -12,14 +12,9 @@
 (check-redundancy #t)
 
 (define core-redex/search (extend-core-redex core-lang))
-(define core-collector/search (make-core-collector core-lang))
-
 (define-search-frontier/one-stage core-frontier/search core-redex/search core-lang K)
 
-(define core-red
-  (union-reduction-relations
-   core-frontier/search
-   core-collector/search))
+(define core-red core-frontier/search)
 
 (define (step-once prog)
   (step-once/deterministic core-red prog))

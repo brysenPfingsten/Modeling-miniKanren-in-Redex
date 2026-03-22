@@ -8,6 +8,10 @@
 (check-redundancy #t)
 
 (define-extended-language calls-lang delay-lang
+  [pref ....
+        (Freshened c end-f)]
+  [end-f ....
+         (pref + end-f)]
   [r (variable-prefix r:)]
   [g ....
      (r t ... tag)]

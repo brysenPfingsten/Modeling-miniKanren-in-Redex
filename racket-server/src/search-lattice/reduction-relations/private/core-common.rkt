@@ -70,6 +70,11 @@
   (reduction-relation
    lang
    #:domain f
+   [--> (in-hole P (Freshened c_1 (pref_1 + f_tail)))
+        (in-hole P ((Freshened c_1 pref_1)
+                    +
+                    (Freshened c_1 f_tail)))
+        "core/continue-scoped-prefix"]
    [--> (in-hole P (⊤ σ_new))
         (in-hole P ((⊤ σ_new) + (empty-tree)))
         "core/collect-single-answer"]))
