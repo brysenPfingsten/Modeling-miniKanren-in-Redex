@@ -12,6 +12,7 @@ raco test racket-server/tests/test-all-headless.rkt
 
 Includes:
 - Core property/judgment checks
+- Frontier observable/scoping checks
 - Internal search-lattice tests
 - Structured search-runtime registry + overlap audit
 - Frontend example compatibility gate

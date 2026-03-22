@@ -7,7 +7,8 @@
          (prefix-in gk: "./generator-kernel.rkt")
          "../src/search-lattice/languages/core-lang.rkt"
          "../src/search-lattice/wf/core-wf.rkt"
-         "../src/search-lattice/reduction-relations/core-red.rkt")
+         "../src/search-lattice/reduction-relations/core-red.rkt"
+         "./frontier-observable-support.rkt")
 
 ;; Randomized test tuning constants.
 ;; Edit these values directly when you want different pressure/coverage.
@@ -80,6 +81,37 @@
        (for/and ([cfg^ (in-list (apply-reduction-relation core-red cfg))])
          (core-shape-term? cfg^))))
 
+(define SOURCE-TRACE-CAP 64)
+
+(define (trace-exact-scope? cfg [remaining SOURCE-TRACE-CAP])
+  (cond
+    [(negative? remaining) #f]
+    [(not (config-exact-scope? cfg)) #f]
+    [else
+     (match (apply-reduction-relation/tag-with-names core-red cfg)
+       ['() #t]
+       [(list (list _ cfg^))
+        (trace-exact-scope? cfg^ (sub1 remaining))]
+       [_ #f])]))
+
+(define (count-step-name steps expected [count 0])
+  (match steps
+    ['() count]
+    [(cons step-name rest)
+     (count-step-name rest
+                      expected
+                      (if (string=? step-name expected)
+                          (add1 count)
+                          count))]))
+
+(define (freshened-accounting? cfg)
+  (define-values (steps final-cfg status)
+    (trace-deterministic core-red cfg))
+  (and (eq? status 'done)
+       (config-exact-scope? final-cfg)
+       (= (count-step-name steps "core/fresh-substitute")
+          (count-freshened final-cfg))))
+
 ;; Pool sizes bound generated test-data diversity only; they do not bound the
 ;; semantic logic-variable/name space of the language.
 (define U-POOL
@@ -141,6 +173,10 @@
 
 (define (gen-state c)
   `(state () () ,c () ,(make-label "st")))
+
+(define (generate-source-config)
+  `(,(gen-goal '() '() (max-depth))
+    ,(gen-state '())))
 
 (define (max-depth)
   PROPERTY-MAX-DEPTH)
@@ -286,6 +322,61 @@
                         label
                         (reverse fail-samples))))
 
+(define (check-source-guarded-property label pred)
+  (define-values (source-hits
+                  fail-count
+                  exists-node-hits
+                  conj-node-hits
+                  fail-samples)
+    (for/fold ([source-hits 0]
+               [fail-count 0]
+               [exists-node-hits 0]
+               [conj-node-hits 0]
+               [fail-samples '()])
+              ([_ (in-range PROPERTY-ATTEMPTS)])
+      (define cfg (generate-source-config))
+      (define-values (_nonempty-c? has-exists? has-conj? _cmax)
+        (config-coverage cfg))
+      (define ok?
+        (and (wf-config-term? cfg)
+             (config-exact-scope? cfg)
+             (pred cfg)))
+      (values (add1 source-hits)
+              (if ok? fail-count (add1 fail-count))
+              (if has-exists? (add1 exists-node-hits) exists-node-hits)
+              (if has-conj? (add1 conj-node-hits) conj-node-hits)
+              (cond
+                [(or ok? (>= (length fail-samples) 3))
+                 fail-samples]
+                [else
+                 (cons cfg fail-samples)]))))
+
+  (displayln
+   (format "[property-core] ~a attempts=~a source-hits=~a exists=~a conj=~a seed=~a"
+           label
+           PROPERTY-ATTEMPTS
+           source-hits
+           exists-node-hits
+           conj-node-hits
+           PROPERTY-SEED))
+
+  (check-equal? source-hits
+                PROPERTY-ATTEMPTS
+                (format "~a: source generator violated contract." label))
+
+  (check-true (>= exists-node-hits PROPERTY-MIN-EXISTS-HITS)
+              (format "~a: insufficient exists-node coverage (~a < ~a)."
+                      label exists-node-hits PROPERTY-MIN-EXISTS-HITS))
+  (check-true (>= conj-node-hits PROPERTY-MIN-CONJ-HITS)
+              (format "~a: insufficient conjunction-node coverage (~a < ~a)."
+                      label conj-node-hits PROPERTY-MIN-CONJ-HITS))
+
+  (check-equal? fail-count
+                0
+                (format "~a: counterexamples (up to 3): ~s"
+                        label
+                        (reverse fail-samples))))
+
 (define-test-suite CORE-PROPERTIES
   (test-case "WF-guarded unique decomposition"
     (check-wf-guarded-property "unique-decomposition" unique-decomposition?))
@@ -294,7 +385,13 @@
   (test-case "WF-guarded one-step preservation"
     (check-wf-guarded-property "wf-preserved" wf-preserved?))
   (test-case "WF-guarded core-shape closure"
-    (check-wf-guarded-property "core-shape-preserved" core-shape-preserved?)))
+    (check-wf-guarded-property "core-shape-preserved" core-shape-preserved?))
+  (test-case "Source-guarded exact Freshened scoping"
+    (check-source-guarded-property "exact-scope" config-exact-scope?))
+  (test-case "Source-guarded exact Freshened scoping through trace"
+    (check-source-guarded-property "trace-exact-scope" trace-exact-scope?))
+  (test-case "Source-guarded Freshened accounting"
+    (check-source-guarded-property "freshened-accounting" freshened-accounting?)))
 
 (define/provide-test-suite PROPERTY-CORE
   #:before
