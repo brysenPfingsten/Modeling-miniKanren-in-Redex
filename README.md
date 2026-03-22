@@ -66,15 +66,6 @@ termination.
 raco test racket-server/tests/model-example-matrix-tests.rkt
 ```
 
-### **5) Legacy ladder lane**
-
-Runs the retained eager/lazy/proceed-era research suites outside the default
-modern gate.
-
-```sh
-raco test racket-server/tests/test-all-legacy.rkt
-```
-
 ## **Backend Init Contract**
 
 The GUI/API boundary no longer exposes raw backend model ids. A run is selected
@@ -103,18 +94,14 @@ Execution notes:
 
 ## **Semantics Organization**
 
-The repo now has one authoritative runtime path and one archived legacy ladder:
+The repo now has one authoritative runtime path:
 
-- authoritative runtime:
+- active search lattice:
   - languages: `racket-server/src/search-lattice/languages/*.rkt`
   - well-formedness: `racket-server/src/search-lattice/wf/*.rkt`
   - reducers: `racket-server/src/search-lattice/reduction-relations/*.rkt`
   - strategy registry + canonical adapter: `racket-server/src/search-runtime.rkt`
   - structured strategy API: `racket-server/src/search-strategy.rkt`
-- archived legacy ladder (research-only / non-default):
-  - languages: `racket-server/archive/legacy-ladder/src/languages/*.rkt`
-  - well-formedness: `racket-server/archive/legacy-ladder/src/wf/*.rkt`
-  - reducers: `racket-server/archive/legacy-ladder/src/reduction-relations/*.rkt`
 
 The short architecture note lives in:
 
