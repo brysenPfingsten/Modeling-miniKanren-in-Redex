@@ -8,11 +8,9 @@
 (check-redundancy #t)
 
 (define-extended-language rail-seq-lang search-base-seq-lang
-  [K ::= hole
-         (K × g c)]
   [pref ....
         (Freshened c end-f)]
   [end-f ....
          (pref + end-f)]
   [w .... (f +-> f)]
-  [KDisj .... (f +-> KDisj)])
+  [KBranch .... (f +-> KBranch)])

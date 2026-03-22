@@ -38,6 +38,14 @@
         (in-hole P (Bounced + f_1))
         "delay/invoke-delay"]))
 
+(define scoped-conj-local
+  (reduction-relation
+   search-base-fused-lang
+   #:domain f
+   [--> (in-hole K ((Freshened c_1 f_left) × g c_2))
+        (in-hole K (Freshened c_1 (f_left × g c_2)))
+        "core/continue-scoped-conj"]))
+
 (define search-extra
   (reduction-relation
    search-base-fused-lang
@@ -91,6 +99,7 @@
 
 (define search-base-fused-red
   (union-reduction-relations
+   scoped-conj-local
    search-local
    search-frontier
    delay-frontier

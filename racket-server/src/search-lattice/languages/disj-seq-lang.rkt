@@ -12,8 +12,8 @@
         (Freshened c end-f)]
   [end-f ....
          (pref + end-f)]
-  [K ::= hole
-         (K × g c)]
-  [KDisj ::= hole
-             (Freshened c KDisj)
-             (KDisj <-+ f)])
+  [KBase ::= hole
+             (KBase × g c)]
+  [KBranch ::= hole
+               (Freshened c KBranch)
+               (KBranch <-+ f)])

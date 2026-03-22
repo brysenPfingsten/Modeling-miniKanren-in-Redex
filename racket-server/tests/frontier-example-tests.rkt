@@ -117,6 +117,16 @@
                     3
                     (strategy-label strategy))))
 
+  (test-case "split fresh conjunction stays live and preserves exact scope"
+    (for ([strategy (in-list all-surfaced-search-strategies)])
+      (define-values (_steps final-cfg status)
+        (trace-example "fresh split conj" strategy))
+      (check-equal? status 'done (strategy-label strategy))
+      (check-true (config-exact-scope? final-cfg) (strategy-label strategy))
+      (check-equal? (count-answers final-cfg)
+                    1
+                    (strategy-label strategy))))
+
   (test-case "fresh delay witness keeps one bounce inside its exact Freshened scope"
     (for ([strategy (in-list all-surfaced-search-strategies)])
       (define-values (steps final-cfg status)

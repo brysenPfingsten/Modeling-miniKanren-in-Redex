@@ -21,31 +21,31 @@
   (reduction-relation
    rail-seq-lang
    #:domain f
-   [--> (in-hole KDisj ((delay f_1) <-+ f_2))
-        (in-hole KDisj (delay (f_1 +-> f_2)))
+   [--> (in-hole KBranch (in-hole KBase ((delay f_1) <-+ f_2)))
+        (in-hole KBranch (in-hole KBase (delay (f_1 +-> f_2))))
         "rail-seq/enter-right"]
-   [--> (in-hole KDisj (f_2 +-> (delay f_1)))
-        (in-hole KDisj (delay (f_2 <-+ f_1)))
+   [--> (in-hole KBranch (in-hole KBase (f_2 +-> (delay f_1))))
+        (in-hole KBranch (in-hole KBase (delay (f_2 <-+ f_1))))
         "rail-seq/return-left"]))
 
 (define rail-frontier-extra
   (reduction-relation
    rail-seq-lang
    #:domain f
-   [--> (in-hole Q (in-hole KDisj (in-hole K (f_left +-> ((⊤ σ_new) <-+ f_right)))))
-        (in-hole Q (in-hole KDisj (in-hole K ((⊤ σ_new) + (f_left +-> f_right)))))
+   [--> (in-hole Q (in-hole KBranch (in-hole KBase (f_left +-> ((⊤ σ_new) <-+ f_right)))))
+        (in-hole Q (in-hole KBranch (in-hole KBase ((⊤ σ_new) + (f_left +-> f_right)))))
         "rail-seq/promote-right-left-answer"]
-   [--> (in-hole Q (in-hole KDisj (in-hole K (f_left +-> ((empty-tree) <-+ f_right)))))
-        (in-hole Q (in-hole KDisj (in-hole K (f_left +-> f_right))))
+   [--> (in-hole Q (in-hole KBranch (in-hole KBase (f_left +-> ((empty-tree) <-+ f_right)))))
+        (in-hole Q (in-hole KBranch (in-hole KBase (f_left +-> f_right))))
         "rail-seq/skip-right-left-fail"]
-   [--> (in-hole Q (in-hole KDisj (in-hole K (f_left +-> (pref_1 + f_right)))))
-        (in-hole Q (in-hole KDisj (in-hole K (pref_1 + (f_left +-> f_right)))))
+   [--> (in-hole Q (in-hole KBranch (in-hole KBase (f_left +-> (pref_1 + f_right)))))
+        (in-hole Q (in-hole KBranch (in-hole KBase (pref_1 + (f_left +-> f_right)))))
         "rail-seq/continue-right-prefix"]
-   [--> (in-hole Q (in-hole KDisj (in-hole K (f_left +-> pref_1))))
-        (in-hole Q (in-hole KDisj (in-hole K (pref_1 + f_left))))
+   [--> (in-hole Q (in-hole KBranch (in-hole KBase (f_left +-> pref_1))))
+        (in-hole Q (in-hole KBranch (in-hole KBase (pref_1 + f_left))))
         "rail-seq/promote-right-observable"]
-   [--> (in-hole Q (in-hole KDisj (in-hole K (f_left +-> (empty-tree)))))
-        (in-hole Q (in-hole KDisj (in-hole K f_left)))
+   [--> (in-hole Q (in-hole KBranch (in-hole KBase (f_left +-> (empty-tree)))))
+        (in-hole Q (in-hole KBranch (in-hole KBase f_left)))
         "rail-seq/skip-right-fail"]))
 
 (define rail-local

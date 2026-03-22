@@ -67,6 +67,15 @@ const freshBranchDisj = `(run* (q)
        (== x 'right)
        (== q 'right))]))`;
 
+const freshSplitConj = `(run* (q)
+  (fresh (y)
+    (== y 'left)
+    (== (cons y 'tail) (cons 'left 'tail)))
+  (fresh (x)
+    (== x 'tail)
+    (== (cons 'left x) (cons 'left 'tail)))
+  (== q (cons 'left 'tail)))`;
+
 const div3o = `(defrel (same-counto bn)
   (conde
    [(== bn \`(1 1))]
@@ -146,6 +155,11 @@ export const semanticExamples = Object.freeze([
     id: "fresh-branch-disj",
     label: "fresh branch disj",
     miniSource: freshBranchDisj,
+  }),
+  Object.freeze({
+    id: "fresh-split-conj",
+    label: "fresh split conj",
+    miniSource: freshSplitConj,
   }),
   Object.freeze({
     id: "appendo",

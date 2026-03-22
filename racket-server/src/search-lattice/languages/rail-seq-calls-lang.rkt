@@ -14,8 +14,6 @@
 
 (define-extended-language rail-seq-calls-lang
   rail-seq-calls/join
-  [K ::= hole
-         (K × g c)]
   [pref ....
         (Freshened c end-f)]
   [end-f ....
