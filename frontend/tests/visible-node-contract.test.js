@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { DRAWABLE_NODE_NAMES } from "../src/utils/drawing.js";
-import { ACTIVE_PATH_NODE_NAMES } from "../src/utils/treeSetup.js";
+import { addColors } from "../src/utils/treeSetup.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,10 +23,28 @@ test("frontend renderer covers every visible node kind in the shared contract", 
   );
 });
 
-test("frontend active-path logic covers every carrier node in the shared contract", () => {
-  const { activePathCarrierNames } = readContract();
-  assert.deepEqual(
-    [...ACTIVE_PATH_NODE_NAMES].sort(),
-    [...activePathCarrierNames].sort(),
-  );
+test("frontend active-path logic follows explicit backend metadata instead of node-name tables", () => {
+  const tree = {
+    name: "Opaque-Wrapper",
+    activeChildIndex: 1,
+    children: [
+      {
+        name: "Opaque-Resolved",
+        nodeColor: "green",
+      },
+      {
+        name: "Opaque-Branch",
+        focusColor: "#ff8000",
+        activeChildIndex: 0,
+        children: [
+          { name: "Opaque-Leaf" },
+        ],
+      },
+    ],
+  };
+
+  const result = addColors(tree);
+  assert.equal(result.color, "#ff8000");
+  assert.equal(result.children[1].color, "#ff8000");
+  assert.equal(result.children[1].children[0].color, "#ff8000");
 });

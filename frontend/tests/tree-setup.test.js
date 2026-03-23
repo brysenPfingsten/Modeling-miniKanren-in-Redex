@@ -6,11 +6,19 @@ import { addColors } from "../src/utils/treeSetup.js";
 test("addColors preserves binary Goal-Conj nesting", () => {
   const tree = {
     name: "Goal-Conj",
+    focusColor: "blue",
+    activeChildIndex: 0,
     children: [
       {
         name: "Goal-Conj",
+        focusColor: "blue",
+        activeChildIndex: 0,
         children: [
-          { name: "Goal-Delay", children: [{ name: "Rel-Call" }] },
+          {
+            name: "Goal-Delay",
+            activeChildIndex: 0,
+            children: [{ name: "Rel-Call" }],
+          },
           { name: "Unify" },
         ],
       },
@@ -29,12 +37,17 @@ test("addColors preserves binary Goal-Conj nesting", () => {
 test("addColors preserves the search-tree color through an answer prefix", () => {
   const tree = {
     name: "Emit",
+    resolvedChildIndices: [0],
+    resolvedColor: "green",
+    activeChildIndex: 1,
     children: [
-      { name: "Answer" },
+      { name: "Answer", nodeColor: "green" },
       {
         name: "<-+",
+        focusColor: "#ff8000",
+        activeChildIndex: 0,
         children: [
-          { name: "Answer" },
+          { name: "Answer", nodeColor: "green" },
           { name: "Unify" },
         ],
       },
@@ -43,36 +56,45 @@ test("addColors preserves the search-tree color through an answer prefix", () =>
 
   const result = addColors(tree);
 
-  assert.equal(result.children[0].color, "green");
-  assert.equal(result.children[1].color, "#ff8000");
+  assert.equal(result.children[0].edgeColor, "green");
+  assert.equal(result.children[1].edgeColor, "#ff8000");
 });
 
 test("addColors keeps the active edge colored when a disjunction points at an answer", () => {
   const tree = {
     name: "<-+",
+    focusColor: "#ff8000",
+    activeChildIndex: 0,
     children: [
-      { name: "Answer" },
+      { name: "Answer", nodeColor: "green" },
       { name: "Unify" },
     ],
   };
 
   const result = addColors(tree);
 
-  assert.equal(result.children[0].color, "#ff8000");
+  assert.equal(result.children[0].edgeColor, "#ff8000");
+  assert.equal(result.children[0].color, "green");
 });
 
 test("addColors keeps the active edge colored through a spine prefix to an answer", () => {
   const tree = {
     name: "Stream-Freshened",
+    activeChildIndex: 0,
     children: [
       {
         name: "Emit",
+        resolvedChildIndices: [0],
+        resolvedColor: "green",
+        activeChildIndex: 1,
         children: [
-          { name: "Answer" },
+          { name: "Answer", nodeColor: "green" },
           {
             name: "<-+",
+            focusColor: "#ff8000",
+            activeChildIndex: 0,
             children: [
-              { name: "Answer" },
+              { name: "Answer", nodeColor: "green" },
               { name: "Unify" },
             ],
           },
@@ -84,23 +106,29 @@ test("addColors keeps the active edge colored through a spine prefix to an answe
   const result = addColors(tree);
 
   assert.equal(result.color, "#ff8000");
-  assert.equal(result.children[0].color, "#ff8000");
-  assert.equal(result.children[0].children[0].color, "green");
-  assert.equal(result.children[0].children[1].color, "#ff8000");
+  assert.equal(result.children[0].edgeColor, "#ff8000");
+  assert.equal(result.children[0].children[0].edgeColor, "green");
+  assert.equal(result.children[0].children[1].edgeColor, "#ff8000");
 });
 
 test("addColors carries spine color through freshened nodes", () => {
   const tree = {
     name: "Stream-Freshened",
+    activeChildIndex: 0,
     children: [
       {
         name: "Emit",
+        resolvedChildIndices: [0],
+        resolvedColor: "green",
+        activeChildIndex: 1,
         children: [
-          { name: "Answer" },
+          { name: "Answer", nodeColor: "green" },
           {
             name: "<-+",
+            focusColor: "#ff8000",
+            activeChildIndex: 0,
             children: [
-              { name: "Answer" },
+              { name: "Answer", nodeColor: "green" },
               { name: "Unify" },
             ],
           },
@@ -112,32 +140,51 @@ test("addColors carries spine color through freshened nodes", () => {
   const result = addColors(tree);
 
   assert.equal(result.color, "#ff8000");
-  assert.equal(result.children[0].color, "#ff8000");
-  assert.equal(result.children[0].children[0].color, "green");
-  assert.equal(result.children[0].children[1].color, "#ff8000");
+  assert.equal(result.children[0].edgeColor, "#ff8000");
+  assert.equal(result.children[0].children[0].edgeColor, "green");
+  assert.equal(result.children[0].children[1].edgeColor, "#ff8000");
 });
 
 test("addColors keeps the active edge colored through nested rail disjunctions", () => {
   const tree = {
     name: "Stream-Freshened",
+    activeChildIndex: 0,
     children: [
       {
         name: "Emit",
+        resolvedChildIndices: [0],
+        resolvedColor: "green",
+        activeChildIndex: 1,
         children: [
           {
             name: "Answer",
+            nodeColor: "green",
           },
           {
             name: "<-+",
+            focusColor: "#ff8000",
+            activeChildIndex: 0,
             children: [
               {
                 name: "+->",
+                focusColor: "#ff8000",
+                activeChildIndex: 1,
                 children: [
-                  { name: "Goal-Disj", children: [{ name: "Rel-Call" }, { name: "Unify" }] },
-                  { name: "Answer" },
+                  {
+                    name: "Goal-Disj",
+                    focusColor: "#ff8000",
+                    activeChildIndex: 0,
+                    children: [{ name: "Rel-Call" }, { name: "Unify" }],
+                  },
+                  { name: "Answer", nodeColor: "green" },
                 ],
               },
-              { name: "Goal-Disj", children: [{ name: "Rel-Call" }, { name: "Unify" }] },
+              {
+                name: "Goal-Disj",
+                focusColor: "#ff8000",
+                activeChildIndex: 0,
+                children: [{ name: "Rel-Call" }, { name: "Unify" }],
+              },
             ],
           },
         ],
@@ -148,32 +195,51 @@ test("addColors keeps the active edge colored through nested rail disjunctions",
   const result = addColors(tree);
 
   assert.equal(result.color, "#ff8000");
-  assert.equal(result.children[0].color, "#ff8000");
-  assert.equal(result.children[0].children[0].color, "green");
-  assert.equal(result.children[0].children[1].color, "#ff8000");
-  assert.equal(result.children[0].children[1].children[0].color, "#ff8000");
-  assert.equal(result.children[0].children[1].children[0].children[1].color, "#ff8000");
+  assert.equal(result.children[0].edgeColor, "#ff8000");
+  assert.equal(result.children[0].children[0].edgeColor, "green");
+  assert.equal(result.children[0].children[1].edgeColor, "#ff8000");
+  assert.equal(result.children[0].children[1].children[0].edgeColor, "#ff8000");
+  assert.equal(result.children[0].children[1].children[0].children[1].edgeColor, "#ff8000");
+  assert.equal(result.children[0].children[1].children[0].children[1].color, "green");
 });
 
 test("addColors carries the active path through delay nodes", () => {
   const tree = {
     name: "Stream-Freshened",
+    activeChildIndex: 0,
     children: [
       {
         name: "Bounced",
+        activeChildIndex: 0,
         children: [
           {
             name: "Emit",
+            resolvedChildIndices: [0],
+            resolvedColor: "green",
+            activeChildIndex: 1,
             children: [
-              { name: "Answer" },
+              { name: "Answer", nodeColor: "green" },
               {
                 name: "Delay",
+                activeChildIndex: 0,
                 children: [
                   {
                     name: "+->",
+                    focusColor: "#ff8000",
+                    activeChildIndex: 1,
                     children: [
-                      { name: "Goal-Disj", children: [{ name: "Rel-Call" }, { name: "Unify" }] },
-                      { name: "Goal-Disj", children: [{ name: "Rel-Call" }, { name: "Unify" }] },
+                      {
+                        name: "Goal-Disj",
+                        focusColor: "#ff8000",
+                        activeChildIndex: 0,
+                        children: [{ name: "Rel-Call" }, { name: "Unify" }],
+                      },
+                      {
+                        name: "Goal-Disj",
+                        focusColor: "#ff8000",
+                        activeChildIndex: 0,
+                        children: [{ name: "Rel-Call" }, { name: "Unify" }],
+                      },
                     ],
                   },
                 ],
@@ -188,10 +254,10 @@ test("addColors carries the active path through delay nodes", () => {
   const result = addColors(tree);
 
   assert.equal(result.color, "#ff8000");
-  assert.equal(result.children[0].color, "#ff8000");
-  assert.equal(result.children[0].children[0].color, "#ff8000");
-  assert.equal(result.children[0].children[0].children[0].color, "green");
-  assert.equal(result.children[0].children[0].children[1].color, "#ff8000");
-  assert.equal(result.children[0].children[0].children[1].children[0].color, "#ff8000");
-  assert.equal(result.children[0].children[0].children[1].children[0].children[1].color, "#ff8000");
+  assert.equal(result.children[0].edgeColor, "#ff8000");
+  assert.equal(result.children[0].children[0].edgeColor, "#ff8000");
+  assert.equal(result.children[0].children[0].children[0].edgeColor, "green");
+  assert.equal(result.children[0].children[0].children[1].edgeColor, "#ff8000");
+  assert.equal(result.children[0].children[0].children[1].children[0].edgeColor, "#ff8000");
+  assert.equal(result.children[0].children[0].children[1].children[0].children[1].edgeColor, "#ff8000");
 });

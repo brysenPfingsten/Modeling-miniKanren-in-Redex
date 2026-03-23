@@ -29,15 +29,18 @@
   (make-stepper (lambda (_) (list (list "stream-step" streamed-answer-tree)))))
 
 (define sample-program-jsexpr
-  (hasheq 'children
+  (hasheq 'activeChildIndex 0
+          'children
           (list (hasheq 'id "u5"
                         'left (hasheq 'sym "tree1")
                         'name "Unify"
+                        'renderRole "goal-leaf"
                         'right (hasheq 'sym "horse")))
           'disequalities '()
           'id "f0"
           'name "Fresh"
           'reified "_.0"
+          'renderRole "goal-fresh"
           'stateId "s"
           'sub '()
           'trail '()

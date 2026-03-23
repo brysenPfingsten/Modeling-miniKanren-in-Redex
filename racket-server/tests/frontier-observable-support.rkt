@@ -10,6 +10,8 @@
          config-c-scope-agreement?
          core-exact-scope?
          config-exact-scope?
+         visible-json-wf?
+         visible-json-trace-wf?
          trace-deterministic)
 
 (define u-rx #px"^u:")
@@ -243,3 +245,175 @@
              cfg^
              status)]
     [_ (values '() cfg 'nondeterministic)]))
+
+(define (valid-child-indexes? node)
+  (match node
+    [(hash* ['children children] #:open)
+     (and
+      (match (hash-ref node 'activeChildIndex #f)
+        [#f #t]
+        [(? exact-nonnegative-integer? idx)
+         (< idx (length children))]
+        [_ #f])
+      (match (hash-ref node 'resolvedChildIndices #f)
+        [#f #t]
+        [(list idxs ...)
+         (for/and ([idx (in-list idxs)])
+           (and (exact-nonnegative-integer? idx)
+                (< idx (length children))))]
+        [_ #f]))]
+    [_ #t]))
+
+(define (visible-answer-node? node)
+  (match node
+    [(hash* ['name "Answer"]
+            ['renderRole "answer-node"]
+            ['nodeColor "green"]
+            #:open)
+     #t]
+    [(hash* ['name "Answer-Freshened"]
+            ['renderRole "answer-freshened"]
+            ['nodeColor "green"]
+            ['resolvedChildIndices '(0)]
+            ['resolvedColor "green"]
+            ['children (list child)]
+            #:open)
+     (visible-answer-node? child)]
+    [_ #f]))
+
+(define (visible-search-tree? node)
+  (match node
+    [(hash* ['name "Empty"]
+            ['renderRole "terminal"]
+            #:open)
+     #t]
+    [(hash* ['name "Succeed"]
+            ['renderRole "terminal"]
+            #:open)
+     #t]
+    [(hash* ['name "Fail"]
+            ['renderRole "terminal"]
+            #:open)
+     #t]
+    [(hash* ['name "Unify"]
+            ['renderRole "goal-leaf"]
+            #:open)
+     #t]
+    [(hash* ['name "Disequality"]
+            ['renderRole "goal-leaf"]
+            #:open)
+     #t]
+    [(hash* ['name "Rel-Call"]
+            ['renderRole "goal-leaf"]
+            #:open)
+     #t]
+    [(hash* ['name "Fresh"]
+            ['renderRole "goal-fresh"]
+            ['activeChildIndex 0]
+            ['children (list child)]
+            #:open)
+     (visible-search-tree? child)]
+    [(hash* ['name "Goal-Delay"]
+            ['renderRole "delay"]
+            ['activeChildIndex 0]
+            ['children (list child)]
+            #:open)
+     (visible-search-tree? child)]
+    [(hash* ['name "Goal-Conj"]
+            ['renderRole "goal-branch"]
+            ['focusColor "blue"]
+            ['activeChildIndex 0]
+            ['children (list left right)]
+            #:open)
+     (and (visible-search-tree? left)
+          (visible-search-tree? right))]
+    [(hash* ['name "Goal-Disj"]
+            ['renderRole "goal-branch"]
+            ['focusColor "#ff8000"]
+            ['activeChildIndex 0]
+            ['children (list left right)]
+            #:open)
+     (and (visible-search-tree? left)
+          (visible-search-tree? right))]
+    [(hash* ['name "Conjunction"]
+            ['renderRole "search-conjunction"]
+            ['focusColor "blue"]
+            ['activeChildIndex 0]
+            ['children (list left right)]
+            #:open)
+     (and (visible-root? left)
+          (visible-search-tree? right))]
+    [(hash* ['name "Delay"]
+            ['renderRole "delay"]
+            ['activeChildIndex 0]
+            ['children (list child)]
+            #:open)
+     (visible-root? child)]
+    [(hash* ['name "<-+"]
+            ['renderRole "search-branch"]
+            ['focusColor "#ff8000"]
+            ['activeChildIndex 0]
+            ['children (list left right)]
+            #:open)
+     (and (visible-root? left)
+          (visible-root? right))]
+    [(hash* ['name "+->"]
+            ['renderRole "search-branch"]
+            ['focusColor "#ff8000"]
+            ['activeChildIndex 1]
+            ['children (list left right)]
+            #:open)
+     (and (visible-root? left)
+          (visible-root? right))]
+    [_ #f]))
+
+(define (visible-stream? node)
+  (match node
+    [(hash* ['name "Empty"]
+            ['renderRole "terminal"]
+            #:open)
+     #t]
+    [(hash* ['name "Emit"]
+            ['renderRole "stream-emit"]
+            ['resolvedChildIndices '(0)]
+            ['resolvedColor "green"]
+            ['activeChildIndex 1]
+            ['children (list answer rest)]
+            #:open)
+     (and (visible-answer-node? answer)
+          (visible-root? rest))]
+    [(hash* ['name "Bounced"]
+            ['renderRole "stream-bounced"]
+            ['activeChildIndex 0]
+            ['children (list rest)]
+            #:open)
+     (visible-root? rest)]
+    [(hash* ['name "Stream-Freshened"]
+            ['renderRole "stream-freshened"]
+            ['activeChildIndex 0]
+            ['children (list rest)]
+            #:open)
+     (visible-root? rest)]
+    [(hash* ['name "Fragment-Freshened"]
+            ['renderRole "fragment-freshened"]
+            ['resolvedChildIndices '(0)]
+            ['resolvedColor "green"]
+            ['activeChildIndex 1]
+            ['children (list fragment rest)]
+            #:open)
+     (and (visible-stream? fragment)
+          (visible-root? rest))]
+    [_ #f]))
+
+(define (visible-root? node)
+  (and (hash? node)
+       (valid-child-indexes? node)
+       (or (visible-stream? node)
+           (visible-search-tree? node))))
+
+(define (visible-json-wf? node)
+  (visible-root? node))
+
+(define (visible-json-trace-wf? nodes)
+  (for/and ([node (in-list nodes)])
+    (visible-json-wf? node)))

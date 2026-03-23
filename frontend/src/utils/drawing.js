@@ -307,6 +307,6 @@ export function drawLinks(container, links) {
     .join("path")
     .attr("class", "link")
     .attr("d", d3.linkVertical().x(d => d.x).y(d => d.y))
-    .style("stroke", d => (d.target.data.color ? d.target.data.color : "#ccc"))
+    .style("stroke", d => (d.target.data.edgeColor ?? d.target.data.color ?? "#ccc"))
     .style("stroke-width", 4);
 }

@@ -2,9 +2,11 @@
 
 (require rackunit
          rackunit/text-ui
+         json
          redex/reduction-semantics
          (prefix-in rt: "../src/random-test-support.rkt")
          (prefix-in gk: "./generator-kernel.rkt")
+         "../src/canonical-json.rkt"
          "../src/search-lattice/languages/core-lang.rkt"
          "../src/search-lattice/wf/core-wf.rkt"
          "../src/search-lattice/reduction-relations/core-red.rkt"
@@ -137,6 +139,24 @@
        (config-exact-scope? final-cfg)
        (<= (count-step-name steps "core/fresh-substitute")
            (count-freshened final-cfg))))
+
+(define (cfg->visible-json cfg)
+  (string->jsexpr
+   (to-json/canonical cfg (num-query-vars/canonical cfg))))
+
+(define (visible-json-wf/cfg? cfg)
+  (visible-json-wf? (cfg->visible-json cfg)))
+
+(define (trace-visible-json-wf/cfg? cfg [remaining SOURCE-TRACE-CAP])
+  (cond
+    [(negative? remaining) #f]
+    [(not (visible-json-wf/cfg? cfg)) #f]
+    [else
+     (match (apply-reduction-relation/tag-with-names core-red cfg)
+       ['() #t]
+       [(list (list _ cfg^))
+        (trace-visible-json-wf/cfg? cfg^ (sub1 remaining))]
+       [_ #f])]))
 
 ;; Pool sizes bound generated test-data diversity only; they do not bound the
 ;; semantic logic-variable/name space of the language.
@@ -449,6 +469,10 @@
     (check-source-guarded-property "trace-c-scope-agreement" trace-c-scope-agreement?))
   (test-case "Source-guarded exact Freshened scoping through trace"
     (check-source-guarded-property "trace-exact-scope" trace-exact-scope?))
+  (test-case "WF-guarded visible AST shape"
+    (check-wf-guarded-property "visible-json-wf" visible-json-wf/cfg?))
+  (test-case "Source-guarded visible AST shape through trace"
+    (check-source-guarded-property "trace-visible-json-wf" trace-visible-json-wf/cfg?))
   (test-case "Source-guarded Freshened accounting"
     (check-source-guarded-property "freshened-accounting" freshened-accounting?)))
 

@@ -171,19 +171,22 @@
     [else (mk->json result)]))
 
 (define (reify/canonical sub dis c n)
-  (let* ([fresh-names (generate-fresh-names c)]
-         [query-vars (generate-query-vars n)]
-         [unify-clauses (map (lambda (p) (make-unify-clause query-vars n p)) sub)]
-         [diseq-clauses (map (lambda (p) (make-diseq-clause query-vars n p)) dis)]
-         [clauses (append unify-clauses diseq-clauses)]
-         [ns (prepare-minikanren-namespace)]
-         [raw-result (run-in-namespace ns
-                                       query-vars
-                                       fresh-names
-                                       (if (null? clauses)
-                                           (list '(== 1 1))
-                                           clauses))])
-    (process-reify-result raw-result)))
+  (cond
+    [(zero? n) '()]
+    [else
+     (let* ([fresh-names (generate-fresh-names c)]
+            [query-vars (generate-query-vars n)]
+            [unify-clauses (map (lambda (p) (make-unify-clause query-vars n p)) sub)]
+            [diseq-clauses (map (lambda (p) (make-diseq-clause query-vars n p)) dis)]
+            [clauses (append unify-clauses diseq-clauses)]
+            [ns (prepare-minikanren-namespace)]
+            [raw-result (run-in-namespace ns
+                                          query-vars
+                                          fresh-names
+                                          (if (null? clauses)
+                                              (list '(== 1 1))
+                                              clauses))])
+       (process-reify-result raw-result))]))
 
 (define (sub->reify/canonical sub)
   (for/list ([pr (in-list sub)])
@@ -200,16 +203,20 @@
 (define (goal->json/canonical g)
   (match g
     [`(succeed ,_tag)
-     (hasheq 'name "Succeed")]
+     (hasheq 'name "Succeed"
+             'renderRole "terminal")]
     [`(fail ,_tag)
-     (hasheq 'name "Fail")]
+     (hasheq 'name "Fail"
+             'renderRole "terminal")]
     [`(,t_1 =? ,t_2 ,tag)
      (hasheq 'name "Unify"
+             'renderRole "goal-leaf"
              'id (label->id tag)
              'left (term->json/canonical t_1)
              'right (term->json/canonical t_2))]
     [`(,t_1 != ,t_2 ,tag)
      (hasheq 'name "Disequality"
+             'renderRole "goal-leaf"
              'id (label->id tag)
              'left (term->json/canonical t_1)
              'right (term->json/canonical t_2))]
@@ -217,34 +224,48 @@
      #:when (and (symbol? r)
                  (regexp-match? #rx"^r:" (symbol->string r)))
      (hasheq 'name "Rel-Call"
+             'renderRole "goal-leaf"
              'id (label->id tag)
              'rel (extract-name (symbol->string r))
              'args (map term->json/canonical t))]
     [`(,g_1 ∨ ,g_2 ,tag)
      (hasheq 'name "Goal-Disj"
+             'renderRole "goal-branch"
              'id (label->id tag)
+             'focusColor "#ff8000"
+             'activeChildIndex 0
              'children (list (goal->json/canonical g_1)
                              (goal->json/canonical g_2)))]
     [`(,g_1 ∧ ,g_2 ,tag)
      (hasheq 'name "Goal-Conj"
+             'renderRole "goal-branch"
              'id (label->id tag)
+             'focusColor "blue"
+             'activeChildIndex 0
              'children (list (goal->json/canonical g_1)
                              (goal->json/canonical g_2)))]
     [`(suspend ,g_1 ,tag)
      (hasheq 'name "Goal-Delay"
+             'renderRole "delay"
              'id (label->id tag)
+             'activeChildIndex 0
              'children (list (goal->json/canonical g_1)))]
     [`(∃ ,d ,g_1 ,tag)
      (hasheq 'name "Fresh"
+             'renderRole "goal-fresh"
              'id (label->id tag)
+             'activeChildIndex 0
              'vars (map term->json/canonical d)
              'children (list (goal->json/canonical g_1)))]
-    [_ (hasheq 'name "Goal")]))
+    [_ (hasheq 'name "Goal"
+               'renderRole "goal")]))
 
 (define (state->answer-leaf-json/canonical σ num-query-variables)
   (match σ
     [`(state ,sub ,dis ,c ,trail ,tag)
      (hasheq 'name "Answer"
+             'renderRole "answer-node"
+             'nodeColor "green"
              'stateId (label->id tag)
              'sub (sub->json/canonical sub)
              'disequalities (dis->json/canonical dis)
@@ -253,7 +274,9 @@
                                        (dis->reify/canonical dis)
                                        (state-c-bound/canonical c)
                                        num-query-variables))]
-    [_ (hasheq 'name "Answer")]))
+    [_ (hasheq 'name "Answer"
+               'renderRole "answer-node"
+               'nodeColor "green")]))
 
 (define (normalize-config/canonical cfg)
   (match cfg
@@ -267,27 +290,42 @@
     [_ '(empty-tree)]))
 
 (define (empty-json/canonical)
-  (hasheq 'name "Empty"))
+  (hasheq 'name "Empty"
+          'renderRole "terminal"))
 
 (define (emit->json/canonical answer-json rest-json)
   (hasheq 'name "Emit"
+          'renderRole "stream-emit"
+          'resolvedChildIndices '(0)
+          'resolvedColor "green"
+          'activeChildIndex 1
           'children (list answer-json rest-json)))
 
 (define (answer-freshened->json/canonical c-intro tag child-json)
   (hasheq 'name "Answer-Freshened"
+          'renderRole "answer-freshened"
           'id (label->id tag)
+          'nodeColor "green"
+          'resolvedChildIndices '(0)
+          'resolvedColor "green"
           'vars (map term->json/canonical c-intro)
           'children (list child-json)))
 
 (define (stream-freshened->json/canonical c-intro tag child-json)
   (hasheq 'name "Stream-Freshened"
+          'renderRole "stream-freshened"
           'id (label->id tag)
+          'activeChildIndex 0
           'vars (map term->json/canonical c-intro)
           'children (list child-json)))
 
 (define (fragment-freshened->json/canonical c-intro tag fragment-json rest-json)
   (hasheq 'name "Fragment-Freshened"
+          'renderRole "fragment-freshened"
           'id (label->id tag)
+          'resolvedChildIndices '(0)
+          'resolvedColor "green"
+          'activeChildIndex 1
           'vars (map term->json/canonical c-intro)
           'children (list fragment-json rest-json)))
 
@@ -324,6 +362,8 @@
       rest^)]
     ['Bounced
      (hasheq 'name "Bounced"
+             'renderRole "stream-bounced"
+             'activeChildIndex 0
              'children (list rest^))]
     [`(Freshened ,c-intro ,tag ,obs-tail)
      (define maybe-answer
@@ -354,6 +394,8 @@
       rest^)]
     ['Bounced
      (hasheq 'name "Bounced"
+             'renderRole "stream-bounced"
+             'activeChildIndex 0
              'children (list rest^))]
     [`(Freshened ,c-intro ,tag ,obs)
      (define maybe-answer
@@ -397,19 +439,36 @@
                                                    num-query-variables)))]
     [`(,s_1 <-+ ,s_2)
      (hasheq 'name "<-+"
+             'renderRole "search-branch"
+             'focusColor "#ff8000"
+             'activeChildIndex 0
              'children (list (tree->json/canonical s_1 num-query-variables)
                              (tree->json/canonical s_2 num-query-variables)))]
     [`(,s_1 +-> ,s_2)
      (hasheq 'name "+->"
+             'renderRole "search-branch"
+             'focusColor "#ff8000"
+             'activeChildIndex 1
              'children (list (tree->json/canonical s_1 num-query-variables)
                              (tree->json/canonical s_2 num-query-variables)))]
     [`(,s_1 × ,g ,_c)
      (hasheq 'name "Conjunction"
+             'renderRole "search-conjunction"
+             'focusColor "blue"
+             'activeChildIndex 0
              'children (list (tree->json/canonical s_1 num-query-variables)
                              (goal->json/canonical g)))]
     [`(delay ,s_1)
      (hasheq 'name "Delay"
+             'renderRole "delay"
+             'activeChildIndex 0
              'children (list (tree->json/canonical s_1 num-query-variables)))]
+    [`(state ,sub ,dis ,c ,trail ,tag)
+     (emit->json/canonical
+      (state->answer-leaf-json/canonical
+       `(state ,sub ,dis ,c ,trail ,tag)
+       num-query-variables)
+      (empty-json/canonical))]
     [`(⊤ ,σ)
      (emit->json/canonical
       (state->answer-leaf-json/canonical σ num-query-variables)

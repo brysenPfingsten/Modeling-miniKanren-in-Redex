@@ -7,6 +7,7 @@
          rackunit/text-ui
          "../src/app.rkt"
          "../src/search-strategy.rkt"
+         "./frontier-observable-support.rkt"
          "./example-compat-tests.rkt"
          "./test-http-helpers.rkt")
 
@@ -49,6 +50,10 @@
 
 (define (payload->program payload)
   (string->jsexpr (hash-ref payload 'program)))
+
+(define (trace-programs src [strategy default-search-strategy] [cap VISIBLE-STEP-CAP])
+  (for/list ([payload (in-list (trace-payloads src strategy cap))])
+    (payload->program payload)))
 
 (define (trace-payloads src [strategy default-search-strategy] [cap VISIBLE-STEP-CAP])
   (define req (make-post-init-request src #:strategy strategy))
@@ -96,6 +101,13 @@
       (check-not-false (member nm allowed)
                        (format "unexpected visible node kind from serializer: ~a" nm))))
 
+  (test-case "serializer emits visible trees that satisfy the explicit stream/search AST shape"
+    (for ([pr (in-list (frontend-example-programs))])
+      (match-define (cons label src) pr)
+      (for ([program (in-list (trace-programs src))])
+        (check-true (visible-json-wf? program)
+                    (format "visible AST wf failed for default strategy / ~a" label)))))
+
   (test-case "serializer emits only visible node kinds for surfaced strategies on the representative visible corpus"
     (define contract (read-visible-contract))
     (define allowed
@@ -114,6 +126,18 @@
     (for ([nm (in-list seen)])
       (check-not-false (member nm allowed)
                        (format "unexpected visible node kind from serializer: ~a" nm))))
+
+  (test-case "representative surfaced strategies satisfy the explicit visible AST shape"
+    (for* ([strategy (in-list all-surfaced-search-strategies)]
+           [pr (in-list (frontend-example-programs))]
+           #:when (member (car pr) REPRESENTATIVE-VISIBLE-LABELS))
+      (match-define (cons label src) pr)
+      (for ([program (in-list (trace-programs src strategy))])
+        (check-true
+         (visible-json-wf? program)
+         (format "~a / ~a violates visible AST wf"
+                 (strategy-label strategy)
+                 label)))))
 
   (test-case "surfaced strategy traces never repeat the visible tree on adjacent steps"
     (for* ([strategy (in-list all-surfaced-search-strategies)]
