@@ -94,7 +94,7 @@
                    (label "fresh")
                    (Bounced + (empty-tree)))))
         0)))
-    (check-equal? (hash-ref rendered 'name) "Freshened")
+    (check-equal? (hash-ref rendered 'name) "Stream-Freshened")
     (check-equal? (hash-ref rendered 'id) "fresh")
     (define child (first (hash-ref rendered 'children)))
     (check-equal? (hash-ref child 'name) "Bounced"))

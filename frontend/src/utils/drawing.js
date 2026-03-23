@@ -137,7 +137,7 @@ function drawFailNode(group, _)     { return drawCircle(group, "#ffdddd", "×");
 function drawAnswerNode(group, _)   { return drawCircle(group, "green", "Answer", undefined, "10px") }
 function drawEmptyNode(group, _)    { return drawCircle(group, "white") }
 
-function drawTextNode(group, textContent, padding = 10, outline="") {
+function drawTextNode(group, textContent, padding = 10, fill = "lightgray") {
     const textElement = group.append("text")
         .text(textContent)
         .attr("text-anchor", "middle")
@@ -151,7 +151,7 @@ function drawTextNode(group, textContent, padding = 10, outline="") {
         .attr("y", -15)
         .attr("width", textWidth + 2 * padding)
         .attr("height", 30) 
-        .style("fill", "lightgray")
+        .style("fill", fill)
 
     textElement.raise();
     return rect;
@@ -170,7 +170,7 @@ function drawDisequalityNode(group, data) {
 function drawFreshNode(group, data) {
     const varsText = data.vars ? data.vars.map(t => t.var).join(' ') : '';
     const textContent = `(fresh (${varsText}) ...)`;
-    return drawTextNode(group, textContent);
+    return drawTextNode(group, textContent, 10, "#f2f2f2");
 }
 
 function drawRelCallNode(group, data) {
@@ -181,11 +181,31 @@ function drawRelCallNode(group, data) {
   return drawTextNode(group, textContent);
 }
 
-function drawFreshenedNode(group, data) {
+function freshenedText(data) {
     const vars = Array.isArray(data?.vars) ? data.vars : [];
-    const varsText = vars.map(v => termToString(v)).join(' ');
+    return vars.map(v => termToString(v)).join(' ');
+}
+
+function drawAnswerFreshenedNode(group, data) {
+    const varsText = freshenedText(data);
     const textContent = varsText ? `Freshened ${varsText}` : "Freshened";
-    return drawTextNode(group, textContent, 12);
+    return drawTextNode(group, textContent, 12, "#d9ead3");
+}
+
+function drawStreamFreshenedNode(group, data) {
+    const varsText = freshenedText(data);
+    const textContent = varsText ? `Freshened ${varsText}` : "Freshened";
+    return drawTextNode(group, textContent, 12, "#d9e2f3");
+}
+
+function drawFragmentFreshenedNode(group, data) {
+    const varsText = freshenedText(data);
+    const textContent = varsText ? `Freshened ${varsText}` : "Freshened";
+    return drawTextNode(group, textContent, 12, "#fff2cc");
+}
+
+function drawEmitNode(group) {
+    return drawTextNode(group, "emit", 12, "#d9ead3");
 }
 
 function drawBouncedNode(group) {
@@ -235,7 +255,10 @@ const nodeDrawFunctions = {
     "Delay": drawDelayNode,
     "Conjunction": drawConjunctionNode,
     "Fresh": drawFreshNode,
-    "Freshened": drawFreshenedNode,
+    "Emit": drawEmitNode,
+    "Answer-Freshened": drawAnswerFreshenedNode,
+    "Stream-Freshened": drawStreamFreshenedNode,
+    "Fragment-Freshened": drawFragmentFreshenedNode,
     "Bounced": drawBouncedNode,
     "Rel-Call": drawRelCallNode,
     "Goal-Delay": drawGoalDelayNode,

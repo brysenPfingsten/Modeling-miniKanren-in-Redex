@@ -83,8 +83,13 @@
     [(hash* ['name name]
             ['children (list child)]
             #:open)
-     #:when (member name '("Freshened" "Bounced"))
+     #:when (member name '("Bounced" "Stream-Freshened"))
      (json-strip-spine child)]
+    [(hash* ['name name]
+            ['children (list _fragment rest)]
+            #:open)
+     #:when (equal? name "Fragment-Freshened")
+     (json-strip-spine rest)]
     [_ node]))
 
 (define (json-root-name node)
@@ -297,8 +302,8 @@
               (match-define (hash* ['program program] #:open) payload)
               (define program-json (string->jsexpr program))
               (match-define (hash* ['name name] #:open) program-json)
-              (check-equal? name "Answer")
-              (check-false (json-contains-name? program-json "Emit")))
+              (check-equal? name "Emit")
+              (check-true (json-contains-name? program-json "Answer")))
 )
 
 (define-test-suite INIT!
@@ -484,8 +489,8 @@
                                    (string->jsexpr program12)))
               (check-false (equal? (string->jsexpr program18)
                                    (string->jsexpr program19)))
-              (check-true (json-contains-name? (string->jsexpr program11) "Freshened"))
-              (check-true (json-contains-name? (string->jsexpr program18) "Freshened")))
+              (check-true (json-contains-name? (string->jsexpr program11) "Stream-Freshened"))
+              (check-true (json-contains-name? (string->jsexpr program18) "Stream-Freshened")))
 
   (test-case "fives/fours step 24 keeps the branch root until step 25 bubbles the answer outward"
               (define sample-req
@@ -506,7 +511,7 @@
               (check-equal? step24-name "rail-seq-calls/promote-right-observable")
               (check-equal? step25-name "search-base-seq/preserve-left-prefix")
               (check-equal? (json-root-name (string->jsexpr program24)) "<-+")
-              (check-equal? (json-root-name (string->jsexpr program25)) "Answer"))
+              (check-equal? (json-root-name (string->jsexpr program25)) "Emit"))
 
   (test-case "appendoh 2 deep steps serialize dotted-pair reifications"
               (define sample-req

@@ -1,13 +1,20 @@
-export const ACTIVE_INDEX = Object.freeze({ Conjunction: 0, "<-+": 0, "+->": 1 });
+export const ACTIVE_INDEX = Object.freeze({
+    Conjunction: 0,
+    Emit: 1,
+    "Fragment-Freshened": 1,
+    "<-+": 0,
+    "+->": 1,
+});
 export const ACTIVE_PATH_NODE_NAMES = Object.freeze([
-    "Answer",
     "Bounced",
     "Conjunction",
     "Delay",
-    "Freshened",
+    "Emit",
+    "Fragment-Freshened",
     "Goal-Conj",
     "Goal-Delay",
     "Goal-Disj",
+    "Stream-Freshened",
     "+->",
     "<-+",
 ]);
@@ -17,7 +24,18 @@ export function addColors(tree) {
     const TERMINALS1   = new Set(["Answer", "Succeed", "Empty"]);
     const TERMINALS2   = new Set(["Answer", "Succeed"]);
     const DISJ         = new Set(["<-+", "+->"]);
-    const SPINE        = new Set(["Answer", "Freshened", "Bounced"]);
+    const STREAM       = new Set(["Bounced", "Emit", "Fragment-Freshened", "Stream-Freshened"]);
+
+    const paintResolved = (node, color = "green") => {
+        if (!node) return;
+        node.color = color;
+        if (Array.isArray(node.children)) {
+            for (const child of node.children) {
+                child.color = color;
+                paintResolved(child, color);
+            }
+        }
+    };
 
     const activeChild = n => {
         if (!n) return null;
@@ -29,10 +47,13 @@ export function addColors(tree) {
         if (!node) return null;
         if (DISJ.has(node.name) || node.name === "Goal-Disj") return "#ff8000";
         if (node.name === "Conjunction" || node.name === "Goal-Conj") return "blue";
-        if (SPINE.has(node.name)) return rootColor(node.children?.[0] ?? null);
         if (node.name === "Delay" || node.name === "Goal-Delay") {
             return rootColor(node.children?.[0] ?? null);
         }
+        if (node.name === "Emit" || node.name === "Fragment-Freshened") {
+            return rootColor(node.children?.[1] ?? null) ?? "green";
+        }
+        if (STREAM.has(node.name)) return rootColor(node.children?.[0] ?? null);
         return null;
     };
 
@@ -76,14 +97,43 @@ export function addColors(tree) {
                 addColors(children[0]);
             }
             break;
-        case "Answer":
-        case "Freshened":
+        case "Stream-Freshened":
         case "Bounced":
             if (children) {
-                tree.color = rootColor(children[0]) ?? (tree.name === "Answer" ? "green" : undefined);
+                tree.color = rootColor(children[0]) ?? tree.color;
                 children[0].color = tree.color;
                 addColors(children[0]);
             }
+            break;
+        case "Emit":
+            if (children?.[0]) {
+                children[0].color = "green";
+                paintResolved(children[0]);
+            }
+            if (children?.[1]) {
+                tree.color = rootColor(children[1]) ?? "green";
+                children[1].color = tree.color;
+                addColors(children[1]);
+            }
+            break;
+        case "Fragment-Freshened":
+            if (children?.[0]) {
+                children[0].color = "green";
+                paintResolved(children[0]);
+            }
+            if (children?.[1]) {
+                tree.color = rootColor(children[1]) ?? "green";
+                children[1].color = tree.color;
+                addColors(children[1]);
+            }
+            break;
+        case "Answer-Freshened":
+        case "Answer":
+            if (children?.[0]) {
+                children[0].color = "green";
+                paintResolved(children[0]);
+            }
+            tree.color = "green";
             break;
         default: return tree;
     }

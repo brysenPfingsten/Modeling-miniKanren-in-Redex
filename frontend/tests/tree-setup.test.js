@@ -28,8 +28,9 @@ test("addColors preserves binary Goal-Conj nesting", () => {
 
 test("addColors preserves the search-tree color through an answer prefix", () => {
   const tree = {
-    name: "Answer",
+    name: "Emit",
     children: [
+      { name: "Answer" },
       {
         name: "<-+",
         children: [
@@ -42,7 +43,8 @@ test("addColors preserves the search-tree color through an answer prefix", () =>
 
   const result = addColors(tree);
 
-  assert.equal(result.children[0].color, "#ff8000");
+  assert.equal(result.children[0].color, "green");
+  assert.equal(result.children[1].color, "#ff8000");
 });
 
 test("addColors keeps the active edge colored when a disjunction points at an answer", () => {
@@ -61,64 +63,16 @@ test("addColors keeps the active edge colored when a disjunction points at an an
 
 test("addColors keeps the active edge colored through a spine prefix to an answer", () => {
   const tree = {
-    name: "Freshened",
+    name: "Stream-Freshened",
     children: [
       {
-        name: "<-+",
+        name: "Emit",
         children: [
           { name: "Answer" },
-          { name: "Unify" },
-        ],
-      },
-    ],
-  };
-
-  const result = addColors(tree);
-
-  assert.equal(result.color, "#ff8000");
-  assert.equal(result.children[0].color, "#ff8000");
-  assert.equal(result.children[0].children[0].color, "#ff8000");
-});
-
-test("addColors carries spine color through freshened nodes", () => {
-  const tree = {
-    name: "Freshened",
-    children: [
-      {
-        name: "<-+",
-        children: [
-          { name: "Answer" },
-          { name: "Unify" },
-        ],
-      },
-    ],
-  };
-
-  const result = addColors(tree);
-
-  assert.equal(result.color, "#ff8000");
-  assert.equal(result.children[0].color, "#ff8000");
-  assert.equal(result.children[0].children[0].color, "#ff8000");
-});
-
-test("addColors keeps the active edge colored through nested rail disjunctions", () => {
-  const tree = {
-    name: "Freshened",
-    children: [
-      {
-        name: "<-+",
-        children: [
           {
-            name: "+->",
+            name: "<-+",
             children: [
-              { name: "Goal-Disj", children: [{ name: "Rel-Call" }, { name: "Unify" }] },
               { name: "Answer" },
-            ],
-          },
-          {
-            name: "+->",
-            children: [
-              { name: "Goal-Disj", children: [{ name: "Rel-Call" }, { name: "Unify" }] },
               { name: "Unify" },
             ],
           },
@@ -131,25 +85,97 @@ test("addColors keeps the active edge colored through nested rail disjunctions",
 
   assert.equal(result.color, "#ff8000");
   assert.equal(result.children[0].color, "#ff8000");
-  assert.equal(result.children[0].children[0].color, "#ff8000");
-  assert.equal(result.children[0].children[0].children[1].color, "#ff8000");
+  assert.equal(result.children[0].children[0].color, "green");
+  assert.equal(result.children[0].children[1].color, "#ff8000");
 });
 
-test("addColors carries the active path through delay nodes", () => {
+test("addColors carries spine color through freshened nodes", () => {
   const tree = {
-    name: "Freshened",
+    name: "Stream-Freshened",
     children: [
       {
-        name: "Bounced",
+        name: "Emit",
+        children: [
+          { name: "Answer" },
+          {
+            name: "<-+",
+            children: [
+              { name: "Answer" },
+              { name: "Unify" },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  const result = addColors(tree);
+
+  assert.equal(result.color, "#ff8000");
+  assert.equal(result.children[0].color, "#ff8000");
+  assert.equal(result.children[0].children[0].color, "green");
+  assert.equal(result.children[0].children[1].color, "#ff8000");
+});
+
+test("addColors keeps the active edge colored through nested rail disjunctions", () => {
+  const tree = {
+    name: "Stream-Freshened",
+    children: [
+      {
+        name: "Emit",
         children: [
           {
-            name: "Delay",
+            name: "Answer",
+          },
+          {
+            name: "<-+",
             children: [
               {
                 name: "+->",
                 children: [
                   { name: "Goal-Disj", children: [{ name: "Rel-Call" }, { name: "Unify" }] },
-                  { name: "Goal-Disj", children: [{ name: "Rel-Call" }, { name: "Unify" }] },
+                  { name: "Answer" },
+                ],
+              },
+              { name: "Goal-Disj", children: [{ name: "Rel-Call" }, { name: "Unify" }] },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  const result = addColors(tree);
+
+  assert.equal(result.color, "#ff8000");
+  assert.equal(result.children[0].color, "#ff8000");
+  assert.equal(result.children[0].children[0].color, "green");
+  assert.equal(result.children[0].children[1].color, "#ff8000");
+  assert.equal(result.children[0].children[1].children[0].color, "#ff8000");
+  assert.equal(result.children[0].children[1].children[0].children[1].color, "#ff8000");
+});
+
+test("addColors carries the active path through delay nodes", () => {
+  const tree = {
+    name: "Stream-Freshened",
+    children: [
+      {
+        name: "Bounced",
+        children: [
+          {
+            name: "Emit",
+            children: [
+              { name: "Answer" },
+              {
+                name: "Delay",
+                children: [
+                  {
+                    name: "+->",
+                    children: [
+                      { name: "Goal-Disj", children: [{ name: "Rel-Call" }, { name: "Unify" }] },
+                      { name: "Goal-Disj", children: [{ name: "Rel-Call" }, { name: "Unify" }] },
+                    ],
+                  },
                 ],
               },
             ],
@@ -164,6 +190,8 @@ test("addColors carries the active path through delay nodes", () => {
   assert.equal(result.color, "#ff8000");
   assert.equal(result.children[0].color, "#ff8000");
   assert.equal(result.children[0].children[0].color, "#ff8000");
-  assert.equal(result.children[0].children[0].children[0].color, "#ff8000");
-  assert.equal(result.children[0].children[0].children[0].children[1].color, "#ff8000");
+  assert.equal(result.children[0].children[0].children[0].color, "green");
+  assert.equal(result.children[0].children[0].children[1].color, "#ff8000");
+  assert.equal(result.children[0].children[0].children[1].children[0].color, "#ff8000");
+  assert.equal(result.children[0].children[0].children[1].children[0].children[1].color, "#ff8000");
 });
