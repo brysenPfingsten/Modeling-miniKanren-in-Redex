@@ -105,6 +105,43 @@
        (collect-json-ids x ids))]
     [_ acc]))
 
+(define (json-id-counts node [acc (hash)])
+  (match node
+    [(hash* ['id id]
+            ['children children]
+            #:open)
+     (json-id-counts children
+                     (hash-update acc id add1 0))]
+    [(hash* ['children children] #:open)
+     (json-id-counts children acc)]
+    [(list xs ...)
+     (for/fold ([counts acc]) ([x (in-list xs)])
+       (json-id-counts x counts))]
+    [_ acc]))
+
+(define (duplicate-json-ids node)
+  (for/list ([(id count) (in-dict (json-id-counts node))]
+             #:when (> count 1))
+    id))
+
+(define (json-node-names-by-id node target-id [acc '()])
+  (match node
+    [(hash* ['id id]
+            ['name name]
+            ['children children]
+            #:open)
+     (define next-acc
+       (if (equal? id target-id)
+           (cons name acc)
+           acc))
+     (json-node-names-by-id children target-id next-acc)]
+    [(hash* ['children children] #:open)
+     (json-node-names-by-id children target-id acc)]
+    [(list xs ...)
+     (for/fold ([names acc]) ([x (in-list xs)])
+       (json-node-names-by-id x target-id names))]
+    [_ acc]))
+
 (define (all-json-ids-appear-in-source? source node)
   (for/and ([id (in-list (collect-json-ids node))])
     (regexp-match? (regexp-quote (format "[[~a]]" id)) source)))
@@ -314,6 +351,43 @@
                (all-json-ids-appear-in-source? html-guids
                                                (string->jsexpr step-program))))
 
+  (test-case "appendoh 2 produces repeated RHS nodes that share one source UUID"
+              (define sample-req
+                (make-post-init-request (example-src "appendoh 2")))
+              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
+              (define-values (response ses^) (init! ses sample-req 'repeated-source-id-test))
+              (define init-payload (string->jsexpr (response-body->string response)))
+              (match-define (hash* ['htmlGuids html-guids] #:open) init-payload)
+              (define source-derived-names
+                '("Fresh" "Goal-Conj" "Goal-Disj" "Goal-Delay" "Rel-Call" "Unify" "Disequality"))
+              (define (find-duplicate-step ses [remaining 80])
+                (cond
+                  [(zero? remaining) #f]
+                  [else
+                   (define-values (step-response ses^) (step! ses))
+                   (match (response-body->string step-response)
+                     ["null" #f]
+                     [out
+                      (define payload (string->jsexpr out))
+                      (match-define (hash* ['program program] #:open) payload)
+                      (define program-json (string->jsexpr program))
+                      (define duplicates (duplicate-json-ids program-json))
+                      (define source-duplicates
+                        (for/list ([id (in-list duplicates)]
+                                   #:when
+                                   (for/or ([name (in-list (json-node-names-by-id program-json id))])
+                                     (member name source-derived-names)))
+                          id))
+                      (if (null? source-duplicates)
+                          (find-duplicate-step ses^ (sub1 remaining))
+                          source-duplicates)])]))
+              (define repeated-source-ids (find-duplicate-step ses^))
+              (check-not-false repeated-source-ids)
+              (for ([id (in-list repeated-source-ids)])
+                (check-true
+                 (regexp-match? (regexp-quote (format "[[~a]]" id))
+                                html-guids))))
+
   (test-case "micro hoist witness changes visible tree between steps 9 and 10"
               (define sample-req
                 (make-post-init-request
@@ -399,6 +473,29 @@
               (define json34 (string->jsexpr program34))
               (check-true (json-contains-pair? json33))
               (check-true (json-contains-pair? json34)))
+
+  (test-case "appendoh 2 stays JSON-serializable through a deep default trace"
+              (define sample-req
+                (make-post-init-request (example-src "appendoh 2")))
+              (define ses0 (session (make-empty-zipper) identity 1 default-search-strategy))
+              (define-values (response ses1) (init! ses0 sample-req 'appendoh-2-deep-id))
+              (check-equal? (response-code response) 200)
+              (define (loop ses remaining [seen 0])
+                (cond
+                  [(zero? remaining)
+                   (check-true (>= seen 120))]
+                  [else
+                   (define-values (step-response ses^) (step! ses))
+                   (define out (response-body->string step-response))
+                   (cond
+                     [(equal? out "null")
+                      (check-true (>= seen 120))]
+                     [else
+                      (define payload (string->jsexpr out))
+                      (assert-step-payload-shape payload
+                                                 (format "appendoh 2 deep step ~a" seen))
+                      (loop ses^ (sub1 remaining) (add1 seen))])]))
+              (loop ses1 160))
 
   (test-case "init! throws error if program is not syntactically correct"
               (define sample-req (make-post-init-request "(run* (== 'a 'a))"))

@@ -3,6 +3,7 @@ import * as d3 from 'd3';
 import { drawTree, drawLinks, drawNodes } from '../utils/drawing.js';
 import { termToString } from '../utils/strings.js';
 import { addColors } from '../utils/treeSetup.js'
+import { goalIdFromTreeNodeData } from '../utils/source_mapping.js';
 
 const TreeCanvas = forwardRef(({ onNodeClick, selectedGoalId, selectedStateId }, ref) => {
     const svgRef = useRef();
@@ -41,7 +42,7 @@ const TreeCanvas = forwardRef(({ onNodeClick, selectedGoalId, selectedStateId },
         return {
             substitutionData: subs,
             trailData: trails,
-            gId: d.data.id ?? fallbackGoalId ?? null,
+            gId: goalIdFromTreeNodeData(d.data, fallbackGoalId),
             sId: d.data.stateId ?? null,
         };
     };

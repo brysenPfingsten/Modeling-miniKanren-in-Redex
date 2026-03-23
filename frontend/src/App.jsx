@@ -25,6 +25,10 @@ import {
   SOURCE_MODE_OPTIONS,
 } from './utils/source_defaults.js';
 import {
+  emptyResponseMessage,
+  parseStepperPayload,
+} from './utils/stepper_protocol.js';
+import {
   deriveToolbarState,
 } from './utils/app_state.js';
 import './styles.css';
@@ -73,7 +77,11 @@ function App() {
       }),
       credentials: "include",
     });
-    const payload = await response.json();
+    const payloadText = await response.text();
+    if (payloadText.trim() === '') {
+      throw new Error(emptyResponseMessage(response));
+    }
+    const payload = parseStepperPayload(payloadText);
     if (!response.ok) {
       throw new Error(payload?.error || `Unable to convert example (${response.status})`);
     }

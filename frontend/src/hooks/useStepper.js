@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { buildInitOptions } from '../utils/source_defaults.js';
 import {
+  emptyResponseMessage,
   parseStepperPayload,
   readStepperHeaders,
   responseErrorMessage,
@@ -29,6 +30,13 @@ export default function useStepper({ onSuccess = () => {} } = {}) {
 
       const headers = readStepperHeaders(response);
       const payloadText = await response.text();
+      if (payloadText.trim() === '') {
+        return {
+          success: false,
+          error: emptyResponseMessage(response),
+          headers,
+        };
+      }
       const data = parseStepperPayload(payloadText);
 
       if (!response.ok) {

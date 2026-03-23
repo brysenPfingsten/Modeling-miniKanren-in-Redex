@@ -2,6 +2,7 @@ import React, { forwardRef, useRef, useEffect, useMemo } from 'react';
 import Editor from '@monaco-editor/react';
 import { conf, language } from '../utils/minikanren-language';
 import { parseTaggedText } from '../utils/tagged_source.js';
+import { selectedSourceSegments } from '../utils/source_mapping.js';
 import '../styles.css';
 
 const CodeEditor = forwardRef(({ 
@@ -75,8 +76,7 @@ const CodeEditor = forwardRef(({
       };
     });
 
-    const selDecs = goalId == null ? [] : segmentsRef.current
-      .filter(s => s.id === goalId)
+    const selDecs = selectedSourceSegments(segmentsRef.current, goalId)
       .map(seg => {
         const start = model.getPositionAt(seg.start);
         const end = model.getPositionAt(seg.end);
