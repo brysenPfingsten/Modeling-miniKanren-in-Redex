@@ -175,6 +175,38 @@
          (== q 'witness))
        (== q q)))")
 
+(define source-derived-names
+  '("Fresh" "Goal-Conj" "Goal-Disj" "Goal-Delay" "Rel-Call" "Unify" "Disequality"))
+
+(define (render-source->micro src)
+  (define response (source-convert! (make-post-source-convert-request src)))
+  (check-equal? (response-code response) 200)
+  (define body (string->jsexpr (response-body->string response)))
+  (match-define (hash* ['source rendered] #:open) body)
+  rendered)
+
+(define (find-source-duplicate-ids ses [remaining 80])
+  (cond
+    [(zero? remaining) #f]
+    [else
+     (define-values (step-response ses^) (step! ses))
+     (match (response-body->string step-response)
+       ["null" #f]
+       [out
+        (define payload (string->jsexpr out))
+        (match-define (hash* ['program program] #:open) payload)
+        (define program-json (string->jsexpr program))
+        (define duplicates (duplicate-json-ids program-json))
+        (define source-duplicates
+          (for/list ([id (in-list duplicates)]
+                     #:when
+                     (for/or ([name (in-list (json-node-names-by-id program-json id))])
+                       (member name source-derived-names)))
+            id))
+        (if (null? source-duplicates)
+            (find-source-duplicate-ids ses^ (sub1 remaining))
+            source-duplicates)])]))
+
 (define (collect-step-names ses remaining)
   (cond
     [(zero? remaining) '()]
@@ -351,6 +383,29 @@
                (all-json-ids-appear-in-source? html-guids
                                                (string->jsexpr step-program))))
 
+  (test-case "init!/step! preserve source ids across tagged source and tree JSON for direct micro source"
+              (define sample-req
+                (make-post-init-request
+                 hoist-witness-micro-program
+                 (hasheq 'text hoist-witness-micro-program
+                         'sourceMode "micro")))
+              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
+              (define-values (response ses^) (init! ses sample-req 'micro-source-id-test))
+              (define init-payload (string->jsexpr (response-body->string response)))
+              (match-define (hash* ['program init-program]
+                                   ['htmlGuids html-guids]
+                                   #:open)
+                init-payload)
+              (check-true
+               (all-json-ids-appear-in-source? html-guids
+                                               (string->jsexpr init-program)))
+              (define-values (step-response _ses^^) (step! ses^))
+              (define step-payload (string->jsexpr (response-body->string step-response)))
+              (match-define (hash* ['program step-program] #:open) step-payload)
+              (check-true
+               (all-json-ids-appear-in-source? html-guids
+                                               (string->jsexpr step-program))))
+
   (test-case "appendoh 2 produces repeated RHS nodes that share one source UUID"
               (define sample-req
                 (make-post-init-request (example-src "appendoh 2")))
@@ -358,30 +413,26 @@
               (define-values (response ses^) (init! ses sample-req 'repeated-source-id-test))
               (define init-payload (string->jsexpr (response-body->string response)))
               (match-define (hash* ['htmlGuids html-guids] #:open) init-payload)
-              (define source-derived-names
-                '("Fresh" "Goal-Conj" "Goal-Disj" "Goal-Delay" "Rel-Call" "Unify" "Disequality"))
-              (define (find-duplicate-step ses [remaining 80])
-                (cond
-                  [(zero? remaining) #f]
-                  [else
-                   (define-values (step-response ses^) (step! ses))
-                   (match (response-body->string step-response)
-                     ["null" #f]
-                     [out
-                      (define payload (string->jsexpr out))
-                      (match-define (hash* ['program program] #:open) payload)
-                      (define program-json (string->jsexpr program))
-                      (define duplicates (duplicate-json-ids program-json))
-                      (define source-duplicates
-                        (for/list ([id (in-list duplicates)]
-                                   #:when
-                                   (for/or ([name (in-list (json-node-names-by-id program-json id))])
-                                     (member name source-derived-names)))
-                          id))
-                      (if (null? source-duplicates)
-                          (find-duplicate-step ses^ (sub1 remaining))
-                          source-duplicates)])]))
-              (define repeated-source-ids (find-duplicate-step ses^))
+              (define repeated-source-ids (find-source-duplicate-ids ses^))
+              (check-not-false repeated-source-ids)
+              (for ([id (in-list repeated-source-ids)])
+                (check-true
+                 (regexp-match? (regexp-quote (format "[[~a]]" id))
+                                html-guids))))
+
+  (test-case "rendered micro appendoh 2 produces repeated RHS nodes that share one source UUID"
+              (define micro-src
+                (render-source->micro (example-src "appendoh 2")))
+              (define sample-req
+                (make-post-init-request
+                 micro-src
+                 (hasheq 'text micro-src
+                         'sourceMode "micro")))
+              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
+              (define-values (response ses^) (init! ses sample-req 'repeated-micro-source-id-test))
+              (define init-payload (string->jsexpr (response-body->string response)))
+              (match-define (hash* ['htmlGuids html-guids] #:open) init-payload)
+              (define repeated-source-ids (find-source-duplicate-ids ses^))
               (check-not-false repeated-source-ids)
               (for ([id (in-list repeated-source-ids)])
                 (check-true
