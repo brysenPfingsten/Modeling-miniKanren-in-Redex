@@ -409,6 +409,7 @@
   (and (hash? node)
        (valid-child-indexes? node)
        (or (visible-stream? node)
+           (visible-answer-node? node)
            (visible-search-tree? node))))
 
 (define (visible-json-wf? node)

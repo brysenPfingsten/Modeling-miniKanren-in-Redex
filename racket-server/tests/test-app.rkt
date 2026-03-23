@@ -100,6 +100,19 @@
     (json-strip-spine node))
   name)
 
+(define (json-live-search-root node)
+  (match (json-strip-spine node)
+    [(hash* ['name "Emit"]
+            ['children (list _answer rest)]
+            #:open)
+     (json-live-search-root rest)]
+    [other other]))
+
+(define (json-live-search-root-name node)
+  (match-define (hash* ['name name] #:open)
+    (json-live-search-root node))
+  name)
+
 (define (collect-json-ids node [acc '()])
   (match node
     [(hash* ['id id]
@@ -495,7 +508,7 @@
               (check-true (json-contains-name? (string->jsexpr program11) "Stream-Freshened"))
               (check-true (json-contains-name? (string->jsexpr program18) "Stream-Freshened")))
 
-  (test-case "fives/fours step 24 keeps the branch root until step 25 bubbles the answer outward"
+  (test-case "fives/fours step 24 exposes an emitted left fragment that step 25 reassociates into the branch"
               (define sample-req
                 (make-post-init-request (example-src "fives/fours")))
               (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
@@ -513,8 +526,12 @@
                 step25-payload)
               (check-equal? step24-name "rail-seq-calls/promote-right-observable")
               (check-equal? step25-name "search-base-seq/preserve-left-prefix")
-              (check-equal? (json-root-name (string->jsexpr program24)) "<-+")
-              (check-equal? (json-root-name (string->jsexpr program25)) "Emit"))
+              (define root24 (json-live-search-root (string->jsexpr program24)))
+              (define root25 (json-live-search-root (string->jsexpr program25)))
+              (check-equal? (hash-ref root24 'name) "<-+")
+              (check-equal? (hash-ref root25 'name) "<-+")
+              (check-equal? (hash-ref (first (hash-ref root24 'children)) 'name) "Emit")
+              (check-equal? (hash-ref (first (hash-ref root25 'children)) 'name) "Goal-Disj"))
 
   (test-case "appendoh 2 deep steps serialize dotted-pair reifications"
               (define sample-req

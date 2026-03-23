@@ -205,7 +205,9 @@ function drawFragmentFreshenedNode(group, data) {
 }
 
 function drawEmitNode(group) {
-    return drawTextNode(group, "emit", 12, "#d9ead3");
+    return group.append("circle")
+        .attr("r", 4)
+        .attr("fill", "#666");
 }
 
 function drawBouncedNode(group) {

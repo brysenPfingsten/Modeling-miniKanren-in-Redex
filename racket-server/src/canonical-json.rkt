@@ -293,13 +293,20 @@
   (hasheq 'name "Empty"
           'renderRole "terminal"))
 
+(define (empty-json? node)
+  (match node
+    [(hash* ['name "Empty"] #:open) #t]
+    [_ #f]))
+
 (define (emit->json/canonical answer-json rest-json)
-  (hasheq 'name "Emit"
-          'renderRole "stream-emit"
-          'resolvedChildIndices '(0)
-          'resolvedColor "green"
-          'activeChildIndex 1
-          'children (list answer-json rest-json)))
+  (if (empty-json? rest-json)
+      answer-json
+      (hasheq 'name "Emit"
+              'renderRole "stream-emit"
+              'resolvedChildIndices '(0)
+              'resolvedColor "green"
+              'activeChildIndex 1
+              'children (list answer-json rest-json))))
 
 (define (answer-freshened->json/canonical c-intro tag child-json)
   (hasheq 'name "Answer-Freshened"
