@@ -64,18 +64,10 @@
    ------------------- "bounced prefix wf/rail"
    (wf-frontier/rail? (Bounced + cfg_tail) c)]
   [(lvars-fresh-extension? c_1 c)
-   (wf-frontier/rail? cfg_tail c)
-   ------------------- "freshened event prefix wf/rail"
-   (wf-frontier/rail? ((Freshened c_1 tag_1) + cfg_tail) c)]
-  [(where c_2 ,(scope-pop/host (term c_1) (term c_current)))
-   (wf-frontier/rail? cfg_tail c_2)
-   ------------------- "scope end prefix wf/rail"
-   (wf-frontier/rail? ((ScopeEnd c_1) + cfg_tail) c_current)]
-  [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/rail? cfg_tail c_2)
-   ------------------- "scoped wrapper wf/rail"
-   (wf-frontier/rail? (Scoped c_1 cfg_tail) c)]
+   ------------------- "freshened scope wf/rail"
+   (wf-frontier/rail? (Freshened c_1 tag_1 cfg_tail) c)]
   [(lvars-same-members? c c_i)
    (wf-goal/rail? g () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)

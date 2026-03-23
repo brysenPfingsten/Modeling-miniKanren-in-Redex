@@ -60,20 +60,25 @@
   (reduction-relation
    search-base-fused-lang
    #:domain f
-   [--> (((Freshened c_1 tag_1) + f_left) <-+ f_right)
-        ((Freshened c_1 tag_1) + (f_left <-+ f_right))
-        "search-base-fused/continue-left-freshened-prefix"]
-   [--> (((ScopeEnd c_1) + f_left) <-+ f_right)
-        ((ScopeEnd c_1) + (f_left <-+ f_right))
-        "search-base-fused/continue-left-scope-end-prefix"]
-   [--> (((⊤ σ_new) + f_left) <-+ f_right)
-        ((⊤ σ_new) + (f_left <-+ f_right))
-        "search-base-fused/continue-left-prefix"]
-   [--> (((⊤ σ_new) <-+ f_mid) <-+ f_right)
-        ((⊤ σ_new) <-+ (f_mid <-+ f_right))
+   [--> ((Freshened c_1 tag_1 (head_1 + f_left)) <-+ f_right)
+        ((Freshened c_1 tag_1 head_1)
+         + ((Freshened c_1 tag_1 f_left) <-+ f_right))
+        "search-base-fused/preserve-scoped-left-prefix"]
+   [--> ((Freshened c_1 tag_1 (head_1 <-+ f_mid)) <-+ f_right)
+        ((Freshened c_1 tag_1 head_1)
+         + ((Freshened c_1 tag_1 f_mid) <-+ f_right))
+        "search-base-fused/bubble-scoped-left-branch"]
+   [--> ((head_1 + f_left) <-+ f_right)
+        (head_1 + (f_left <-+ f_right))
+        (side-condition (not (empty-freshened-head? (term head_1))))
+        "search-base-fused/preserve-left-prefix"]
+   [--> ((head_1 <-+ f_mid) <-+ f_right)
+        (head_1 <-+ (f_mid <-+ f_right))
+        (side-condition (not (empty-freshened-head? (term head_1))))
         "search-base-fused/bubble-left-observable"]
-   [--> ((⊤ σ_new) <-+ f_right)
-        ((⊤ σ_new) + f_right)
+   [--> (head_1 <-+ f_right)
+        (head_1 + f_right)
+        (side-condition (not (empty-freshened-head? (term head_1))))
         "search-base-fused/promote-left-observable"]
    [--> (((empty-tree) <-+ f_mid) <-+ f_right)
         ((empty-tree) <-+ (f_mid <-+ f_right))
@@ -85,8 +90,6 @@
 (define delay-extra
   (context-closure delay-local search-base-fused-lang Q))
 
-(define delay-frontier delay-frontier-extra)
-
 (define search-frontier
   (context-closure search-frontier-extra search-base-fused-lang Q))
 
@@ -95,7 +98,7 @@
 
 (define search-base-fused-red
   (union-reduction-relations
-   delay-frontier
+   delay-frontier-extra
    core-frontier/search-base-fused
    search-local
    search-frontier

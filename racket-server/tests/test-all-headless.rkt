@@ -11,13 +11,15 @@
          "./model-example-matrix-tests.rkt"
          "./property-core.rkt"
          "./search-lattice-tests.rkt"
-         "./search-runtime-tests.rkt")
+         "./search-runtime-tests.rkt"
+         "./visible-contract-tests.rkt")
 
 (define-test-suite HEADLESS
   HELPERS-TESTS
   PROPERTY-CORE
   FRONTIER-EXAMPLES
   FRONTIER-OBSERVABLES
+  VISIBLE-CONTRACTS
   SEARCH-RUNTIME
   SEARCH-LATTICE
   EXAMPLE-COMPAT

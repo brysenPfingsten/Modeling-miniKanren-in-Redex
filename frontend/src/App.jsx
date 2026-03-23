@@ -26,7 +26,6 @@ import {
 } from './utils/source_defaults.js';
 import {
   deriveToolbarState,
-  nextSelectedExampleId,
 } from './utils/app_state.js';
 import './styles.css';
 
@@ -61,10 +60,8 @@ function App() {
 
   const {
     tree, stepInfo,
-    init, step, reset, back
-  } = useStepper({
-    onSuccess: clearSelection
-  });
+    init, step, reset, back, clear: clearStepper
+  } = useStepper();
 
   const convertExampleToMicro = async (sourceText, profile = compileProfile) => {
     const response = await fetch('/api/post/source-convert', {
@@ -111,6 +108,7 @@ function App() {
     originalCodeRef.current = code;
     const [success, progOrError] = await init(code, sourceMode, compileProfile, searchStrategy);
     if (success) {
+      clearSelection();
       initialTaggedCodeRef.current = progOrError || code;
       setFrozen(true);
       setCode(initialTaggedCodeRef.current);
@@ -147,6 +145,7 @@ function App() {
       setAlert({ isOpen: true, message: error });
       return;
     }
+    clearSelection();
     setCode(initialTaggedCodeRef.current || originalCodeRef.current);
     setFrozen(true);
     setIsAtStart(true);
@@ -161,7 +160,7 @@ function App() {
   }, [tree, stateId]);
 
   useEffect(() => {
-    if (isFrozen || !selectedExampleId) {
+    if (!selectedExampleId) {
       setIsExampleLoading(false);
       return undefined;
     }
@@ -192,7 +191,7 @@ function App() {
 
     load();
     return () => { active = false; };
-  }, [selectedExampleId, sourceMode, compileProfile, isFrozen]);
+  }, [selectedExampleId, sourceMode, compileProfile]);
 
   const toolbarState = deriveToolbarState({
     isFrozen,
@@ -216,7 +215,14 @@ function App() {
   };
 
   const handleExampleChange = (exampleId) => {
-    if (isFrozen) return;
+    if (isFrozen) {
+      clearSelection();
+      clearStepper();
+      setFrozen(false);
+      setIsAtStart(true);
+      setIsAtEnd(false);
+      initialTaggedCodeRef.current = '';
+    }
     setIsExampleLoading(Boolean(exampleId));
     if (!exampleId) {
       setSelectedExampleSource('');
@@ -230,12 +236,6 @@ function App() {
   };
 
   const handleCodeChange = (nextCode) => {
-    setSelectedExampleId((currentId) =>
-      nextSelectedExampleId({
-        selectedExampleId: currentId,
-        selectedExampleSource,
-        nextCode,
-      }));
     setCode(nextCode);
   };
 
@@ -260,6 +260,7 @@ function App() {
             schedulerOptions={SCHEDULER_OPTIONS}
             onSearchStrategyChange={handleSearchStrategyChange}
             isFrozen={isFrozen}
+            isExampleLoading={isExampleLoading}
           />
           <div className="editor-area">
             <CodeEditor

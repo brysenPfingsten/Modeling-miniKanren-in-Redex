@@ -26,12 +26,10 @@
                ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
         "calls/expand"]))
 
-(define calls-extra calls-expand/raw)
-
 (define calls-red
   (union-reduction-relations
    lifted-delay-red
-   calls-extra))
+   calls-expand/raw))
 
 (define (step-once prog)
   (step-once/deterministic calls-red prog))

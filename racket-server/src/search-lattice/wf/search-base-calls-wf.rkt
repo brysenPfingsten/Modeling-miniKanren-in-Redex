@@ -81,18 +81,10 @@
    ------------------- "bounced prefix wf/search-base-calls"
    (wf-frontier/search-base-calls? (Bounced + cfg_tail) Γ c)]
   [(lvars-fresh-extension? c_1 c)
-   (wf-frontier/search-base-calls? cfg_tail Γ c)
-   ------------------- "freshened event prefix wf/search-base-calls"
-   (wf-frontier/search-base-calls? ((Freshened c_1 tag_1) + cfg_tail) Γ c)]
-  [(where c_2 ,(scope-pop/host (term c_1) (term c_current)))
-   (wf-frontier/search-base-calls? cfg_tail Γ c_2)
-   ------------------- "scope end prefix wf/search-base-calls"
-   (wf-frontier/search-base-calls? ((ScopeEnd c_1) + cfg_tail) Γ c_current)]
-  [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/search-base-calls? cfg_tail Γ c_2)
-   ------------------- "scoped wrapper wf/search-base-calls"
-   (wf-frontier/search-base-calls? (Scoped c_1 cfg_tail) Γ c)]
+   ------------------- "freshened scope wf/search-base-calls"
+   (wf-frontier/search-base-calls? (Freshened c_1 tag_1 cfg_tail) Γ c)]
   [(lvars-same-members? c c_i)
    (wf-goal/search-base-calls? g Γ () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)

@@ -8,7 +8,8 @@
          "../src/search-strategy.rkt"
          "../src/zipper.rkt"
          "../src/transpiler.rkt"
-         "./test-http-helpers.rkt")
+         "./test-http-helpers.rkt"
+         "./example-compat-tests.rkt")
 
 (define sample-tree
   '(() ((∃
@@ -66,6 +67,31 @@
     [(list xs ...) (ormap (lambda (x) (json-contains-name? x target)) xs)]
     [_ #f]))
 
+(define (json-contains-pair? node)
+  (match node
+    [(? hash? h)
+     (or (hash-has-key? h 'pair)
+         (for/or ([value (in-hash-values h)])
+           (json-contains-pair? value)))]
+    [(list xs ...)
+     (for/or ([x (in-list xs)])
+       (json-contains-pair? x))]
+    [_ #f]))
+
+(define (json-strip-spine node)
+  (match node
+    [(hash* ['name name]
+            ['children (list child)]
+            #:open)
+     #:when (member name '("Freshened" "Bounced"))
+     (json-strip-spine child)]
+    [_ node]))
+
+(define (json-root-name node)
+  (match-define (hash* ['name name] #:open)
+    (json-strip-spine node))
+  name)
+
 (define (collect-json-ids node [acc '()])
   (match node
     [(hash* ['id id]
@@ -101,8 +127,16 @@
        [(conde
           [(same q 'turtle)]
           [(same q 'cat)]
-          [(== q 'dog)])]
-       [(same q 'fish)]))")
+       [(== q 'dog)])]
+      [(same q 'fish)]))")
+
+(define hoist-witness-micro-program
+  "(run 2 (q)
+     (conj
+       (disj
+         (== q 'hoist)
+         (== q 'witness))
+       (== q q)))")
 
 (define (collect-step-names ses remaining)
   (cond
@@ -116,6 +150,23 @@
         (cons step-name
               (collect-step-names ses^
                                   (sub1 remaining)))])]))
+
+(define (nth-step-payload ses n)
+  (define-values (response ses^) (step! ses))
+  (match (response-body->string response)
+    ["null"
+     (values #f ses^)]
+    [out
+     (define payload (string->jsexpr out))
+     (if (zero? n)
+         (values payload ses^)
+         (nth-step-payload ses^ (sub1 n)))]))
+
+(define (example-src label)
+  (for/first ([pr (in-list (frontend-example-programs))]
+              #:do [(match-define (cons example-label src) pr)]
+              #:when (equal? example-label label))
+    src))
 
 (define-test-suite STEP!
   #:before (thunk (displayln "Running tests for step!..."))
@@ -263,6 +314,92 @@
                (all-json-ids-appear-in-source? html-guids
                                                (string->jsexpr step-program))))
 
+  (test-case "micro hoist witness changes visible tree between steps 9 and 10"
+              (define sample-req
+                (make-post-init-request
+                 hoist-witness-micro-program
+                 (hasheq 'text hoist-witness-micro-program
+                         'sourceMode "micro")
+                 #:strategy (search-strategy "early" "rail")))
+              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
+              (define-values (response ses^) (init! ses sample-req 'hoist-witness-id))
+              (check-equal? (response-code response) 200)
+              (define-values (step9-payload ses9) (nth-step-payload ses^ 8))
+              (define-values (step10-payload _ses10) (nth-step-payload ses9 0))
+              (check-not-false step9-payload)
+              (check-not-false step10-payload)
+              (match-define (hash* ['step step9]
+                                   ['program program9]
+                                   #:open)
+                step9-payload)
+              (match-define (hash* ['step step10]
+                                   ['program program10]
+                                   #:open)
+                step10-payload)
+              (check-equal? step9 9)
+              (check-equal? step10 10)
+              (check-false (equal? (string->jsexpr program9)
+                                   (string->jsexpr program10))))
+
+  (test-case "fives/fours makes scope bookkeeping visible between adjacent UI steps"
+              (define sample-req
+                (make-post-init-request (example-src "fives/fours")))
+              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
+              (define-values (response ses^) (init! ses sample-req 'fives-fours-visible-id))
+              (check-equal? (response-code response) 200)
+              (define-values (step11-payload ses11) (nth-step-payload ses^ 10))
+              (define-values (step12-payload ses12) (nth-step-payload ses11 0))
+              (define-values (step18-payload ses18) (nth-step-payload ses12 5))
+              (define-values (step19-payload _ses19) (nth-step-payload ses18 0))
+              (match-define (hash* ['program program11] #:open) step11-payload)
+              (match-define (hash* ['program program12] #:open) step12-payload)
+              (match-define (hash* ['program program18] #:open) step18-payload)
+              (match-define (hash* ['program program19] #:open) step19-payload)
+              (check-false (equal? (string->jsexpr program11)
+                                   (string->jsexpr program12)))
+              (check-false (equal? (string->jsexpr program18)
+                                   (string->jsexpr program19)))
+              (check-true (json-contains-name? (string->jsexpr program11) "Freshened"))
+              (check-true (json-contains-name? (string->jsexpr program18) "Freshened")))
+
+  (test-case "fives/fours step 24 keeps the branch root until step 25 bubbles the answer outward"
+              (define sample-req
+                (make-post-init-request (example-src "fives/fours")))
+              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
+              (define-values (response ses^) (init! ses sample-req 'fives-fours-debug-id))
+              (check-equal? (response-code response) 200)
+              (define-values (step24-payload ses24) (nth-step-payload ses^ 23))
+              (define-values (step25-payload _ses25) (nth-step-payload ses24 0))
+              (match-define (hash* ['stepName step24-name]
+                                   ['program program24]
+                                   #:open)
+                step24-payload)
+              (match-define (hash* ['stepName step25-name]
+                                   ['program program25]
+                                   #:open)
+                step25-payload)
+              (check-equal? step24-name "rail-seq-calls/promote-right-observable")
+              (check-equal? step25-name "search-base-seq/preserve-left-prefix")
+              (check-equal? (json-root-name (string->jsexpr program24)) "<-+")
+              (check-equal? (json-root-name (string->jsexpr program25)) "Answer"))
+
+  (test-case "appendoh 2 deep steps serialize dotted-pair reifications"
+              (define sample-req
+                (make-post-init-request (example-src "appendoh 2")))
+              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
+              (define-values (response ses^) (init! ses sample-req 'appendoh-2-id))
+              (check-equal? (response-code response) 200)
+              (define-values (step33-payload ses33) (nth-step-payload ses^ 32))
+              (define-values (step34-payload _ses34) (nth-step-payload ses33 0))
+              (check-not-false step33-payload)
+              (check-not-false step34-payload)
+              (match-define (hash* ['program program33] #:open) step33-payload)
+              (match-define (hash* ['program program34] #:open) step34-payload)
+              (define json33 (string->jsexpr program33))
+              (define json34 (string->jsexpr program34))
+              (check-true (json-contains-pair? json33))
+              (check-true (json-contains-pair? json34)))
+
   (test-case "init! throws error if program is not syntactically correct"
               (define sample-req (make-post-init-request "(run* (== 'a 'a))"))
               (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
@@ -371,6 +508,30 @@
                            (list (make-header #"X-Is-Start" #"true")))
              (check-sample-program-response response 0 "Initialize Program")
              (check-equal? (session-zipper ses^) zip))
+
+  (test-case "reset! restores the initial visible program after real search steps"
+             (define sample-req
+               (make-post-init-request (example-src "fives/fours")))
+             (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
+             (define-values (init-response ses^) (init! ses sample-req 'reset-real-id))
+             (define init-payload (string->jsexpr (response-body->string init-response)))
+             (match-define (hash* ['program init-program] #:open) init-payload)
+             (define-values (_step1 ses1) (step! ses^))
+             (define-values (_step2 ses2) (step! ses1))
+             (define-values (reset-response _ses3) (reset! ses2))
+             (check-equal? (response-code reset-response) 200)
+             (check-equal? (response-headers reset-response)
+                           (list (make-header #"X-Is-Start" #"true")))
+             (define reset-payload (string->jsexpr (response-body->string reset-response)))
+             (match-define (hash* ['step step]
+                                  ['stepName step-name]
+                                  ['program reset-program]
+                                  #:open)
+               reset-payload)
+             (check-equal? step 0)
+             (check-equal? step-name "Initialize Program")
+             (check-equal? (string->jsexpr reset-program)
+                           (string->jsexpr init-program)))
   )
 
 (define-test-suite BACK!

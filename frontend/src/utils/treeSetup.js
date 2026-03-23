@@ -1,9 +1,23 @@
+export const ACTIVE_INDEX = Object.freeze({ Conjunction: 0, "<-+": 0, "+->": 1 });
+export const ACTIVE_PATH_NODE_NAMES = Object.freeze([
+    "Answer",
+    "Bounced",
+    "Conjunction",
+    "Delay",
+    "Freshened",
+    "Goal-Conj",
+    "Goal-Delay",
+    "Goal-Disj",
+    "+->",
+    "<-+",
+]);
+
 export function addColors(tree) {
 
-    const ACTIVE_INDEX = { Conjunction: 0, "<-+": 0, "+->": 1 };
-    const TERMINALS1   = new Set(["Answer", "Succeed", "Empty", "Delay", "Goal-Delay"]);
+    const TERMINALS1   = new Set(["Answer", "Succeed", "Empty"]);
     const TERMINALS2   = new Set(["Answer", "Succeed"]);
     const DISJ         = new Set(["<-+", "+->"]);
+    const SPINE        = new Set(["Answer", "Freshened", "Bounced"]);
 
     const activeChild = n => {
         if (!n) return null;
@@ -11,52 +25,63 @@ export function addColors(tree) {
         return idx == null ? null : (n.children?.[idx] ?? null);
     };
 
-    function stopColoringHere(node) {
-        // Depth 0 check
-        // Goal-states should not be colored
-        if (node.sub && node.name !== "Answer") return true;
+    const rootColor = node => {
+        if (!node) return null;
+        if (DISJ.has(node.name) || node.name === "Goal-Disj") return "#ff8000";
+        if (node.name === "Conjunction" || node.name === "Goal-Conj") return "blue";
+        if (SPINE.has(node.name)) return rootColor(node.children?.[0] ?? null);
+        if (node.name === "Delay" || node.name === "Goal-Delay") {
+            return rootColor(node.children?.[0] ?? null);
+        }
+        return null;
+    };
 
-        // Depth 1 check
-        // Disjunctions and conjunctions with answers, empty, or delays
-        // Excepting disjunctions with conjunctions in their active position
+    function shouldDescend(node) {
+        if (node.sub && node.name !== "Answer") return false;
         const d1 = activeChild(node);
-        if (DISJ.has(node?.name) && d1?.name === "Conjunction") return false; 
-        if (d1 && TERMINALS1.has(d1.name)) return true;
-
-        // Depth 2 check
-        // Combinations of disjunctions and conjunctions with answers in the active position
         const d2 = activeChild(d1);
-        return !!(d2 && TERMINALS2.has(d2.name));
+        if (DISJ.has(node?.name) && d1?.name === "Conjunction") return true;
+        if (DISJ.has(node?.name) && DISJ.has(d1?.name) && d2 && TERMINALS2.has(d2.name)) return true;
+        if (d1 && TERMINALS1.has(d1.name)) return false;
+        if (d2 && TERMINALS2.has(d2.name)) return false;
+        return true;
     }
 
-    if (stopColoringHere(tree)) return tree;
     if (tree.partial) return tree;
 
-    let children = tree.children;
+    const children = tree.children;
 
     switch (tree.name) {
         case "<-+":
             children[0].color = "#ff8000";
-            addColors(children[0]);
+            if (shouldDescend(tree)) addColors(children[0]);
             break;
         case "+->":
             children[1].color = "#ff8000";
-            addColors(children[1]);
+            if (shouldDescend(tree)) addColors(children[1]);
             break;
         case "Disjunction":
             children[0].color = "#FFA500";
-            addColors(children[0]);
+            if (shouldDescend(tree)) addColors(children[0]);
             break;
         case "Conjunction":
             children[0].color = "blue";
-            addColors(children[0]);
+            if (shouldDescend(tree)) addColors(children[0]);
             break;
         case "Delay":
         case "Goal-Delay":
-            return tree;
+            if (children?.[0]) {
+                tree.color = tree.color ?? rootColor(children[0]) ?? tree.color;
+                children[0].color = tree.color;
+                addColors(children[0]);
+            }
+            break;
         case "Answer":
+        case "Freshened":
+        case "Bounced":
             if (children) {
-                children[0].color = "green";
+                tree.color = rootColor(children[0]) ?? (tree.name === "Answer" ? "green" : undefined);
+                children[0].color = tree.color;
                 addColors(children[0]);
             }
             break;

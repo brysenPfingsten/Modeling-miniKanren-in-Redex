@@ -10,13 +10,6 @@
 
 (check-redundancy #t)
 
-(define (scope-pop/host intro current)
-  (define n (length intro))
-  (cond
-    [(< (length current) n) #f]
-    [(equal? intro (take current n)) (drop current n)]
-    [else #f]))
-
 (define core-redex/core
   (reduction-relation
    core-lang
@@ -30,47 +23,35 @@
    [--> ((fail tag) σ)
         (empty-tree)
         "core/fail"]
-   [--> (Scoped c_i (⊤ σ))
-        (Scoped c_i ((⊤ σ) + (empty-tree)))
-        "core/collect-scoped-answer"]
-   [--> (Scoped c_i (head_1 + cfg_tail))
-        (head_1 + (Scoped c_i cfg_tail))
-        "core/continue-scoped-prefix"]
-   [--> (Scoped c_i (empty-tree))
-        ((ScopeEnd c_i) + (empty-tree))
-        "core/close-scope"]
-   [--> ((Scoped c_1 f_left) × g c_2)
-        (Scoped c_1 (f_left × g c_new))
+   [--> (Freshened () tag_i cfg_tail)
+        cfg_tail
+        "core/prune-empty-scope"]
+   [--> ((Freshened c_1 tag_1 f_left) × g c_2)
+        (Freshened c_1 tag_1 (f_left × g c_new))
         (where c_new ,(append (term c_1) (term c_2)))
-        "core/continue-scoped-conj"]
-   [--> (((Freshened c_1 tag_1) + (Scoped c_1 f_left)) × g c_2)
-        ((Freshened c_1 tag_1) + (Scoped c_1 (f_left × g c_new)))
-        (where c_new ,(append (term c_1) (term c_2)))
-        "core/continue-left-prefix-freshened"]
-   [--> (((ScopeEnd c_1) + f_rest) × g c_current)
-        ((ScopeEnd c_1) + (f_rest × g c_outer))
-        (where c_outer ,(scope-pop/host (term c_1) (term c_current)))
-        "core/continue-left-prefix-scope-end"]
+        "core/push-scope-through-conj"]
    [--> ((Bounced + f_rest) × g c)
         (Bounced + (f_rest × g c))
-        "core/continue-left-prefix-bounced"]
+        "core/preserve-bounce-event-over-conj"]
    [--> ((⊤ σ) × g c)
         (g σ)
         "core/conj-bring-success"]
    [--> ((empty-tree) × g c)
         (empty-tree)
         "core/conj-prune-fail"]
-   [--> ((∃ d g tag) (state sub dis c trail tag_1))
-        ((Freshened (u_1 ...) tag)
-         +
-         (Scoped
-          (u_1 ...)
-          (g_new
-           (state sub dis (u_1 ... ,@(term c)) trail tag_1))))
-        (where ((x_1 u_1) ...)
-               (fresh-substitution c d))
+   [--> ((∃ () g tag) (state sub dis c trail tag_1))
+        (g (state sub dis c trail tag_1))
+        "core/elide-empty-fresh"]
+   [--> ((∃ (x_first x_rest ...) g tag) (state sub dis c trail tag_1))
+        (Freshened
+         (u_1 ...)
+         tag
+         (g_new
+          (state sub dis (u_1 ... ,@(term c)) trail tag_1)))
+        (where ((x_bound u_1) ...)
+               (fresh-substitution c (x_first x_rest ...)))
         (where g_new
-               ,(subst-goal-host (term g) (term ((x_1 u_1) ...))))
+               ,(subst-goal-host (term g) (term ((x_bound u_1) ...))))
         "core/fresh-substitute"]
    [--> ((t_1 =? t_2 tag) (state sub dis c ((t_3 =? t_4 tag_1) ...) tag_2))
         (⊤ (state sub_1 dis c ((t_3 =? t_4 tag_1) ... (t_1 =? t_2 tag)) tag_2))

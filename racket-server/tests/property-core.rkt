@@ -56,10 +56,9 @@
 (define (final-frontier? f)
   (match f
     ['(empty-tree) #t]
-    [`(Scoped ,_ ,inner) (final-frontier? inner)]
+    [`(Freshened ,_ ,_ ,inner) (final-frontier? inner)]
+    [`((Freshened ,_ ,_ ,_) + ,rest) (final-frontier? rest)]
     [`((⊤ ,_) + ,rest) (final-frontier? rest)]
-    [`((Freshened ,_ ,_) + ,rest) (final-frontier? rest)]
-    [`((ScopeEnd ,_) + ,rest) (final-frontier? rest)]
     [`(Bounced + ,rest) (final-frontier? rest)]
     [_ #f]))
 
@@ -234,13 +233,10 @@
     [(freshened-tree)
      (define-values (intro c^)
        (fresh-scope-extension c))
-       (cond
-         [(null? intro)
-          (gen-live-tree c (sub1 depth))]
-         [else
-        `((Freshened ,intro ,(make-label "fresh"))
-          +
-          (Scoped ,intro ,(gen-live-tree c^ (sub1 depth))))])]))
+     (if (null? intro)
+         (gen-live-tree c (sub1 depth))
+         `(Freshened ,intro ,(make-label "fresh")
+                     ,(gen-live-tree c^ (sub1 depth))))]))
 
 (define (gen-tree c depth)
   (define options
@@ -253,13 +249,10 @@
     [(freshened-tree)
      (define-values (intro c^)
        (fresh-scope-extension c))
-       (cond
-         [(null? intro)
-          (gen-live-tree c depth)]
-         [else
-        `((Freshened ,intro ,(make-label "fresh"))
-          +
-          (Scoped ,intro ,(gen-live-tree c^ (sub1 depth))))])]))
+     (if (null? intro)
+         (gen-live-tree c depth)
+         `(Freshened ,intro ,(make-label "fresh")
+                     ,(gen-live-tree c^ (sub1 depth))))]))
 
 (define (generate-wf-config/constructive)
   (define cfg
@@ -286,11 +279,7 @@
 (define (tree-coverage s)
   (match s
     [`(empty-tree) (values #f #f #f 0)]
-    [`((Freshened ,_ ,_) + ,s-inner)
-     (tree-coverage s-inner)]
-    [`((ScopeEnd ,_) + ,s-inner)
-     (tree-coverage s-inner)]
-    [`(Scoped ,_ ,s-inner)
+    [`(Freshened ,_ ,_ ,s-inner)
      (tree-coverage s-inner)]
     [`(⊤ ,st) (define csz (state-c-size st))
               (values (> csz 0) #f #f csz)]

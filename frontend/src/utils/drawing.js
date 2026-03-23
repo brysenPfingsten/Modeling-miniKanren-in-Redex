@@ -244,6 +244,8 @@ const nodeDrawFunctions = {
     "Empty": drawEmptyNode
 };
 
+export const DRAWABLE_NODE_NAMES = Object.freeze(Object.keys(nodeDrawFunctions));
+
 
 export function drawTree(nodeGroups) {
     nodeGroups.each(function (d) {
@@ -265,8 +267,8 @@ export function drawTree(nodeGroups) {
 }
 
 
-export function drawNodes(svg, nodes) {
-    const nodeGroups = svg.selectAll(".node")
+export function drawNodes(container, nodes) {
+    const nodeGroups = container.selectAll(".node")
     .data(nodes)
     .join("g")
     .attr("class", "node")
@@ -276,8 +278,8 @@ export function drawNodes(svg, nodes) {
 }
 
 
-export function drawLinks(svg, links) {
-    svg.selectAll(".link")
+export function drawLinks(container, links) {
+    container.selectAll(".link")
     .data(links)
     .join("path")
     .attr("class", "link")

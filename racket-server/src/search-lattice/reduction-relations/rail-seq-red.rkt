@@ -32,23 +32,34 @@
   (reduction-relation
    rail-seq-lang
    #:domain cfg
-   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> ((Freshened c_1 tag_1) + f_right)))))
-        (in-hole Q (in-hole KScopePath (in-hole K ((Freshened c_1 tag_1) + (f_left +-> f_right)))))
-        "rail-seq/continue-right-freshened-prefix"]
-   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> ((ScopeEnd c_1) + f_right)))))
-        (in-hole Q (in-hole KScopePath (in-hole K ((ScopeEnd c_1) + (f_left +-> f_right)))))
-        "rail-seq/continue-right-scope-end-prefix"]
-   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> ((⊤ σ_new) <-+ f_right)))))
-        (in-hole Q (in-hole KScopePath (in-hole K ((⊤ σ_new) + (f_left +-> f_right)))))
-        "rail-seq/promote-right-left-answer"]
+   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> (Freshened c_1 tag_1 (head_1 + f_right))))))
+        (in-hole Q
+                 (in-hole KScopePath
+                          (in-hole K
+                                   ((Freshened c_1 tag_1 head_1)
+                                    + (f_left +-> (Freshened c_1 tag_1 f_right))))))
+        "rail-seq/preserve-scoped-right-prefix"]
+   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> (Freshened c_1 tag_1 (head_1 <-+ f_right))))))
+        (in-hole Q
+                 (in-hole KScopePath
+                          (in-hole K
+                                   ((Freshened c_1 tag_1 head_1)
+                                    + (f_left +-> (Freshened c_1 tag_1 f_right))))))
+        "rail-seq/bubble-scoped-right-branch"]
+   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> (head_1 <-+ f_right)))))
+        (in-hole Q (in-hole KScopePath (in-hole K (head_1 + (f_left +-> f_right)))))
+        (side-condition (not (empty-freshened-head? (term head_1))))
+        "rail-seq/promote-right-left-head"]
    [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> ((empty-tree) <-+ f_right)))))
         (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> f_right))))
         "rail-seq/skip-right-left-fail"]
-   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> ((⊤ σ_new) + f_right)))))
-        (in-hole Q (in-hole KScopePath (in-hole K ((⊤ σ_new) + (f_left +-> f_right)))))
-        "rail-seq/continue-right-prefix"]
-   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> (⊤ σ_new)))))
-        (in-hole Q (in-hole KScopePath (in-hole K ((⊤ σ_new) + f_left))))
+   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> (head_1 + f_right)))))
+        (in-hole Q (in-hole KScopePath (in-hole K (head_1 + (f_left +-> f_right)))))
+        (side-condition (not (empty-freshened-head? (term head_1))))
+        "rail-seq/preserve-right-prefix"]
+   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> head_1))))
+        (in-hole Q (in-hole KScopePath (in-hole K (head_1 + f_left))))
+        (side-condition (not (empty-freshened-head? (term head_1))))
         "rail-seq/promote-right-observable"]
    [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> (empty-tree)))))
         (in-hole Q (in-hole KScopePath (in-hole K f_left)))

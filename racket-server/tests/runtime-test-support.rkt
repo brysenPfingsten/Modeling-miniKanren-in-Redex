@@ -10,10 +10,9 @@
 (define (final-frontier? f)
   (match f
     ['(empty-tree) #t]
-    [`(Scoped ,_ ,inner) (final-frontier? inner)]
+    [`(Freshened ,_ ,_ ,inner) (final-frontier? inner)]
+    [`((Freshened ,_ ,_ ,_) + ,rest) (final-frontier? rest)]
     [`((⊤ ,_) + ,rest) (final-frontier? rest)]
-    [`((Freshened ,_ ,_) + ,rest) (final-frontier? rest)]
-    [`((ScopeEnd ,_) + ,rest) (final-frontier? rest)]
     [`(Bounced + ,rest) (final-frontier? rest)]
     [_ #f]))
 

@@ -19,19 +19,22 @@
   [d (x_!_ ...)]
 
   [f w
-     (cell + f)]
+     (head + f)]
+
+  [obs (empty-tree)
+       head
+       (head + obs)]
 
   [head cell
-        Bounced]
-  [cell (⊤ σ)
-        (Freshened c tag)
-        (ScopeEnd c)]
+        Bounced
+        (Freshened c tag obs)]
+  [cell (⊤ σ)]
 
   [w (empty-tree)
      (g σ)
      (f × g c)
      (⊤ σ)
-     (Scoped c cfg)]
+     (Freshened c tag cfg)]
 
   [eq (t =? t tag)]
   [neq (t != t tag)]
@@ -68,13 +71,12 @@
   ;; Base active-work context.
   [K ::= hole
          (K × g c)]
-  [KScoped ::= hole
-              (Scoped c KScoped)]
   [Q ::= hole
          (head + Q)
-         (Scoped c KScoped)]
+         (Freshened c tag Q)]
   [P ::= hole
-         (head + P)]
+         (head + P)
+         (Freshened c tag P)]
 
   #:binding-forms
   (∃ (x ...) g #:refers-to (shadow x ...)))

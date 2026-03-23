@@ -7,31 +7,47 @@ import { addColors } from '../utils/treeSetup.js'
 const TreeCanvas = forwardRef(({ onNodeClick, selectedGoalId, selectedStateId }, ref) => {
     const svgRef = useRef();
     const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, content: "" });
-
     const goalIdRef = useRef(selectedGoalId);
 
     useEffect(() => {
         goalIdRef.current = selectedGoalId;
-    }, [selectedGoalId, selectedStateId]);
+    }, [selectedGoalId]);
 
-    const clearHighlights = () => {
-        const svg = d3.select(svgRef.current);
-        svg.selectAll('g.node')
+    const clearHighlights = (selection = d3.select(svgRef.current)) => {
+        selection.selectAll('g.node')
             .select('circle, rect, polygon')
             .classed('highlighted', false);
-    }
+    };
 
-    useEffect(() => {
-        const svg = d3.select(svgRef.current);
-
-        clearHighlights();
-
-        if (selectedGoalId) {
-            svg.selectAll('g.node')
-            .filter(d => d.data.id === selectedGoalId)
+    const applyGoalHighlights = (goalId, selection = d3.select(svgRef.current)) => {
+        clearHighlights(selection);
+        if (!goalId) return;
+        selection.selectAll('g.node')
+            .filter(d => d.data.id === goalId)
             .select('circle, rect, polygon')
             .classed('highlighted', true);
-        }
+    };
+
+    const nodePayload = (d, fallbackGoalId = goalIdRef.current) => {
+        const subs = (d.data.sub || []).map(s => ({
+            left: termToString(s.key),
+            right: termToString(s.value)
+        }));
+        const trails = (d.data.trail || []).map(crumb => ({
+            left: termToString(crumb.left),
+            right: termToString(crumb.right),
+        }));
+
+        return {
+            substitutionData: subs,
+            trailData: trails,
+            gId: d.data.id ?? fallbackGoalId ?? null,
+            sId: d.data.stateId ?? null,
+        };
+    };
+
+    useEffect(() => {
+        applyGoalHighlights(selectedGoalId);
     }, [selectedGoalId]);
     
     useImperativeHandle(ref, () => ({
@@ -51,9 +67,10 @@ const TreeCanvas = forwardRef(({ onNodeClick, selectedGoalId, selectedStateId },
             );
 
             const target = (richNodeSel.empty() ? nodeSel : richNodeSel).node();
-            if (target) {
-                d3.select(target).dispatch('click');
-            }
+            if (!target) return;
+
+            const datum = d3.select(target).datum();
+            onNodeClick(nodePayload(datum));
         },
         redraw: (treeData) => {
             const svg = d3.select(svgRef.current).html('');
@@ -127,31 +144,15 @@ const TreeCanvas = forwardRef(({ onNodeClick, selectedGoalId, selectedStateId },
             g.attr("transform", `translate(${translateX},0)`);
 
             // Draw elements
-            drawLinks(svg, links);
-            drawNodes(svg, nodes);
+            drawLinks(g, links);
+            drawNodes(g, nodes);
+            applyGoalHighlights(goalIdRef.current, g);
 
             // Add click event to show state data
-            svg.selectAll('g.node')
+            g.selectAll('g.node')
             .filter(d => d.data.id || d.data.sub || d.data.trail || d.data.reified)
             .on("click", (event, d) => {
-                const subs = (d.data.sub || []).map(s => ({
-                    left: termToString(s.key),
-                    right: termToString(s.value)
-                }));
-                const trails = (d.data.trail || []).map(crumb => ({
-                    left: termToString(crumb.left),
-                    right: termToString(crumb.right),
-                }));
-
-                let sId = d.data.stateId;
-                let gId = d.data.id;
-                const prevGoalId = goalIdRef.current;
-
-                if (event.isTrusted && gId === prevGoalId) {
-                    sId = null;
-                    gId = null;
-                }
-                onNodeClick({ substitutionData: subs, trailData: trails, gId: gId, sId: sId });
+                onNodeClick(nodePayload(d));
             })
             .on("mouseover", (event, d) => {
                 if (d.data.reified) {

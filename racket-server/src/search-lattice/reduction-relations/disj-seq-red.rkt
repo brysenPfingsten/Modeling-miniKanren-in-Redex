@@ -36,17 +36,25 @@
   (reduction-relation
    disj-seq-lang
    #:domain f
-   [--> (((Freshened c_1 tag_1) + f_left) <-+ f_right)
-        ((Freshened c_1 tag_1) + (f_left <-+ f_right))
-        "disj-seq/continue-left-freshened-prefix"]
-   [--> (((ScopeEnd c_1) + f_left) <-+ f_right)
-        ((ScopeEnd c_1) + (f_left <-+ f_right))
-        "disj-seq/continue-left-scope-end-prefix"]
-   [--> (((⊤ σ_new) <-+ f_mid) <-+ f_right)
-        ((⊤ σ_new) <-+ (f_mid <-+ f_right))
+   [--> ((Freshened c_1 tag_1 (head_1 + f_left)) <-+ f_right)
+        ((Freshened c_1 tag_1 head_1)
+         + ((Freshened c_1 tag_1 f_left) <-+ f_right))
+        "disj-seq/preserve-scoped-left-prefix"]
+   [--> ((Freshened c_1 tag_1 (head_1 <-+ f_mid)) <-+ f_right)
+        ((Freshened c_1 tag_1 head_1)
+         + ((Freshened c_1 tag_1 f_mid) <-+ f_right))
+        "disj-seq/bubble-scoped-left-branch"]
+   [--> ((head_1 + f_left) <-+ f_right)
+        (head_1 + (f_left <-+ f_right))
+        (side-condition (not (empty-freshened-head? (term head_1))))
+        "disj-seq/preserve-left-prefix"]
+   [--> ((head_1 <-+ f_mid) <-+ f_right)
+        (head_1 <-+ (f_mid <-+ f_right))
+        (side-condition (not (empty-freshened-head? (term head_1))))
         "disj-seq/bubble-left-observable"]
-   [--> ((⊤ σ_new) <-+ f_right)
-        ((⊤ σ_new) + f_right)
+   [--> (head_1 <-+ f_right)
+        (head_1 + f_right)
+        (side-condition (not (empty-freshened-head? (term head_1))))
         "disj-seq/promote-left-observable"]
    [--> (((empty-tree) <-+ f_mid) <-+ f_right)
         ((empty-tree) <-+ (f_mid <-+ f_right))
@@ -61,14 +69,12 @@
 (define disj-local
   (context-closure disj-extra disj-seq-lang Q))
 
-(define disj-seq-red/raw
+(define disj-seq-red
   (union-reduction-relations
    core-frontier/disj
    disj-local
    disj-frontier
    (make-core-collector disj-seq-lang)))
-
-(define disj-seq-red disj-seq-red/raw)
 
 (define (step-once prog)
   (step-once/deterministic disj-seq-red prog))

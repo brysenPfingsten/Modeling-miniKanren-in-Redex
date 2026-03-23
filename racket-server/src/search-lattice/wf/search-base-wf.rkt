@@ -64,18 +64,10 @@
    ------------------- "bounced prefix wf/search-base"
    (wf-frontier/search-base? (Bounced + cfg_tail) c)]
   [(lvars-fresh-extension? c_1 c)
-   (wf-frontier/search-base? cfg_tail c)
-   ------------------- "freshened event prefix wf/search-base"
-   (wf-frontier/search-base? ((Freshened c_1 tag_1) + cfg_tail) c)]
-  [(where c_2 ,(scope-pop/host (term c_1) (term c_current)))
-   (wf-frontier/search-base? cfg_tail c_2)
-   ------------------- "scope end prefix wf/search-base"
-   (wf-frontier/search-base? ((ScopeEnd c_1) + cfg_tail) c_current)]
-  [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/search-base? cfg_tail c_2)
-   ------------------- "scoped wrapper wf/search-base"
-   (wf-frontier/search-base? (Scoped c_1 cfg_tail) c)]
+   ------------------- "freshened scope wf/search-base"
+   (wf-frontier/search-base? (Freshened c_1 tag_1 cfg_tail) c)]
   [(lvars-same-members? c c_i)
    (wf-goal/search-base? g () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)

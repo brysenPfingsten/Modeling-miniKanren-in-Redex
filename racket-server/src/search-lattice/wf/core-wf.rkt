@@ -58,18 +58,10 @@
    ------------------- "bounced prefix wf/core"
    (wf-frontier/core? (Bounced + cfg_tail) c)]
   [(lvars-fresh-extension? c_1 c)
-   (wf-frontier/core? cfg_tail c)
-   ------------------- "freshened event prefix wf/core"
-   (wf-frontier/core? ((Freshened c_1 tag_1) + cfg_tail) c)]
-  [(where c_2 ,(scope-pop/host (term c_1) (term c_current)))
-   (wf-frontier/core? cfg_tail c_2)
-   ------------------- "scope end prefix wf/core"
-   (wf-frontier/core? ((ScopeEnd c_1) + cfg_tail) c_current)]
-  [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/core? cfg_tail c_2)
-   ------------------- "scoped wrapper wf/core"
-   (wf-frontier/core? (Scoped c_1 cfg_tail) c)]
+   ------------------- "freshened scope wf/core"
+   (wf-frontier/core? (Freshened c_1 tag_1 cfg_tail) c)]
   [(lvars-same-members? c c_i)
    (wf-goal/core? g () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)

@@ -60,18 +60,10 @@
    ------------------- "bounced prefix wf/delay"
    (wf-frontier/delay? (Bounced + cfg_tail) c)]
   [(lvars-fresh-extension? c_1 c)
-   (wf-frontier/delay? cfg_tail c)
-   ------------------- "freshened event prefix wf/delay"
-   (wf-frontier/delay? ((Freshened c_1 tag_1) + cfg_tail) c)]
-  [(where c_2 ,(scope-pop/host (term c_1) (term c_current)))
-   (wf-frontier/delay? cfg_tail c_2)
-   ------------------- "scope end prefix wf/delay"
-   (wf-frontier/delay? ((ScopeEnd c_1) + cfg_tail) c_current)]
-  [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/delay? cfg_tail c_2)
-   ------------------- "scoped wrapper wf/delay"
-   (wf-frontier/delay? (Scoped c_1 cfg_tail) c)]
+   ------------------- "freshened scope wf/delay"
+   (wf-frontier/delay? (Freshened c_1 tag_1 cfg_tail) c)]
   [(lvars-same-members? c c_i)
    (wf-goal/delay? g () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)

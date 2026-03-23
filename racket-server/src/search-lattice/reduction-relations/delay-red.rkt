@@ -36,11 +36,9 @@
 (define delay-extra
   (context-closure delay-local delay-lang Q))
 
-(define delay-frontier delay-frontier-extra)
-
 (define delay-red
   (union-reduction-relations
-   delay-frontier
+   delay-frontier-extra
    core-frontier/delay
    delay-extra))
 

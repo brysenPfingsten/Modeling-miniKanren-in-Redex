@@ -39,17 +39,25 @@
   (reduction-relation
    disj-fused-lang
    #:domain f
-   [--> (((Freshened c_1 tag_1) + f_left) <-+ f_right)
-        ((Freshened c_1 tag_1) + (f_left <-+ f_right))
-        "disj-fused/continue-left-freshened-prefix"]
-   [--> (((ScopeEnd c_1) + f_left) <-+ f_right)
-        ((ScopeEnd c_1) + (f_left <-+ f_right))
-        "disj-fused/continue-left-scope-end-prefix"]
-   [--> (((⊤ σ_new) <-+ f_mid) <-+ f_right)
-        ((⊤ σ_new) <-+ (f_mid <-+ f_right))
+   [--> ((Freshened c_1 tag_1 (head_1 + f_left)) <-+ f_right)
+        ((Freshened c_1 tag_1 head_1)
+         + ((Freshened c_1 tag_1 f_left) <-+ f_right))
+        "disj-fused/preserve-scoped-left-prefix"]
+   [--> ((Freshened c_1 tag_1 (head_1 <-+ f_mid)) <-+ f_right)
+        ((Freshened c_1 tag_1 head_1)
+         + ((Freshened c_1 tag_1 f_mid) <-+ f_right))
+        "disj-fused/bubble-scoped-left-branch"]
+   [--> ((head_1 + f_left) <-+ f_right)
+        (head_1 + (f_left <-+ f_right))
+        (side-condition (not (empty-freshened-head? (term head_1))))
+        "disj-fused/preserve-left-prefix"]
+   [--> ((head_1 <-+ f_mid) <-+ f_right)
+        (head_1 <-+ (f_mid <-+ f_right))
+        (side-condition (not (empty-freshened-head? (term head_1))))
         "disj-fused/bubble-left-observable"]
-   [--> ((⊤ σ_new) <-+ f_right)
-        ((⊤ σ_new) + f_right)
+   [--> (head_1 <-+ f_right)
+        (head_1 + f_right)
+        (side-condition (not (empty-freshened-head? (term head_1))))
         "disj-fused/promote-left-observable"]
    [--> (((empty-tree) <-+ f_mid) <-+ f_right)
         ((empty-tree) <-+ (f_mid <-+ f_right))

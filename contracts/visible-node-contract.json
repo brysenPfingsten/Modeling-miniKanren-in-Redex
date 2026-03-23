@@ -1,0 +1,33 @@
+{
+  "visibleNodeNames": [
+    "Answer",
+    "Bounced",
+    "Conjunction",
+    "Delay",
+    "Disequality",
+    "Empty",
+    "Fail",
+    "Fresh",
+    "Freshened",
+    "Goal-Conj",
+    "Goal-Delay",
+    "Goal-Disj",
+    "Rel-Call",
+    "Succeed",
+    "Unify",
+    "+->",
+    "<-+"
+  ],
+  "activePathCarrierNames": [
+    "Answer",
+    "Bounced",
+    "Conjunction",
+    "Delay",
+    "Freshened",
+    "Goal-Conj",
+    "Goal-Delay",
+    "Goal-Disj",
+    "+->",
+    "<-+"
+  ]
+}

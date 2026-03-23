@@ -77,18 +77,10 @@
    ------------------- "bounced prefix wf/calls"
    (wf-frontier/calls? (Bounced + cfg_tail) Γ c)]
   [(lvars-fresh-extension? c_1 c)
-   (wf-frontier/calls? cfg_tail Γ c)
-   ------------------- "freshened event prefix wf/calls"
-   (wf-frontier/calls? ((Freshened c_1 tag_1) + cfg_tail) Γ c)]
-  [(where c_2 ,(scope-pop/host (term c_1) (term c_current)))
-   (wf-frontier/calls? cfg_tail Γ c_2)
-   ------------------- "scope end prefix wf/calls"
-   (wf-frontier/calls? ((ScopeEnd c_1) + cfg_tail) Γ c_current)]
-  [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/calls? cfg_tail Γ c_2)
-   ------------------- "scoped wrapper wf/calls"
-   (wf-frontier/calls? (Scoped c_1 cfg_tail) Γ c)]
+   ------------------- "freshened scope wf/calls"
+   (wf-frontier/calls? (Freshened c_1 tag_1 cfg_tail) Γ c)]
   [(lvars-same-members? c c_i)
    (wf-goal/calls? g Γ () c_i)
    (wf-sub/wf+equiv-trail? sub c_i trail)

@@ -101,7 +101,7 @@
     [ref #:when (reified? ref) (symbol->string ref)]
     [sym #:when (symbol? sym) (hasheq 'sym (symbol->string sym))]
     [nat #:when (natural? nat) (hasheq 'num nat)]
-    [(cons t1 t2) (cons (mk->json t1) (mk->json t2))]
+    [(cons t1 t2) (hasheq 'pair (list (mk->json t1) (mk->json t2)))]
     [_ expr]))
 
 (define (underscore-symbol n)
@@ -270,18 +270,48 @@
     [f f]
     [_ '(empty-tree)]))
 
-(define (prefix->json/canonical pref num-query-variables [rest-json #f])
-  (match pref
-    [`(Freshened ,c-intro ,tag)
-     (hasheq 'name "Freshened"
-             'id (label->id tag)
-             'vars (map term->json/canonical c-intro)
-             'children (list (or rest-json (hasheq 'name "Empty"))))]
+(define (freshened->json/canonical c-intro tag child-json)
+  (hasheq 'name "Freshened"
+          'id (label->id tag)
+          'vars (map term->json/canonical c-intro)
+          'children (list child-json)))
+
+(define (obs->json/canonical obs num-query-variables [rest-json #f])
+  (match obs
+    ['(empty-tree)
+     (or rest-json (hasheq 'name "Empty"))]
     [`(⊤ ,σ)
      (state->answer-json/canonical σ num-query-variables rest-json)]
     ['Bounced
      (hasheq 'name "Bounced"
              'children (list (or rest-json (hasheq 'name "Empty"))))]
+    [`(Freshened ,c-intro ,tag ,obs-tail)
+     (freshened->json/canonical
+      c-intro
+      tag
+      (obs->json/canonical obs-tail num-query-variables rest-json))]
+    [`(,head + ,obs-tail)
+     (prefix->json/canonical head
+                             num-query-variables
+                             (obs->json/canonical obs-tail
+                                                  num-query-variables
+                                                  rest-json))]
+    [_ (error 'obs->json/canonical
+              "unknown observable fragment shape: ~e"
+              obs)]))
+
+(define (prefix->json/canonical pref num-query-variables [rest-json #f])
+  (match pref
+    [`(⊤ ,σ)
+     (state->answer-json/canonical σ num-query-variables rest-json)]
+    ['Bounced
+     (hasheq 'name "Bounced"
+             'children (list (or rest-json (hasheq 'name "Empty"))))]
+    [`(Freshened ,c-intro ,tag ,obs)
+     (freshened->json/canonical
+      c-intro
+      tag
+      (obs->json/canonical obs num-query-variables rest-json))]
     [_ (error 'prefix->json/canonical
               "unknown frontier prefix shape: ~e"
               pref)]))
@@ -290,12 +320,13 @@
   (match s
     ['(empty-tree)
      (hasheq 'name "Empty")]
-    [`(Scoped ,_ ,s_1)
-     (tree->json/canonical s_1 num-query-variables)]
+    [`(Freshened ,c-intro ,tag ,s_1)
+     (freshened->json/canonical
+      c-intro
+      tag
+      (tree->json/canonical s_1 num-query-variables))]
     ['Bounced
      (prefix->json/canonical 'Bounced num-query-variables)]
-    [`((ScopeEnd ,_) + ,s_tail)
-     (tree->json/canonical s_tail num-query-variables)]
     [`(,head + ,s_tail)
      (prefix->json/canonical head
                              num-query-variables
@@ -352,17 +383,11 @@
 
 (define (prefix-query-vars/work pref)
   (match pref
-    [`(Freshened ,_ ,_) 0]
-    [`(ScopeEnd ,_) 0]
     [_ 0]))
 
 (define (num-query-vars/work s)
   (match s
-    [`(Scoped ,_ ,s_1)
-     (num-query-vars/work s_1)]
-    [`((ScopeEnd ,_) + ,s_1)
-     (num-query-vars/work s_1)]
-    [`((Freshened ,_ ,_) + ,s_1)
+    [`(Freshened ,_ ,_ ,s_1)
      (num-query-vars/work s_1)]
     [`(,pref + ,s_1)
      (max (prefix-query-vars/work pref)

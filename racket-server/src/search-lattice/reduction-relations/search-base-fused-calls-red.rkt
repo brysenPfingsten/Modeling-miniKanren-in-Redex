@@ -26,12 +26,10 @@
                ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
         "search-base-fused-calls/expand"]))
 
-(define calls-extra calls-expand/raw)
-
 (define search-base-fused-calls-red
   (union-reduction-relations
    lifted-search-base-fused-red
-   calls-extra))
+   calls-expand/raw))
 
 (define (step-once prog)
   (step-once/deterministic search-base-fused-calls-red prog))

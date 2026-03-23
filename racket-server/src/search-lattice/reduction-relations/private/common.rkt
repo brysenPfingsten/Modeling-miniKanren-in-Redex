@@ -1,7 +1,8 @@
 #lang racket
 
 (provide instantiate-call-host
-         subst-goal-host)
+         subst-goal-host
+         empty-freshened-head?)
 
 (define (x-symbol? s)
   (and (symbol? s)
@@ -65,3 +66,8 @@
            (length d)
            (length ts)))
   (subst-goal-host g (map list d ts)))
+
+(define (empty-freshened-head? h)
+  (match h
+    [`(Freshened () ,_ ,_) #t]
+    [_ #f]))

@@ -28,10 +28,9 @@
 (define (final-frontier? f)
   (match f
     ['(empty-tree) #t]
-    [`(Scoped ,_ ,inner) (final-frontier? inner)]
+    [`(Freshened ,_ ,_ ,inner) (final-frontier? inner)]
+    [`((Freshened ,_ ,_ ,_) + ,rest) (final-frontier? rest)]
     [`((⊤ ,_) + ,rest) (final-frontier? rest)]
-    [`((Freshened ,_ ,_) + ,rest) (final-frontier? rest)]
-    [`((ScopeEnd ,_) + ,rest) (final-frontier? rest)]
     [`(Bounced + ,rest) (final-frontier? rest)]
     [_ #f]))
 
@@ -104,7 +103,10 @@
          <-+
          (⊤ ,sigma-b))))
 
-(define cfg-rail cfg-flip)
+(define cfg-rail
+  (term ((delay (empty-tree))
+         <-+
+         (⊤ ,sigma-b))))
 
 (define cfg-mixed-answer
   (term ((((⊤ ,sigma-a) <-+ (⊤ ,sigma-b))
@@ -130,4 +132,8 @@
           <-+
           (⊤ ,sigma-b)))))
 
-(define cfg-call-rail cfg-call-branch)
+(define cfg-call-rail
+  (term (,gamma-delay
+         (((r:delay (label "call")) ,sigma-a)
+          <-+
+          (⊤ ,sigma-b)))))

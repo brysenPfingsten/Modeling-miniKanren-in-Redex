@@ -12,6 +12,11 @@ export default function useStepper({ onSuccess = () => {} } = {}) {
   const [tree, setTree] = useState(initialTree);
   const [stepInfo, setStep] = useState({ step: 0, stepName: '' });
 
+  const clear = () => {
+    setTree(initialTree);
+    setStep({ step: 0, stepName: '' });
+  };
+
   const send = async (method, url, payload) => {
     let response;
     try {
@@ -57,6 +62,7 @@ export default function useStepper({ onSuccess = () => {} } = {}) {
   return {
     tree,
     stepInfo,
+    clear,
     init: async (codeText, sourceMode, compileProfile, searchStrategy) => {
       const result = await send(
         'POST',

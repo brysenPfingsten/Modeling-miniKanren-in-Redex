@@ -80,7 +80,7 @@
         (term (((⊤ ,sigma-a) + (empty-tree))
                × (succeed (label "k"))
                ())))))
-    (check-equal? (~a seq-name) "search-base-seq/continue-left-prefix")
+    (check-equal? (~a seq-name) "search-base-seq/preserve-left-prefix")
     (check-equal? (~a fused-name) "search-base-fused/continue-left-prefix-answer")
     (check-true (redex-match? lang:search-base-seq-lang cfg seq-next))
     (check-true (redex-match? lang:search-base-fused-lang cfg fused-next)))
@@ -89,10 +89,10 @@
     (define rendered
       (string->jsexpr
        (to-json/canonical
-        (term (() ((Freshened (u:0) (label "fresh"))
-                   +
-                   (Scoped (u:0)
-                           (Bounced + (empty-tree))))))
+        (term (() (Freshened
+                   (u:0)
+                   (label "fresh")
+                   (Bounced + (empty-tree)))))
         0)))
     (check-equal? (hash-ref rendered 'name) "Freshened")
     (check-equal? (hash-ref rendered 'id) "fresh")
@@ -143,8 +143,8 @@
        (apply-reduction-relation/tag-with-names
         red:rail-fused-red
         (term ((empty-tree) +-> ((⊤ ,sigma-b) + (empty-tree)))))))
-    (check-equal? (~a seq-name) "rail-seq/continue-right-prefix")
-    (check-equal? (~a fused-name) "rail-fused/continue-right-prefix")
+    (check-equal? (~a seq-name) "rail-seq/preserve-right-prefix")
+    (check-equal? (~a fused-name) "rail-fused/preserve-right-prefix")
     (check-true (redex-match? lang:rail-seq-lang cfg seq-next))
     (check-true (redex-match? lang:rail-fused-lang cfg fused-next)))
 

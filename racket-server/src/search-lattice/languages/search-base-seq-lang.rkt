@@ -17,8 +17,8 @@
   [K ::= hole
         (K × g c)]
   [KCorePath ::= hole
-                 (Scoped c KCorePath)
+                 (Freshened c tag KCorePath)
                  (KCorePath <-+ f)]
   [KScopePath ::= hole
-                  (Scoped c KScopePath)
+                  (Freshened c tag KScopePath)
                   (KScopePath <-+ f)])
