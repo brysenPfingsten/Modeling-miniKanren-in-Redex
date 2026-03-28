@@ -28,13 +28,21 @@
 
 (define/provide-test-suite SEARCH-LATTICE
   (test-case "feature languages reflect the new split and omit proceed"
-    (check-true (redex-match? lang:delay-lang f '(delay (empty-tree))))
-    (check-false (redex-match? lang:delay-lang f '(proceed (empty-tree))))
+    (check-false (redex-match? lang:delay-lang cfg '(delay (empty-tree))))
+    (check-true (redex-match? lang:delay-lang cfg (term ,delayed-left-search)))
+    (check-false (redex-match? lang:delay-lang cfg '(proceed (empty-tree))))
     (check-true (redex-match? lang:calls-lang g '(r:delay (label "call"))))
-    (check-true (redex-match? lang:disj-seq-lang KCorePath (term (hole <-+ (empty-tree)))))
-    (check-true (redex-match? lang:disj-fused-lang KCorePath (term (hole <-+ (empty-tree)))))
-    (check-true (redex-match? lang:rail-seq-lang f '((empty-tree) +-> (empty-tree))))
-    (check-true (redex-match? lang:rail-fused-lang f '((empty-tree) +-> (empty-tree))))
+    (check-false (redex-match? lang:disj-lang QSpine (term (hole <-+ (empty-tree)))))
+    (check-true (redex-match? lang:disj-lang KBranch (term (hole <-+ (empty-tree)))))
+    (check-true (redex-match? lang:rail-seq-lang cfg '((empty-tree) +-> (empty-tree))))
+    (check-true (redex-match? lang:rail-fused-lang cfg '((empty-tree) +-> (empty-tree))))
+    (check-false
+     (redex-match?
+      lang:core-lang
+      search
+      (term (((⊤ ,sigma-a) + (empty-tree))
+             × (succeed (label "k"))
+             ()))))
     (check-true (redex-match? lang:calls-lang config (term ,cfg-call))))
 
   (test-case "disj-seq distributes immediately while disj-fused keeps mixed states"
@@ -67,23 +75,70 @@
       (check-equal? (~a step1-name) "delay/suspend-goal")
       (check-equal? (~a step2-name) "delay/invoke-delay")))
 
-  (test-case "frontier-prefix heads continue through seq/fused branch machinery"
+  (test-case "search-base promotes bare answers and forbids buried +"
     (define-values (seq-name seq-next)
       (named-step
        (apply-reduction-relation/tag-with-names
         red:search-base-seq-red
-        (term (((⊤ ,sigma-a) + (empty-tree)) <-+ (⊤ ,sigma-b))))))
+        cfg-disj)))
     (define-values (fused-name fused-next)
       (named-step
        (apply-reduction-relation/tag-with-names
         red:search-base-fused-red
-        (term (((⊤ ,sigma-a) + (empty-tree))
-               × (succeed (label "k"))
-               ())))))
-    (check-equal? (~a seq-name) "search-base-seq/preserve-left-prefix")
-    (check-equal? (~a fused-name) "search-base-fused/continue-left-prefix-answer")
+        cfg-disj)))
+    (define illegal-prefix-conj
+      (term (((⊤ ,sigma-a) + (empty-tree))
+             × (succeed (label "k"))
+             ())))
+    (check-false
+     (redex-match?
+      lang:search-base-seq-lang
+      cfg
+      illegal-prefix-conj))
+    (check-false
+     (redex-match?
+      lang:search-base-fused-lang
+      cfg
+      illegal-prefix-conj))
+    (check-false
+     (redex-match?
+      lang:search-base-seq-lang
+      cfg
+      (term (((⊤ ,sigma-a) + (empty-tree)) <-+ (⊤ ,sigma-b)))))
+    (check-equal? (~a seq-name) "search-base/promote-left-answer")
+    (check-equal? (~a fused-name) "search-base/promote-left-answer")
+    (check-true (produced-answer-spine-only? seq-next))
+    (check-true (produced-answer-spine-only? fused-next))
     (check-true (redex-match? lang:search-base-seq-lang cfg seq-next))
     (check-true (redex-match? lang:search-base-fused-lang cfg fused-next)))
+
+  (test-case "search-base closes bounced segments onto the remainder when an answer appears"
+    (define bounced-branch
+      (term (Bounced (((⊤ ,sigma-a) <-+ (empty-tree))
+                      <-+
+                      (⊤ ,sigma-b)))))
+    (define-values (seq-name seq-next)
+      (named-step
+       (apply-reduction-relation/tag-with-names
+        red:search-base-seq-red
+        bounced-branch)))
+    (define-values (fused-name fused-next)
+      (named-step
+       (apply-reduction-relation/tag-with-names
+        red:search-base-fused-red
+        bounced-branch)))
+    (check-equal? (~a seq-name) "search-base/bubble-left-answer")
+    (check-equal? (~a fused-name) "search-base/bubble-left-answer")
+    (check-equal? seq-next
+                  (term ((⊤ ,sigma-a)
+                         +
+                         (Bounced ((empty-tree) <-+ (⊤ ,sigma-b))))))
+    (check-equal? fused-next
+                  (term ((⊤ ,sigma-a)
+                         +
+                         (Bounced ((empty-tree) <-+ (⊤ ,sigma-b))))))
+    (check-true (produced-answer-spine-only? seq-next))
+    (check-true (produced-answer-spine-only? fused-next)))
 
   (test-case "canonical JSON preserves bounced observables under Freshened prefixes"
     (define rendered
@@ -91,34 +146,42 @@
        (to-json/canonical
         (term (() (Freshened
                    (u:0)
-                   (label "fresh")
-                   (Bounced + (empty-tree)))))
+                   (Bounced (empty-tree))
+                   (label "fresh"))))
         0)))
-    (check-equal? (hash-ref rendered 'name) "Stream-Freshened")
+    (check-equal? (hash-ref rendered 'name) "Freshened")
     (check-equal? (hash-ref rendered 'id) "fresh")
     (define child (first (hash-ref rendered 'children)))
     (check-equal? (hash-ref child 'name) "Bounced"))
 
   (test-case "search-only scheduler variants differ only in delayed left-branch policy"
-    (for ([entry (in-list
+      (for ([entry (in-list
                   (list
                    (list red:search-dfs-seq-red
                          "search-dfs-seq/delay-through-left"
-                         (term (delay ((empty-tree) <-+ (⊤ ,sigma-b)))))
+                         (term (delay (((succeed (label "late")) ,sigma-s)
+                                       <-+
+                                       (⊤ ,sigma-b)))))
                    (list red:search-dfs-fused-red
                          "search-dfs-fused/delay-through-left"
-                         (term (delay ((empty-tree) <-+ (⊤ ,sigma-b)))))
+                         (term (delay (((succeed (label "late")) ,sigma-s)
+                                       <-+
+                                       (⊤ ,sigma-b)))))
                    (list red:search-flip-seq-red
                          "search-flip-seq/delay-swap-left"
-                         (term (delay ((⊤ ,sigma-b) <-+ (empty-tree)))))
+                         (term (delay ((⊤ ,sigma-b)
+                                       <-+
+                                       ((succeed (label "late")) ,sigma-s)))))
                    (list red:search-flip-fused-red
                          "search-flip-fused/delay-swap-left"
-                         (term (delay ((⊤ ,sigma-b) <-+ (empty-tree)))))))])
+                         (term (delay ((⊤ ,sigma-b)
+                                       <-+
+                                       ((succeed (label "late")) ,sigma-s)))))))])
       (match-define (list rel expected-name expected-template) entry)
       (define-values (step-name next)
         (named-step (apply-reduction-relation/tag-with-names rel cfg-flip)))
       (check-equal? (~a step-name) expected-name)
-      (check-equal? next expected-template))))
+      (check-equal? next expected-template)))
 
   (test-case "rail search-only branches enter the railroad from delayed left disjunction"
     (for ([entry (in-list
@@ -132,19 +195,26 @@
        (or (redex-match? lang:rail-seq-lang cfg next)
            (redex-match? lang:rail-fused-lang cfg next)))))
 
-  (test-case "rail branches continue through right-side frontier prefixes"
+  (test-case "rail promotes bare right-branch answers and forbids branch-internal +"
     (define-values (seq-name seq-next)
       (named-step
        (apply-reduction-relation/tag-with-names
         red:rail-seq-red
-        (term ((empty-tree) +-> ((⊤ ,sigma-b) + (empty-tree)))))))
+        (term ((empty-tree) +-> (⊤ ,sigma-b))))))
     (define-values (fused-name fused-next)
       (named-step
        (apply-reduction-relation/tag-with-names
         red:rail-fused-red
-        (term ((empty-tree) +-> ((⊤ ,sigma-b) + (empty-tree)))))))
-    (check-equal? (~a seq-name) "rail-seq/preserve-right-prefix")
-    (check-equal? (~a fused-name) "rail-fused/preserve-right-prefix")
+        (term ((empty-tree) +-> (⊤ ,sigma-b))))))
+    (check-false
+     (redex-match?
+      lang:rail-seq-lang
+      cfg
+      (term ((empty-tree) +-> ((⊤ ,sigma-b) + (empty-tree))))))
+    (check-equal? (~a seq-name) "rail-seq/promote-right-observable")
+    (check-equal? (~a fused-name) "rail-fused/promote-right-observable")
+    (check-true (produced-answer-spine-only? seq-next))
+    (check-true (produced-answer-spine-only? fused-next))
     (check-true (redex-match? lang:rail-seq-lang cfg seq-next))
     (check-true (redex-match? lang:rail-fused-lang cfg fused-next)))
 
@@ -152,7 +222,7 @@
     (define-values (step-name next)
       (named-step (apply-reduction-relation/tag-with-names red:calls-red cfg-call)))
     (check-equal? (~a step-name) "calls/expand")
-    (check-false (redex-match? lang:calls-lang f '(proceed (empty-tree))))
+    (check-false (redex-match? lang:calls-lang cfg '(proceed (empty-tree))))
     (check-true (redex-match? lang:calls-lang config next)))
 
   (test-case "search-base +calls branches expand inside their chosen search discipline"
@@ -195,7 +265,8 @@
       (check-true (progress? rel prog))
       (check-true (unique-decomposition? rel prog))
       (check-true (states-wf? prog))
-      (check-true (shape-closed? matcher rel prog))))
+      (check-true (shape-closed? matcher rel prog))
+      (check-true (invariant-closed? produced-answer-spine-only? rel prog))))
 
   (test-case "scheduler/calls assembly commutes on representative seq and fused examples"
     (define alt-search-dfs-seq-calls-red
@@ -207,8 +278,8 @@
        (reduction-relation
         search-base-seq-calls-lang
         #:domain config
-        [--> (Γ (in-hole KScopePath (in-hole K ((r t ... tag) σ))))
-             (Γ (in-hole KScopePath (in-hole K (g_new σ))))
+        [--> (Γ (in-hole KBranch (in-hole KWork ((r t ... tag) σ))))
+             (Γ (in-hole KBranch (in-hole KWork (g_new σ))))
              (where g_new
                     ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
              "alt-search-dfs-seq-calls/expand"])))
@@ -221,8 +292,8 @@
        (reduction-relation
         rail-fused-calls-lang
         #:domain config
-        [--> (Γ (in-hole KScopePath (in-hole K ((r t ... tag) σ))))
-             (Γ (in-hole KScopePath (in-hole K (g_new σ))))
+        [--> (Γ (in-hole KBranch (in-hole KWork ((r t ... tag) σ))))
+             (Γ (in-hole KBranch (in-hole KWork (g_new σ))))
              (where g_new
                     ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
              "alt-rail-fused-calls/expand"])))
@@ -235,14 +306,14 @@
 
   (test-case "progress, determinism, state wf, and shape closure hold across the internal lattice"
     (for ([entry (in-list
-                  (list (list (lambda (prog) (redex-match? lang:core-lang cfg prog))
+                  (list (list (lambda (prog) (redex-match? lang:core-lang search prog))
                               red:core-red
-                              (term ((⊤ ,sigma-a) + (empty-tree))))
+                              (term ((succeed (label "ok")) ,sigma-a)))
                         (list (lambda (prog) (redex-match? lang:delay-lang cfg prog))
                               red:delay-red cfg-delay-goal)
-                        (list (lambda (prog) (redex-match? lang:disj-seq-lang cfg prog))
+                        (list (lambda (prog) (redex-match? lang:disj-lang cfg prog))
                               red:disj-seq-red cfg-mixed-answer)
-                        (list (lambda (prog) (redex-match? lang:disj-fused-lang cfg prog))
+                        (list (lambda (prog) (redex-match? lang:disj-lang cfg prog))
                               red:disj-fused-red cfg-mixed-answer)
                         (list (lambda (prog) (redex-match? lang:search-base-seq-lang cfg prog))
                               red:search-base-seq-red cfg-delay-goal)
@@ -278,12 +349,13 @@
       (check-true (progress? rel prog))
       (check-true (unique-decomposition? rel prog))
       (check-true (states-wf? prog))
-      (check-true (shape-closed? matcher rel prog))))
+      (check-true (shape-closed? matcher rel prog))
+      (check-true (invariant-closed? produced-answer-spine-only? rel prog))))
 
   (test-case "WF judgments align with the new search-only and calls split"
     (check-true
      (judgment-holds
-      (wf:wf-cfg/core? ((⊤ ,sigma-a) + (empty-tree)))))
+      (wf:wf-cfg/core? (⊤ ,sigma-a))))
     (check-true
      (judgment-holds
       (wf:wf-cfg/delay? ,cfg-delay-goal)))
@@ -296,7 +368,7 @@
     (check-true
      (judgment-holds
       (wf:wf-cfg/rail?
-       ((delay (empty-tree)) +-> (⊤ ,sigma-b)))))
+       (,delayed-left-search +-> (⊤ ,sigma-b)))))
     (check-true
      (judgment-holds
       (wf:wf-config/calls? ,cfg-call)))
@@ -307,7 +379,8 @@
      (judgment-holds
       (wf:wf-config/rail-calls?
        (,gamma-delay
-        ((delay (empty-tree)) +-> (⊤ ,sigma-b)))))))
+        (,delayed-left-search +-> (⊤ ,sigma-b)))))))
+  )
 
 (module+ test
   (run-tests SEARCH-LATTICE))

@@ -14,13 +14,9 @@
 
 (define-extended-language rail-seq-calls-lang
   rail-seq-calls/join
-  [K ::= hole
-        (K × g c)]
-  [KCorePath ::= hole
-                 (Freshened c tag KCorePath)
-                 (KCorePath <-+ f)
-                 (f +-> KCorePath)]
-  [KScopePath ::= hole
-                  (Freshened c tag KScopePath)
-                  (KScopePath <-+ f)
-                  (f +-> KScopePath)])
+  [delayed ....
+           (search +-> search)]
+  [KBranch ::= hole
+               (Freshened c KBranch tag)
+               (KBranch <-+ search)
+               (search +-> KBranch)])

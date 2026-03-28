@@ -8,6 +8,7 @@
 (check-redundancy #t)
 
 (define-extended-language rail-seq-lang search-base-seq-lang
-  [w .... (f +-> f)]
-  [KCorePath .... (f +-> KCorePath)]
-  [KScopePath .... (f +-> KScopePath)])
+  [delayed ....
+           (search +-> search)]
+  [search .... (search +-> search)]
+  [KBranch .... (search +-> KBranch)])

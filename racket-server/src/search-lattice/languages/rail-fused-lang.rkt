@@ -8,6 +8,7 @@
 (check-redundancy #t)
 
 (define-extended-language rail-fused-lang search-base-fused-lang
-  [w .... (f +-> f)]
-  [KCorePath .... (f +-> KCorePath)]
-  [KScopePath .... (f +-> KScopePath)])
+  [delayed ....
+           (search +-> search)]
+  [search .... (search +-> search)]
+  [KBranch .... (search +-> KBranch)])

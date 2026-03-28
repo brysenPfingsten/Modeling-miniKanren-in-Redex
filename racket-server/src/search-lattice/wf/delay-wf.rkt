@@ -2,6 +2,7 @@
 
 (require redex/reduction-semantics
          "../languages/delay-lang.rkt"
+         (prefix-in lang: "../languages/core-lang.rkt")
          "./core-wf.rkt")
 
 (provide wf-goal/delay?
@@ -43,41 +44,30 @@
   delay-lang
   #:contract (wf-frontier/delay? cfg c)
   #:mode (wf-frontier/delay? I I)
-  [------------------- "empty frontier residual is wf/delay"
-   (wf-frontier/delay? (empty-tree) c)]
-  [(lvars-same-members? c c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
-   ------------------- "raw answer/state wf/delay"
-   (wf-frontier/delay? (⊤ (state sub dis c_i trail tag)) c)]
-  [(lvars-same-members? c c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
-   (wf-frontier/delay? cfg_tail c)
-   ------------------- "observable answer prefix wf/delay"
-   (wf-frontier/delay? ((⊤ (state sub dis c_i trail tag)) + cfg_tail) c)]
+  [(where #t ,(redex-match? lang:core-lang search (term cfg)))
+   (wf-frontier/core? cfg c)
+   ------------------- "core frontier wf/delay"
+   (wf-frontier/delay? cfg c)]
   [(wf-frontier/delay? cfg_tail c)
-   ------------------- "bounced prefix wf/delay"
-   (wf-frontier/delay? (Bounced + cfg_tail) c)]
+   ------------------- "bounced segment wf/delay"
+   (wf-frontier/delay? (Bounced cfg_tail) c)]
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/delay? cfg_tail c_2)
-   ------------------- "freshened scope wf/delay"
-   (wf-frontier/delay? (Freshened c_1 tag_1 cfg_tail) c)]
-  [(lvars-same-members? c c_i)
+   ------------------- "cfg freshened scope wf/delay"
+   (wf-frontier/delay? (Freshened c_1 cfg_tail tag_1) c)]
+  [(wf-state/at-scope? (state sub dis c_i trail tag) c)
    (wf-goal/delay? g () c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
    ------------------- "goal/state wf/delay"
    (wf-frontier/delay? (g (state sub dis c_i trail tag)) c)]
   [(lvars-same-members? c c_i)
-   (wf-frontier/delay? f c_i)
+   (wf-frontier/delay? search_i c_i)
    (wf-goal/delay? g () c_i)
    ------------------- "conj wf/delay"
-   (wf-frontier/delay? (f × g c_i) c)]
-  [(wf-frontier/delay? f c)
+   (wf-frontier/delay? (search_i × g c_i) c)]
+  [(wf-frontier/delay? delayed_i c)
    ------------------- "delay wf/delay"
-   (wf-frontier/delay? (delay f) c)])
+   (wf-frontier/delay? (delay delayed_i) c)])
 
 (define-judgment-form
   delay-lang

@@ -12,6 +12,8 @@
          "./property-core.rkt"
          "./search-lattice-tests.rkt"
          "./search-runtime-tests.rkt"
+         "./stabilization-gates-tests.rkt"
+         "./wf-trace-tests.rkt"
          "./visible-contract-tests.rkt")
 
 (define-test-suite HEADLESS
@@ -22,6 +24,8 @@
   VISIBLE-CONTRACTS
   SEARCH-RUNTIME
   SEARCH-LATTICE
+  STABILIZATION-GATES
+  WF-TRACES
   EXAMPLE-COMPAT
   DETERMINISM-OVERLAP
   CONFIDENCE-GATES

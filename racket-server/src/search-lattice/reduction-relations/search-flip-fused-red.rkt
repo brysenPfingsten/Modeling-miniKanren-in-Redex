@@ -5,18 +5,24 @@
          "./private/step-utils.rkt"
          "./search-base-fused-red.rkt")
 
-(provide search-flip-fused-red
+(provide search-flip-fused-extra
+         search-flip-fused-red
          step-once)
 
 (check-redundancy #t)
 
-(define search-flip-fused-red
-  (extend-reduction-relation
-   search-base-fused-red
+(define search-flip-fused-extra
+  (reduction-relation
    search-base-fused-lang
-   [--> (in-hole Q (in-hole KScopePath (in-hole K ((delay f_1) <-+ f_2))))
-        (in-hole Q (in-hole KScopePath (in-hole K (delay (f_2 <-+ f_1)))))
+   #:domain cfg
+   [--> (in-hole QSpine (in-hole KBranch (in-hole KWork ((delay delayed_1) <-+ search_2))))
+        (in-hole QSpine (in-hole KBranch (in-hole KWork (delay (search_2 <-+ delayed_1)))))
         "search-flip-fused/delay-swap-left"]))
+
+(define search-flip-fused-red
+  (union-reduction-relations
+   search-base-fused-red
+   search-flip-fused-extra))
 
 (define (step-once prog)
   (step-once/deterministic search-flip-fused-red prog))

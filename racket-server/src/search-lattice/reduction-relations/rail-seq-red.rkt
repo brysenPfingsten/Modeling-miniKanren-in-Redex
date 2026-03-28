@@ -7,7 +7,10 @@
          "./private/step-utils.rkt"
          "./search-base-seq-red.rkt")
 
-(provide rail-seq-red
+(provide rail-seq-local/base
+         rail-seq-local/under-QSpine
+         rail-seq-frontier/base
+         rail-seq-red
          step-once)
 
 (check-redundancy #t)
@@ -17,63 +20,160 @@
    search-base-seq-red
    rail-seq-lang))
 
-(define rail-extra
-  (reduction-relation
-   rail-seq-lang
-   #:domain f
-   [--> (in-hole KScopePath (in-hole K ((delay f_1) <-+ f_2)))
-        (in-hole KScopePath (in-hole K (delay (f_1 +-> f_2))))
-        "rail-seq/enter-right"]
-   [--> (in-hole KScopePath (in-hole K (f_2 +-> (delay f_1))))
-        (in-hole KScopePath (in-hole K (delay (f_2 <-+ f_1))))
-        "rail-seq/return-left"]))
-
-(define rail-frontier-extra
+(define rail-seq-local/base
   (reduction-relation
    rail-seq-lang
    #:domain cfg
-   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> (Freshened c_1 tag_1 (head_1 + f_right))))))
-        (in-hole Q
-                 (in-hole KScopePath
-                          (in-hole K
-                                   ((Freshened c_1 tag_1 head_1)
-                                    + (f_left +-> (Freshened c_1 tag_1 f_right))))))
-        "rail-seq/preserve-scoped-right-prefix"]
-   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> (Freshened c_1 tag_1 (head_1 <-+ f_right))))))
-        (in-hole Q
-                 (in-hole KScopePath
-                          (in-hole K
-                                   ((Freshened c_1 tag_1 head_1)
-                                    + (f_left +-> (Freshened c_1 tag_1 f_right))))))
-        "rail-seq/bubble-scoped-right-branch"]
-   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> (head_1 <-+ f_right)))))
-        (in-hole Q (in-hole KScopePath (in-hole K (head_1 + (f_left +-> f_right)))))
-        (side-condition (not (empty-freshened-head? (term head_1))))
-        "rail-seq/promote-right-left-head"]
-   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> ((empty-tree) <-+ f_right)))))
-        (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> f_right))))
+   [--> (in-hole KBranch (in-hole KWork ((delay delayed_1) <-+ search_2)))
+        (in-hole KBranch (in-hole KWork (delay (delayed_1 +-> search_2))))
+        "rail-seq/enter-right"]
+   [--> (in-hole KBranch (in-hole KWork (search_2 +-> (delay delayed_1))))
+        (in-hole KBranch (in-hole KWork (delay (search_2 <-+ delayed_1))))
+        "rail-seq/return-left"]))
+
+(define rail-seq-frontier/base
+  (reduction-relation
+   rail-seq-lang
+   #:domain cfg
+   [--> (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork
+                                   (search_left
+                                    +-> (Freshened c_1
+                                                    (((in-hole QFront (⊤ σ_new))
+                                                      <-+ search_mid)
+                                                     <-+ search_right) tag_1)))))
+        (in-hole QSpine
+                 ((Freshened c_1
+                             (in-hole QFront (⊤ σ_new)) tag_1)
+                  + (in-hole KBranch
+                             (in-hole KWork
+                                      (search_left
+                                       +-> (Freshened c_1
+                                                       (search_mid <-+ search_right) tag_1))))))
+        "rail-seq/bubble-scoped-right-answer"]
+   [--> (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork
+                                   (search_left
+                                    +-> (Freshened c_1
+                                                    ((in-hole QFront (⊤ σ_new))
+                                                     <-+ search_right) tag_1)))))
+        (in-hole QSpine
+                 ((Freshened c_1
+                             (in-hole QFront (⊤ σ_new)) tag_1)
+                  + (in-hole KBranch
+                             (in-hole KWork
+                                      (search_left
+                                       +-> (Freshened c_1 search_right tag_1))))))
+        "rail-seq/promote-scoped-right-answer"]
+   [--> (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork
+                                   (search_left
+                                    +-> (Freshened c_1
+                                                    (((empty-tree) <-+ search_mid)
+                                                     <-+ search_right) tag_1)))))
+        (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork
+                                   (search_left
+                                    +-> (Freshened c_1
+                                                    (search_mid <-+ search_right) tag_1)))))
+        "rail-seq/bubble-scoped-right-fail"]
+   [--> (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork
+                                   (search_left
+                                    +-> (Freshened c_1
+                                                    ((empty-tree) <-+ search_right) tag_1)))))
+        (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork
+                                   (search_left
+                                    +-> (Freshened c_1 search_right tag_1)))))
+        "rail-seq/skip-scoped-right-left-fail"]
+   [--> (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork
+                                   (search_left
+                                    +-> (((in-hole QFront (⊤ σ_new))
+                                          <-+ search_mid)
+                                         <-+ search_right)))))
+        (in-hole QSpine
+                 ((in-hole QFront (⊤ σ_new))
+                  + (in-hole KBranch
+                             (in-hole KWork
+                                      (search_left
+                                       +-> (search_mid <-+ search_right))))))
+        "rail-seq/bubble-right-left-answer"]
+   [--> (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork
+                                   (search_left
+                                    +-> ((in-hole QFront (⊤ σ_new))
+                                          <-+ search_right)))))
+        (in-hole QSpine
+                 ((in-hole QFront (⊤ σ_new))
+                  + (in-hole KBranch
+                             (in-hole KWork
+                                      (search_left +-> search_right)))))
+        "rail-seq/promote-right-left-answer"]
+   [--> (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork
+                                   (search_left
+                                    +-> (((empty-tree) <-+ search_mid)
+                                          <-+ search_right)))))
+        (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork
+                                   (search_left
+                                    +-> (search_mid <-+ search_right)))))
+        "rail-seq/bubble-right-left-fail"]
+   [--> (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork
+                                   (search_left
+                                    +-> ((empty-tree) <-+ search_right)))))
+        (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork (search_left +-> search_right))))
         "rail-seq/skip-right-left-fail"]
-   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> (head_1 + f_right)))))
-        (in-hole Q (in-hole KScopePath (in-hole K (head_1 + (f_left +-> f_right)))))
-        (side-condition (not (empty-freshened-head? (term head_1))))
-        "rail-seq/preserve-right-prefix"]
-   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> head_1))))
-        (in-hole Q (in-hole KScopePath (in-hole K (head_1 + f_left))))
-        (side-condition (not (empty-freshened-head? (term head_1))))
+   [--> (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork
+                                   (search_left +-> (in-hole QFront (⊤ σ_new))))))
+        (in-hole QSpine
+                 ((in-hole QFront (⊤ σ_new))
+                  + (in-hole KBranch
+                             (in-hole KWork search_left))))
         "rail-seq/promote-right-observable"]
-   [--> (in-hole Q (in-hole KScopePath (in-hole K (f_left +-> (empty-tree)))))
-        (in-hole Q (in-hole KScopePath (in-hole K f_left)))
+   [--> (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork
+                                   (search_left +-> (Freshened c_1 (empty-tree) tag_1)))))
+        (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork search_left)))
+        "rail-seq/skip-scoped-right-fail"]
+   [--> (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork
+                                   (search_left +-> (empty-tree)))))
+        (in-hole QSpine
+                 (in-hole KBranch
+                          (in-hole KWork search_left)))
         "rail-seq/skip-right-fail"]))
 
-(define rail-local
-  (context-closure rail-extra rail-seq-lang Q))
+(define rail-seq-local/under-QSpine
+  (context-closure rail-seq-local/base rail-seq-lang QSpine))
 
 (define rail-seq-red
   (union-reduction-relations
    lifted-search-base-seq-red
-   rail-local
-   rail-frontier-extra
-   ))
+   rail-seq-local/under-QSpine
+   rail-seq-frontier/base))
 
 (define (step-once prog)
   (step-once/deterministic rail-seq-red prog))

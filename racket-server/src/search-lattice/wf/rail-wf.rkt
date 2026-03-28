@@ -2,7 +2,9 @@
 
 (require redex/reduction-semantics
          "../languages/rail-seq-lang.rkt"
-         "./core-wf.rkt")
+         (prefix-in lang: "../languages/search-base-seq-lang.rkt")
+         "./core-wf.rkt"
+         "./search-base-wf.rkt")
 
 (provide wf-goal/rail?
          wf-frontier/rail?
@@ -47,49 +49,42 @@
   rail-seq-lang
   #:contract (wf-frontier/rail? cfg c)
   #:mode (wf-frontier/rail? I I)
-  [------------------- "empty frontier residual is wf/rail"
-   (wf-frontier/rail? (empty-tree) c)]
-  [(lvars-same-members? c c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
-   ------------------- "raw answer/state wf/rail"
-   (wf-frontier/rail? (⊤ (state sub dis c_i trail tag)) c)]
-  [(lvars-same-members? c c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
+  [(where #t ,(redex-match? lang:search-base-seq-lang cfg (term cfg)))
+   (wf-frontier/search-base? cfg c)
+   ------------------- "search-base frontier wf/rail"
+   (wf-frontier/rail? cfg c)]
+  [(wf-answer/core? promoted c)
    (wf-frontier/rail? cfg_tail c)
-   ------------------- "observable answer prefix wf/rail"
-   (wf-frontier/rail? ((⊤ (state sub dis c_i trail tag)) + cfg_tail) c)]
+   ------------------- "promoted stream node wf/rail"
+   (wf-frontier/rail? (promoted + cfg_tail) c)]
   [(wf-frontier/rail? cfg_tail c)
-   ------------------- "bounced prefix wf/rail"
-   (wf-frontier/rail? (Bounced + cfg_tail) c)]
+   ------------------- "bounced segment wf/rail"
+   (wf-frontier/rail? (Bounced cfg_tail) c)]
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/rail? cfg_tail c_2)
-   ------------------- "freshened scope wf/rail"
-   (wf-frontier/rail? (Freshened c_1 tag_1 cfg_tail) c)]
-  [(lvars-same-members? c c_i)
+   ------------------- "cfg freshened scope wf/rail"
+   (wf-frontier/rail? (Freshened c_1 cfg_tail tag_1) c)]
+  [(wf-state/at-scope? (state sub dis c_i trail tag) c)
    (wf-goal/rail? g () c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
    ------------------- "goal/state wf/rail"
    (wf-frontier/rail? (g (state sub dis c_i trail tag)) c)]
   [(lvars-same-members? c c_i)
-   (wf-frontier/rail? f c_i)
+   (wf-frontier/rail? search_i c_i)
    (wf-goal/rail? g () c_i)
    ------------------- "conj wf/rail"
-   (wf-frontier/rail? (f × g c_i) c)]
-  [(wf-frontier/rail? f_1 c)
-   (wf-frontier/rail? f_2 c)
+   (wf-frontier/rail? (search_i × g c_i) c)]
+  [(wf-frontier/rail? search_1 c)
+   (wf-frontier/rail? search_2 c)
    ------------------- "left disj wf/rail"
-   (wf-frontier/rail? (f_1 <-+ f_2) c)]
-  [(wf-frontier/rail? f_1 c)
-   (wf-frontier/rail? f_2 c)
+   (wf-frontier/rail? (search_1 <-+ search_2) c)]
+  [(wf-frontier/rail? search_1 c)
+   (wf-frontier/rail? search_2 c)
    ------------------- "right disj wf/rail"
-   (wf-frontier/rail? (f_1 +-> f_2) c)]
-  [(wf-frontier/rail? f c)
+   (wf-frontier/rail? (search_1 +-> search_2) c)]
+  [(wf-frontier/rail? delayed_i c)
    ------------------- "delay wf/rail"
-   (wf-frontier/rail? (delay f) c)])
+   (wf-frontier/rail? (delay delayed_i) c)])
 
 (define-judgment-form
   rail-seq-lang

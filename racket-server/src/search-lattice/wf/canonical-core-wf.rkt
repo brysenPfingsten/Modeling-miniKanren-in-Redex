@@ -92,15 +92,11 @@
   #:mode (wf-work/canonical-core? I I I)
   [------------------- "empty tree is wf/canonical-core"
    (wf-work/canonical-core? (empty-tree) Γ c)]
-  [(lvars-same-members? c c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
+  [(wf-state/at-scope? (state sub dis c_i trail tag) c)
    ------------------- "single answer/state wf/canonical-core"
    (wf-work/canonical-core? (⊤ (state sub dis c_i trail tag)) Γ c)]
-  [(lvars-same-members? c c_i)
+  [(wf-state/at-scope? (state sub dis c_i trail tag) c)
    (wf-goal/canonical-core? g Γ () c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
    ------------------- "goal/state wf/canonical-core"
    (wf-work/canonical-core? (g (state sub dis c_i trail tag)) Γ c)]
   [(lvars-same-members? c c_i)

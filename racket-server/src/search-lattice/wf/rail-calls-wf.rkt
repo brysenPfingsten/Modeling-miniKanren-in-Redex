@@ -2,8 +2,10 @@
 
 (require redex/reduction-semantics
          "../languages/rail-seq-calls-lang.rkt"
+         (prefix-in lang: "../languages/rail-seq-lang.rkt")
          "./calls-arity.rkt"
-         "./core-wf.rkt")
+         "./core-wf.rkt"
+         "./rail-wf.rkt")
 
 (provide wf-goal/rail-calls?
          wf-frontier/rail-calls?
@@ -64,49 +66,42 @@
   rail-seq-calls-lang
   #:contract (wf-frontier/rail-calls? cfg Γ c)
   #:mode (wf-frontier/rail-calls? I I I)
-  [------------------- "empty frontier residual is wf/rail-calls"
-   (wf-frontier/rail-calls? (empty-tree) Γ c)]
-  [(lvars-same-members? c c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
-   ------------------- "raw answer/state wf/rail-calls"
-   (wf-frontier/rail-calls? (⊤ (state sub dis c_i trail tag)) Γ c)]
-  [(lvars-same-members? c c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
+  [(where #t ,(redex-match? lang:rail-seq-lang cfg (term cfg)))
+   (wf-frontier/rail? cfg c)
+   ------------------- "rail frontier wf/rail-calls"
+   (wf-frontier/rail-calls? cfg Γ c)]
+  [(wf-answer/core? promoted c)
    (wf-frontier/rail-calls? cfg_tail Γ c)
-   ------------------- "observable answer prefix wf/rail-calls"
-   (wf-frontier/rail-calls? ((⊤ (state sub dis c_i trail tag)) + cfg_tail) Γ c)]
+   ------------------- "promoted stream node wf/rail-calls"
+   (wf-frontier/rail-calls? (promoted + cfg_tail) Γ c)]
   [(wf-frontier/rail-calls? cfg_tail Γ c)
-   ------------------- "bounced prefix wf/rail-calls"
-   (wf-frontier/rail-calls? (Bounced + cfg_tail) Γ c)]
+   ------------------- "bounced segment wf/rail-calls"
+   (wf-frontier/rail-calls? (Bounced cfg_tail) Γ c)]
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/rail-calls? cfg_tail Γ c_2)
-   ------------------- "freshened scope wf/rail-calls"
-   (wf-frontier/rail-calls? (Freshened c_1 tag_1 cfg_tail) Γ c)]
-  [(lvars-same-members? c c_i)
+   ------------------- "cfg freshened scope wf/rail-calls"
+   (wf-frontier/rail-calls? (Freshened c_1 cfg_tail tag_1) Γ c)]
+  [(wf-state/at-scope? (state sub dis c_i trail tag) c)
    (wf-goal/rail-calls? g Γ () c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
    ------------------- "goal/state wf/rail-calls"
    (wf-frontier/rail-calls? (g (state sub dis c_i trail tag)) Γ c)]
   [(lvars-same-members? c c_i)
-   (wf-frontier/rail-calls? f Γ c_i)
+   (wf-frontier/rail-calls? search_i Γ c_i)
    (wf-goal/rail-calls? g Γ () c_i)
    ------------------- "conj wf/rail-calls"
-   (wf-frontier/rail-calls? (f × g c_i) Γ c)]
-  [(wf-frontier/rail-calls? f_1 Γ c)
-   (wf-frontier/rail-calls? f_2 Γ c)
+   (wf-frontier/rail-calls? (search_i × g c_i) Γ c)]
+  [(wf-frontier/rail-calls? search_1 Γ c)
+   (wf-frontier/rail-calls? search_2 Γ c)
    ------------------- "left disj wf/rail-calls"
-   (wf-frontier/rail-calls? (f_1 <-+ f_2) Γ c)]
-  [(wf-frontier/rail-calls? f_1 Γ c)
-   (wf-frontier/rail-calls? f_2 Γ c)
+   (wf-frontier/rail-calls? (search_1 <-+ search_2) Γ c)]
+  [(wf-frontier/rail-calls? search_1 Γ c)
+   (wf-frontier/rail-calls? search_2 Γ c)
    ------------------- "right disj wf/rail-calls"
-   (wf-frontier/rail-calls? (f_1 +-> f_2) Γ c)]
-  [(wf-frontier/rail-calls? f Γ c)
+   (wf-frontier/rail-calls? (search_1 +-> search_2) Γ c)]
+  [(wf-frontier/rail-calls? delayed_i Γ c)
    ------------------- "delay wf/rail-calls"
-   (wf-frontier/rail-calls? (delay f) Γ c)])
+   (wf-frontier/rail-calls? (delay delayed_i) Γ c)])
 
 (define-judgment-form
   rail-seq-calls-lang

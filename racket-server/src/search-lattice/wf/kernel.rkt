@@ -16,6 +16,7 @@
          fresh-lvars
          wf-trail-unify*s-to-sub
          wf-sub/wf+equiv-trail?
+         wf-state/at-scope?
          wf-state?
          symbols-in/set
          substitution-acyclic?
@@ -190,10 +191,19 @@
 
 (define-judgment-form
   core-lang
+  #:contract (wf-state/at-scope? σ c)
+  #:mode (wf-state/at-scope? I I)
+  [(lvars-same-members? c c_i)
+   (wf-sub/wf+equiv-trail? sub c_i trail)
+   (wf-dis? dis c_i)
+   ----------------------- "state wf at exact ambient scope"
+   (wf-state/at-scope? (state sub dis c_i trail tag) c)])
+
+(define-judgment-form
+  core-lang
   #:contract (wf-state? σ)
   #:mode (wf-state? I)
-  [(wf-sub/wf+equiv-trail? sub c trail)
-   (wf-dis? dis c)
+  [(wf-state/at-scope? (state sub dis c trail tag) c)
    (where #f (invalid? sub dis))
    ----------------------- "state wf"
    (wf-state? (state sub dis c trail tag))])

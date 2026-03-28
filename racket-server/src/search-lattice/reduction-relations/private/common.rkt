@@ -2,7 +2,11 @@
 
 (provide instantiate-call-host
          subst-goal-host
-         empty-freshened-head?)
+         empty-freshened-head?
+         bubble-left-answer-host
+         promote-left-answer-host
+         bubble-left-fail-host
+         skip-left-fail-host)
 
 (define (x-symbol? s)
   (and (symbol? s)
@@ -69,5 +73,82 @@
 
 (define (empty-freshened-head? h)
   (match h
-    [`(Freshened () ,_ ,_) #t]
+    ['(empty-tree) #t]
+    [`(Freshened ,_ ,inner ,_)
+     (empty-freshened-head? inner)]
+    [_ #f]))
+
+(define (answer-head?/host t)
+  (match t
+    [`(⊤ ,_) #t]
+    [`(Freshened ,_ ,inner ,_)
+     (answer-head?/host inner)]
+    [_ #f]))
+
+(define (bubble-left-answer-host cfg)
+  (match cfg
+    [`((,left <-+ ,mid) <-+ ,right)
+     #:when (answer-head?/host left)
+     `(,left + (,mid <-+ ,right))]
+    [`(Bounced (,prefix + ,rest))
+     #:when (answer-head?/host prefix)
+     (match (bubble-left-answer-host rest)
+       [#f #f]
+       [rest^ `(Bounced (,prefix + ,rest^))])]
+    [`(Bounced ,inner)
+     (match (bubble-left-answer-host inner)
+       [`(,left + ,rest)
+        #:when (answer-head?/host left)
+        `(,left + (Bounced ,rest))]
+       [inner^ `(Bounced ,inner^)]
+       [_ #f])]
+    [_ #f]))
+
+(define (promote-left-answer-host cfg)
+  (match cfg
+    [`(,left <-+ ,right)
+     #:when (answer-head?/host left)
+     `(,left + ,right)]
+    [`(Bounced (,prefix + ,rest))
+     #:when (answer-head?/host prefix)
+     (match (promote-left-answer-host rest)
+       [#f #f]
+       [rest^ `(Bounced (,prefix + ,rest^))])]
+    [`(Bounced ,inner)
+     (match (promote-left-answer-host inner)
+       [`(,left + ,rest)
+        #:when (answer-head?/host left)
+        `(,left + (Bounced ,rest))]
+       [inner^ `(Bounced ,inner^)]
+       [_ #f])]
+    [_ #f]))
+
+(define (bubble-left-fail-host cfg)
+  (match cfg
+    [`(((empty-tree) <-+ ,mid) <-+ ,right)
+     `(,mid <-+ ,right)]
+    [`(Bounced (,prefix + ,rest))
+     #:when (answer-head?/host prefix)
+     (match (bubble-left-fail-host rest)
+       [#f #f]
+       [rest^ `(Bounced (,prefix + ,rest^))])]
+    [`(Bounced ,inner)
+     (match (bubble-left-fail-host inner)
+       [#f #f]
+       [rest `(Bounced ,rest)])]
+    [_ #f]))
+
+(define (skip-left-fail-host cfg)
+  (match cfg
+    [`((empty-tree) <-+ ,right)
+     right]
+    [`(Bounced (,prefix + ,rest))
+     #:when (answer-head?/host prefix)
+     (match (skip-left-fail-host rest)
+       [#f #f]
+       [rest^ `(Bounced (,prefix + ,rest^))])]
+    [`(Bounced ,inner)
+     (match (skip-left-fail-host inner)
+       [#f #f]
+       [rest `(Bounced ,rest)])]
     [_ #f]))

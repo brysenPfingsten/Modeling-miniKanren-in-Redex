@@ -2,7 +2,7 @@
 
 (require redex/reduction-semantics
          "./delay-lang.rkt"
-         "./disj-fused-lang.rkt")
+         "./disj-lang.rkt")
 
 (provide search-base-fused-lang)
 
@@ -10,15 +10,12 @@
 
 (define-union-language search-base-fused/join
   delay-lang
-  disj-fused-lang)
+  disj-lang)
 
 (define-extended-language search-base-fused-lang
   search-base-fused/join
-  [K ::= hole
-        (K × g c)]
-  [KCorePath ::= hole
-                 (Freshened c tag KCorePath)
-                 (KCorePath <-+ f)]
-  [KScopePath ::= hole
-                  (Freshened c tag KScopePath)
-                  (KScopePath <-+ f)])
+  [delayed ....
+           (search <-+ search)]
+  [QFront ::= hole
+             (Freshened c QFront tag)
+             (promoted + QFront)])

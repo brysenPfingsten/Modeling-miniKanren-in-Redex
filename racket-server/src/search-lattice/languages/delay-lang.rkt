@@ -11,5 +11,13 @@
 (define-extended-language delay-lang core-lang
   [g ....
      (suspend g tag)]
-  [w ....
-     (delay f)])
+  [cfg search
+       (Bounced cfg)
+       (Freshened c cfg tag)]
+  [delayed (delay delayed)
+		   (g σ)
+		   (delayed × g c)]
+  [search ....
+          (delay delayed)]
+  [QSpine ::= ....
+              (Bounced QSpine)])

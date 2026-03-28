@@ -2,8 +2,10 @@
 
 (require redex/reduction-semantics
          "../languages/calls-lang.rkt"
+         (prefix-in lang: "../languages/delay-lang.rkt")
          "./calls-arity.rkt"
-         "./core-wf.rkt")
+         "./core-wf.rkt"
+         "./delay-wf.rkt")
 
 (provide wf-goal/calls?
          wf-frontier/calls?
@@ -60,41 +62,30 @@
   calls-lang
   #:contract (wf-frontier/calls? cfg Γ c)
   #:mode (wf-frontier/calls? I I I)
-  [------------------- "empty frontier residual is wf/calls"
-   (wf-frontier/calls? (empty-tree) Γ c)]
-  [(lvars-same-members? c c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
-   ------------------- "raw answer/state wf/calls"
-   (wf-frontier/calls? (⊤ (state sub dis c_i trail tag)) Γ c)]
-  [(lvars-same-members? c c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
-   (wf-frontier/calls? cfg_tail Γ c)
-   ------------------- "observable answer prefix wf/calls"
-   (wf-frontier/calls? ((⊤ (state sub dis c_i trail tag)) + cfg_tail) Γ c)]
+  [(where #t ,(redex-match? lang:delay-lang cfg (term cfg)))
+   (wf-frontier/delay? cfg c)
+   ------------------- "delay frontier wf/calls"
+   (wf-frontier/calls? cfg Γ c)]
   [(wf-frontier/calls? cfg_tail Γ c)
-   ------------------- "bounced prefix wf/calls"
-   (wf-frontier/calls? (Bounced + cfg_tail) Γ c)]
+   ------------------- "bounced segment wf/calls"
+   (wf-frontier/calls? (Bounced cfg_tail) Γ c)]
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/calls? cfg_tail Γ c_2)
-   ------------------- "freshened scope wf/calls"
-   (wf-frontier/calls? (Freshened c_1 tag_1 cfg_tail) Γ c)]
-  [(lvars-same-members? c c_i)
+   ------------------- "cfg freshened scope wf/calls"
+   (wf-frontier/calls? (Freshened c_1 cfg_tail tag_1) Γ c)]
+  [(wf-state/at-scope? (state sub dis c_i trail tag) c)
    (wf-goal/calls? g Γ () c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
    ------------------- "goal/state wf/calls"
    (wf-frontier/calls? (g (state sub dis c_i trail tag)) Γ c)]
   [(lvars-same-members? c c_i)
-   (wf-frontier/calls? f Γ c_i)
+   (wf-frontier/calls? search_i Γ c_i)
    (wf-goal/calls? g Γ () c_i)
    ------------------- "conj wf/calls"
-   (wf-frontier/calls? (f × g c_i) Γ c)]
-  [(wf-frontier/calls? f Γ c)
+   (wf-frontier/calls? (search_i × g c_i) Γ c)]
+  [(wf-frontier/calls? delayed_i Γ c)
    ------------------- "delay wf/calls"
-   (wf-frontier/calls? (delay f) Γ c)])
+   (wf-frontier/calls? (delay delayed_i) Γ c)])
 
 (define-judgment-form
   calls-lang

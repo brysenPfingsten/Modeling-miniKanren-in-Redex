@@ -14,27 +14,15 @@
 (check-redundancy #t)
 
 (define-language core-lang
-  [cfg w
-       (head + cfg)]
+  [search cell
+          (empty-tree)
+          (g σ)
+          (search × g c)
+          (Freshened c search tag)]
+
   [d (x_!_ ...)]
 
-  [f w
-     (head + f)]
-
-  [obs (empty-tree)
-       head
-       (head + obs)]
-
-  [head cell
-        Bounced
-        (Freshened c tag obs)]
   [cell (⊤ σ)]
-
-  [w (empty-tree)
-     (g σ)
-     (f × g c)
-     (⊤ σ)
-     (Freshened c tag cfg)]
 
   [eq (t =? t tag)]
   [neq (t != t tag)]
@@ -65,18 +53,18 @@
   [sub ((u_!_ t) ...)]
   [dis ((t t) ...)]
   [maybe-sub sub #f]
-  [trail (eq ...)]
+  [trail (eq ...)] ;; what about neq?
   [c (u_!_ ...)]
 
-  ;; Base active-work context.
-  [K ::= hole
-         (K × g c)]
-  [Q ::= hole
-         (head + Q)
-         (Freshened c tag Q)]
-  [P ::= hole
-         (head + P)
-         (Freshened c tag P)]
+  ;; Base active-work context follows the currently executing search root,
+  ;; including introduction provenance wrappers.
+  [KWork ::= hole
+             (Freshened c KWork tag)
+             (KWork × g c)]
+  ;; Pure introduction-provenance chain. Later layers extend this into the
+  ;; full outer spine.
+  [QSpine ::= hole
+              (Freshened c QSpine tag)]
 
   #:binding-forms
   (∃ (x ...) g #:refers-to (shadow x ...)))

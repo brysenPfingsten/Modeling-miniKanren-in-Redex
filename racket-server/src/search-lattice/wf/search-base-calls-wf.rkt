@@ -2,8 +2,10 @@
 
 (require redex/reduction-semantics
          "../languages/search-base-seq-calls-lang.rkt"
+         (prefix-in lang: "../languages/search-base-seq-lang.rkt")
          "./calls-arity.rkt"
-         "./core-wf.rkt")
+         "./core-wf.rkt"
+         "./search-base-wf.rkt")
 
 (provide wf-goal/search-base-calls?
          wf-frontier/search-base-calls?
@@ -64,45 +66,38 @@
   search-base-seq-calls-lang
   #:contract (wf-frontier/search-base-calls? cfg Γ c)
   #:mode (wf-frontier/search-base-calls? I I I)
-  [------------------- "empty frontier residual is wf/search-base-calls"
-   (wf-frontier/search-base-calls? (empty-tree) Γ c)]
-  [(lvars-same-members? c c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
-   ------------------- "raw answer/state wf/search-base-calls"
-   (wf-frontier/search-base-calls? (⊤ (state sub dis c_i trail tag)) Γ c)]
-  [(lvars-same-members? c c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
+  [(where #t ,(redex-match? lang:search-base-seq-lang cfg (term cfg)))
+   (wf-frontier/search-base? cfg c)
+   ------------------- "search-base frontier wf/search-base-calls"
+   (wf-frontier/search-base-calls? cfg Γ c)]
+  [(wf-answer/core? promoted c)
    (wf-frontier/search-base-calls? cfg_tail Γ c)
-   ------------------- "observable answer prefix wf/search-base-calls"
-   (wf-frontier/search-base-calls? ((⊤ (state sub dis c_i trail tag)) + cfg_tail) Γ c)]
+   ------------------- "promoted stream node wf/search-base-calls"
+   (wf-frontier/search-base-calls? (promoted + cfg_tail) Γ c)]
   [(wf-frontier/search-base-calls? cfg_tail Γ c)
-   ------------------- "bounced prefix wf/search-base-calls"
-   (wf-frontier/search-base-calls? (Bounced + cfg_tail) Γ c)]
+   ------------------- "bounced segment wf/search-base-calls"
+   (wf-frontier/search-base-calls? (Bounced cfg_tail) Γ c)]
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/search-base-calls? cfg_tail Γ c_2)
-   ------------------- "freshened scope wf/search-base-calls"
-   (wf-frontier/search-base-calls? (Freshened c_1 tag_1 cfg_tail) Γ c)]
-  [(lvars-same-members? c c_i)
+   ------------------- "cfg freshened scope wf/search-base-calls"
+   (wf-frontier/search-base-calls? (Freshened c_1 cfg_tail tag_1) Γ c)]
+  [(wf-state/at-scope? (state sub dis c_i trail tag) c)
    (wf-goal/search-base-calls? g Γ () c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
    ------------------- "goal/state wf/search-base-calls"
    (wf-frontier/search-base-calls? (g (state sub dis c_i trail tag)) Γ c)]
   [(lvars-same-members? c c_i)
-   (wf-frontier/search-base-calls? f Γ c_i)
+   (wf-frontier/search-base-calls? search_i Γ c_i)
    (wf-goal/search-base-calls? g Γ () c_i)
    ------------------- "conj wf/search-base-calls"
-   (wf-frontier/search-base-calls? (f × g c_i) Γ c)]
-  [(wf-frontier/search-base-calls? f_1 Γ c)
-   (wf-frontier/search-base-calls? f_2 Γ c)
+   (wf-frontier/search-base-calls? (search_i × g c_i) Γ c)]
+  [(wf-frontier/search-base-calls? search_1 Γ c)
+   (wf-frontier/search-base-calls? search_2 Γ c)
    ------------------- "left disj wf/search-base-calls"
-   (wf-frontier/search-base-calls? (f_1 <-+ f_2) Γ c)]
-  [(wf-frontier/search-base-calls? f Γ c)
+   (wf-frontier/search-base-calls? (search_1 <-+ search_2) Γ c)]
+  [(wf-frontier/search-base-calls? delayed_i Γ c)
    ------------------- "delay wf/search-base-calls"
-   (wf-frontier/search-base-calls? (delay f) Γ c)])
+   (wf-frontier/search-base-calls? (delay delayed_i) Γ c)])
 
 (define-judgment-form
   search-base-seq-calls-lang
