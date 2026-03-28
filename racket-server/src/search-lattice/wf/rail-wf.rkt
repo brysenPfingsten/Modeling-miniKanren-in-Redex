@@ -3,9 +3,7 @@
 (require redex/reduction-semantics
          "../languages/rail-seq-lang.rkt"
          (only-in "../languages/core-lang.rkt" c-append)
-         (prefix-in lang: "../languages/search-base-seq-lang.rkt")
-         "./core-wf.rkt"
-         "./search-base-wf.rkt")
+         "./core-wf.rkt")
 
 (provide wf-goal/rail?
          wf-frontier/rail?
@@ -50,10 +48,11 @@
   rail-seq-lang
   #:contract (wf-frontier/rail? cfg c)
   #:mode (wf-frontier/rail? I I)
-  [(where #t ,(redex-match? lang:search-base-seq-lang cfg (term cfg)))
-   (wf-frontier/search-base? cfg c)
-   ------------------- "search-base frontier wf/rail"
-   (wf-frontier/rail? cfg c)]
+  [------------------- "empty frontier residual is wf/rail"
+   (wf-frontier/rail? (empty-tree) c)]
+  [(wf-answer/core? search_i c)
+   ------------------- "bare answer wf/rail"
+   (wf-frontier/rail? search_i c)]
   [(wf-answer/core? promoted c)
    (wf-frontier/rail? cfg_tail c)
    ------------------- "promoted stream node wf/rail"

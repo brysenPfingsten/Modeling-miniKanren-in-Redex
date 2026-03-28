@@ -3,11 +3,7 @@
 (require redex/reduction-semantics
          "../languages/search-base-seq-lang.rkt"
          (only-in "../languages/core-lang.rkt" c-append)
-         (prefix-in lang-delay: "../languages/delay-lang.rkt")
-         (prefix-in lang-disj: "../languages/disj-lang.rkt")
-         "./core-wf.rkt"
-         "./delay-wf.rkt"
-         "./disj-wf.rkt")
+         "./core-wf.rkt")
 
 (provide wf-goal/search-base?
          wf-frontier/search-base?
@@ -52,14 +48,11 @@
   search-base-seq-lang
   #:contract (wf-frontier/search-base? cfg c)
   #:mode (wf-frontier/search-base? I I)
-  [(where #t ,(redex-match? lang-delay:delay-lang cfg (term cfg)))
-   (wf-frontier/delay? cfg c)
-   ------------------- "delay frontier wf/search-base"
-   (wf-frontier/search-base? cfg c)]
-  [(where #t ,(redex-match? lang-disj:disj-lang cfg (term cfg)))
-   (wf-frontier/disj? cfg c)
-   ------------------- "disj frontier wf/search-base"
-   (wf-frontier/search-base? cfg c)]
+  [------------------- "empty frontier residual is wf/search-base"
+   (wf-frontier/search-base? (empty-tree) c)]
+  [(wf-answer/core? search_i c)
+   ------------------- "bare answer wf/search-base"
+   (wf-frontier/search-base? search_i c)]
   [(wf-answer/core? promoted c)
    (wf-frontier/search-base? cfg_tail c)
    ------------------- "promoted stream node wf/search-base"

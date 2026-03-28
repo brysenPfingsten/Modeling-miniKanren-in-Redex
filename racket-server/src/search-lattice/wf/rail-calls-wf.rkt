@@ -3,10 +3,8 @@
 (require redex/reduction-semantics
          "../languages/rail-seq-calls-lang.rkt"
          (only-in "../languages/core-lang.rkt" c-append)
-         (prefix-in lang: "../languages/rail-seq-lang.rkt")
          "./calls-arity.rkt"
-         "./core-wf.rkt"
-         "./rail-wf.rkt")
+         "./core-wf.rkt")
 
 (provide wf-goal/rail-calls?
          wf-frontier/rail-calls?
@@ -67,10 +65,11 @@
   rail-seq-calls-lang
   #:contract (wf-frontier/rail-calls? cfg Γ c)
   #:mode (wf-frontier/rail-calls? I I I)
-  [(where #t ,(redex-match? lang:rail-seq-lang cfg (term cfg)))
-   (wf-frontier/rail? cfg c)
-   ------------------- "rail frontier wf/rail-calls"
-   (wf-frontier/rail-calls? cfg Γ c)]
+  [------------------- "empty frontier residual is wf/rail-calls"
+   (wf-frontier/rail-calls? (empty-tree) Γ c)]
+  [(wf-answer/core? search_i c)
+   ------------------- "bare answer wf/rail-calls"
+   (wf-frontier/rail-calls? search_i Γ c)]
   [(wf-answer/core? promoted c)
    (wf-frontier/rail-calls? cfg_tail Γ c)
    ------------------- "promoted stream node wf/rail-calls"

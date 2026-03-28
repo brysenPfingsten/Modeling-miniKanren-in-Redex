@@ -3,10 +3,8 @@
 (require redex/reduction-semantics
          "../languages/calls-lang.rkt"
          (only-in "../languages/core-lang.rkt" c-append)
-         (prefix-in lang: "../languages/delay-lang.rkt")
          "./calls-arity.rkt"
-         "./core-wf.rkt"
-         "./delay-wf.rkt")
+         "./core-wf.rkt")
 
 (provide wf-goal/calls?
          wf-frontier/calls?
@@ -63,10 +61,11 @@
   calls-lang
   #:contract (wf-frontier/calls? cfg Γ c)
   #:mode (wf-frontier/calls? I I I)
-  [(where #t ,(redex-match? lang:delay-lang cfg (term cfg)))
-   (wf-frontier/delay? cfg c)
-   ------------------- "delay frontier wf/calls"
-   (wf-frontier/calls? cfg Γ c)]
+  [------------------- "empty frontier residual is wf/calls"
+   (wf-frontier/calls? (empty-tree) Γ c)]
+  [(wf-answer/core? search_i c)
+   ------------------- "bare answer wf/calls"
+   (wf-frontier/calls? search_i Γ c)]
   [(wf-frontier/calls? cfg_tail Γ c)
    ------------------- "bounced segment wf/calls"
    (wf-frontier/calls? (Bounced cfg_tail) Γ c)]

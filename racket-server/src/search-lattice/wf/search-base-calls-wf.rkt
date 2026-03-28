@@ -3,10 +3,8 @@
 (require redex/reduction-semantics
          "../languages/search-base-seq-calls-lang.rkt"
          (only-in "../languages/core-lang.rkt" c-append)
-         (prefix-in lang: "../languages/search-base-seq-lang.rkt")
          "./calls-arity.rkt"
-         "./core-wf.rkt"
-         "./search-base-wf.rkt")
+         "./core-wf.rkt")
 
 (provide wf-goal/search-base-calls?
          wf-frontier/search-base-calls?
@@ -67,10 +65,11 @@
   search-base-seq-calls-lang
   #:contract (wf-frontier/search-base-calls? cfg Γ c)
   #:mode (wf-frontier/search-base-calls? I I I)
-  [(where #t ,(redex-match? lang:search-base-seq-lang cfg (term cfg)))
-   (wf-frontier/search-base? cfg c)
-   ------------------- "search-base frontier wf/search-base-calls"
-   (wf-frontier/search-base-calls? cfg Γ c)]
+  [------------------- "empty frontier residual is wf/search-base-calls"
+   (wf-frontier/search-base-calls? (empty-tree) Γ c)]
+  [(wf-answer/core? search_i c)
+   ------------------- "bare answer wf/search-base-calls"
+   (wf-frontier/search-base-calls? search_i Γ c)]
   [(wf-answer/core? promoted c)
    (wf-frontier/search-base-calls? cfg_tail Γ c)
    ------------------- "promoted stream node wf/search-base-calls"
