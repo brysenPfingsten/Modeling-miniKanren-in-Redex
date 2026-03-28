@@ -45,32 +45,34 @@ During stabilization:
   `racket-server/tests/search-lattice-tests.rkt`,
   `racket-server/tests/stabilization-gates-tests.rkt`.
 
-## Provisional
-
 - L1/delay runtime and wf layer:
-  `delay-lang`, `delay-red`, `delay-wf`, and the focused L1 witness corpus in
+  `delay-lang`, `delay-red`, `delay-wf`, and the focused L1 gate corpus in
   `racket-server/tests/stabilization-gates-tests.rkt`.
   Current touched-file inventory:
   `racket-server/src/search-lattice/languages/delay-lang.rkt`,
   `racket-server/src/search-lattice/reduction-relations/delay-red.rkt`,
   `racket-server/src/search-lattice/wf/delay-wf.rkt`.
-  Reason still provisional:
-  ordinary `Freshened(...)` configs created by `core/fresh-substitute` step and
-  preserve exact scope, but are still rejected by `wf-cfg/delay?`.
+  Lock evidence:
+  nested-delay traces lock end-to-end, `Bounced` is introduced only at the
+  delay frontier, and ordinary `Freshened(...)` configs created by
+  `core/fresh-substitute` are now accepted by `wf-cfg/delay?`.
 
 - L2/shared disjunction runtime and wf layer:
-  `disj-lang`, `disj-branch-lang`, `disj-seq-red`, `disj-fused-red`,
-  `disj-wf`, and the focused L2 witness corpus in
+  `disj-lang`, `disj-base-red`, `disj-seq-red`, `disj-fused-red`,
+  `disj-wf`, and the focused L2 gate corpus in
   `racket-server/tests/stabilization-gates-tests.rkt`.
   Current touched-file inventory:
   `racket-server/src/search-lattice/languages/disj-lang.rkt`,
-  `racket-server/src/search-lattice/languages/disj-branch-lang.rkt`,
+  `racket-server/src/search-lattice/reduction-relations/disj-base-red.rkt`,
   `racket-server/src/search-lattice/reduction-relations/disj-seq-red.rkt`,
   `racket-server/src/search-lattice/reduction-relations/disj-fused-red.rkt`,
   `racket-server/src/search-lattice/wf/disj-wf.rkt`.
-  Reason still provisional:
-  shared-fresh and branch-local traces show the intended first-step split, but
-  the focused witness traces are not yet lockable end-to-end.
+  Lock evidence:
+  seq/fused differ only in their policy steps, shared-fresh and branch-local
+  traces both complete, and promoted left answers are now hoisted through the
+  shared disjunction frontier instead of stranding the trace.
+
+## Provisional
 
 - L3/search-base runtime and wf layers:
   `search-base-seq-lang`, `search-base-fused-lang`,

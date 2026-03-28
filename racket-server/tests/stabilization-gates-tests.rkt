@@ -185,7 +185,7 @@
                                core-shape?
                                cfg-core-fresh-fail)))
 
-  (test-case "L1/delay provisional gates"
+  (test-case "L1/delay lock gates"
     (check-false (redex-match? delay-lang cfg '(delay (empty-tree))))
     (check-false
      (redex-match?
@@ -216,17 +216,17 @@
       (named-step red:delay-red cfg-delay-inside-fresh))
     (check-equal? fresh-outside-step "core/fresh-substitute")
     (check-true (config-exact-scope? fresh-outside-next))
-    (check-false (wf-delay? fresh-outside-next))
+    (check-true (wf-delay? fresh-outside-next))
     (check-true (trace-locked? red:delay-red
                                wf-delay?
                                delay-shape?
                                cfg-fresh-inside-delay))
-    (check-false (trace-locked? red:delay-red
-                                wf-delay?
-                                delay-shape?
-                                cfg-delay-inside-fresh)))
+    (check-true (trace-locked? red:delay-red
+                               wf-delay?
+                               delay-shape?
+                               cfg-delay-inside-fresh)))
 
-  (test-case "L2/shared disjunction provisional gates"
+  (test-case "L2/shared disjunction lock gates"
     (check-false (redex-match? disj-lang QSpine (term (hole <-+ (empty-tree)))))
     (check-true (redex-match? disj-lang KBranch (term (hole <-+ (empty-tree)))))
     (define-values (goal-seq-name _goal-seq-next)
@@ -251,20 +251,20 @@
         (trace-deterministic rel (example-frontier "fresh branch disj")))
       (check-equal? shared-status 'done)
       (check-equal? branch-status 'done)
-      (check-false (trace-locked? rel
-                                  wf-disj?
-                                  disj-shape?
-                                  (example-frontier "fresh shared disj")))
-      (check-false (trace-locked? rel
-                                  wf-disj?
-                                  disj-shape?
-                                  (example-frontier "fresh branch disj")))
-      (check-false (final-program? shared-final))
-      (check-false (final-program? branch-final))
+      (check-true (trace-locked? rel
+                                 wf-disj?
+                                 disj-shape?
+                                 (example-frontier "fresh shared disj")))
+      (check-true (trace-locked? rel
+                                 wf-disj?
+                                 disj-shape?
+                                 (example-frontier "fresh branch disj")))
+      (check-true (final-program? shared-final))
+      (check-true (final-program? branch-final))
       (check-equal? (count-step-name shared-steps "core/fresh-substitute") 2)
-      (check-equal? (count-step-name branch-steps "core/fresh-substitute") 2)
-      (check-equal? (count-answers shared-final) 1)
-      (check-equal? (count-answers branch-final) 1)
+      (check-equal? (count-step-name branch-steps "core/fresh-substitute") 3)
+      (check-equal? (count-answers shared-final) 2)
+      (check-equal? (count-answers branch-final) 2)
       (check-true (config-exact-scope? shared-final))
       (check-true (config-exact-scope? branch-final)))))
 

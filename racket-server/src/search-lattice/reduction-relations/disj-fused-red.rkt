@@ -11,14 +11,24 @@
 
 (check-redundancy #t)
 
+(define-metafunction
+  disj-lang
+  promoted->search : promoted g -> search
+  [(promoted->search (⊤ σ_new) g)
+   (g σ_new)]
+  [(promoted->search (Freshened c_1 promoted_i tag_1) g)
+   (Freshened c_1 (promoted->search promoted_i g) tag_1)])
+
 (define disj-fused-local/base
   (reduction-relation
    disj-lang
    #:domain cfg
    [--> (in-hole KBranch
-                  (in-hole KWork (((in-hole QSpine (⊤ σ_new)) <-+ search_rest) × g c)))
+                  (in-hole KWork ((promoted_i <-+ search_rest) × g c)))
         (in-hole KBranch
-                 (in-hole KWork ((in-hole QSpine (g σ_new)) <-+ (search_rest × g c))))
+                 (in-hole KWork ((promoted->search promoted_i g)
+                                 <-+
+                                 (search_rest × g c))))
         "disj-fused/continue-left-answer"]
    [--> (in-hole KBranch (in-hole KWork (((empty-tree) <-+ search_rest) × g c)))
         (in-hole KBranch (in-hole KWork (search_rest × g c)))

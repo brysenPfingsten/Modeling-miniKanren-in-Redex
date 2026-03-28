@@ -2,6 +2,7 @@
 
 (require redex/reduction-semantics
          "../languages/rail-seq-lang.rkt"
+         (only-in "../languages/core-lang.rkt" c-append)
          (prefix-in lang: "../languages/search-base-seq-lang.rkt")
          "./core-wf.rkt"
          "./search-base-wf.rkt")

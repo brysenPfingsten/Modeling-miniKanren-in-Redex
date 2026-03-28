@@ -38,16 +38,16 @@
    disj-lang
    #:domain cfg
    [--> (in-hole QSpine
-                  ((((in-hole QSpine (⊤ σ_new)) <-+ search_mid)
+                  (((promoted_i <-+ search_mid)
                     <-+ search_right)))
         (in-hole QSpine
-                 ((in-hole QSpine (⊤ σ_new))
+                 (promoted_i
                   + (search_mid <-+ search_right)))
         "disj/bubble-left-answer"]
    [--> (in-hole QSpine
-                  ((in-hole QSpine (⊤ σ_new)) <-+ search_right))
+                  (promoted_i <-+ search_right))
         (in-hole QSpine
-                 ((in-hole QSpine (⊤ σ_new)) + search_right))
+                 (promoted_i + search_right))
         "disj/promote-left-answer"]
    [--> (in-hole QSpine
                   ((((empty-tree) <-+ search_mid) <-+ search_right)))

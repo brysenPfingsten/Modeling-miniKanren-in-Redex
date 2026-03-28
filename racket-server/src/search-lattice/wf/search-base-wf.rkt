@@ -2,6 +2,7 @@
 
 (require redex/reduction-semantics
          "../languages/search-base-seq-lang.rkt"
+         (only-in "../languages/core-lang.rkt" c-append)
          (prefix-in lang-delay: "../languages/delay-lang.rkt")
          (prefix-in lang-disj: "../languages/disj-lang.rkt")
          "./core-wf.rkt"

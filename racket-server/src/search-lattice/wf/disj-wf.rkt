@@ -2,6 +2,7 @@
 
 (require redex/reduction-semantics
          "../languages/disj-lang.rkt"
+         (only-in "../languages/core-lang.rkt" c-append)
          (prefix-in lang: "../languages/core-lang.rkt")
          "./core-wf.rkt")
 
