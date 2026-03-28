@@ -22,6 +22,12 @@ During stabilization:
   - real regression: fix the implementation
 - no pre-stabilization test is protected from deletion if it encodes an
   obsolete semantic story
+- the active aggregate entrypoints stop at L2:
+  `languages/all.rkt`, `reduction-relations/all.rkt`, `wf/all.rkt`, and
+  `tests/test-all-headless.rkt` are intentionally limited to the current
+  L0/L1/L2 surface
+- quarantined L3+ code stays in-tree but is removed from active aggregate
+  wiring until its lower-layer dependencies are locked
 
 ## Locked
 
@@ -70,11 +76,15 @@ During stabilization:
   `search-base-seq-lang`, `search-base-fused-lang`,
   `search-base-seq-red`, `search-base-fused-red`,
   `search-base-wf`, `search-base-calls-wf`.
+  Current status in the rebuild branch:
+  quarantined from `all.rkt` and `test-all-headless.rkt`.
 
 - Rail runtime and wf layers:
   `rail-seq-lang`, `rail-fused-lang`,
   `rail-seq-red`, `rail-fused-red`,
   `rail-wf`, `rail-calls-wf`.
+  Current status in the rebuild branch:
+  quarantined from `all.rkt` and `test-all-headless.rkt`.
 
 - Calls overlays and search-strategy overlays:
   `calls-lang`, `calls-red`,
@@ -82,11 +92,15 @@ During stabilization:
   `rail-*-calls-*`,
   `search-dfs-*`,
   `search-flip-*`.
+  Current status in the rebuild branch:
+  quarantined from `all.rkt` and `test-all-headless.rkt`.
 
 - Downstream consumers:
   `canonical-json.rkt`,
   `contracts/visible-node-contract.json`,
   app/runtime-facing tests and visible/rendering expectations.
+  Current status in the rebuild branch:
+  quarantined from `test-all-headless.rkt`.
 
 ## Deficient
 

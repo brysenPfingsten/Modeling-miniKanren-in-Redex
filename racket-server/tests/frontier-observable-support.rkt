@@ -1,8 +1,6 @@
 #lang racket
 
-(require redex/reduction-semantics
-         (prefix-in lang: "../src/search-lattice/languages/all.rkt")
-         (prefix-in wf: "../src/search-lattice/wf/all.rkt"))
+(require redex/reduction-semantics)
 
 (provide count-bounced
          count-answers
@@ -143,17 +141,7 @@
          #:when (and (list? gamma)
                      (core-exact-scope? f))
          #t]
-        [_ #f])
-      (and (redex-match? lang:calls-lang config cfg)
-           (judgment-holds (wf:wf-config/calls? ,cfg)))
-      (and (redex-match? lang:search-base-seq-calls-lang config cfg)
-           (judgment-holds (wf:wf-config/search-base-calls? ,cfg)))
-      (and (redex-match? lang:search-base-fused-calls-lang config cfg)
-           (judgment-holds (wf:wf-config/search-base-calls? ,cfg)))
-      (and (redex-match? lang:rail-seq-calls-lang config cfg)
-           (judgment-holds (wf:wf-config/rail-calls? ,cfg)))
-      (and (redex-match? lang:rail-fused-calls-lang config cfg)
-           (judgment-holds (wf:wf-config/rail-calls? ,cfg)))))
+        [_ #f])))
 
 (define (count-bounced datum)
   (match datum
