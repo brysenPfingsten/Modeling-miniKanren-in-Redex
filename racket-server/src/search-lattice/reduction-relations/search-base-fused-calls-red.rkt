@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../languages/search-base-fused-calls-lang.rkt"
+         "../languages/search-base-calls-lang.rkt"
          "./private/common.rkt"
          "./private/context-pipeline.rkt"
          "./private/step-utils.rkt"
@@ -14,12 +14,12 @@
 (check-redundancy #t)
 
 (define-lift-search-to-calls lifted-search-base-fused-red
-  (extend-reduction-relation search-base-fused-red search-base-fused-calls-lang)
-  search-base-fused-calls-lang)
+  (extend-reduction-relation search-base-fused-red search-base-calls-lang)
+  search-base-calls-lang)
 
 (define search-base-fused-calls-expand/raw
   (reduction-relation
-   search-base-fused-calls-lang
+   search-base-calls-lang
    #:domain config
    [--> (Γ (in-hole QSpine (in-hole KBranch (in-hole KWork ((r t ... tag) σ)))))
         (Γ (in-hole QSpine (in-hole KBranch (in-hole KWork (g_new σ)))))

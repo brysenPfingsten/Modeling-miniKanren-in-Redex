@@ -11,13 +11,19 @@
 
 (check-redundancy #t)
 
-(define search-flip-fused-extra
+(define search-flip-fused-extra/base
   (reduction-relation
    search-base-lang
    #:domain cfg
-   [--> (in-hole QSpine (in-hole KWork ((delay runnable-search_1) <-+ search_2)))
-        (in-hole QSpine (in-hole KWork (delay (search_2 <-+ runnable-search_1))))
+   [--> (in-hole KWork ((delay runnable-search_1) <-+ search_2))
+        (in-hole KWork (delay (search_2 <-+ runnable-search_1)))
         "search-flip-fused/delay-swap-left"]))
+
+(define search-flip-fused-extra/under-KBranch
+  (context-closure search-flip-fused-extra/base search-base-lang KBranch))
+
+(define search-flip-fused-extra
+  (context-closure search-flip-fused-extra/under-KBranch search-base-lang QSpine))
 
 (define search-flip-fused-red
   (union-reduction-relations

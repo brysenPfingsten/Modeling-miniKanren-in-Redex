@@ -3,10 +3,10 @@
 (require redex/reduction-semantics
          "./search-base-lang.rkt")
 
-(provide rail-seq-lang)
+(provide rail-lang)
 
 (check-redundancy #t)
 
-(define-extended-language rail-seq-lang search-base-lang
+(define-extended-language rail-lang search-base-lang
   [runnable-root .... (search +-> search)]
   [KWork .... (search +-> KWork)])

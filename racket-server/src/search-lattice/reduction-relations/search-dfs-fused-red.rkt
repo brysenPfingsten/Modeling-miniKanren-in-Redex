@@ -11,13 +11,19 @@
 
 (check-redundancy #t)
 
-(define search-dfs-fused-extra
+(define search-dfs-fused-extra/base
   (reduction-relation
    search-base-lang
    #:domain cfg
-   [--> (in-hole QSpine (in-hole KWork ((delay runnable-search_1) <-+ search_2)))
-        (in-hole QSpine (in-hole KWork (delay (runnable-search_1 <-+ search_2))))
+   [--> (in-hole KWork ((delay runnable-search_1) <-+ search_2))
+        (in-hole KWork (delay (runnable-search_1 <-+ search_2)))
         "search-dfs-fused/delay-through-left"]))
+
+(define search-dfs-fused-extra/under-KBranch
+  (context-closure search-dfs-fused-extra/base search-base-lang KBranch))
+
+(define search-dfs-fused-extra
+  (context-closure search-dfs-fused-extra/under-KBranch search-base-lang QSpine))
 
 (define search-dfs-fused-red
   (union-reduction-relations
