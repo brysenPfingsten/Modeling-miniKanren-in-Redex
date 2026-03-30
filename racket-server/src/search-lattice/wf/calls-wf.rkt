@@ -83,9 +83,9 @@
    (wf-goal/calls? g Γ () c_i)
    ------------------- "conj wf/calls"
    (wf-frontier/calls? (search_i × g c_i) Γ c)]
-  [(wf-frontier/calls? delayed_i Γ c)
+  [(wf-frontier/calls? runnable-search_i Γ c)
    ------------------- "delay wf/calls"
-   (wf-frontier/calls? (delay delayed_i) Γ c)])
+   (wf-frontier/calls? (delay runnable-search_i) Γ c)])
 
 (define-judgment-form
   calls-lang

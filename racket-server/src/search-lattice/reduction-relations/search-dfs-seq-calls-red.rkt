@@ -16,8 +16,8 @@
   (reduction-relation
    search-base-seq-calls-lang
    #:domain config
-   [--> (Γ (in-hole QSpine (in-hole KBranch ((delay delayed_1) <-+ search_2))))
-        (Γ (in-hole QSpine (in-hole KBranch (delay (delayed_1 <-+ search_2)))))
+   [--> (Γ (in-hole QSpine (in-hole KBranch ((delay runnable-search_1) <-+ search_2))))
+        (Γ (in-hole QSpine (in-hole KBranch (delay (runnable-search_1 <-+ search_2)))))
         "search-dfs-seq-calls/delay-through-left"]))
 
 (define search-dfs-seq-calls-red

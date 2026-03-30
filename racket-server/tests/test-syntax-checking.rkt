@@ -3,7 +3,7 @@
 (require rackunit
          rackunit/text-ui
          redex/reduction-semantics
-         "../src/search-lattice/languages/canonical-core-lang.rkt"
+         "../src/transpiler/ir/canonical-core-lang.rkt"
          "../src/sexpr-read.rkt"
          "../src/syntax-checking.rkt"
          "../src/transpiler.rkt")

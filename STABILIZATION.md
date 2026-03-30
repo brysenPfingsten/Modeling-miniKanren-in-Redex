@@ -22,10 +22,10 @@ During stabilization:
   - real regression: fix the implementation
 - no pre-stabilization test is protected from deletion if it encodes an
   obsolete semantic story
-- the active aggregate entrypoints stop at L2:
+- the active aggregate entrypoints stop at the current locked surface:
   `languages/all.rkt`, `reduction-relations/all.rkt`, `wf/all.rkt`, and
   `tests/test-all-headless.rkt` are intentionally limited to the current
-  L0/L1/L2 surface
+  L0/L1/L2/L3 surface
 - quarantined L3+ code stays in-tree but is removed from active aggregate
   wiring until its lower-layer dependencies are locked
 
@@ -56,6 +56,16 @@ During stabilization:
   nested-delay traces lock end-to-end, `Bounced` is introduced only at the
   delay frontier, and ordinary `Freshened(...)` configs created by
   `core/fresh-substitute` are now accepted by `wf-cfg/delay?`.
+  Grammar note:
+  the real exclusion target for uninvoked `delay` is top-level already
+  resolved search roots such as `(⊤ σ)`, `(empty-tree)`, and their
+  `Freshened`-wrapped forms. `Bounced` and `(promoted + cfg)` are not the
+  reason for the restriction; those are already `cfg`-only and not members of
+  `search`.
+  The active lower-lattice decomposition now reflects that directly:
+  `search` is factored as a single outer `Freshened` wrapper over resolved roots
+  and bare runnable roots, and `delay` is a `search` form that wraps only
+  `runnable-search`.
 
 - L2/shared disjunction runtime and wf layer:
   `disj-lang`, `disj-base-red`, `disj-seq-red`, `disj-fused-red`,
@@ -69,17 +79,28 @@ During stabilization:
   `racket-server/src/search-lattice/wf/disj-wf.rkt`.
   Lock evidence:
   seq/fused differ only in their policy steps, shared-fresh and branch-local
-  traces both complete, and promoted left answers are now hoisted through the
-  shared disjunction frontier instead of stranding the trace.
+  traces both complete, promoted left answers bubble to the spine in two steps,
+  failures erase locally, and branch-local stepping is now expressed directly by
+  the L2 extension of `KWork` instead of a separate `KBranch` context.
+
+- L3/search-base runtime and wf layer:
+  `search-base-lang`, `search-base-pre-red`,
+  `search-base-seq-red`, `search-base-fused-red`,
+  `search-base-wf`, and the focused L3 gate corpus in
+  `racket-server/tests/stabilization-gates-tests.rkt`.
+  Current touched-file inventory:
+  `racket-server/src/search-lattice/languages/search-base-lang.rkt`,
+  `racket-server/src/search-lattice/reduction-relations/search-base-pre-red.rkt`,
+  `racket-server/src/search-lattice/reduction-relations/search-base-seq-red.rkt`,
+  `racket-server/src/search-lattice/reduction-relations/search-base-fused-red.rkt`,
+  `racket-server/src/search-lattice/wf/search-base-wf.rkt`.
+  Lock evidence:
+  seq/fused share one L3 language, plain L2 reassociation/consumption lifts
+  unchanged into L3, bounced reassociation/consumption is now structural in
+  Redex under `QSpine`/`QFront`, and the search-base reducers no longer depend
+  on the four host-side branch-frontier helpers.
 
 ## Provisional
-
-- L3/search-base runtime and wf layers:
-  `search-base-seq-lang`, `search-base-fused-lang`,
-  `search-base-seq-red`, `search-base-fused-red`,
-  `search-base-wf`, `search-base-calls-wf`.
-  Current status in the rebuild branch:
-  quarantined from `all.rkt` and `test-all-headless.rkt`.
 
 - Rail runtime and wf layers:
   `rail-seq-lang`, `rail-fused-lang`,
@@ -115,17 +136,25 @@ During stabilization:
 
 - Host-side bubble/hoist helper logic in
   `racket-server/src/search-lattice/reduction-relations/private/common.rkt`.
+  Search-base no longer depends on these helpers, but the quarantined
+  rail/calls layers still may.
 
 - Host-side scope/accounting helpers in
   `racket-server/tests/frontier-observable-support.rkt` where they exceed their
   role as test support and start acting as semantic authorities.
 
+- Remaining quarantined layers still need to be propagated through the final
+  `search` / `runnable-search` / branch-aware `KWork` factoring all the way to
+  their final UI-facing consumers.
+
 ## Frozen Renames
 
 - `KWork`
 - `QSpine`
-- `KBranch`
 - `wf-answer/core?`
+- `calls-lang` should be renamed to `delay-calls-lang` when the calls overlay
+  is reopened; the current name is historically inherited and semantically
+  misleading because it already includes the delay layer
 - language-provenance rule-name prefixes such as `core/...` and `delay/...`
 
 No rename rollback is allowed during stabilization unless the name itself

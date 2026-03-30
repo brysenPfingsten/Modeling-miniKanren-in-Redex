@@ -14,8 +14,6 @@
 
 (define-extended-language search-base-fused-calls-lang
   search-base-fused-calls/join
-  [delayed ....
-           (search <-+ search)]
   [QFront ::= hole
              (Freshened c QFront tag)
              (promoted + QFront)])

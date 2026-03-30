@@ -99,9 +99,9 @@
    (wf-frontier/rail-calls? search_2 Γ c)
    ------------------- "right disj wf/rail-calls"
    (wf-frontier/rail-calls? (search_1 +-> search_2) Γ c)]
-  [(wf-frontier/rail-calls? delayed_i Γ c)
+  [(wf-frontier/rail-calls? runnable-search_i Γ c)
    ------------------- "delay wf/rail-calls"
-   (wf-frontier/rail-calls? (delay delayed_i) Γ c)])
+   (wf-frontier/rail-calls? (delay runnable-search_i) Γ c)])
 
 (define-judgment-form
   rail-seq-calls-lang

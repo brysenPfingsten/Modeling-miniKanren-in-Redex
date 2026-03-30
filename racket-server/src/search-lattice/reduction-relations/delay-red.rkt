@@ -30,16 +30,16 @@
    [--> (in-hole KWork ((suspend g tag) σ))
         (in-hole KWork (delay (g σ)))
         "delay/suspend-goal"]
-   [--> (in-hole KWork ((delay delayed_1) × g c))
-        (in-hole KWork (delay (delayed_1 × g c)))
+   [--> (in-hole KWork ((delay runnable-search_1) × g c))
+        (in-hole KWork (delay (runnable-search_1 × g c)))
         "delay/delay-through-conj"]))
 
 (define delay-frontier/base
   (reduction-relation
    delay-lang
    #:domain cfg
-   [--> (in-hole QSpine (delay delayed_1))
-        (in-hole QSpine (Bounced delayed_1))
+   [--> (in-hole QSpine (delay runnable-search_1))
+        (in-hole QSpine (Bounced runnable-search_1))
         "delay/invoke-delay"]))
 
 (define delay-local/under-QSpine

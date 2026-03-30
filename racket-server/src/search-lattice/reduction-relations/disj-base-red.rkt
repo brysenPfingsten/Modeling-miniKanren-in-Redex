@@ -6,6 +6,7 @@
 
 (provide disj-base-core
          disj-goal-local/under-QSpine
+         disj-frontier/local-base
          disj-frontier/base)
 
 (check-redundancy #t)
@@ -16,45 +17,36 @@
 (define core-local/disj
   (context-closure core-base/disj disj-lang KWork))
 
-(define core-branch/disj
-  (context-closure core-local/disj disj-lang KBranch))
-
 (define disj-base-core
-  (context-closure core-branch/disj disj-lang QSpine))
+  (context-closure core-local/disj disj-lang QSpine))
 
 (define disj-goal-local/base
   (reduction-relation
    disj-lang
    #:domain cfg
-   [--> (in-hole KBranch (in-hole KWork ((g_1 ∨ g_2 tag) σ)))
-        (in-hole KBranch (in-hole KWork ((g_1 σ) <-+ (g_2 σ))))
+   [--> (in-hole KWork ((g_1 ∨ g_2 tag) σ))
+        (in-hole KWork ((g_1 σ) <-+ (g_2 σ)))
         "disj/goal-to-tree"]))
 
 (define disj-goal-local/under-QSpine
   (context-closure disj-goal-local/base disj-lang QSpine))
 
-(define disj-frontier/base
+(define disj-frontier/local-base
   (reduction-relation
    disj-lang
    #:domain cfg
-   [--> (in-hole QSpine
-                  (((promoted_i <-+ search_mid)
-                    <-+ search_right)))
-        (in-hole QSpine
-                 (promoted_i
-                  + (search_mid <-+ search_right)))
-        "disj/bubble-left-answer"]
-   [--> (in-hole QSpine
-                  (promoted_i <-+ search_right))
-        (in-hole QSpine
-                 (promoted_i + search_right))
+   [--> ((promoted_i <-+ search_mid) <-+ search_right)
+        (promoted_i <-+ (search_mid <-+ search_right))
+        "disj/reassociate-left-answer"]
+   [--> (promoted_i <-+ search_right)
+        (promoted_i + search_right)
         "disj/promote-left-answer"]
-   [--> (in-hole QSpine
-                  ((((empty-tree) <-+ search_mid) <-+ search_right)))
-        (in-hole QSpine
-                 (search_mid <-+ search_right))
-        "disj/bubble-left-fail"]
-   [--> (in-hole QSpine
-                  ((empty-tree) <-+ search_right))
-        (in-hole QSpine search_right)
-        "disj/skip-left-fail"]))
+   [--> (((empty-tree) <-+ search_mid) <-+ search_right)
+        (search_mid <-+ search_right)
+        "disj/erase-left-fail"]
+   [--> ((empty-tree) <-+ search_right)
+        search_right
+        "disj/erase-left-fail-top"]))
+
+(define disj-frontier/base
+  (context-closure disj-frontier/local-base disj-lang QSpine))

@@ -8,15 +8,6 @@
 
 (check-redundancy #t)
 
-(define-union-language rail-fused-calls/join
+(define-union-language rail-fused-calls-lang
   calls-lang
   rail-fused-lang)
-
-(define-extended-language rail-fused-calls-lang
-  rail-fused-calls/join
-  [delayed ....
-           (search +-> search)]
-  [KBranch ::= hole
-               (Freshened c KBranch tag)
-               (KBranch <-+ search)
-               (search +-> KBranch)])

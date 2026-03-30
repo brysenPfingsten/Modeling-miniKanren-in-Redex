@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../languages/search-base-fused-lang.rkt"
+         "../languages/search-base-lang.rkt"
          "./private/step-utils.rkt"
          "./search-base-fused-red.rkt")
 
@@ -13,10 +13,10 @@
 
 (define search-flip-fused-extra
   (reduction-relation
-   search-base-fused-lang
+   search-base-lang
    #:domain cfg
-   [--> (in-hole QSpine (in-hole KBranch (in-hole KWork ((delay delayed_1) <-+ search_2))))
-        (in-hole QSpine (in-hole KBranch (in-hole KWork (delay (search_2 <-+ delayed_1)))))
+   [--> (in-hole QSpine (in-hole KWork ((delay runnable-search_1) <-+ search_2)))
+        (in-hole QSpine (in-hole KWork (delay (search_2 <-+ runnable-search_1))))
         "search-flip-fused/delay-swap-left"]))
 
 (define search-flip-fused-red

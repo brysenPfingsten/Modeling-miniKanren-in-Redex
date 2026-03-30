@@ -3,10 +3,12 @@
 (require redex/reduction-semantics
          "../languages/delay-lang.rkt"
          (only-in "../languages/core-lang.rkt" c-append)
-         (prefix-in lang: "../languages/core-lang.rkt")
          "./core-wf.rkt")
 
 (provide wf-goal/delay?
+         wf-work/delay?
+         wf-resolved/delay?
+         wf-search/delay?
          wf-frontier/delay?
          wf-cfg/delay?)
 
@@ -43,32 +45,75 @@
 
 (define-judgment-form
   delay-lang
-  #:contract (wf-frontier/delay? cfg c)
-  #:mode (wf-frontier/delay? I I)
-  [(where #t ,(redex-match? lang:core-lang search (term cfg)))
-   (wf-frontier/core? cfg c)
-   ------------------- "core frontier wf/delay"
-   (wf-frontier/delay? cfg c)]
-  [(wf-frontier/delay? cfg_tail c)
-   ------------------- "bounced segment wf/delay"
-   (wf-frontier/delay? (Bounced cfg_tail) c)]
+  #:contract (wf-resolved/delay? search c)
+  #:mode (wf-resolved/delay? I I)
+  [------------------- "empty frontier residual is wf/delay"
+   (wf-resolved/delay? (empty-tree) c)]
+  [(wf-state/at-scope? (state sub dis c_i trail tag) c)
+   ------------------- "raw answer/state wf/delay"
+   (wf-resolved/delay? (⊤ (state sub dis c_i trail tag)) c)]
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
-   (wf-frontier/delay? cfg_tail c_2)
-   ------------------- "cfg freshened scope wf/delay"
-   (wf-frontier/delay? (Freshened c_1 cfg_tail tag_1) c)]
+   (wf-resolved/delay? search_tail c_2)
+   ------------------- "resolved freshened scope wf/delay"
+   (wf-resolved/delay? (Freshened c_1 search_tail tag_1) c)])
+
+(define-judgment-form
+  delay-lang
+  #:contract (wf-work/delay? runnable-search c)
+  #:mode (wf-work/delay? I I)
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-work/delay? runnable-search_tail c_2)
+   ------------------- "work freshened scope wf/delay"
+   (wf-work/delay? (Freshened c_1 runnable-search_tail tag_1) c)]
   [(wf-state/at-scope? (state sub dis c_i trail tag) c)
    (wf-goal/delay? g () c_i)
    ------------------- "goal/state wf/delay"
-   (wf-frontier/delay? (g (state sub dis c_i trail tag)) c)]
+   (wf-work/delay? (g (state sub dis c_i trail tag)) c)]
   [(lvars-same-members? c c_i)
    (wf-frontier/delay? search_i c_i)
    (wf-goal/delay? g () c_i)
    ------------------- "conj wf/delay"
-   (wf-frontier/delay? (search_i × g c_i) c)]
-  [(wf-frontier/delay? delayed_i c)
-   ------------------- "delay wf/delay"
-   (wf-frontier/delay? (delay delayed_i) c)])
+   (wf-work/delay? (search_i × g c_i) c)])
+
+(define-judgment-form
+  delay-lang
+  #:contract (wf-search/delay? search c)
+  #:mode (wf-search/delay? I I)
+  [(wf-resolved/delay? search_i c)
+   ------------------- "resolved search wf/delay"
+   (wf-search/delay? search_i c)]
+  [(wf-work/delay? runnable-search_i c)
+   ------------------- "work search wf/delay"
+   (wf-search/delay? runnable-search_i c)]
+  [(wf-work/delay? runnable-search_i c)
+   ------------------- "delay search wf/delay"
+   (wf-search/delay? (delay runnable-search_i) c)])
+
+(define-judgment-form
+  delay-lang
+  #:contract (wf-cfg-root/delay? cfg-root c)
+  #:mode (wf-cfg-root/delay? I I)
+  [(wf-search/delay? search_i c)
+   ------------------- "search cfg root wf/delay"
+   (wf-cfg-root/delay? search_i c)]
+  [(wf-frontier/delay? cfg_tail c)
+   ------------------- "bounced cfg root wf/delay"
+   (wf-cfg-root/delay? (Bounced cfg_tail) c)])
+
+(define-judgment-form
+  delay-lang
+  #:contract (wf-frontier/delay? cfg c)
+  #:mode (wf-frontier/delay? I I)
+  [(wf-cfg-root/delay? cfg-root_i c)
+   ------------------- "cfg root wf/delay"
+   (wf-frontier/delay? cfg-root_i c)]
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-frontier/delay? cfg_tail c_2)
+   ------------------- "cfg freshened scope wf/delay"
+   (wf-frontier/delay? (Freshened c_1 cfg_tail tag_1) c)])
 
 (define-judgment-form
   delay-lang

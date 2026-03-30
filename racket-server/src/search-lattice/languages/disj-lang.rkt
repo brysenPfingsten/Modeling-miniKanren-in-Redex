@@ -13,13 +13,13 @@
             (Freshened c promoted tag)]
   [g ....
      (g ∨ g tag)]
-  [cfg search
-       (Freshened c cfg tag)
-       (promoted + cfg)]
+  [cfg (Freshened c cfg tag)
+       cfg-root]
+  [cfg-root search
+            (promoted + cfg)]
   [QSpine ::= ....
               (promoted + QSpine)]
-  [search ....
-          (search <-+ search)]
-  [KBranch ::= hole
-               (Freshened c KBranch tag)
-               (KBranch <-+ search)])
+  [KWork ::= ....
+             (KWork <-+ search)]
+  [runnable-root ....
+                 (search <-+ search)])

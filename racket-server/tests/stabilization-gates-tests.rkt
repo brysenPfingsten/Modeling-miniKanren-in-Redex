@@ -82,6 +82,9 @@
 (define (wf-disj? cfg)
   (judgment-holds (wf:wf-cfg/disj? ,cfg)))
 
+(define (wf-search-base? cfg)
+  (judgment-holds (wf:wf-cfg/search-base? ,cfg)))
+
 (define (core-shape? cfg)
   (redex-match? core-lang search cfg))
 
@@ -90,6 +93,9 @@
 
 (define (disj-shape? cfg)
   (redex-match? disj-lang cfg cfg))
+
+(define (search-base-shape? cfg)
+  (redex-match? search-base-lang cfg cfg))
 
 (define cfg-core-succeed
   (term ((succeed (label "ok")) ,sigma-a)))
@@ -228,7 +234,7 @@
 
   (test-case "L2/shared disjunction lock gates"
     (check-false (redex-match? disj-lang QSpine (term (hole <-+ (empty-tree)))))
-    (check-true (redex-match? disj-lang KBranch (term (hole <-+ (empty-tree)))))
+    (check-true (redex-match? disj-lang KWork (term (hole <-+ (empty-tree)))))
     (define-values (goal-seq-name _goal-seq-next)
       (named-step red:disj-seq-red cfg-disj-goal))
     (define-values (goal-fused-name _goal-fused-next)
@@ -244,6 +250,35 @@
     (check-equal? seq-name "disj-seq/distribute-over-conj")
     (check-equal? fused-answer-name "disj-fused/continue-left-answer")
     (check-equal? fused-fail-name "disj-fused/continue-left-fail")
+    (define nested-answer
+      (term (((⊤ ,sigma-a) <-+ (⊤ ,sigma-b))
+             <-+
+             (empty-tree))))
+    (define nested-fail
+      (term (((empty-tree) <-+ (⊤ ,sigma-b))
+             <-+
+             (empty-tree))))
+    (for ([rel (in-list (list red:disj-seq-red red:disj-fused-red))])
+      (define-values (reassoc-answer-name reassoc-answer-next)
+        (named-step rel nested-answer))
+      (define-values (consume-answer-name consume-answer-next)
+        (named-step rel reassoc-answer-next))
+      (define-values (reassoc-fail-name reassoc-fail-next)
+        (named-step rel nested-fail))
+      (define-values (consume-fail-name consume-fail-next)
+        (named-step rel reassoc-fail-next))
+      (check-equal? reassoc-answer-name "disj/reassociate-left-answer")
+      (check-equal? consume-answer-name "disj/promote-left-answer")
+      (check-equal? reassoc-fail-name "disj/erase-left-fail")
+      (check-equal? consume-fail-name "disj/promote-left-answer")
+      (check-equal? reassoc-answer-next
+                    (term ((⊤ ,sigma-a) <-+ ((⊤ ,sigma-b) <-+ (empty-tree)))))
+      (check-equal? consume-answer-next
+                    (term ((⊤ ,sigma-a) + ((⊤ ,sigma-b) <-+ (empty-tree)))))
+      (check-equal? reassoc-fail-next
+                    (term ((⊤ ,sigma-b) <-+ (empty-tree))))
+      (check-equal? consume-fail-next
+                    (term ((⊤ ,sigma-b) + (empty-tree)))))
     (for ([rel (in-list (list red:disj-seq-red red:disj-fused-red))])
       (define-values (shared-steps shared-final shared-status)
         (trace-deterministic rel (example-frontier "fresh shared disj")))
@@ -267,6 +302,65 @@
       (check-equal? (count-answers branch-final) 2)
       (check-true (config-exact-scope? shared-final))
       (check-true (config-exact-scope? branch-final)))))
+
+  (test-case "L3/search-base reopen gates"
+    (define bounced-branch
+      (term (Bounced (((⊤ ,sigma-a) <-+ (empty-tree))
+                      <-+
+                      (⊤ ,sigma-b)))))
+    (define prefixed-bounced
+      (term (Bounced ((⊤ ,sigma-a)
+                      +
+                      ((⊤ ,sigma-b) <-+ (empty-tree))))))
+    (check-true (redex-match? search-base-lang cfg cfg-disj))
+    (check-true (redex-match? search-base-lang cfg bounced-branch))
+    (check-false
+     (redex-match?
+      search-base-lang
+      cfg
+      (term (((⊤ ,sigma-a) + (empty-tree)) <-+ (⊤ ,sigma-b)))))
+    (for ([rel (in-list (list red:search-base-seq-red
+                              red:search-base-fused-red))])
+      (define-values (plain-name plain-next)
+        (named-step rel cfg-disj))
+      (check-equal? plain-name "disj/promote-left-answer")
+      (check-equal? plain-next
+                    (term ((⊤ ,sigma-a) + (⊤ ,sigma-b))))
+      (define-values (bounce-step-1-name bounce-step-1)
+        (named-step rel bounced-branch))
+      (define-values (bounce-step-2-name bounce-step-2)
+        (named-step rel bounce-step-1))
+      (check-equal? bounce-step-1-name "search-base/reassociate-left-answer")
+      (check-equal? bounce-step-2-name "search-base/promote-left-answer")
+      (check-equal? bounce-step-1
+                    (term (Bounced ((⊤ ,sigma-a)
+                                    <-+
+                                    ((empty-tree) <-+ (⊤ ,sigma-b))))))
+      (check-equal? bounce-step-2
+                    (term ((⊤ ,sigma-a)
+                           +
+                           (Bounced ((empty-tree) <-+ (⊤ ,sigma-b))))))
+      (define-values (prefixed-name prefixed-next)
+        (named-step rel prefixed-bounced))
+      (check-equal? prefixed-name "search-base/promote-left-answer")
+      (check-equal? prefixed-next
+                    (term ((⊤ ,sigma-a)
+                           +
+                           ((⊤ ,sigma-b) + (Bounced (empty-tree))))))
+      (check-true (wf-search-base? bounce-step-1))
+      (check-true (wf-search-base? bounce-step-2))
+      (check-true (wf-search-base? prefixed-next))
+      (check-true (trace-locked? rel
+                                 wf-search-base?
+                                 search-base-shape?
+                                 cfg-delay-goal))
+      (check-true (shape-closed? search-base-shape? rel cfg-delay-goal))
+      (define-values (seq/fused-name _seq/fused-next)
+        (named-step rel cfg-mixed-answer))
+      (check-not-false
+       (member seq/fused-name
+               '("search-base-seq/distribute-over-conj"
+                 "search-base-fused/continue-left-answer")))))
 
 (module+ test
   (run-tests STABILIZATION-GATES))

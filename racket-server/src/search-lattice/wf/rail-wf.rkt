@@ -82,9 +82,9 @@
    (wf-frontier/rail? search_2 c)
    ------------------- "right disj wf/rail"
    (wf-frontier/rail? (search_1 +-> search_2) c)]
-  [(wf-frontier/rail? delayed_i c)
+  [(wf-frontier/rail? runnable-search_i c)
    ------------------- "delay wf/rail"
-   (wf-frontier/rail? (delay delayed_i) c)])
+   (wf-frontier/rail? (delay runnable-search_i) c)])
 
 (define-judgment-form
   rail-seq-lang

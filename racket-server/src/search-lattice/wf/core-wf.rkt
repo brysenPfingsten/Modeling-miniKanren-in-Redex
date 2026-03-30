@@ -7,6 +7,8 @@
 (provide (all-from-out "./kernel.rkt")
          wf-goal/core?
          wf-answer/core?
+         wf-resolved/core?
+         wf-work/core?
          wf-frontier/core?
          wf-cfg/core?)
 
@@ -53,27 +55,48 @@
 
 (define-judgment-form
   core-lang
-  #:contract (wf-frontier/core? search c)
-  #:mode (wf-frontier/core? I I)
+  #:contract (wf-resolved/core? search c)
+  #:mode (wf-resolved/core? I I)
   [------------------- "empty frontier residual is wf/core"
-   (wf-frontier/core? (empty-tree) c)]
+   (wf-resolved/core? (empty-tree) c)]
   [(wf-answer/core? search_i c)
-   ------------------- "bare answer wf/core"
-   (wf-frontier/core? search_i c)]
+   ------------------- "answer is resolved wf/core"
+   (wf-resolved/core? search_i c)]
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
-   (wf-frontier/core? search_i c_2)
-   ------------------- "search freshened scope wf/core"
-   (wf-frontier/core? (Freshened c_1 search_i tag_1) c)]
+   (wf-resolved/core? search_tail c_2)
+   ------------------- "resolved freshened scope wf/core"
+   (wf-resolved/core? (Freshened c_1 search_tail tag_1) c)])
+
+(define-judgment-form
+  core-lang
+  #:contract (wf-work/core? runnable-search c)
+  #:mode (wf-work/core? I I)
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-work/core? runnable-search_tail c_2)
+   ------------------- "work freshened scope wf/core"
+   (wf-work/core? (Freshened c_1 runnable-search_tail tag_1) c)]
   [(wf-state/at-scope? (state sub dis c_i trail tag) c)
    (wf-goal/core? g () c_i)
    ------------------- "goal/state frontier wf/core"
-   (wf-frontier/core? (g (state sub dis c_i trail tag)) c)]
+   (wf-work/core? (g (state sub dis c_i trail tag)) c)]
   [(lvars-same-members? c c_i)
    (wf-frontier/core? search_i c_i)
    (wf-goal/core? g () c_i)
    ------------------- "conj frontier wf/core"
-   (wf-frontier/core? (search_i × g c_i) c)])
+   (wf-work/core? (search_i × g c_i) c)])
+
+(define-judgment-form
+  core-lang
+  #:contract (wf-frontier/core? search c)
+  #:mode (wf-frontier/core? I I)
+  [(wf-resolved/core? search_i c)
+   ------------------- "resolved frontier wf/core"
+   (wf-frontier/core? search_i c)]
+  [(wf-work/core? runnable-search_i c)
+   ------------------- "work frontier wf/core"
+   (wf-frontier/core? runnable-search_i c)])
 
 (define-judgment-form
   core-lang

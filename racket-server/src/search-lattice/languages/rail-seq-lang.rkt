@@ -1,14 +1,12 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "./search-base-seq-lang.rkt")
+         "./search-base-lang.rkt")
 
 (provide rail-seq-lang)
 
 (check-redundancy #t)
 
-(define-extended-language rail-seq-lang search-base-seq-lang
-  [delayed ....
-           (search +-> search)]
-  [search .... (search +-> search)]
-  [KBranch .... (search +-> KBranch)])
+(define-extended-language rail-seq-lang search-base-lang
+  [runnable-root .... (search +-> search)]
+  [KWork .... (search +-> KWork)])

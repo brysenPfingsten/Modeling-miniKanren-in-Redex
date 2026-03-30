@@ -14,11 +14,16 @@
 (check-redundancy #t)
 
 (define-language core-lang
-  [search cell
+  [search (Freshened c search tag)
+          cell
           (empty-tree)
-          (g σ)
-          (search × g c)
-          (Freshened c search tag)]
+          runnable-root]
+
+  [runnable-search (Freshened c runnable-search tag)
+                   runnable-root]
+
+  [runnable-root (g σ)
+                 (search × g c)]
 
   [d (x_!_ ...)]
 

@@ -16,8 +16,8 @@
   (reduction-relation
    search-base-fused-calls-lang
    #:domain config
-   [--> (Γ (in-hole QSpine (in-hole KBranch (in-hole KWork ((delay delayed_1) <-+ search_2)))))
-        (Γ (in-hole QSpine (in-hole KBranch (in-hole KWork (delay (search_2 <-+ delayed_1))))))
+   [--> (Γ (in-hole QSpine (in-hole KBranch (in-hole KWork ((delay runnable-search_1) <-+ search_2)))))
+        (Γ (in-hole QSpine (in-hole KBranch (in-hole KWork (delay (search_2 <-+ runnable-search_1))))))
         "search-flip-fused-calls/delay-swap-left"]))
 
 (define search-flip-fused-calls-red

@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../languages/search-base-seq-lang.rkt"
+         "../languages/search-base-lang.rkt"
          "./search-base-pre-red.rkt"
          "./private/step-utils.rkt")
 
@@ -12,18 +12,18 @@
 
 (define search-base-seq-branch-local/base
   (reduction-relation
-   search-base-seq-lang
+   search-base-lang
    #:domain cfg
-   [--> (in-hole KBranch (in-hole KWork ((search_1 <-+ search_2) × g c)))
-        (in-hole KBranch (in-hole KWork ((search_1 × g c) <-+ (search_2 × g c))))
+   [--> (in-hole KWork ((search_1 <-+ search_2) × g c))
+        (in-hole KWork ((search_1 × g c) <-+ (search_2 × g c)))
         "search-base-seq/distribute-over-conj"]))
 
 (define search-base-seq-branch-local/under-QSpine
-  (context-closure search-base-seq-branch-local/base search-base-seq-lang QSpine))
+  (context-closure search-base-seq-branch-local/base search-base-lang QSpine))
 
 (define search-base-seq-red
   (union-reduction-relations
-   search-base-seq-pre-red
+   search-base-pre-red
    search-base-seq-branch-local/under-QSpine))
 
 (define (step-once prog)

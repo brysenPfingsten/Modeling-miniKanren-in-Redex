@@ -95,9 +95,9 @@
    (wf-frontier/search-base-calls? search_2 Γ c)
    ------------------- "left disj wf/search-base-calls"
    (wf-frontier/search-base-calls? (search_1 <-+ search_2) Γ c)]
-  [(wf-frontier/search-base-calls? delayed_i Γ c)
+  [(wf-frontier/search-base-calls? runnable-search_i Γ c)
    ------------------- "delay wf/search-base-calls"
-   (wf-frontier/search-base-calls? (delay delayed_i) Γ c)])
+   (wf-frontier/search-base-calls? (delay runnable-search_i) Γ c)])
 
 (define-judgment-form
   search-base-seq-calls-lang

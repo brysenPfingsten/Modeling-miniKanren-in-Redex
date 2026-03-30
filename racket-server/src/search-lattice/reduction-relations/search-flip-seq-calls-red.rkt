@@ -16,8 +16,8 @@
   (reduction-relation
    search-base-seq-calls-lang
    #:domain config
-   [--> (Γ (in-hole QSpine (in-hole KBranch ((delay delayed_1) <-+ search_2))))
-        (Γ (in-hole QSpine (in-hole KBranch (delay (search_2 <-+ delayed_1)))))
+   [--> (Γ (in-hole QSpine (in-hole KBranch ((delay runnable-search_1) <-+ search_2))))
+        (Γ (in-hole QSpine (in-hole KBranch (delay (search_2 <-+ runnable-search_1)))))
         "search-flip-seq-calls/delay-swap-left"]))
 
 (define search-flip-seq-calls-red

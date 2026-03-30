@@ -1,87 +1,85 @@
 #lang racket
 
 (require redex/reduction-semantics
-         (only-in "./core-red.rkt"
-                  extend-core-redex)
          (only-in "./delay-red.rkt"
                   delay-local/base
-                  delay-frontier/base))
+                  delay-frontier/base)
+         (only-in "./disj-base-red.rkt"
+                  disj-base-core
+                  disj-goal-local/under-QSpine
+                  disj-frontier/local-base))
 
-(provide search-base-seq-pre-red
-         search-base-fused-pre-red)
+(provide search-base-pre-red)
 
 (check-redundancy #t)
 
-(define-syntax-rule (define-search-base-pre pre-name lang)
-  (define pre-name
-    (let ()
-      (define core-base
-        (extend-core-redex lang))
-      (define core-local
-        (context-closure core-base lang KWork))
-      (define core-search
-        (context-closure core-local lang KBranch))
-      (define search-base-core
-        (context-closure core-search lang QSpine))
+(require "../languages/search-base-lang.rkt")
 
-      (define lifted-delay-local/base
-        (extend-reduction-relation delay-local/base lang))
-      (define delay-local
-        (context-closure lifted-delay-local/base lang KBranch))
-      (define delay-local/under-QSpine
-        (context-closure delay-local lang QSpine))
-      (define delay-frontier
-        (extend-reduction-relation delay-frontier/base lang))
+(define lifted-disj-base-core
+  (extend-reduction-relation disj-base-core search-base-lang))
 
-      (define goal-local/base
-        (reduction-relation
-         lang
-         #:domain cfg
-         [--> (in-hole KBranch (in-hole KWork ((g_1 ∨ g_2 tag) σ)))
-              (in-hole KBranch (in-hole KWork ((g_1 σ) <-+ (g_2 σ))))
-              "search-base/goal-to-tree"]))
-      (define goal-local/under-QSpine
-        (context-closure goal-local/base lang QSpine))
+(define lifted-disj-goal-local/under-QSpine
+  (extend-reduction-relation disj-goal-local/under-QSpine search-base-lang))
 
-      (define branch-frontier
-        (reduction-relation
-         lang
-         #:domain cfg
-         [--> (in-hole QFront cfg_i)
-              (in-hole QFront cfg_o)
-              (where (name cfg_o cfg)
-                     ,(or (bubble-left-answer-host (term cfg_i))
-                          'no-frontier-rewrite))
-              "search-base/bubble-left-answer"]
-         [--> (in-hole QFront cfg_i)
-              (in-hole QFront cfg_o)
-              (where (name cfg_o cfg)
-                     ,(or (promote-left-answer-host (term cfg_i))
-                          'no-frontier-rewrite))
-              "search-base/promote-left-answer"]
-         [--> (in-hole QFront cfg_i)
-              (in-hole QFront cfg_o)
-              (where (name cfg_o cfg)
-                     ,(or (bubble-left-fail-host (term cfg_i))
-                          'no-frontier-rewrite))
-              "search-base/bubble-left-fail"]
-         [--> (in-hole QFront cfg_i)
-              (in-hole QFront cfg_o)
-              (where (name cfg_o cfg)
-                     ,(or (skip-left-fail-host (term cfg_i))
-                          'no-frontier-rewrite))
-              "search-base/skip-left-fail"]))
+(define lifted-disj-frontier/local-base
+  (extend-reduction-relation disj-frontier/local-base search-base-lang))
 
-      (union-reduction-relations
-       search-base-core
-       delay-local/under-QSpine
-       delay-frontier
-       goal-local/under-QSpine
-       branch-frontier))))
+(define lifted-delay-local/base
+  (extend-reduction-relation delay-local/base search-base-lang))
 
-(require "./private/common.rkt"
-         "../languages/search-base-seq-lang.rkt"
-         "../languages/search-base-fused-lang.rkt")
+(define delay-local/under-QSpine
+  (context-closure lifted-delay-local/base search-base-lang QSpine))
 
-(define-search-base-pre search-base-seq-pre-red search-base-seq-lang)
-(define-search-base-pre search-base-fused-pre-red search-base-fused-lang)
+(define lifted-delay-frontier/base
+  (extend-reduction-relation delay-frontier/base search-base-lang))
+
+(define lifted-disj-frontier/under-QFront
+  (context-closure lifted-disj-frontier/local-base search-base-lang QFront))
+
+(define search-base-bounced-frontier/base
+  (reduction-relation
+   search-base-lang
+   #:domain cfg
+   [--> (in-hole QSpine
+                 (Bounced
+                  (in-hole QFront
+                           ((promoted_i <-+ search_mid) <-+ search_right))))
+        (in-hole QSpine
+                 (Bounced
+                  (in-hole QFront
+                           (promoted_i <-+ (search_mid <-+ search_right)))))
+        "search-base/reassociate-left-answer"]
+   [--> (in-hole QSpine
+                 (Bounced
+                  (in-hole QFront
+                           (promoted_i <-+ search_right))))
+        (in-hole QSpine
+                 (in-hole QFront
+                          (promoted_i + (Bounced search_right))))
+        "search-base/promote-left-answer"]
+   [--> (in-hole QSpine
+                 (Bounced
+                  (in-hole QFront
+                           (((empty-tree) <-+ search_mid) <-+ search_right))))
+        (in-hole QSpine
+                 (Bounced
+                  (in-hole QFront
+                           (search_mid <-+ search_right))))
+        "search-base/erase-left-fail"]
+   [--> (in-hole QSpine
+                 (Bounced
+                  (in-hole QFront
+                           ((empty-tree) <-+ search_right))))
+        (in-hole QSpine
+                 (in-hole QFront
+                          (Bounced search_right)))
+        "search-base/erase-left-fail-top"]))
+
+(define search-base-pre-red
+  (union-reduction-relations
+   lifted-disj-base-core
+   delay-local/under-QSpine
+   lifted-delay-frontier/base
+   lifted-disj-goal-local/under-QSpine
+   lifted-disj-frontier/under-QFront
+   search-base-bounced-frontier/base))

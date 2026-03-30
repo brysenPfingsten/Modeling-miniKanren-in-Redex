@@ -23,15 +23,13 @@
   (reduction-relation
    disj-lang
    #:domain cfg
-   [--> (in-hole KBranch
-                  (in-hole KWork ((promoted_i <-+ search_rest) × g c)))
-        (in-hole KBranch
-                 (in-hole KWork ((promoted->search promoted_i g)
-                                 <-+
-                                 (search_rest × g c))))
+   [--> (in-hole KWork ((promoted_i <-+ search_rest) × g c))
+        (in-hole KWork ((promoted->search promoted_i g)
+                        <-+
+                        (search_rest × g c)))
         "disj-fused/continue-left-answer"]
-   [--> (in-hole KBranch (in-hole KWork (((empty-tree) <-+ search_rest) × g c)))
-        (in-hole KBranch (in-hole KWork (search_rest × g c)))
+   [--> (in-hole KWork (((empty-tree) <-+ search_rest) × g c))
+        (in-hole KWork (search_rest × g c))
         "disj-fused/continue-left-fail"]))
 
 (define disj-fused-local/under-QSpine

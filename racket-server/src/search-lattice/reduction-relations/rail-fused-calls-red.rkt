@@ -22,11 +22,11 @@
   (reduction-relation
    rail-fused-calls-lang
    #:domain config
-   [--> (Γ (in-hole QSpine (in-hole KBranch (in-hole KWork ((delay delayed_1) <-+ search_2)))))
-        (Γ (in-hole QSpine (in-hole KBranch (in-hole KWork (delay (delayed_1 +-> search_2))))))
+   [--> (Γ (in-hole QSpine (in-hole KBranch (in-hole KWork ((delay runnable-search_1) <-+ search_2)))))
+        (Γ (in-hole QSpine (in-hole KBranch (in-hole KWork (delay (runnable-search_1 +-> search_2))))))
         "rail-fused-calls/enter-right"]
-   [--> (Γ (in-hole QSpine (in-hole KBranch (in-hole KWork (search_2 +-> (delay delayed_1))))))
-        (Γ (in-hole QSpine (in-hole KBranch (in-hole KWork (delay (search_2 <-+ delayed_1))))))
+   [--> (Γ (in-hole QSpine (in-hole KBranch (in-hole KWork (search_2 +-> (delay runnable-search_1))))))
+        (Γ (in-hole QSpine (in-hole KBranch (in-hole KWork (delay (search_2 <-+ runnable-search_1))))))
         "rail-fused-calls/return-left"]))
 
 (define rail-fused-calls-frontier/base

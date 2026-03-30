@@ -24,11 +24,11 @@
   (reduction-relation
    rail-fused-lang
    #:domain cfg
-   [--> (in-hole KBranch (in-hole KWork ((delay delayed_1) <-+ search_2)))
-        (in-hole KBranch (in-hole KWork (delay (delayed_1 +-> search_2))))
+   [--> (in-hole KBranch (in-hole KWork ((delay runnable-search_1) <-+ search_2)))
+        (in-hole KBranch (in-hole KWork (delay (runnable-search_1 +-> search_2))))
         "rail-fused/enter-right"]
-   [--> (in-hole KBranch (in-hole KWork (search_2 +-> (delay delayed_1))))
-        (in-hole KBranch (in-hole KWork (delay (search_2 <-+ delayed_1))))
+   [--> (in-hole KBranch (in-hole KWork (search_2 +-> (delay runnable-search_1))))
+        (in-hole KBranch (in-hole KWork (delay (search_2 <-+ runnable-search_1))))
         "rail-fused/return-left"]))
 
 (define rail-fused-frontier/base
