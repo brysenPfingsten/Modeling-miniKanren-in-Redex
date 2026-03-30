@@ -25,7 +25,7 @@ During stabilization:
 - the active aggregate entrypoints stop at the current locked surface:
   `languages/all.rkt`, `reduction-relations/all.rkt`, `wf/all.rkt`, and
   `tests/test-all-headless.rkt` are intentionally limited to the current
-  L0/L1/L2/L3 surface
+  reopened surface
 - quarantined L3+ code stays in-tree but is removed from active aggregate
   wiring until its lower-layer dependencies are locked
 
@@ -44,6 +44,10 @@ During stabilization:
   `racket-server/tests/property-core.rkt`,
   `racket-server/tests/search-lattice-tests.rkt`,
   `racket-server/tests/stabilization-gates-tests.rkt`.
+  Lock evidence:
+  `QFresh` now owns the pure `Freshened*` helper role in core, and the scoped
+  conjunction handoff rules are expressed directly in those terms. `QSpine` is
+  no longer overloaded with that L0-only meaning.
 
 - L1/delay runtime and wf layer:
   `delay-lang`, `delay-red`, `delay-wf`, and the focused L1 gate corpus in
@@ -56,6 +60,9 @@ During stabilization:
   nested-delay traces lock end-to-end, `Bounced` is introduced only at the
   delay frontier, and ordinary `Freshened(...)` configs created by
   `core/fresh-substitute` are now accepted by `wf-cfg/delay?`.
+  Architecture note:
+  `QSpine` now first appears here as a real outer frontier/spine context:
+  pure `Freshened*` plus `Bounced`.
   Grammar note:
   the real exclusion target for uninvoked `delay` is top-level already
   resolved search roots such as `(⊤ σ)`, `(empty-tree)`, and their
@@ -80,8 +87,13 @@ During stabilization:
   Lock evidence:
   seq/fused differ only in their policy steps, shared-fresh and branch-local
   traces both complete, promoted left answers bubble to the spine in two steps,
-  failures erase locally, and branch-local stepping is now expressed directly by
-  the L2 extension of `KWork` instead of a separate `KBranch` context.
+  failures erase locally, and the active branch path is once again modeled with
+  a separate `KBranch` outside `KWork`. That split turned out to be necessary to
+  keep branch-policy rules and core local work disjoint without priority hacks.
+  Architecture note:
+  `QSpine` here means only the outer frontier/spine, and the fused
+  answer-continuation rule now uses `QFresh` structurally instead of a
+  `promoted->search` metafunction.
 
 - L3/search-base runtime and wf layer:
   `search-base-lang`, `search-base-pre-red`,
@@ -102,21 +114,27 @@ During stabilization:
 
 ## Provisional
 
-- Rail runtime and wf layers:
-  `rail-seq-lang`, `rail-fused-lang`,
+- Reopened calls/runtime overlays:
+  `calls-lang`, `calls-red`,
+  `search-base-calls-lang`,
+  `search-base-*-calls-red`,
+  `calls-wf`, `search-base-calls-wf`.
+  Current status in the rebuild branch:
+  active in `all.rkt`, `search-runtime.rkt`, `search-lattice-tests.rkt`, and
+  `test-all-headless.rkt`, but still provisional pending broader app-facing
+  reconnection.
+
+- Reopened search-strategy/rail overlays:
+  `search-dfs-*`,
+  `search-flip-*`,
+  `rail-lang`, `rail-calls-lang`,
   `rail-seq-red`, `rail-fused-red`,
+  `rail-seq-calls-red`, `rail-fused-calls-red`,
   `rail-wf`, `rail-calls-wf`.
   Current status in the rebuild branch:
-  quarantined from `all.rkt` and `test-all-headless.rkt`.
-
-- Calls overlays and search-strategy overlays:
-  `calls-lang`, `calls-red`,
-  `search-base-*-calls-*`,
-  `rail-*-calls-*`,
-  `search-dfs-*`,
-  `search-flip-*`.
-  Current status in the rebuild branch:
-  quarantined from `all.rkt` and `test-all-headless.rkt`.
+  active in `all.rkt`, the overlap audit, `search-runtime.rkt`, and
+  `test-all-headless.rkt`, but still provisional pending downstream UI-facing
+  integration.
 
 - Downstream consumers:
   `canonical-json.rkt`,
@@ -136,8 +154,8 @@ During stabilization:
 
 - Host-side bubble/hoist helper logic in
   `racket-server/src/search-lattice/reduction-relations/private/common.rkt`.
-  Search-base no longer depends on these helpers, but the quarantined
-  rail/calls layers still may.
+  Search-base no longer depends on these helpers, but some reopened overlay
+  layers still depend on other host-side helper logic there.
 
 - Host-side scope/accounting helpers in
   `racket-server/tests/frontier-observable-support.rkt` where they exceed their
@@ -150,7 +168,9 @@ During stabilization:
 ## Frozen Renames
 
 - `KWork`
+- `QFresh`
 - `QSpine`
+- `KBranch`
 - `wf-answer/core?`
 - `calls-lang` should be renamed to `delay-calls-lang` when the calls overlay
   is reopened; the current name is historically inherited and semantically
@@ -159,3 +179,18 @@ During stabilization:
 
 No rename rollback is allowed during stabilization unless the name itself
 causes a correctness bug or import failure.
+
+## Lower-Layer Analysis
+
+- Inherent after the `QFresh` split:
+  `search`, `runnable-search`, `runnable-root`, `KWork`, `QFresh`, `QSpine`,
+  `promoted`, `cfg`, and `KBranch`.
+- Why `QFresh` is separate:
+  it is the pure `Freshened*` helper used by core scoped conjunction handoff
+  and by L2 fused answer continuation.
+- Why `QSpine` is separate:
+  it is the later extensible outer frontier/spine, first extended by `Bounced`
+  at L1 and by `(promoted + ...)` at L2.
+- Why `KBranch` remains necessary:
+  it isolates active left-branch traversal from `KWork`, so branch-policy rules
+  and local core work do not overlap.

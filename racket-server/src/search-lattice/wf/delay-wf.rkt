@@ -3,6 +3,8 @@
 (require redex/reduction-semantics
          "../languages/delay-lang.rkt"
          (only-in "../languages/core-lang.rkt" c-append)
+         (rename-in "./core-wf.rkt"
+                    [wf-goal/core? wf-goal/core/base])
          "./core-wf.rkt")
 
 (provide wf-goal/delay?
@@ -14,34 +16,14 @@
 
 (check-redundancy #t)
 
-(define-judgment-form
+(define-extended-judgment-form
   delay-lang
+  wf-goal/core/base
   #:contract (wf-goal/delay? g (x_1 ...) c)
   #:mode (wf-goal/delay? I I I)
-  [------------------ "trivial success wf/delay"
-   (wf-goal/delay? (succeed tag) (x_1 ...) c)]
-  [------------------ "trivial fail wf/delay"
-   (wf-goal/delay? (fail tag) (x_1 ...) c)]
-  [(where (u_old ...) c)
-   (where (u_new ...) (fresh-lvars (x_1 ...) c))
-   (wf-goal/delay? g (x_1 ... x_2 ...) (u_new ... u_old ...))
-   ------------------- "fresh-wf/delay"
-   (wf-goal/delay? (∃ (x_1 ...) g tag) (x_2 ...) c)]
-  [(wf-goal/delay? g_1 (x_1 ...) c)
-   (wf-goal/delay? g_2 (x_1 ...) c)
-   ------------------- "conj-wf/delay"
-   (wf-goal/delay? (g_1 ∧ g_2 tag) (x_1 ...) c)]
   [(wf-goal/delay? g (x_1 ...) c)
    ------------------- "delay-goal-wf/delay"
-   (wf-goal/delay? (suspend g tag) (x_1 ...) c)]
-  [(wf-term? t_1 (x_1 ...) c)
-   (wf-term? t_2 (x_1 ...) c)
-   ------------------- "==-wf/delay"
-   (wf-goal/delay? (t_1 =? t_2 tag) (x_1 ...) c)]
-  [(wf-term? t_1 (x_1 ...) c)
-   (wf-term? t_2 (x_1 ...) c)
-   ------------------- "=/=-wf/delay"
-   (wf-goal/delay? (t_1 != t_2 tag) (x_1 ...) c)])
+   (wf-goal/delay? (suspend g tag) (x_1 ...) c)])
 
 (define-judgment-form
   delay-lang

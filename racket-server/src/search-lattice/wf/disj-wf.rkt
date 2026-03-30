@@ -3,46 +3,29 @@
 (require redex/reduction-semantics
          "../languages/disj-lang.rkt"
          (only-in "../languages/core-lang.rkt" c-append)
+         (rename-in "./core-wf.rkt"
+                    [wf-goal/core? wf-goal/core/base])
          "./core-wf.rkt")
 
 (provide wf-goal/disj?
          wf-work/disj?
          wf-resolved/disj?
          wf-search/disj?
+         wf-promoted/disj?
          wf-frontier/disj?
          wf-cfg/disj?)
 
 (check-redundancy #t)
 
-(define-judgment-form
+(define-extended-judgment-form
   disj-lang
+  wf-goal/core/base
   #:contract (wf-goal/disj? g (x_1 ...) c)
   #:mode (wf-goal/disj? I I I)
-  [------------------ "trivial success wf/disj"
-   (wf-goal/disj? (succeed tag) (x_1 ...) c)]
-  [------------------ "trivial fail wf/disj"
-   (wf-goal/disj? (fail tag) (x_1 ...) c)]
-  [(where (u_old ...) c)
-   (where (u_new ...) (fresh-lvars (x_1 ...) c))
-   (wf-goal/disj? g (x_1 ... x_2 ...) (u_new ... u_old ...))
-   ------------------- "fresh-wf/disj"
-   (wf-goal/disj? (∃ (x_1 ...) g tag) (x_2 ...) c)]
-  [(wf-goal/disj? g_1 (x_1 ...) c)
-   (wf-goal/disj? g_2 (x_1 ...) c)
-   ------------------- "conj-wf/disj"
-   (wf-goal/disj? (g_1 ∧ g_2 tag) (x_1 ...) c)]
   [(wf-goal/disj? g_1 (x_1 ...) c)
    (wf-goal/disj? g_2 (x_1 ...) c)
    ------------------- "disj-wf/disj"
-   (wf-goal/disj? (g_1 ∨ g_2 tag) (x_1 ...) c)]
-  [(wf-term? t_1 (x_1 ...) c)
-   (wf-term? t_2 (x_1 ...) c)
-   ------------------- "==-wf/disj"
-   (wf-goal/disj? (t_1 =? t_2 tag) (x_1 ...) c)]
-  [(wf-term? t_1 (x_1 ...) c)
-   (wf-term? t_2 (x_1 ...) c)
-   ------------------- "=/=-wf/disj"
-   (wf-goal/disj? (t_1 != t_2 tag) (x_1 ...) c)])
+   (wf-goal/disj? (g_1 ∨ g_2 tag) (x_1 ...) c)])
 
 (define-judgment-form
   disj-lang

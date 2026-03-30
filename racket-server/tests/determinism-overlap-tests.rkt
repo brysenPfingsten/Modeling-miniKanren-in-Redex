@@ -90,13 +90,13 @@
     (parameterize ([current-pseudo-random-generator rng])
       (match normalized
         [(search-strategy "early" "rail")
-         (generate-term lang:rail-seq-calls-lang config OVERLAP-RANDOM-TERM-DEPTH)]
+         (generate-term lang:rail-calls-lang config OVERLAP-RANDOM-TERM-DEPTH)]
         [(search-strategy "late" "rail")
-         (generate-term lang:rail-fused-calls-lang config OVERLAP-RANDOM-TERM-DEPTH)]
+         (generate-term lang:rail-calls-lang config OVERLAP-RANDOM-TERM-DEPTH)]
         [(search-strategy "early" _)
-         (generate-term lang:search-base-seq-calls-lang config OVERLAP-RANDOM-TERM-DEPTH)]
+         (generate-term lang:search-base-calls-lang config OVERLAP-RANDOM-TERM-DEPTH)]
         [(search-strategy "late" _)
-         (generate-term lang:search-base-fused-calls-lang config OVERLAP-RANDOM-TERM-DEPTH)])))
+         (generate-term lang:search-base-calls-lang config OVERLAP-RANDOM-TERM-DEPTH)])))
   (cond
     [(strategy-matches-generated? normalized cfg) cfg]
     [else

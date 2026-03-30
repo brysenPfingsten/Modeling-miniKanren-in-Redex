@@ -3,49 +3,29 @@
 (require redex/reduction-semantics
          "../languages/search-base-lang.rkt"
          (only-in "../languages/core-lang.rkt" c-append)
+         (rename-in "./disj-wf.rkt"
+                    [wf-goal/disj? wf-goal/disj/base]
+                    [wf-promoted/disj? wf-promoted/disj/base])
          "./core-wf.rkt")
 
 (provide wf-goal/search-base?
          wf-work/search-base?
          wf-resolved/search-base?
          wf-search/search-base?
+         wf-promoted/search-base?
          wf-frontier/search-base?
          wf-cfg/search-base?)
 
 (check-redundancy #t)
 
-(define-judgment-form
+(define-extended-judgment-form
   search-base-lang
+  wf-goal/disj/base
   #:contract (wf-goal/search-base? g (x_1 ...) c)
   #:mode (wf-goal/search-base? I I I)
-  [------------------ "trivial success wf/search-base"
-   (wf-goal/search-base? (succeed tag) (x_1 ...) c)]
-  [------------------ "trivial fail wf/search-base"
-   (wf-goal/search-base? (fail tag) (x_1 ...) c)]
-  [(where (u_old ...) c)
-   (where (u_new ...) (fresh-lvars (x_1 ...) c))
-   (wf-goal/search-base? g (x_1 ... x_2 ...) (u_new ... u_old ...))
-   ------------------- "fresh-wf/search-base"
-   (wf-goal/search-base? (∃ (x_1 ...) g tag) (x_2 ...) c)]
-  [(wf-goal/search-base? g_1 (x_1 ...) c)
-   (wf-goal/search-base? g_2 (x_1 ...) c)
-   ------------------- "conj-wf/search-base"
-   (wf-goal/search-base? (g_1 ∧ g_2 tag) (x_1 ...) c)]
-  [(wf-goal/search-base? g_1 (x_1 ...) c)
-   (wf-goal/search-base? g_2 (x_1 ...) c)
-   ------------------- "disj-wf/search-base"
-   (wf-goal/search-base? (g_1 ∨ g_2 tag) (x_1 ...) c)]
   [(wf-goal/search-base? g (x_1 ...) c)
    ------------------- "delay-goal-wf/search-base"
-   (wf-goal/search-base? (suspend g tag) (x_1 ...) c)]
-  [(wf-term? t_1 (x_1 ...) c)
-   (wf-term? t_2 (x_1 ...) c)
-   ------------------- "==-wf/search-base"
-   (wf-goal/search-base? (t_1 =? t_2 tag) (x_1 ...) c)]
-  [(wf-term? t_1 (x_1 ...) c)
-   (wf-term? t_2 (x_1 ...) c)
-   ------------------- "=/=-wf/search-base"
-   (wf-goal/search-base? (t_1 != t_2 tag) (x_1 ...) c)])
+   (wf-goal/search-base? (suspend g tag) (x_1 ...) c)])
 
 (define-judgment-form
   search-base-lang
@@ -99,18 +79,11 @@
    ------------------- "delay search wf/search-base"
    (wf-search/search-base? (delay runnable-search_i) c)])
 
-(define-judgment-form
+(define-extended-judgment-form
   search-base-lang
+  wf-promoted/disj/base
   #:contract (wf-promoted/search-base? promoted c)
-  #:mode (wf-promoted/search-base? I I)
-  [(wf-state/at-scope? (state sub dis c_i trail tag) c)
-   ------------------- "raw promoted/state wf/search-base"
-   (wf-promoted/search-base? (⊤ (state sub dis c_i trail tag)) c)]
-  [(lvars-fresh-extension? c_1 c)
-   (where c_2 (c-append c_1 c))
-   (wf-promoted/search-base? promoted_tail c_2)
-   ------------------- "promoted freshened scope wf/search-base"
-   (wf-promoted/search-base? (Freshened c_1 promoted_tail tag_1) c)])
+  #:mode (wf-promoted/search-base? I I))
 
 (define-judgment-form
   search-base-lang

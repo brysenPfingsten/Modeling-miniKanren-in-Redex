@@ -7,6 +7,9 @@
          "./core-wf.rkt")
 
 (provide wf-goal/calls?
+         wf-work/calls?
+         wf-resolved/calls?
+         wf-search/calls?
          wf-frontier/calls?
          wf-rel-env/calls?
          wf-config/calls?)
@@ -59,33 +62,67 @@
 
 (define-judgment-form
   calls-lang
+  #:contract (wf-resolved/calls? search c)
+  #:mode (wf-resolved/calls? I I)
+  [------------------- "empty frontier residual is wf/calls"
+   (wf-resolved/calls? (empty-tree) c)]
+  [(wf-state/at-scope? (state sub dis c_i trail tag) c)
+   ------------------- "raw answer/state wf/calls"
+   (wf-resolved/calls? (⊤ (state sub dis c_i trail tag)) c)]
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-resolved/calls? search_tail c_2)
+   ------------------- "resolved freshened scope wf/calls"
+   (wf-resolved/calls? (Freshened c_1 search_tail tag_1) c)])
+
+(define-judgment-form
+  calls-lang
+  #:contract (wf-work/calls? search Γ c)
+  #:mode (wf-work/calls? I I I)
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-work/calls? search_tail Γ c_2)
+   ------------------- "work freshened scope wf/calls"
+   (wf-work/calls? (Freshened c_1 search_tail tag_1) Γ c)]
+  [(wf-state/at-scope? (state sub dis c_i trail tag) c)
+   (wf-goal/calls? g Γ () c_i)
+   ------------------- "goal/state wf/calls"
+   (wf-work/calls? (g (state sub dis c_i trail tag)) Γ c)]
+  [(lvars-same-members? c c_i)
+   (wf-frontier/calls? search_i Γ c_i)
+   (wf-goal/calls? g Γ () c_i)
+   ------------------- "conj wf/calls"
+   (wf-work/calls? (search_i × g c_i) Γ c)])
+
+(define-judgment-form
+  calls-lang
+  #:contract (wf-search/calls? search Γ c)
+  #:mode (wf-search/calls? I I I)
+  [(wf-resolved/calls? search_i c)
+   ------------------- "resolved search wf/calls"
+   (wf-search/calls? search_i Γ c)]
+  [(wf-work/calls? search_i Γ c)
+   ------------------- "work search wf/calls"
+   (wf-search/calls? search_i Γ c)]
+  [(wf-work/calls? search_i Γ c)
+   ------------------- "delay search wf/calls"
+   (wf-search/calls? (delay search_i) Γ c)])
+
+(define-judgment-form
+  calls-lang
   #:contract (wf-frontier/calls? cfg Γ c)
   #:mode (wf-frontier/calls? I I I)
-  [------------------- "empty frontier residual is wf/calls"
-   (wf-frontier/calls? (empty-tree) Γ c)]
-  [(wf-answer/core? search_i c)
-   ------------------- "bare answer wf/calls"
+  [(wf-search/calls? search_i Γ c)
+   ------------------- "search frontier wf/calls"
    (wf-frontier/calls? search_i Γ c)]
   [(wf-frontier/calls? cfg_tail Γ c)
-   ------------------- "bounced segment wf/calls"
+   ------------------- "bounced frontier wf/calls"
    (wf-frontier/calls? (Bounced cfg_tail) Γ c)]
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/calls? cfg_tail Γ c_2)
    ------------------- "cfg freshened scope wf/calls"
-   (wf-frontier/calls? (Freshened c_1 cfg_tail tag_1) Γ c)]
-  [(wf-state/at-scope? (state sub dis c_i trail tag) c)
-   (wf-goal/calls? g Γ () c_i)
-   ------------------- "goal/state wf/calls"
-   (wf-frontier/calls? (g (state sub dis c_i trail tag)) Γ c)]
-  [(lvars-same-members? c c_i)
-   (wf-frontier/calls? search_i Γ c_i)
-   (wf-goal/calls? g Γ () c_i)
-   ------------------- "conj wf/calls"
-   (wf-frontier/calls? (search_i × g c_i) Γ c)]
-  [(wf-frontier/calls? runnable-search_i Γ c)
-   ------------------- "delay wf/calls"
-   (wf-frontier/calls? (delay runnable-search_i) Γ c)])
+   (wf-frontier/calls? (Freshened c_1 cfg_tail tag_1) Γ c)])
 
 (define-judgment-form
   calls-lang
