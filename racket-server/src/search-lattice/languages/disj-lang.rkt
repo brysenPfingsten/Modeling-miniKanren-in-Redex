@@ -17,9 +17,11 @@
        cfg-root]
   [cfg-root search
             (promoted + cfg)]
-  [QSpine ::= ....
+  [QSpine ::= hole
+              (Freshened c QSpine tag)
               (promoted + QSpine)]
-  [KWork ::= ....
-             (KWork <-+ search)]
   [runnable-root ....
-                 (search <-+ search)])
+                 (search <-+ search)]
+  [KBranch ::= hole
+               (Freshened c KBranch tag)
+               (KBranch <-+ search)])

@@ -19,8 +19,11 @@
         (in-hole KWork ((search_1 × g c) <-+ (search_2 × g c)))
         "disj-seq/distribute-over-conj"]))
 
+(define disj-seq-local/under-KBranch
+  (context-closure disj-seq-local/base disj-lang KBranch))
+
 (define disj-seq-local/under-QSpine
-  (context-closure disj-seq-local/base disj-lang QSpine))
+  (context-closure disj-seq-local/under-KBranch disj-lang QSpine))
 
 (define disj-seq-red
   (union-reduction-relations

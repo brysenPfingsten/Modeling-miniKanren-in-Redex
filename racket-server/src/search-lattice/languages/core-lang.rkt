@@ -66,10 +66,9 @@
   [KWork ::= hole
              (Freshened c KWork tag)
              (KWork × g c)]
-  ;; Pure introduction-provenance chain. Later layers extend this into the
-  ;; full outer spine.
-  [QSpine ::= hole
-              (Freshened c QSpine tag)]
+  ;; Pure introduction-provenance chain used by scoped conjunction handoff.
+  [QFresh ::= hole
+              (Freshened c QFresh tag)]
 
   #:binding-forms
   (∃ (x ...) g #:refers-to (shadow x ...)))

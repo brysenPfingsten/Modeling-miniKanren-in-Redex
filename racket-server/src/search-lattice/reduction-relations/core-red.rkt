@@ -28,20 +28,17 @@
    [--> (Freshened () search_tail tag_i)
         search_tail
         "core/prune-empty-scope"]
-   [--> ((in-hole QSpine (⊤ σ)) × g c_2)
-        (in-hole QSpine (g σ))
+   [--> ((in-hole QFresh (⊤ σ)) × g c_2)
+        (in-hole QFresh (g σ))
         "core/conj-bring-scoped-success"]
-   [--> ((in-hole QSpine (empty-tree)) × g c_2)
-        (in-hole QSpine (empty-tree))
+   [--> ((in-hole QFresh (empty-tree)) × g c_2)
+        (in-hole QFresh (empty-tree))
         "core/conj-preserve-scoped-fail"]
    [--> ((∃ () g tag) (state sub dis c trail tag_1))
         (g (state sub dis c trail tag_1))
         "core/elide-empty-fresh"]
    [--> ((∃ (x_first x_rest ...) g tag) (state sub dis c trail tag_1))
-        (Freshened (u_1 ...)
-         (g_new
-          (state sub dis (u_1 ... ,@(term c)) trail tag_1))
-         tag)
+        (Freshened (u_1 ...) (g_new (state sub dis (u_1 ... ,@(term c)) trail tag_1)) tag)
         (where ((x_bound u_1) ...)
                (fresh-substitution c (x_first x_rest ...)))
         (where g_new

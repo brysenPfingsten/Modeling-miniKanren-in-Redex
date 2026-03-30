@@ -40,39 +40,17 @@
   (reduction-relation
    search-base-lang
    #:domain cfg
-   [--> (in-hole QSpine
-                 (Bounced
-                  (in-hole QFront
-                           ((promoted_i <-+ search_mid) <-+ search_right))))
-        (in-hole QSpine
-                 (Bounced
-                  (in-hole QFront
-                           (promoted_i <-+ (search_mid <-+ search_right)))))
+   [--> (in-hole QSpine (Bounced (in-hole QFront ((promoted_i <-+ search_mid) <-+ search_right))))
+        (in-hole QSpine (Bounced (in-hole QFront (promoted_i <-+ (search_mid <-+ search_right)))))
         "search-base/reassociate-left-answer"]
-   [--> (in-hole QSpine
-                 (Bounced
-                  (in-hole QFront
-                           (promoted_i <-+ search_right))))
-        (in-hole QSpine
-                 (in-hole QFront
-                          (promoted_i + (Bounced search_right))))
+   [--> (in-hole QSpine (Bounced (in-hole QFront (promoted_i <-+ search_right))))
+        (in-hole QSpine (in-hole QFront (promoted_i + (Bounced search_right))))
         "search-base/promote-left-answer"]
-   [--> (in-hole QSpine
-                 (Bounced
-                  (in-hole QFront
-                           (((empty-tree) <-+ search_mid) <-+ search_right))))
-        (in-hole QSpine
-                 (Bounced
-                  (in-hole QFront
-                           (search_mid <-+ search_right))))
+   [--> (in-hole QSpine (Bounced (in-hole QFront (((empty-tree) <-+ search_mid) <-+ search_right))))
+        (in-hole QSpine (Bounced (in-hole QFront (search_mid <-+ search_right))))
         "search-base/erase-left-fail"]
-   [--> (in-hole QSpine
-                 (Bounced
-                  (in-hole QFront
-                           ((empty-tree) <-+ search_right))))
-        (in-hole QSpine
-                 (in-hole QFront
-                          (Bounced search_right)))
+   [--> (in-hole QSpine (Bounced (in-hole QFront ((empty-tree) <-+ search_right))))
+        (in-hole QSpine (in-hole QFront (Bounced search_right)))
         "search-base/erase-left-fail-top"]))
 
 (define search-base-pre-red

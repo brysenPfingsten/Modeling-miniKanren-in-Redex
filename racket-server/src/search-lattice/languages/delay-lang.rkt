@@ -17,5 +17,6 @@
             (Bounced cfg)]
   [search ....
           (delay runnable-search)]
-  [QSpine ::= ....
+  [QSpine ::= hole
+              (Freshened c QSpine tag)
               (Bounced QSpine)])

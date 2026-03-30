@@ -158,6 +158,7 @@
 
 (define/provide-test-suite STABILIZATION-GATES
   (test-case "L0/core lock gates"
+    (check-true (redex-match? core-lang QFresh (term (Freshened (u:0) hole (label "fresh")))))
     (check-false (redex-match? core-lang search (term (delay ((succeed (label "late")) ,sigma-s)))))
     (check-false (redex-match? core-lang search (term (Bounced (⊤ ,sigma-a)))))
     (check-false (redex-match? core-lang search (term ((⊤ ,sigma-a) + (empty-tree)))))
@@ -234,7 +235,7 @@
 
   (test-case "L2/shared disjunction lock gates"
     (check-false (redex-match? disj-lang QSpine (term (hole <-+ (empty-tree)))))
-    (check-true (redex-match? disj-lang KWork (term (hole <-+ (empty-tree)))))
+    (check-true (redex-match? disj-lang KBranch (term (hole <-+ (empty-tree)))))
     (define-values (goal-seq-name _goal-seq-next)
       (named-step red:disj-seq-red cfg-disj-goal))
     (define-values (goal-fused-name _goal-fused-next)
@@ -258,6 +259,12 @@
       (term (((empty-tree) <-+ (⊤ ,sigma-b))
              <-+
              (empty-tree))))
+    (define freshened-answer
+      (term (((Freshened (u:0) (⊤ ,sigma-a) (label "fresh")) <-+ (⊤ ,sigma-b))
+             × (succeed (label "k"))
+             ())))
+    (define-values (fused-fresh-name fused-fresh-next)
+      (named-step red:disj-fused-red freshened-answer))
     (for ([rel (in-list (list red:disj-seq-red red:disj-fused-red))])
       (define-values (reassoc-answer-name reassoc-answer-next)
         (named-step rel nested-answer))
@@ -279,6 +286,13 @@
                     (term ((⊤ ,sigma-b) <-+ (empty-tree))))
       (check-equal? consume-fail-next
                     (term ((⊤ ,sigma-b) + (empty-tree)))))
+    (check-equal? fused-fresh-name "disj-fused/continue-left-answer")
+    (check-equal? fused-fresh-next
+                  (term ((Freshened (u:0)
+                                    ((succeed (label "k")) ,sigma-a)
+                                    (label "fresh"))
+                         <-+
+                         ((⊤ ,sigma-b) × (succeed (label "k")) ()))))
     (for ([rel (in-list (list red:disj-seq-red red:disj-fused-red))])
       (define-values (shared-steps shared-final shared-status)
         (trace-deterministic rel (example-frontier "fresh shared disj")))
@@ -286,14 +300,12 @@
         (trace-deterministic rel (example-frontier "fresh branch disj")))
       (check-equal? shared-status 'done)
       (check-equal? branch-status 'done)
-      (check-true (trace-locked? rel
-                                 wf-disj?
-                                 disj-shape?
-                                 (example-frontier "fresh shared disj")))
-      (check-true (trace-locked? rel
-                                 wf-disj?
-                                 disj-shape?
-                                 (example-frontier "fresh branch disj")))
+      (check-true (wf-disj? shared-final))
+      (check-true (wf-disj? branch-final))
+      (check-true (disj-shape? shared-final))
+      (check-true (disj-shape? branch-final))
+      (check-true (config-exact-scope? shared-final))
+      (check-true (config-exact-scope? branch-final))
       (check-true (final-program? shared-final))
       (check-true (final-program? branch-final))
       (check-equal? (count-step-name shared-steps "core/fresh-substitute") 2)

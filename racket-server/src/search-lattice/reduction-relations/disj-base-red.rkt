@@ -17,8 +17,11 @@
 (define core-local/disj
   (context-closure core-base/disj disj-lang KWork))
 
+(define core-local/disj/under-KBranch
+  (context-closure core-local/disj disj-lang KBranch))
+
 (define disj-base-core
-  (context-closure core-local/disj disj-lang QSpine))
+  (context-closure core-local/disj/under-KBranch disj-lang QSpine))
 
 (define disj-goal-local/base
   (reduction-relation
@@ -28,8 +31,11 @@
         (in-hole KWork ((g_1 σ) <-+ (g_2 σ)))
         "disj/goal-to-tree"]))
 
+(define disj-goal-local/under-KBranch
+  (context-closure disj-goal-local/base disj-lang KBranch))
+
 (define disj-goal-local/under-QSpine
-  (context-closure disj-goal-local/base disj-lang QSpine))
+  (context-closure disj-goal-local/under-KBranch disj-lang QSpine))
 
 (define disj-frontier/local-base
   (reduction-relation

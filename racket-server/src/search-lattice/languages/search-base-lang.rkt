@@ -14,6 +14,8 @@
 
 (define-extended-language search-base-lang
   search-base/join
+  ;; `QFront` is the active answer-prefix helper inside a bounced remainder.
+  ;; It is intentionally richer than core `QFresh`.
   [QFront ::= hole
               (Freshened c QFront tag)
               (promoted + QFront)])

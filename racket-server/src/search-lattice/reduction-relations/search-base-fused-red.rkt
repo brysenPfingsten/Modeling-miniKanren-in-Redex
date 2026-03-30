@@ -14,6 +14,8 @@
   (reduction-relation
    search-base-lang
    #:domain cfg
+   ;; `QFront` stays here because fused L3 continuation can sit behind an
+   ;; already-produced answer prefix, not just a pure `Freshened*` chain.
    [--> (in-hole KWork (((in-hole QFront (⊤ σ_new)) <-+ search_rest) × g c))
         (in-hole KWork ((in-hole QFront (g σ_new)) <-+ (search_rest × g c)))
         "search-base-fused/continue-left-answer"]
@@ -21,8 +23,11 @@
         (in-hole KWork (search_rest × g c))
         "search-base-fused/continue-left-fail"]))
 
+(define search-base-fused-branch-local/under-KBranch
+  (context-closure search-base-fused-branch-local/base search-base-lang KBranch))
+
 (define search-base-fused-branch-local/under-QSpine
-  (context-closure search-base-fused-branch-local/base search-base-lang QSpine))
+  (context-closure search-base-fused-branch-local/under-KBranch search-base-lang QSpine))
 
 (define search-base-fused-red
   (union-reduction-relations
