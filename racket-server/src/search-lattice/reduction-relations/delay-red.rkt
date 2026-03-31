@@ -7,7 +7,7 @@
          "./private/step-utils.rkt")
 
 (provide delay-local/base
-         delay-local/under-QSpine
+         delay-local/under-QShell
          delay-frontier/base
          delay-red
          step-once)
@@ -18,37 +18,37 @@
   (extend-core-redex delay-lang))
 
 (define core-local/delay
-  (context-closure core-base/delay delay-lang KWork))
+  (context-closure core-base/delay delay-lang KLocal))
 
 (define core-red/delay
-  (context-closure core-local/delay delay-lang QSpine))
+  (context-closure core-local/delay delay-lang QShell))
 
 (define delay-local/base
   (reduction-relation
    delay-lang
    #:domain cfg
-   [--> (in-hole KWork ((suspend g tag) σ))
-        (in-hole KWork (delay (g σ)))
+   [--> (in-hole KLocal ((suspend g tag) σ))
+        (in-hole KLocal (delay (g σ)))
         "delay/suspend-goal"]
-   [--> (in-hole KWork ((delay runnable-search_1) × g c))
-        (in-hole KWork (delay (runnable-search_1 × g c)))
+   [--> (in-hole KLocal ((delay runnable-search_1) × g c))
+        (in-hole KLocal (delay (runnable-search_1 × g c)))
         "delay/delay-through-conj"]))
 
 (define delay-frontier/base
   (reduction-relation
    delay-lang
    #:domain cfg
-   [--> (in-hole QSpine (delay runnable-search_1))
-        (in-hole QSpine (Bounced runnable-search_1))
+   [--> (in-hole QShell (delay runnable-search_1))
+        (in-hole QShell (Bounced runnable-search_1))
         "delay/invoke-delay"]))
 
-(define delay-local/under-QSpine
-  (context-closure delay-local/base delay-lang QSpine))
+(define delay-local/under-QShell
+  (context-closure delay-local/base delay-lang QShell))
 
 (define delay-red
   (union-reduction-relations
    core-red/delay
-   delay-local/under-QSpine
+   delay-local/under-QShell
    delay-frontier/base))
 
 (define (step-once prog)

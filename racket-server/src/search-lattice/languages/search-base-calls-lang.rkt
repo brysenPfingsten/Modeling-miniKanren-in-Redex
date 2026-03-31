@@ -2,18 +2,12 @@
 
 (require redex/reduction-semantics
          "./calls-lang.rkt"
-         "./disj-lang.rkt")
+         "./search-base-lang.rkt")
 
 (provide search-base-calls-lang)
 
 (check-redundancy #t)
 
-(define-union-language search-base-calls/join
+(define-union-language search-base-calls-lang
   calls-lang
-  disj-lang)
-
-(define-extended-language search-base-calls-lang
-  search-base-calls/join
-  [QFront ::= hole
-              (Freshened c QFront tag)
-              (promoted + QFront)])
+  search-base-lang)

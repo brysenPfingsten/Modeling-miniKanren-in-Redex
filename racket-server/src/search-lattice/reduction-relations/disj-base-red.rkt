@@ -4,38 +4,24 @@
          "../languages/disj-lang.rkt"
          "./core-red.rkt")
 
-(provide disj-base-core
-         disj-goal-local/under-QSpine
-         disj-frontier/local-base
-         disj-frontier/base)
+(provide disj-core-local/base
+         disj-goal-local/base
+         disj-frontier/local-base)
 
 (check-redundancy #t)
 
 (define core-base/disj
   (extend-core-redex disj-lang))
 
-(define core-local/disj
-  (context-closure core-base/disj disj-lang KWork))
-
-(define core-local/disj/under-KBranch
-  (context-closure core-local/disj disj-lang KBranch))
-
-(define disj-base-core
-  (context-closure core-local/disj/under-KBranch disj-lang QSpine))
-
+(define disj-core-local/base
+  (context-closure core-base/disj disj-lang KLocal))
 (define disj-goal-local/base
   (reduction-relation
    disj-lang
    #:domain cfg
-   [--> (in-hole KWork ((g_1 ∨ g_2 tag) σ))
-        (in-hole KWork ((g_1 σ) <-+ (g_2 σ)))
+   [--> (in-hole KLocal ((g_1 ∨ g_2 tag) σ))
+        (in-hole KLocal ((g_1 σ) <-+ (g_2 σ)))
         "disj/goal-to-tree"]))
-
-(define disj-goal-local/under-KBranch
-  (context-closure disj-goal-local/base disj-lang KBranch))
-
-(define disj-goal-local/under-QSpine
-  (context-closure disj-goal-local/under-KBranch disj-lang QSpine))
 
 (define disj-frontier/local-base
   (reduction-relation
@@ -53,6 +39,3 @@
    [--> ((empty-tree) <-+ search_right)
         search_right
         "disj/erase-left-fail-top"]))
-
-(define disj-frontier/base
-  (context-closure disj-frontier/local-base disj-lang QSpine))

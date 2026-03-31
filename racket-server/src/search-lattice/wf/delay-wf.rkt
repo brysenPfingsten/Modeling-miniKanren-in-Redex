@@ -75,22 +75,14 @@
 
 (define-judgment-form
   delay-lang
-  #:contract (wf-cfg-root/delay? cfg-root c)
-  #:mode (wf-cfg-root/delay? I I)
-  [(wf-search/delay? search_i c)
-   ------------------- "search cfg root wf/delay"
-   (wf-cfg-root/delay? search_i c)]
-  [(wf-frontier/delay? cfg_tail c)
-   ------------------- "bounced cfg root wf/delay"
-   (wf-cfg-root/delay? (Bounced cfg_tail) c)])
-
-(define-judgment-form
-  delay-lang
   #:contract (wf-frontier/delay? cfg c)
   #:mode (wf-frontier/delay? I I)
-  [(wf-cfg-root/delay? cfg-root_i c)
-   ------------------- "cfg root wf/delay"
-   (wf-frontier/delay? cfg-root_i c)]
+  [(wf-search/delay? search_i c)
+   ------------------- "search frontier wf/delay"
+   (wf-frontier/delay? search_i c)]
+  [(wf-frontier/delay? cfg_tail c)
+   ------------------- "bounced frontier wf/delay"
+   (wf-frontier/delay? (Bounced cfg_tail) c)]
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/delay? cfg_tail c_2)

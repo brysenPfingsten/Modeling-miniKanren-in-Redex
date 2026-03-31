@@ -73,7 +73,10 @@
   (extend-reduction-relation core-base/raw lang))
 
 (define core-red
-  (context-closure core-base/raw core-lang KWork))
+  (context-closure
+   (context-closure core-base/raw core-lang KLocal)
+   core-lang
+   QShell))
 
 (define (step-once prog)
   (step-once/deterministic core-red prog))

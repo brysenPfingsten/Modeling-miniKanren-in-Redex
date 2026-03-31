@@ -11,12 +11,9 @@
 (define-extended-language delay-lang core-lang
   [g ....
      (suspend g tag)]
-  [cfg (Freshened c cfg tag)
-       cfg-root]
-  [cfg-root search
-            (Bounced cfg)]
   [search ....
           (delay runnable-search)]
-  [QSpine ::= hole
-              (Freshened c QSpine tag)
-              (Bounced QSpine)])
+  [cfg ....
+       (Bounced cfg)]
+  [QShell ::= ....
+              (Bounced QShell)])

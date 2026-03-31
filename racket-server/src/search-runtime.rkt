@@ -39,42 +39,42 @@
    (search-strategy "early" "dfs")
     step-once/search-dfs-seq-calls
     (lambda (cfg)
-      (redex-match? lang:search-base-calls-lang config cfg))
+      (redex-match? lang:search-base-seq-calls-lang config cfg))
     (lambda (cfg)
       (judgment-holds (wf:wf-config/search-base-calls? ,cfg))))
    (strategy-spec
    (search-strategy "late" "dfs")
     step-once/search-dfs-fused-calls
     (lambda (cfg)
-      (redex-match? lang:search-base-calls-lang config cfg))
+      (redex-match? lang:search-base-fused-calls-lang config cfg))
     (lambda (cfg)
       (judgment-holds (wf:wf-config/search-base-calls? ,cfg))))
    (strategy-spec
    (search-strategy "early" "flip")
     step-once/search-flip-seq-calls
     (lambda (cfg)
-      (redex-match? lang:search-base-calls-lang config cfg))
+      (redex-match? lang:search-base-seq-calls-lang config cfg))
     (lambda (cfg)
       (judgment-holds (wf:wf-config/search-base-calls? ,cfg))))
    (strategy-spec
    (search-strategy "late" "flip")
     step-once/search-flip-fused-calls
     (lambda (cfg)
-      (redex-match? lang:search-base-calls-lang config cfg))
+      (redex-match? lang:search-base-fused-calls-lang config cfg))
     (lambda (cfg)
       (judgment-holds (wf:wf-config/search-base-calls? ,cfg))))
    (strategy-spec
    (search-strategy "early" "rail")
     step-once/rail-seq-calls
     (lambda (cfg)
-      (redex-match? lang:rail-calls-lang config cfg))
+      (redex-match? lang:rail-seq-calls-lang config cfg))
     (lambda (cfg)
       (judgment-holds (wf:wf-config/rail-calls? ,cfg))))
    (strategy-spec
    (search-strategy "late" "rail")
     step-once/rail-fused-calls
     (lambda (cfg)
-      (redex-match? lang:rail-calls-lang config cfg))
+      (redex-match? lang:rail-fused-calls-lang config cfg))
     (lambda (cfg)
       (judgment-holds (wf:wf-config/rail-calls? ,cfg))))))
 

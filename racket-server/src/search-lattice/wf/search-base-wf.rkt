@@ -87,26 +87,18 @@
 
 (define-judgment-form
   search-base-lang
-  #:contract (wf-cfg-root/search-base? cfg-root c)
-  #:mode (wf-cfg-root/search-base? I I)
+  #:contract (wf-frontier/search-base? cfg c)
+  #:mode (wf-frontier/search-base? I I)
   [(wf-search/search-base? search_i c)
-   ------------------- "search cfg root wf/search-base"
-   (wf-cfg-root/search-base? search_i c)]
+   ------------------- "search frontier wf/search-base"
+   (wf-frontier/search-base? search_i c)]
   [(wf-promoted/search-base? promoted_i c)
    (wf-frontier/search-base? cfg_tail c)
    ------------------- "promoted stream node wf/search-base"
-   (wf-cfg-root/search-base? (promoted_i + cfg_tail) c)]
+   (wf-frontier/search-base? (promoted_i + cfg_tail) c)]
   [(wf-frontier/search-base? cfg_tail c)
-   ------------------- "bounced cfg root wf/search-base"
-   (wf-cfg-root/search-base? (Bounced cfg_tail) c)])
-
-(define-judgment-form
-  search-base-lang
-  #:contract (wf-frontier/search-base? cfg c)
-  #:mode (wf-frontier/search-base? I I)
-  [(wf-cfg-root/search-base? cfg-root_i c)
-   ------------------- "cfg root wf/search-base"
-   (wf-frontier/search-base? cfg-root_i c)]
+   ------------------- "bounced frontier wf/search-base"
+   (wf-frontier/search-base? (Bounced cfg_tail) c)]
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/search-base? cfg_tail c_2)

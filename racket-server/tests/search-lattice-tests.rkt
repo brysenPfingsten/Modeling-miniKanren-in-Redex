@@ -27,8 +27,8 @@
     (check-true (redex-match? lang:delay-lang cfg (term ,delayed-left-search)))
     (check-false (redex-match? lang:delay-lang cfg '(proceed (empty-tree))))
     (check-true (redex-match? lang:calls-lang g '(r:delay (label "call"))))
-    (check-false (redex-match? lang:disj-lang QSpine (term (hole <-+ (empty-tree)))))
-    (check-true (redex-match? lang:disj-lang KBranch (term (hole <-+ (empty-tree)))))
+    (check-true (redex-match? lang:disj-seq-lang KTail (term (hole <-+ (empty-tree)))))
+    (check-true (redex-match? lang:disj-fused-lang KTail (term (hole <-+ (empty-tree)))))
     (check-true (redex-match? lang:rail-lang cfg '((empty-tree) +-> (empty-tree))))
     (check-false
      (redex-match?
@@ -144,10 +144,10 @@
        (apply-reduction-relation/tag-with-names
         red:search-base-fused-red
         fused-mid)))
-    (check-equal? (~a seq-name-1) "search-base/reassociate-left-answer")
-    (check-equal? (~a seq-name-2) "search-base/promote-left-answer")
-    (check-equal? (~a fused-name-1) "search-base/reassociate-left-answer")
-    (check-equal? (~a fused-name-2) "search-base/promote-left-answer")
+    (check-equal? (~a seq-name-1) "disj/reassociate-left-answer")
+    (check-equal? (~a seq-name-2) "disj/promote-left-answer")
+    (check-equal? (~a fused-name-1) "disj/reassociate-left-answer")
+    (check-equal? (~a fused-name-2) "disj/promote-left-answer")
     (check-equal? seq-mid
                   (term (Bounced ((⊤ ,sigma-a)
                                   <-+
@@ -157,13 +157,13 @@
                                   <-+
                                   ((empty-tree) <-+ (⊤ ,sigma-b))))))
     (check-equal? seq-next
-                  (term ((⊤ ,sigma-a)
-                         +
-                         (Bounced ((empty-tree) <-+ (⊤ ,sigma-b))))))
+                  (term (Bounced ((⊤ ,sigma-a)
+                                  +
+                                  ((empty-tree) <-+ (⊤ ,sigma-b))))))
     (check-equal? fused-next
-                  (term ((⊤ ,sigma-a)
-                        +
-                         (Bounced ((empty-tree) <-+ (⊤ ,sigma-b))))))
+                  (term (Bounced ((⊤ ,sigma-a)
+                                  +
+                                  ((empty-tree) <-+ (⊤ ,sigma-b))))))
     (check-true (produced-answer-spine-only? seq-next))
     (check-true (produced-answer-spine-only? fused-next)))
 
@@ -263,27 +263,27 @@
         cfg-call-branch)))
     (check-equal? (~a seq-name) "search-base-seq-calls/expand")
     (check-equal? (~a fused-name) "search-base-fused-calls/expand")
-    (check-true (redex-match? lang:search-base-calls-lang config seq-next))
-    (check-true (redex-match? lang:search-base-calls-lang config fused-next)))
+    (check-true (redex-match? lang:search-base-seq-calls-lang config seq-next))
+    (check-true (redex-match? lang:search-base-fused-calls-lang config fused-next)))
 
   (test-case "scheduled +calls reducers are deterministic and shape-closed"
     (for ([entry (in-list
-                  (list (list (lambda (prog) (redex-match? lang:search-base-calls-lang config prog))
+                  (list (list (lambda (prog) (redex-match? lang:search-base-seq-calls-lang config prog))
                               red:search-dfs-seq-calls-red
                               cfg-call-branch)
-                        (list (lambda (prog) (redex-match? lang:search-base-calls-lang config prog))
+                        (list (lambda (prog) (redex-match? lang:search-base-fused-calls-lang config prog))
                               red:search-dfs-fused-calls-red
                               cfg-call-branch)
-                        (list (lambda (prog) (redex-match? lang:search-base-calls-lang config prog))
+                        (list (lambda (prog) (redex-match? lang:search-base-seq-calls-lang config prog))
                               red:search-flip-seq-calls-red
                               cfg-call-branch)
-                        (list (lambda (prog) (redex-match? lang:search-base-calls-lang config prog))
+                        (list (lambda (prog) (redex-match? lang:search-base-fused-calls-lang config prog))
                               red:search-flip-fused-calls-red
                               cfg-call-branch)
-                        (list (lambda (prog) (redex-match? lang:rail-calls-lang config prog))
+                        (list (lambda (prog) (redex-match? lang:rail-seq-calls-lang config prog))
                               red:rail-seq-calls-red
                               cfg-call-rail)
-                        (list (lambda (prog) (redex-match? lang:rail-calls-lang config prog))
+                        (list (lambda (prog) (redex-match? lang:rail-fused-calls-lang config prog))
                               red:rail-fused-calls-red
                               cfg-call-rail)))])
       (match-define (list matcher rel prog) entry)
@@ -294,34 +294,38 @@
       (check-true (invariant-closed? produced-answer-spine-only? rel prog))))
 
   (test-case "scheduler/calls assembly commutes on representative seq and fused examples"
+    (define alt-search-dfs-seq-calls-expand
+      (reduction-relation
+       lang:search-base-seq-calls-lang
+       #:domain config
+       [--> (Γ (in-hole QShell (in-hole KBranch (in-hole KLocal ((r t ... tag) σ)))))
+            (Γ (in-hole QShell (in-hole KBranch (in-hole KLocal (g_new σ)))))
+            (where g_new
+                   ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
+            "alt-search-dfs-seq-calls/expand"]))
     (define alt-search-dfs-seq-calls-red
       (union-reduction-relations
        (context-closure
-        (extend-reduction-relation red:search-dfs-seq-red lang:search-base-calls-lang)
-        lang:search-base-calls-lang
+        (extend-reduction-relation red:search-dfs-seq-red lang:search-base-seq-calls-lang)
+        lang:search-base-seq-calls-lang
         (Γ hole))
-       (reduction-relation
-        lang:search-base-calls-lang
-        #:domain config
-        [--> (Γ (in-hole KBranch (in-hole KWork ((r t ... tag) σ))))
-             (Γ (in-hole KBranch (in-hole KWork (g_new σ))))
-             (where g_new
-                    ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
-             "alt-search-dfs-seq-calls/expand"])))
+       alt-search-dfs-seq-calls-expand))
+    (define alt-rail-fused-calls-expand
+      (reduction-relation
+       lang:rail-fused-calls-lang
+       #:domain config
+       [--> (Γ (in-hole QShell (in-hole KBranch (in-hole KLocal ((r t ... tag) σ)))))
+            (Γ (in-hole QShell (in-hole KBranch (in-hole KLocal (g_new σ)))))
+            (where g_new
+                   ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
+            "alt-rail-fused-calls/expand"]))
     (define alt-rail-fused-calls-red
       (union-reduction-relations
        (context-closure
-        (extend-reduction-relation red:rail-fused-red lang:rail-calls-lang)
-        lang:rail-calls-lang
+        (extend-reduction-relation red:rail-fused-red lang:rail-fused-calls-lang)
+        lang:rail-fused-calls-lang
         (Γ hole))
-       (reduction-relation
-        lang:rail-calls-lang
-        #:domain config
-        [--> (Γ (in-hole KBranch (in-hole KWork ((r t ... tag) σ))))
-             (Γ (in-hole KBranch (in-hole KWork (g_new σ))))
-             (where g_new
-                    ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
-             "alt-rail-fused-calls/expand"])))
+       alt-rail-fused-calls-expand))
     (check-equal?
      (apply-reduction-relation red:search-dfs-seq-calls-red cfg-call-branch)
      (apply-reduction-relation alt-search-dfs-seq-calls-red cfg-call-branch))
@@ -336,39 +340,39 @@
                               (term ((succeed (label "ok")) ,sigma-a)))
                         (list (lambda (prog) (redex-match? lang:delay-lang cfg prog))
                               red:delay-red cfg-delay-goal)
-                        (list (lambda (prog) (redex-match? lang:disj-lang cfg prog))
+                        (list (lambda (prog) (redex-match? lang:disj-seq-lang cfg prog))
                               red:disj-seq-red cfg-mixed-answer)
-                        (list (lambda (prog) (redex-match? lang:disj-lang cfg prog))
+                        (list (lambda (prog) (redex-match? lang:disj-fused-lang cfg prog))
                               red:disj-fused-red cfg-mixed-answer)
-                        (list (lambda (prog) (redex-match? lang:search-base-lang cfg prog))
+                        (list (lambda (prog) (redex-match? lang:search-base-seq-lang cfg prog))
                               red:search-base-seq-red cfg-delay-goal)
-                        (list (lambda (prog) (redex-match? lang:search-base-lang cfg prog))
+                        (list (lambda (prog) (redex-match? lang:search-base-fused-lang cfg prog))
                               red:search-base-fused-red cfg-delay-goal)
-                        (list (lambda (prog) (redex-match? lang:search-base-lang cfg prog))
+                        (list (lambda (prog) (redex-match? lang:search-base-seq-lang cfg prog))
                               red:search-dfs-seq-red cfg-flip)
-                        (list (lambda (prog) (redex-match? lang:search-base-lang cfg prog))
+                        (list (lambda (prog) (redex-match? lang:search-base-fused-lang cfg prog))
                               red:search-dfs-fused-red cfg-flip)
-                        (list (lambda (prog) (redex-match? lang:search-base-lang cfg prog))
+                        (list (lambda (prog) (redex-match? lang:search-base-seq-lang cfg prog))
                               red:search-flip-seq-red cfg-flip)
-                        (list (lambda (prog) (redex-match? lang:search-base-lang cfg prog))
+                        (list (lambda (prog) (redex-match? lang:search-base-fused-lang cfg prog))
                               red:search-flip-fused-red cfg-flip)
-                        (list (lambda (prog) (redex-match? lang:rail-lang cfg prog))
+                        (list (lambda (prog) (redex-match? lang:rail-seq-lang cfg prog))
                               red:rail-seq-red cfg-rail)
-                        (list (lambda (prog) (redex-match? lang:rail-lang cfg prog))
+                        (list (lambda (prog) (redex-match? lang:rail-fused-lang cfg prog))
                               red:rail-fused-red cfg-rail)
                         (list (lambda (prog) (redex-match? lang:calls-lang config prog))
                               red:calls-red cfg-call)
-                        (list (lambda (prog) (redex-match? lang:search-base-calls-lang config prog))
+                        (list (lambda (prog) (redex-match? lang:search-base-seq-calls-lang config prog))
                               red:search-dfs-seq-calls-red cfg-call-branch)
-                        (list (lambda (prog) (redex-match? lang:search-base-calls-lang config prog))
+                        (list (lambda (prog) (redex-match? lang:search-base-fused-calls-lang config prog))
                               red:search-dfs-fused-calls-red cfg-call-branch)
-                        (list (lambda (prog) (redex-match? lang:search-base-calls-lang config prog))
+                        (list (lambda (prog) (redex-match? lang:search-base-seq-calls-lang config prog))
                               red:search-flip-seq-calls-red cfg-call-branch)
-                        (list (lambda (prog) (redex-match? lang:search-base-calls-lang config prog))
+                        (list (lambda (prog) (redex-match? lang:search-base-fused-calls-lang config prog))
                               red:search-flip-fused-calls-red cfg-call-branch)
-                        (list (lambda (prog) (redex-match? lang:rail-calls-lang config prog))
+                        (list (lambda (prog) (redex-match? lang:rail-seq-calls-lang config prog))
                               red:rail-seq-calls-red cfg-call-rail)
-                        (list (lambda (prog) (redex-match? lang:rail-calls-lang config prog))
+                        (list (lambda (prog) (redex-match? lang:rail-fused-calls-lang config prog))
                               red:rail-fused-calls-red cfg-call-rail)))])
       (match-define (list matcher rel prog) entry)
       (check-true (progress? rel prog))

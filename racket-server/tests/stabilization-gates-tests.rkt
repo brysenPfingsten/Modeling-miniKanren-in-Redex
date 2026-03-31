@@ -234,8 +234,8 @@
                                cfg-delay-inside-fresh)))
 
   (test-case "L2/shared disjunction lock gates"
-    (check-false (redex-match? disj-lang QSpine (term (hole <-+ (empty-tree)))))
-    (check-true (redex-match? disj-lang KBranch (term (hole <-+ (empty-tree)))))
+    (check-true (redex-match? disj-seq-lang KTail (term (hole <-+ (empty-tree)))))
+    (check-true (redex-match? disj-fused-lang KTail (term (hole <-+ (empty-tree)))))
     (define-values (goal-seq-name _goal-seq-next)
       (named-step red:disj-seq-red cfg-disj-goal))
     (define-values (goal-fused-name _goal-fused-next)
@@ -342,23 +342,23 @@
         (named-step rel bounced-branch))
       (define-values (bounce-step-2-name bounce-step-2)
         (named-step rel bounce-step-1))
-      (check-equal? bounce-step-1-name "search-base/reassociate-left-answer")
-      (check-equal? bounce-step-2-name "search-base/promote-left-answer")
+      (check-equal? bounce-step-1-name "disj/reassociate-left-answer")
+      (check-equal? bounce-step-2-name "disj/promote-left-answer")
       (check-equal? bounce-step-1
                     (term (Bounced ((⊤ ,sigma-a)
                                     <-+
                                     ((empty-tree) <-+ (⊤ ,sigma-b))))))
       (check-equal? bounce-step-2
-                    (term ((⊤ ,sigma-a)
-                           +
-                           (Bounced ((empty-tree) <-+ (⊤ ,sigma-b))))))
+                    (term (Bounced ((⊤ ,sigma-a)
+                                    +
+                                    ((empty-tree) <-+ (⊤ ,sigma-b))))))
       (define-values (prefixed-name prefixed-next)
         (named-step rel prefixed-bounced))
-      (check-equal? prefixed-name "search-base/promote-left-answer")
+      (check-equal? prefixed-name "disj/promote-left-answer")
       (check-equal? prefixed-next
-                    (term ((⊤ ,sigma-a)
-                           +
-                           ((⊤ ,sigma-b) + (Bounced (empty-tree))))))
+                    (term (Bounced ((⊤ ,sigma-a)
+                                    +
+                                    ((⊤ ,sigma-b) + (empty-tree))))))
       (check-true (wf-search-base? bounce-step-1))
       (check-true (wf-search-base? bounce-step-2))
       (check-true (wf-search-base? prefixed-next))

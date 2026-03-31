@@ -9,6 +9,7 @@
          wf-answer/core?
          wf-resolved/core?
          wf-work/core?
+         wf-search/core?
          wf-frontier/core?
          wf-cfg/core?)
 
@@ -89,19 +90,32 @@
 
 (define-judgment-form
   core-lang
-  #:contract (wf-frontier/core? search c)
-  #:mode (wf-frontier/core? I I)
+  #:contract (wf-search/core? search c)
+  #:mode (wf-search/core? I I)
   [(wf-resolved/core? search_i c)
-   ------------------- "resolved frontier wf/core"
-   (wf-frontier/core? search_i c)]
+   ------------------- "resolved search wf/core"
+   (wf-search/core? search_i c)]
   [(wf-work/core? runnable-search_i c)
-   ------------------- "work frontier wf/core"
-   (wf-frontier/core? runnable-search_i c)])
+   ------------------- "work search wf/core"
+   (wf-search/core? runnable-search_i c)])
 
 (define-judgment-form
   core-lang
-  #:contract (wf-cfg/core? search)
+  #:contract (wf-frontier/core? cfg c)
+  #:mode (wf-frontier/core? I I)
+  [(wf-search/core? search_i c)
+   ------------------- "search frontier wf/core"
+   (wf-frontier/core? search_i c)]
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-frontier/core? cfg_tail c_2)
+   ------------------- "cfg freshened scope wf/core"
+   (wf-frontier/core? (Freshened c_1 cfg_tail tag_1) c)])
+
+(define-judgment-form
+  core-lang
+  #:contract (wf-cfg/core? cfg)
   #:mode (wf-cfg/core? I)
-  [(wf-frontier/core? search ())
+  [(wf-frontier/core? cfg ())
    ----------------------- "cfg-wf/core"
-   (wf-cfg/core? search)])
+   (wf-cfg/core? cfg)])

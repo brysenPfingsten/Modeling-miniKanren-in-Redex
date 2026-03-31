@@ -13,6 +13,8 @@
      (r t ... tag)]
   [Γ ((r d g) ...)]
   [config (Γ cfg)]
+  [QShell ::= ....]
+  [KTail ::= ....]
 
   #:binding-forms
   (config #:refers-to (shadow r ...)

@@ -91,23 +91,15 @@
 
 (define-judgment-form
   disj-lang
-  #:contract (wf-cfg-root/disj? cfg-root c)
-  #:mode (wf-cfg-root/disj? I I)
+  #:contract (wf-frontier/disj? cfg c)
+  #:mode (wf-frontier/disj? I I)
   [(wf-search/disj? search_i c)
-   ------------------- "search cfg root wf/disj"
-   (wf-cfg-root/disj? search_i c)]
+   ------------------- "search frontier wf/disj"
+   (wf-frontier/disj? search_i c)]
   [(wf-promoted/disj? promoted_i c)
    (wf-frontier/disj? cfg_tail c)
    ------------------- "promoted stream node wf/disj"
-   (wf-cfg-root/disj? (promoted_i + cfg_tail) c)])
-
-(define-judgment-form
-  disj-lang
-  #:contract (wf-frontier/disj? cfg c)
-  #:mode (wf-frontier/disj? I I)
-  [(wf-cfg-root/disj? cfg-root_i c)
-   ------------------- "cfg root wf/disj"
-   (wf-frontier/disj? cfg-root_i c)]
+   (wf-frontier/disj? (promoted_i + cfg_tail) c)]
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/disj? cfg_tail c_2)

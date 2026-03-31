@@ -13,15 +13,7 @@
             (Freshened c promoted tag)]
   [g ....
      (g ∨ g tag)]
-  [cfg (Freshened c cfg tag)
-       cfg-root]
-  [cfg-root search
-            (promoted + cfg)]
-  [QSpine ::= hole
-              (Freshened c QSpine tag)
-              (promoted + QSpine)]
+  [cfg ....
+       (promoted + cfg)]
   [runnable-root ....
-                 (search <-+ search)]
-  [KBranch ::= hole
-               (Freshened c KBranch tag)
-               (KBranch <-+ search)])
+                 (search <-+ search)])

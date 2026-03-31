@@ -14,13 +14,16 @@
 (check-redundancy #t)
 
 (define-language core-lang
-  [search (Freshened c search tag)
-          cell
-          (empty-tree)
-          runnable-root]
+  [cfg search
+       (Freshened c cfg tag)]
 
-  [runnable-search (Freshened c runnable-search tag)
-                   runnable-root]
+  [search cell
+          (empty-tree)
+          runnable-root
+          (Freshened c search tag)]
+
+  [runnable-search runnable-root
+                   (Freshened c runnable-search tag)]
 
   [runnable-root (g σ)
                  (search × g c)]
@@ -61,14 +64,20 @@
   [trail (eq ...)] ;; what about neq?
   [c (u_!_ ...)]
 
-  ;; Base active-work context follows the currently executing search root,
-  ;; including introduction provenance wrappers.
-  [KWork ::= hole
-             (Freshened c KWork tag)
-             (KWork × g c)]
-  ;; Pure introduction-provenance chain used by scoped conjunction handoff.
+  ;; Committed shell wrappers are fixed once they sit above the active tail.
+  [QShell ::= hole
+              (Freshened c QShell tag)]
+  ;; Pure introduction-provenance chain for scoped answer handoff.
   [QFresh ::= hole
               (Freshened c QFresh tag)]
+  ;; Frozen local-work path used by inherited lower-layer rules.
+  [KLocal ::= hole
+              (Freshened c KLocal tag)
+              (KLocal × g c)]
+  ;; Active tail follows the currently executing work path.
+  [KTail ::= hole
+             (Freshened c KTail tag)
+             (KTail × g c)]
 
   #:binding-forms
   (∃ (x ...) g #:refers-to (shadow x ...)))

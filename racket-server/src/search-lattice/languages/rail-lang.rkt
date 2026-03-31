@@ -8,5 +8,4 @@
 (check-redundancy #t)
 
 (define-extended-language rail-lang search-base-lang
-  [runnable-root .... (search +-> search)]
-  [KWork .... (search +-> KWork)])
+  [runnable-root .... (search +-> search)])
