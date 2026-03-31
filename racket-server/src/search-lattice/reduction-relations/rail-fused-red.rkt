@@ -22,34 +22,34 @@
   (reduction-relation
    rail-fused-lang
    #:domain cfg
-   [--> (in-hole KTail ((delay runnable-search_1) <-+ search_2))
-        (in-hole KTail (delay (runnable-search_1 +-> search_2)))
+   [--> (in-hole KLate ((delay runnable-search_1) <-+ search_2))
+        (in-hole KLate (delay (runnable-search_1 +-> search_2)))
         "rail-fused/enter-right"]
-   [--> (in-hole KTail (search_2 +-> (delay runnable-search_1)))
-        (in-hole KTail (delay (search_2 <-+ runnable-search_1)))
+   [--> (in-hole KLate (search_2 +-> (delay runnable-search_1)))
+        (in-hole KLate (delay (search_2 <-+ runnable-search_1)))
         "rail-fused/return-left"]))
 
 (define rail-fused-frontier/base
   (reduction-relation
    rail-fused-lang
    #:domain cfg
-   [--> (in-hole QShell (in-hole KTail (search_left +-> ((promoted_i <-+ search_mid) <-+ search_right))))
-        (in-hole QShell (promoted_i + (in-hole KTail (search_left +-> (search_mid <-+ search_right)))))
+   [--> (in-hole QShell (in-hole KLate (search_left +-> ((promoted_i <-+ search_mid) <-+ search_right))))
+        (in-hole QShell (promoted_i + (in-hole KLate (search_left +-> (search_mid <-+ search_right)))))
         "rail-fused/bubble-right-left-answer"]
-   [--> (in-hole QShell (in-hole KTail (search_left +-> (promoted_i <-+ search_right))))
-        (in-hole QShell (promoted_i + (in-hole KTail (search_left +-> search_right))))
+   [--> (in-hole QShell (in-hole KLate (search_left +-> (promoted_i <-+ search_right))))
+        (in-hole QShell (promoted_i + (in-hole KLate (search_left +-> search_right))))
         "rail-fused/promote-right-left-answer"]
-   [--> (in-hole QShell (in-hole KTail (search_left +-> (((in-hole QFresh (empty-tree)) <-+ search_mid) <-+ search_right))))
-        (in-hole QShell (in-hole KTail (search_left +-> (search_mid <-+ search_right))))
+   [--> (in-hole QShell (in-hole KLate (search_left +-> (((in-hole QFresh (empty-tree)) <-+ search_mid) <-+ search_right))))
+        (in-hole QShell (in-hole KLate (search_left +-> (search_mid <-+ search_right))))
         "rail-fused/bubble-right-left-fail"]
-   [--> (in-hole QShell (in-hole KTail (search_left +-> ((in-hole QFresh (empty-tree)) <-+ search_right))))
-        (in-hole QShell (in-hole KTail (search_left +-> search_right)))
+   [--> (in-hole QShell (in-hole KLate (search_left +-> ((in-hole QFresh (empty-tree)) <-+ search_right))))
+        (in-hole QShell (in-hole KLate (search_left +-> search_right)))
         "rail-fused/skip-right-left-fail"]
-   [--> (in-hole QShell (in-hole KTail (search_left +-> promoted_i)))
-        (in-hole QShell (promoted_i + (in-hole KTail search_left)))
+   [--> (in-hole QShell (in-hole KLate (search_left +-> promoted_i)))
+        (in-hole QShell (promoted_i + (in-hole KLate search_left)))
         "rail-fused/promote-right-observable"]
-   [--> (in-hole QShell (in-hole KTail (search_left +-> (in-hole QFresh (empty-tree)))))
-        (in-hole QShell (in-hole KTail search_left))
+   [--> (in-hole QShell (in-hole KLate (search_left +-> (in-hole QFresh (empty-tree)))))
+        (in-hole QShell (in-hole KLate search_left))
         "rail-fused/skip-right-fail"]))
 
 (define rail-fused-local/under-QShell

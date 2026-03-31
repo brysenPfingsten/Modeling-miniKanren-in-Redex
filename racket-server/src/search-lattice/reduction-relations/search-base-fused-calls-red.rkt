@@ -21,8 +21,8 @@
   (reduction-relation
    search-base-fused-calls-lang
    #:domain config
-   [--> (Γ (in-hole QShell (in-hole KBranch (in-hole KLocal ((r t ... tag) σ)))))
-        (Γ (in-hole QShell (in-hole KBranch (in-hole KLocal (g_new σ)))))
+   [--> (Γ (in-hole QShell (in-hole KLate (in-hole KLocal ((r t ... tag) σ)))))
+        (Γ (in-hole QShell (in-hole KLate (in-hole KLocal (g_new σ)))))
         (where g_new
                ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
         "search-base-fused-calls/expand"]))

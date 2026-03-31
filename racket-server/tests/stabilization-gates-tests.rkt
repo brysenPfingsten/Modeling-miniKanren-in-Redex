@@ -234,14 +234,26 @@
                                cfg-delay-inside-fresh)))
 
   (test-case "L2/shared disjunction lock gates"
-    (check-true (redex-match? disj-seq-lang KTail (term (hole <-+ (empty-tree)))))
-    (check-true (redex-match? disj-fused-lang KTail (term (hole <-+ (empty-tree)))))
+    (check-true (redex-match? disj-seq-lang KBranch (term (hole <-+ (empty-tree)))))
+    (check-true
+     (redex-match?
+      disj-fused-lang
+      KLate
+      (term (hole × (succeed (label "k")) ()))))
+    (define pending-disj
+      (term ((((succeed (label "left")) ,sigma-s)
+              <-+
+              ((succeed (label "right")) ,sigma-s))
+             × (succeed (label "k"))
+             ())))
     (define-values (goal-seq-name _goal-seq-next)
       (named-step red:disj-seq-red cfg-disj-goal))
     (define-values (goal-fused-name _goal-fused-next)
       (named-step red:disj-fused-red cfg-disj-goal))
     (define-values (seq-name _seq-next)
-      (named-step red:disj-seq-red cfg-mixed-answer))
+      (named-step red:disj-seq-red pending-disj))
+    (define-values (fused-pending-name _fused-pending-next)
+      (named-step red:disj-fused-red pending-disj))
     (define-values (fused-answer-name _fused-answer-next)
       (named-step red:disj-fused-red cfg-mixed-answer))
     (define-values (fused-fail-name _fused-fail-next)
@@ -249,6 +261,7 @@
     (check-equal? goal-seq-name "disj/goal-to-tree")
     (check-equal? goal-fused-name "disj/goal-to-tree")
     (check-equal? seq-name "disj-seq/distribute-over-conj")
+    (check-equal? fused-pending-name "core/succeed")
     (check-equal? fused-answer-name "disj-fused/continue-left-answer")
     (check-equal? fused-fail-name "disj-fused/continue-left-fail")
     (define nested-answer
@@ -320,6 +333,10 @@
       (term (Bounced (((⊤ ,sigma-a) <-+ (empty-tree))
                       <-+
                       (⊤ ,sigma-b)))))
+    (define bad-bounced-promotion
+      (term (Bounced ((((⊤ ,sigma-a) + (empty-tree))
+                       <-+
+                       (⊤ ,sigma-b))))))
     (define prefixed-bounced
       (term (Bounced ((⊤ ,sigma-a)
                       +
@@ -348,6 +365,10 @@
                     (term (Bounced ((⊤ ,sigma-a)
                                     <-+
                                     ((empty-tree) <-+ (⊤ ,sigma-b))))))
+      (check-false
+       (member bad-bounced-promotion
+               (map tagged-successor-cfg
+                    (apply-reduction-relation/tag-with-names rel bounced-branch))))
       (check-equal? bounce-step-2
                     (term (Bounced ((⊤ ,sigma-a)
                                     +

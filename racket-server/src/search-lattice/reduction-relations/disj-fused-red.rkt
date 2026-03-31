@@ -15,11 +15,11 @@
   (reduction-relation
    disj-fused-lang
    #:domain cfg
-   [--> (in-hole KBranch (((in-hole QFresh (⊤ σ_new)) <-+ search_rest) × g c))
-        (in-hole KBranch ((in-hole QFresh (g σ_new)) <-+ (search_rest × g c)))
+   [--> (in-hole KLate (((in-hole QFresh (⊤ σ_new)) <-+ search_rest) × g c))
+        (in-hole KLate ((in-hole QFresh (g σ_new)) <-+ (search_rest × g c)))
         "disj-fused/continue-left-answer"]
-   [--> (in-hole KBranch (((empty-tree) <-+ search_rest) × g c))
-        (in-hole KBranch (search_rest × g c))
+   [--> (in-hole KLate (((empty-tree) <-+ search_rest) × g c))
+        (in-hole KLate (search_rest × g c))
         "disj-fused/continue-left-fail"]))
 
 (define disj-fused-local/under-QShell
@@ -34,17 +34,17 @@
 (define lifted-disj-frontier/local-base
   (extend-reduction-relation disj-frontier/local-base disj-fused-lang))
 
-(define disj-core-local/under-branch
-  (context-closure lifted-disj-core-local/base disj-fused-lang KBranch))
+(define disj-core-local/under-late
+  (context-closure lifted-disj-core-local/base disj-fused-lang KLate))
 
-(define disj-goal-local/under-branch
-  (context-closure lifted-disj-goal-local/base disj-fused-lang KBranch))
+(define disj-goal-local/under-late
+  (context-closure lifted-disj-goal-local/base disj-fused-lang KLate))
 
 (define disj-base-core
-  (context-closure disj-core-local/under-branch disj-fused-lang QShell))
+  (context-closure disj-core-local/under-late disj-fused-lang QShell))
 
 (define disj-goal-local/under-QShell
-  (context-closure disj-goal-local/under-branch disj-fused-lang QShell))
+  (context-closure disj-goal-local/under-late disj-fused-lang QShell))
 
 (define disj-frontier/base
   (context-closure lifted-disj-frontier/local-base disj-fused-lang QShell))

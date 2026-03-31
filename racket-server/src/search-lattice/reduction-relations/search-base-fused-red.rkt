@@ -14,11 +14,11 @@
   (reduction-relation
    search-base-fused-lang
    #:domain cfg
-   [--> (in-hole KBranch (((in-hole QFresh (⊤ σ_new)) <-+ search_rest) × g c))
-        (in-hole KBranch ((in-hole QFresh (g σ_new)) <-+ (search_rest × g c)))
+   [--> (in-hole KLate (((in-hole QFresh (⊤ σ_new)) <-+ search_rest) × g c))
+        (in-hole KLate ((in-hole QFresh (g σ_new)) <-+ (search_rest × g c)))
         "search-base-fused/continue-left-answer"]
-   [--> (in-hole KBranch (((empty-tree) <-+ search_rest) × g c))
-        (in-hole KBranch (search_rest × g c))
+   [--> (in-hole KLate (((empty-tree) <-+ search_rest) × g c))
+        (in-hole KLate (search_rest × g c))
         "search-base-fused/continue-left-fail"]))
 
 (define search-base-fused-branch-local/under-QShell

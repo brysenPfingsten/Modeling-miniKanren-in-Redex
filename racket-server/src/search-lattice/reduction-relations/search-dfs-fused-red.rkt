@@ -15,8 +15,8 @@
   (reduction-relation
    search-base-fused-lang
    #:domain cfg
-   [--> (in-hole KBranch ((delay runnable-search_1) <-+ search_2))
-        (in-hole KBranch (delay (runnable-search_1 <-+ search_2)))
+   [--> (in-hole KLate ((delay runnable-search_1) <-+ search_2))
+        (in-hole KLate (delay (runnable-search_1 <-+ search_2)))
         "search-dfs-fused/delay-through-left"]))
 
 (define search-dfs-fused-extra

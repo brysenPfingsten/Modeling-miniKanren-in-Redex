@@ -27,8 +27,12 @@
     (check-true (redex-match? lang:delay-lang cfg (term ,delayed-left-search)))
     (check-false (redex-match? lang:delay-lang cfg '(proceed (empty-tree))))
     (check-true (redex-match? lang:calls-lang g '(r:delay (label "call"))))
-    (check-true (redex-match? lang:disj-seq-lang KTail (term (hole <-+ (empty-tree)))))
-    (check-true (redex-match? lang:disj-fused-lang KTail (term (hole <-+ (empty-tree)))))
+    (check-true (redex-match? lang:disj-seq-lang KBranch (term (hole <-+ (empty-tree)))))
+    (check-true
+     (redex-match?
+      lang:disj-fused-lang
+      KLate
+      (term (hole × (succeed (label "k")) ()))))
     (check-true (redex-match? lang:rail-lang cfg '((empty-tree) +-> (empty-tree))))
     (check-false
      (redex-match?
@@ -40,11 +44,22 @@
     (check-true (redex-match? lang:calls-lang config (term ,cfg-call))))
 
   (test-case "disj-seq distributes immediately while disj-fused keeps mixed states"
+    (define pending-disj
+      (term ((((succeed (label "left")) ,sigma-s)
+              <-+
+              ((succeed (label "right")) ,sigma-s))
+             × (succeed (label "k"))
+             ())))
     (define-values (seq-name _seq-next)
       (named-step
        (apply-reduction-relation/tag-with-names
         red:disj-seq-red
-        cfg-mixed-answer)))
+        pending-disj)))
+    (define-values (fused-pending-name _fused-pending-next)
+      (named-step
+       (apply-reduction-relation/tag-with-names
+        red:disj-fused-red
+        pending-disj)))
     (define-values (fused-answer-name _fused-answer-next)
       (named-step
        (apply-reduction-relation/tag-with-names
@@ -56,6 +71,7 @@
         red:disj-fused-red
         cfg-mixed-fail)))
     (check-equal? (~a seq-name) "disj-seq/distribute-over-conj")
+    (check-equal? (~a fused-pending-name) "core/succeed")
     (check-equal? (~a fused-answer-name) "disj-fused/continue-left-answer")
     (check-equal? (~a fused-fail-name) "disj-fused/continue-left-fail"))
 
@@ -124,6 +140,10 @@
       (term (Bounced (((⊤ ,sigma-a) <-+ (empty-tree))
                       <-+
                       (⊤ ,sigma-b)))))
+    (define bad-bounced-promotion
+      (term (Bounced ((((⊤ ,sigma-a) + (empty-tree))
+                       <-+
+                       (⊤ ,sigma-b))))))
     (define-values (seq-name-1 seq-mid)
       (named-step
        (apply-reduction-relation/tag-with-names
@@ -156,6 +176,18 @@
                   (term (Bounced ((⊤ ,sigma-a)
                                   <-+
                                   ((empty-tree) <-+ (⊤ ,sigma-b))))))
+    (check-false
+     (member bad-bounced-promotion
+             (map tagged-successor-cfg
+                  (apply-reduction-relation/tag-with-names
+                   red:search-base-seq-red
+                   bounced-branch))))
+    (check-false
+     (member bad-bounced-promotion
+             (map tagged-successor-cfg
+                  (apply-reduction-relation/tag-with-names
+                   red:search-base-fused-red
+                   bounced-branch))))
     (check-equal? seq-next
                   (term (Bounced ((⊤ ,sigma-a)
                                   +
@@ -314,8 +346,8 @@
       (reduction-relation
        lang:rail-fused-calls-lang
        #:domain config
-       [--> (Γ (in-hole QShell (in-hole KBranch (in-hole KLocal ((r t ... tag) σ)))))
-            (Γ (in-hole QShell (in-hole KBranch (in-hole KLocal (g_new σ)))))
+       [--> (Γ (in-hole QShell (in-hole KLate (in-hole KLocal ((r t ... tag) σ)))))
+            (Γ (in-hole QShell (in-hole KLate (in-hole KLocal (g_new σ)))))
             (where g_new
                    ,(instantiate-call-host (term Γ) (term r) (term (t ...))))
             "alt-rail-fused-calls/expand"]))

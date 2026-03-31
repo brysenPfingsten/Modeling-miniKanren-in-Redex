@@ -17,8 +17,8 @@
   (reduction-relation
    search-base-fused-calls-lang
    #:domain config
-   [--> (Γ (in-hole QShell (in-hole KBranch ((delay runnable-search_1) <-+ search_2))))
-        (Γ (in-hole QShell (in-hole KBranch (delay (runnable-search_1 <-+ search_2)))))
+   [--> (Γ (in-hole QShell (in-hole KLate ((delay runnable-search_1) <-+ search_2))))
+        (Γ (in-hole QShell (in-hole KLate (delay (runnable-search_1 <-+ search_2)))))
         "search-dfs-fused-calls/delay-through-left"]))
 
 (define search-dfs-fused-calls-red
