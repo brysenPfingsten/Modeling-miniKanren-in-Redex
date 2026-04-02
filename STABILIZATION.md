@@ -5,6 +5,9 @@ This is the live source of truth for search-lattice stabilization.
 `JBH-refactor-notes.txt` is historical scratch and rationale only. If this file
 and that file disagree, this file wins.
 
+For the current L0-L3 language ordering and context-reuse graph, see
+`racket-server/src/search-lattice/SEMILATTICE.md`.
+
 During stabilization:
 - no semantic edits above the current stabilization frontier unless needed to
   keep the repo compiling
@@ -28,6 +31,9 @@ During stabilization:
   reopened surface
 - quarantined L3+ code stays in-tree but is removed from active aggregate
   wiring until its lower-layer dependencies are locked
+- prefer runtime/context factorizations that look like a good pre-image for a
+  later refocusing+fusion abstract machine, rather than ad hoc grammar helpers
+  or per-node scoped families
 
 ## Locked
 
@@ -45,9 +51,17 @@ During stabilization:
   `racket-server/tests/search-lattice-tests.rkt`,
   `racket-server/tests/stabilization-gates-tests.rkt`.
   Lock evidence:
-  `QFresh` now owns the pure `Freshened*` helper role in core, and the scoped
-  conjunction handoff rules are expressed directly in those terms. `QSpine` is
-  no longer overloaded with that L0-only meaning.
+  L0 now distinguishes `FreshenedTree` from `FreshenedShell`, `QFresh` owns the
+  pure `FreshenedTree*` handoff role, `KLocal` is factored as nested
+  conjunction layers over a `QFresh` bottom, and `core-red` owns the one final
+  tree-to-shell lift for terminal tails.
+  Phase note:
+  `QFresh` is now the shared pure-prefix helper for scoped phase heads
+  `(delay runnable-search)`, `(⊤ σ)`, and `(empty-tree)`, not just the L0
+  conjunction-handoff witness.
+  Lean-core note:
+  core owns only the shell/tree role split and the local-work factoring it
+  actually uses: `QShell`, `QFresh`, `KConj`, and `KLocal`.
 
 - L1/delay runtime and wf layer:
   `delay-lang`, `delay-red`, `delay-wf`, and the focused L1 gate corpus in
@@ -58,21 +72,22 @@ During stabilization:
   `racket-server/src/search-lattice/wf/delay-wf.rkt`.
   Lock evidence:
   nested-delay traces lock end-to-end, `Bounced` is introduced only at the
-  delay frontier, and ordinary `Freshened(...)` configs created by
-  `core/fresh-substitute` are now accepted by `wf-cfg/delay?`.
+  delay frontier, and `delay/invoke-delay` is now the explicit L1 rule that
+  turns a pure `FreshenedTree*` prefix around `delay` into a `FreshenedShell*`
+  prefix around `Bounced`.
   Architecture note:
-  `QSpine` now first appears here as a real outer frontier/spine context:
-  pure `Freshened*` plus `Bounced`.
+  `QShell` here is the committed shell path for `FreshenedShell` and
+  `Bounced`.
   Grammar note:
   the real exclusion target for uninvoked `delay` is top-level already
   resolved search roots such as `(⊤ σ)`, `(empty-tree)`, and their
-  `Freshened`-wrapped forms. `Bounced` and `(promoted + cfg)` are not the
+  shell/tree-freshened forms. `Bounced` and `(promoted + cfg)` are not the
   reason for the restriction; those are already `cfg`-only and not members of
   `search`.
   The active lower-lattice decomposition now reflects that directly:
-  `search` is factored as a single outer `Freshened` wrapper over resolved roots
-  and bare runnable roots, and `delay` is a `search` form that wraps only
-  `runnable-search`.
+  `search` carries unfinished `FreshenedTree` wrappers, `cfg` carries committed
+  `FreshenedShell` wrappers, and `delay` remains a `search` form that wraps
+  only `runnable-search`.
 
 - L2/shared disjunction runtime and wf layer:
   `disj-lang`, `disj-base-red`, `disj-seq-red`, `disj-fused-red`,
@@ -87,13 +102,12 @@ During stabilization:
   Lock evidence:
   seq/fused differ only in their policy steps, shared-fresh and branch-local
   traces both complete, promoted left answers bubble to the spine in two steps,
-  failures erase locally, and the active branch path is once again modeled with
-  a separate `KBranch` outside `KWork`. That split turned out to be necessary to
-  keep branch-policy rules and core local work disjoint without priority hacks.
+  failures erase locally, and the shared L2 context grammar now carries both
+  `KBranch` and `KLate`, with the seq/fused split living in the reducers.
   Architecture note:
-  `QSpine` here means only the outer frontier/spine, and the fused
-  answer-continuation rule now uses `QFresh` structurally instead of a
-  `promoted->search` metafunction.
+  neutral L2 owns the shared branch zipper plus the committed-answer shell, and
+  the disjunction frontier rules are now the layer-specific place where a pure
+  `FreshenedTree*` prefix is committed into `FreshenedShell*`.
 
 - L3/search-base runtime and wf layer:
   `search-base-lang`, `search-base-pre-red`,
@@ -108,9 +122,9 @@ During stabilization:
   `racket-server/src/search-lattice/wf/search-base-wf.rkt`.
   Lock evidence:
   seq/fused share one L3 language, plain L2 reassociation/consumption lifts
-  unchanged into L3, bounced reassociation/consumption is now structural in
-  Redex under `QSpine`/`QFront`, and the search-base reducers no longer depend
-  on the four host-side branch-frontier helpers.
+  unchanged into L3, the delay/disjunction shell-commit rules lift cleanly into
+  the join, and the search-base reducers keep the same seq/fused policy split
+  without reintroducing a generic shellification rule.
 
 ## Provisional
 
@@ -148,9 +162,9 @@ During stabilization:
 - `JBH-refactor-notes.txt` as an active spec. It is no longer authoritative.
 
 - Delay/disjunction wf under-acceptance immediately after
-  `core/fresh-substitute`.
-  Current witnesses live in
-  `racket-server/tests/stabilization-gates-tests.rkt`.
+  `FreshenedTree`-wrapped search steps.
+  The lower reopened surface is fixed, but downstream layers still need the
+  same audit whenever they introduce new `search` subforms.
 
 - Host-side bubble/hoist helper logic in
   `racket-server/src/search-lattice/reduction-relations/private/common.rkt`.
@@ -162,15 +176,83 @@ During stabilization:
   role as test support and start acting as semantic authorities.
 
 - Remaining quarantined layers still need to be propagated through the final
-  `search` / `runnable-search` / branch-aware `KWork` factoring all the way to
+  `search` / `runnable-search` / branch-aware active-path factoring all the way to
   their final UI-facing consumers.
+
+## Deferred Cleanup
+
+- Possible shared post-L0 shell ancestor:
+  if we later want a structural cleanup only, introduce a tiny common ancestor
+  above `core` that defines only the outer `FreshenedShell*` shell
+  ```
+  [QShell ::= hole
+              (FreshenedShell c QShell tag)]
+  ```
+  then let `delay` extend it with `Bounced` and neutral `disj` extend it with
+  `(promoted + ...)`. This is currently treated as code-shape cleanup, not as a
+  semantic restructuring.
+
+## Policy Model
+
+- The no-freshening policy model is now fixed:
+  - one shared search-tree runtime grammar for seq and fused
+  - one shared context grammar for seq and fused
+  - incremental eager hoist for seq
+  - late hoist for fused
+  - the policy difference lives in the reduction layer, not in seq-specific
+    runtime constructors or seq/fused context-language splits
+
+- Consequence:
+  some search-tree shapes are grammatical in the shared runtime language but
+  unreachable under the seq policy. This is intentional. The distinguishing
+  seq property is a reachability invariant, not a separate syntax class.
+
+- Seq invariant:
+  once an exposed `((alpha <-+ beta) × gamma)` appears on the active path, the
+  next seq step must be the hoist. Seq may not make progress inside `alpha`
+  first.
+
+- Fused invariant:
+  fused may keep descending on the active left path through both `<-+` and `×`;
+  only once the left branch resolves does fused continue or erase at that
+  boundary.
+
+- Practical outcome:
+  the shared helper grammar carries both `KBranch` and `KLate`, the reducers
+  supply the seq/fused difference, and we are intentionally not adding either a
+  separate seq-only pending-hoist runtime constructor or seq/fused context
+  languages.
+
+- Rejected alternative:
+  a `HoistPending`-style boundary constructor in the runtime syntax. That would
+  make the seq/fused distinction easier to encode syntactically, but at the
+  cost of adding machinery to both policies and weakening the additive lattice
+  story.
+
+## Scope-Lifting Model
+
+- Scope is now treated as an overlay on the no-freshening runtime skeleton, not
+  as a second policy split.
+
+- Operationally, every focused step does one of three things with the immediate
+  scope prefix:
+  - preserve `FreshenedTree*` for ordinary unfinished local work
+  - carry `FreshenedTree*` across L0 conjunction handoff
+  - reclassify `FreshenedTree*` to `FreshenedShell*` at shell-commit points
+
+- The shell-commit points remain layer-local:
+  - L0 final-tail completion
+  - L1 `delay -> Bounced`
+  - L2 disjunction reassociation/promotion/erasure
+
+- Seq versus fused changes only where the active redex is found. It does not
+  change the preserve/carry/reclassify story for scope prefixes.
 
 ## Frozen Renames
 
-- `KWork`
 - `QFresh`
-- `QSpine`
 - `KBranch`
+- `KLate`
 - `wf-answer/core?`
 - `calls-lang` should be renamed to `delay-calls-lang` when the calls overlay
   is reopened; the current name is historically inherited and semantically
@@ -183,14 +265,29 @@ causes a correctness bug or import failure.
 ## Lower-Layer Analysis
 
 - Inherent after the `QFresh` split:
-  `search`, `runnable-search`, `runnable-root`, `KWork`, `QFresh`, `QSpine`,
-  `promoted`, `cfg`, and `KBranch`.
+  `search`, `runnable-search`, `runnable-root`, `FreshenedTree`,
+  `FreshenedShell`, `QFresh`, `QShell`, `KLocal`, `promoted`, `cfg`,
+  `KBranch`, and `KLate`.
 - Why `QFresh` is separate:
-  it is the pure `Freshened*` helper used by core scoped conjunction handoff
-  and by L2 fused answer continuation.
-- Why `QSpine` is separate:
-  it is the later extensible outer frontier/spine, first extended by `Bounced`
-  at L1 and by `(promoted + ...)` at L2.
+  it is the pure `FreshenedTree*` helper used by core scoped conjunction
+  handoff, by the scoped delay/answer/fail phase rules, and by fused answer
+  continuation.
+- Why `QShell` is separate:
+  it is the committed shell path over `FreshenedShell`, then extended by
+  `Bounced` at L1 and `(promoted + ...)` at L2.
 - Why `KBranch` remains necessary:
-  it isolates active left-branch traversal from `KWork`, so branch-policy rules
-  and local core work do not overlap.
+  it isolates the exposed left-branch boundary used by the seq hoist rule from
+  inner local work. The witness is `((((a ∧ b) σ) <-+ (d σ)) × h c)`: seq must
+  stop at that exposed boundary and hoist, rather than descending into
+  `((a ∧ b) σ)` first.
+- Why `KLate` remains necessary:
+  it is part of the shared helper grammar, but only fused uses its extra
+  descent power through `×`; seq’s restriction still lives in the reducer.
+  On the same witness `((((a ∧ b) σ) <-+ (d σ)) × h c)`, fused may continue
+  into `((a ∧ b) σ)` before the hoist boundary is discharged.
+- Early vs late hoist remains an operational distinction, not an intended
+  observable-answer distinction.
+- Why there is no generic tree-prefix-to-shell step:
+  it created real overlap with delay, disjunction, and rail policy steps.
+  L0 owns only final-tail shellification; delay and disjunction own their
+  layer-specific tree-prefix commitment rules.
