@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../languages/search-base-seq-calls-lang.rkt"
+         "../languages/search-base-calls-lang.rkt"
          "./search-base-seq-calls-red.rkt"
          "./private/context-pipeline.rkt"
          "./private/step-utils.rkt"
@@ -15,10 +15,14 @@
 
 (define search-dfs-seq-calls-extra
   (reduction-relation
-   search-base-seq-calls-lang
+   search-base-calls-lang
    #:domain config
-   [--> (Γ (in-hole QShell (in-hole KBranch ((delay runnable-search_1) <-+ search_2))))
-        (Γ (in-hole QShell (in-hole KBranch (delay (runnable-search_1 <-+ search_2)))))
+   [--> (Γ (in-hole QShell (in-hole KBranch ((in-hole QFresh (delay runnable-search_1)) <-+ search_2))))
+        (Γ (in-hole QShell
+                      (in-hole KBranch
+                               (delay ((in-hole QFresh runnable-search_1)
+                                       <-+
+                                       search_2)))))
         "search-dfs-seq-calls/delay-through-left"]))
 
 (define search-dfs-seq-calls-red

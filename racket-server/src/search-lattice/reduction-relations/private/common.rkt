@@ -2,6 +2,7 @@
 
 (provide instantiate-call-host
          subst-goal-host
+         tree-prefix->shell/host
          empty-freshened-head?
          bubble-left-answer-host
          promote-left-answer-host
@@ -71,17 +72,27 @@
            (length ts)))
   (subst-goal-host g (map list d ts)))
 
+(define (tree-prefix->shell/host t)
+  (match t
+    [`(FreshenedTree () ,inner ,_)
+     (tree-prefix->shell/host inner)]
+    [`(FreshenedTree ,intro ,inner ,tag)
+     `(FreshenedShell ,intro ,(tree-prefix->shell/host inner) ,tag)]
+    [_ t]))
+
 (define (empty-freshened-head? h)
   (match h
     ['(empty-tree) #t]
-    [`(Freshened ,_ ,inner ,_)
+    [(or `(FreshenedTree ,_ ,inner ,_)
+         `(FreshenedShell ,_ ,inner ,_))
      (empty-freshened-head? inner)]
     [_ #f]))
 
 (define (answer-head?/host t)
   (match t
     [`(⊤ ,_) #t]
-    [`(Freshened ,_ ,inner ,_)
+    [(or `(FreshenedTree ,_ ,inner ,_)
+         `(FreshenedShell ,_ ,inner ,_))
      (answer-head?/host inner)]
     [_ #f]))
 

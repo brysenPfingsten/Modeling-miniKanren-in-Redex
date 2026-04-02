@@ -324,7 +324,8 @@
   (match s
     ['(empty-tree)
      (empty-json/canonical)]
-    [`(Freshened ,c-intro ,s_1 ,tag)
+    [(or `(FreshenedTree ,c-intro ,s_1 ,tag)
+         `(FreshenedShell ,c-intro ,s_1 ,tag))
      (freshened->json/canonical
       c-intro
       (tree->json/canonical s_1 num-query-variables)
@@ -403,7 +404,8 @@
 
 (define (num-query-vars/work s)
   (match s
-    [`(Freshened ,_ ,s_1 ,_)
+    [(or `(FreshenedTree ,_ ,s_1 ,_)
+         `(FreshenedShell ,_ ,s_1 ,_))
      (num-query-vars/work s_1)]
     [`(Bounced ,s_1)
      (num-query-vars/work s_1)]

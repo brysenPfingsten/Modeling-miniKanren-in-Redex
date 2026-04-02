@@ -51,8 +51,8 @@
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-answer/core? search_tail c_2)
-   ------------------- "answer-wrapper freshened wf/core"
-   (wf-answer/core? (Freshened c_1 search_tail tag_1) c)])
+   ------------------- "answer-wrapper tree-freshened wf/core"
+   (wf-answer/core? (FreshenedTree c_1 search_tail tag_1) c)])
 
 (define-judgment-form
   core-lang
@@ -66,8 +66,8 @@
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-resolved/core? search_tail c_2)
-   ------------------- "resolved freshened scope wf/core"
-   (wf-resolved/core? (Freshened c_1 search_tail tag_1) c)])
+   ------------------- "resolved tree-freshened scope wf/core"
+   (wf-resolved/core? (FreshenedTree c_1 search_tail tag_1) c)])
 
 (define-judgment-form
   core-lang
@@ -76,14 +76,14 @@
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-work/core? runnable-search_tail c_2)
-   ------------------- "work freshened scope wf/core"
-   (wf-work/core? (Freshened c_1 runnable-search_tail tag_1) c)]
+   ------------------- "work tree-freshened scope wf/core"
+   (wf-work/core? (FreshenedTree c_1 runnable-search_tail tag_1) c)]
   [(wf-state/at-scope? (state sub dis c_i trail tag) c)
    (wf-goal/core? g () c_i)
    ------------------- "goal/state frontier wf/core"
    (wf-work/core? (g (state sub dis c_i trail tag)) c)]
   [(lvars-same-members? c c_i)
-   (wf-frontier/core? search_i c_i)
+   (wf-search/core? search_i c_i)
    (wf-goal/core? g () c_i)
    ------------------- "conj frontier wf/core"
    (wf-work/core? (search_i × g c_i) c)])
@@ -92,6 +92,11 @@
   core-lang
   #:contract (wf-search/core? search c)
   #:mode (wf-search/core? I I)
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-search/core? search_tail c_2)
+   ------------------- "search tree-freshened scope wf/core"
+   (wf-search/core? (FreshenedTree c_1 search_tail tag_1) c)]
   [(wf-resolved/core? search_i c)
    ------------------- "resolved search wf/core"
    (wf-search/core? search_i c)]
@@ -109,8 +114,8 @@
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/core? cfg_tail c_2)
-   ------------------- "cfg freshened scope wf/core"
-   (wf-frontier/core? (Freshened c_1 cfg_tail tag_1) c)])
+   ------------------- "cfg shell-freshened scope wf/core"
+   (wf-frontier/core? (FreshenedShell c_1 cfg_tail tag_1) c)])
 
 (define-judgment-form
   core-lang

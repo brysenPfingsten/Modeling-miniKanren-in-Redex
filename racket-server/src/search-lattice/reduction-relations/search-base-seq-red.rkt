@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../languages/search-base-seq-lang.rkt"
+         "../languages/search-base-lang.rkt"
          "./search-base-seq-pre-red.rkt"
          "./private/step-utils.rkt")
 
@@ -12,14 +12,15 @@
 
 (define search-base-seq-branch-local/base
   (reduction-relation
-   search-base-seq-lang
+   search-base-lang
    #:domain cfg
    [--> (in-hole KBranch ((search_1 <-+ search_2) × g c))
         (in-hole KBranch ((search_1 × g c) <-+ (search_2 × g c)))
         "search-base-seq/distribute-over-conj"]))
 
+;; Seq-only policy step, still wrapped by the outer committed shell.
 (define search-base-seq-branch-local/under-QShell
-  (context-closure search-base-seq-branch-local/base search-base-seq-lang QShell))
+  (context-closure search-base-seq-branch-local/base search-base-lang QShell))
 
 (define search-base-seq-red
   (union-reduction-relations

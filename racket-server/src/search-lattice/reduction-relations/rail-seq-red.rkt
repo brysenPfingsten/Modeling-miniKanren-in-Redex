@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../languages/rail-seq-lang.rkt"
+         "../languages/rail-lang.rkt"
          "./private/step-utils.rkt"
          "./search-base-seq-red.rkt")
 
@@ -16,22 +16,24 @@
 (define lifted-search-base-seq-red
   (extend-reduction-relation
    search-base-seq-red
-   rail-seq-lang))
+   rail-lang))
 
 (define rail-seq-local/base
   (reduction-relation
-   rail-seq-lang
+   rail-lang
    #:domain cfg
-   [--> (in-hole KTail ((delay runnable-search_1) <-+ search_2))
-        (in-hole KTail (delay (runnable-search_1 +-> search_2)))
+   [--> (in-hole KTail ((in-hole QFresh (delay runnable-search_1)) <-+ search_2))
+        (in-hole KTail
+                 (delay ((in-hole QFresh runnable-search_1) +-> search_2)))
         "rail-seq/enter-right"]
-   [--> (in-hole KTail (search_2 +-> (delay runnable-search_1)))
-        (in-hole KTail (delay (search_2 <-+ runnable-search_1)))
+   [--> (in-hole KTail (search_2 +-> (in-hole QFresh (delay runnable-search_1))))
+        (in-hole KTail
+                 (delay (search_2 <-+ (in-hole QFresh runnable-search_1))))
         "rail-seq/return-left"]))
 
 (define rail-seq-frontier/base
   (reduction-relation
-   rail-seq-lang
+   rail-lang
    #:domain cfg
    [--> (in-hole QShell (in-hole KTail (search_left +-> ((promoted_i <-+ search_mid) <-+ search_right))))
         (in-hole QShell (promoted_i + (in-hole KTail (search_left +-> (search_mid <-+ search_right)))))
@@ -53,7 +55,7 @@
         "rail-seq/skip-right-fail"]))
 
 (define rail-seq-local/under-QShell
-  (context-closure rail-seq-local/base rail-seq-lang QShell))
+  (context-closure rail-seq-local/base rail-lang QShell))
 
 (define rail-seq-red
   (union-reduction-relations

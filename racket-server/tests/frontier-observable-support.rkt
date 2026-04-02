@@ -56,7 +56,8 @@
 (define (core-c-scope-agreement? f [scope '()])
   (match f
     ['(empty-tree) #t]
-    [(list 'Freshened intro inner _tag)
+    [(or (list 'FreshenedTree intro inner _tag)
+         (list 'FreshenedShell intro inner _tag))
      (and (distinct? intro)
           (for/and ([u (in-list intro)])
             (not (member u scope)))
@@ -89,7 +90,8 @@
 (define (core-lvars-contained? f [scope '()])
   (match f
     ['(empty-tree) #t]
-    [(list 'Freshened intro inner _tag)
+    [(or (list 'FreshenedTree intro inner _tag)
+         (list 'FreshenedShell intro inner _tag))
      (and (distinct? intro)
           (for/and ([u (in-list intro)])
             (not (member u scope)))
@@ -148,7 +150,8 @@
     ['() 0]
     [(list gamma f) #:when (list? gamma)
      (count-bounced f)]
-    [(list 'Freshened _ inner _)
+    [(or (list 'FreshenedTree _ inner _)
+         (list 'FreshenedShell _ inner _))
      (count-bounced inner)]
     [(list 'Bounced inner)
      (add1 (count-bounced inner))]
@@ -172,7 +175,8 @@
     ['() 0]
     [(list gamma f) #:when (list? gamma)
      (count-answers f)]
-    [(list 'Freshened _ inner _)
+    [(or (list 'FreshenedTree _ inner _)
+         (list 'FreshenedShell _ inner _))
      (count-answers inner)]
     [(list 'Bounced inner)
      (count-answers inner)]
@@ -198,7 +202,8 @@
     ['() 0]
     [(list gamma f) #:when (list? gamma)
      (count-freshened f)]
-    [(list 'Freshened _ inner _)
+    [(or (list 'FreshenedTree _ inner _)
+         (list 'FreshenedShell _ inner _))
      (add1 (count-freshened inner))]
     [(list 'Bounced inner)
      (count-freshened inner)]

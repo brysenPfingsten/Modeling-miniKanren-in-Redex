@@ -5,11 +5,13 @@
                   delay-local/base
                   delay-frontier/base)
          (only-in "./disj-base-red.rkt"
+                  disj-core-shell/base
                   disj-core-local/base
                   disj-goal-local/base
                   disj-frontier/local-base))
 
 (provide search-base-core-local/base
+         search-base-core-shell/base
          search-base-goal-local/base
          search-base-frontier/local-base
          search-base-delay-local/base
@@ -21,6 +23,9 @@
 
 (define search-base-core-local/base
   (extend-reduction-relation disj-core-local/base search-base-lang))
+
+(define search-base-core-shell/base
+  (extend-reduction-relation disj-core-shell/base search-base-lang))
 
 (define search-base-goal-local/base
   (extend-reduction-relation disj-goal-local/base search-base-lang))

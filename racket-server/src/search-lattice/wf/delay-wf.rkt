@@ -37,8 +37,8 @@
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-resolved/delay? search_tail c_2)
-   ------------------- "resolved freshened scope wf/delay"
-   (wf-resolved/delay? (Freshened c_1 search_tail tag_1) c)])
+   ------------------- "resolved tree-freshened scope wf/delay"
+   (wf-resolved/delay? (FreshenedTree c_1 search_tail tag_1) c)])
 
 (define-judgment-form
   delay-lang
@@ -47,14 +47,14 @@
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-work/delay? runnable-search_tail c_2)
-   ------------------- "work freshened scope wf/delay"
-   (wf-work/delay? (Freshened c_1 runnable-search_tail tag_1) c)]
+   ------------------- "work tree-freshened scope wf/delay"
+   (wf-work/delay? (FreshenedTree c_1 runnable-search_tail tag_1) c)]
   [(wf-state/at-scope? (state sub dis c_i trail tag) c)
    (wf-goal/delay? g () c_i)
    ------------------- "goal/state wf/delay"
    (wf-work/delay? (g (state sub dis c_i trail tag)) c)]
   [(lvars-same-members? c c_i)
-   (wf-frontier/delay? search_i c_i)
+   (wf-search/delay? search_i c_i)
    (wf-goal/delay? g () c_i)
    ------------------- "conj wf/delay"
    (wf-work/delay? (search_i × g c_i) c)])
@@ -63,6 +63,11 @@
   delay-lang
   #:contract (wf-search/delay? search c)
   #:mode (wf-search/delay? I I)
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-search/delay? search_tail c_2)
+   ------------------- "search tree-freshened scope wf/delay"
+   (wf-search/delay? (FreshenedTree c_1 search_tail tag_1) c)]
   [(wf-resolved/delay? search_i c)
    ------------------- "resolved search wf/delay"
    (wf-search/delay? search_i c)]
@@ -80,14 +85,17 @@
   [(wf-search/delay? search_i c)
    ------------------- "search frontier wf/delay"
    (wf-frontier/delay? search_i c)]
+  [(wf-search/delay? search_i c)
+   ------------------- "bounced search frontier wf/delay"
+   (wf-frontier/delay? (Bounced search_i) c)]
   [(wf-frontier/delay? cfg_tail c)
    ------------------- "bounced frontier wf/delay"
    (wf-frontier/delay? (Bounced cfg_tail) c)]
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/delay? cfg_tail c_2)
-   ------------------- "cfg freshened scope wf/delay"
-   (wf-frontier/delay? (Freshened c_1 cfg_tail tag_1) c)])
+   ------------------- "cfg shell-freshened scope wf/delay"
+   (wf-frontier/delay? (FreshenedShell c_1 cfg_tail tag_1) c)])
 
 (define-judgment-form
   delay-lang

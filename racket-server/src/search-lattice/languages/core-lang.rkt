@@ -15,15 +15,15 @@
 
 (define-language core-lang
   [cfg search
-       (Freshened c cfg tag)]
+       (FreshenedShell c cfg tag)]
 
   [search cell
           (empty-tree)
           runnable-root
-          (Freshened c search tag)]
+          (FreshenedTree c search tag)]
 
   [runnable-search runnable-root
-                   (Freshened c runnable-search tag)]
+                   (FreshenedTree c runnable-search tag)]
 
   [runnable-root (g σ)
                  (search × g c)]
@@ -63,21 +63,32 @@
   [maybe-sub sub #f]
   [trail (eq ...)] ;; what about neq?
   [c (u_!_ ...)]
+  [c+ (u u_!_ ...)]
 
-  ;; Committed shell wrappers are fixed once they sit above the active tail.
+  ;; Outer committed shell wrappers. L0 owns the shell/tail split, even though
+  ;; shell growth first becomes interesting once later layers add more shell
+  ;; constructors.
   [QShell ::= hole
-              (Freshened c QShell tag)]
-  ;; Pure introduction-provenance chain for scoped answer handoff.
+              (FreshenedShell c QShell tag)]
+
+  ;; Pure introduction-provenance chain for scoped phase-boundary focus.
+  ;; L0 uses it for conjunction handoff; later layers reuse the same helper for
+  ;; delay / answer / fail heads without introducing per-node scoped families.
+  ;; First divergent layer: L0/core.
+  ;; Allowed extension direction: reuse as pure FreshenedTree* only.
   [QFresh ::= hole
-              (Freshened c QFresh tag)]
+              (FreshenedTree c QFresh tag)]
+  ;; One-or-more pending conjunction layers, each optionally wrapped in
+  ;; FreshenedTree* before the next outer layer.
+  [KConj ::= (KLocal × g c)
+             (FreshenedTree c KConj tag)]
   ;; Frozen local-work path used by inherited lower-layer rules.
-  [KLocal ::= hole
-              (Freshened c KLocal tag)
-              (KLocal × g c)]
-  ;; Active tail follows the currently executing work path.
-  [KTail ::= hole
-             (Freshened c KTail tag)
-             (KTail × g c)]
+  ;; First divergent layer: L0/core.
+  ;; Allowed extension direction: later policy helpers may branch from it, but
+  ;; core itself stays frozen at pure FreshenedTree* bottoms plus conjunction
+  ;; layers built around them.
+  [KLocal ::= QFresh
+              KConj]
 
   #:binding-forms
   (∃ (x ...) g #:refers-to (shadow x ...)))

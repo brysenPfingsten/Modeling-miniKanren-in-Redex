@@ -86,7 +86,7 @@
   (judgment-holds (wf:wf-cfg/search-base? ,cfg)))
 
 (define (core-shape? cfg)
-  (redex-match? core-lang search cfg))
+  (redex-match? core-lang cfg cfg))
 
 (define (delay-shape? cfg)
   (redex-match? delay-lang cfg cfg))
@@ -158,7 +158,7 @@
 
 (define/provide-test-suite STABILIZATION-GATES
   (test-case "L0/core lock gates"
-    (check-true (redex-match? core-lang QFresh (term (Freshened (u:0) hole (label "fresh")))))
+    (check-true (redex-match? core-lang QFresh (term (FreshenedTree (u:0) hole (label "fresh")))))
     (check-false (redex-match? core-lang search (term (delay ((succeed (label "late")) ,sigma-s)))))
     (check-false (redex-match? core-lang search (term (Bounced (⊤ ,sigma-a)))))
     (check-false (redex-match? core-lang search (term ((⊤ ,sigma-a) + (empty-tree)))))
@@ -198,7 +198,7 @@
      (redex-match?
       delay-lang
       cfg
-      (term (delay (Freshened (u:0) (⊤ ,sigma-a) (label "fresh"))))))
+      (term (delay (FreshenedTree (u:0) (⊤ ,sigma-a) (label "fresh"))))))
     (check-true (redex-match? delay-lang cfg (term ,delayed-left-search)))
     (define-values (delay-step-1 delay-next-1)
       (named-step red:delay-red cfg-delay-goal))
@@ -234,10 +234,10 @@
                                cfg-delay-inside-fresh)))
 
   (test-case "L2/shared disjunction lock gates"
-    (check-true (redex-match? disj-seq-lang KBranch (term (hole <-+ (empty-tree)))))
+    (check-true (redex-match? disj-lang KBranch (term (hole <-+ (empty-tree)))))
     (check-true
      (redex-match?
-      disj-fused-lang
+      disj-lang
       KLate
       (term (hole × (succeed (label "k")) ()))))
     (define pending-disj
@@ -273,7 +273,7 @@
              <-+
              (empty-tree))))
     (define freshened-answer
-      (term (((Freshened (u:0) (⊤ ,sigma-a) (label "fresh")) <-+ (⊤ ,sigma-b))
+      (term (((FreshenedTree (u:0) (⊤ ,sigma-a) (label "fresh")) <-+ (⊤ ,sigma-b))
              × (succeed (label "k"))
              ())))
     (define-values (fused-fresh-name fused-fresh-next)
@@ -301,7 +301,7 @@
                     (term ((⊤ ,sigma-b) + (empty-tree)))))
     (check-equal? fused-fresh-name "disj-fused/continue-left-answer")
     (check-equal? fused-fresh-next
-                  (term ((Freshened (u:0)
+                  (term ((FreshenedTree (u:0)
                                     ((succeed (label "k")) ,sigma-a)
                                     (label "fresh"))
                          <-+

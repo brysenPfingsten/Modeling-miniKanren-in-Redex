@@ -8,6 +8,8 @@
 
 (check-redundancy #t)
 
+;; Runtime join of delay and neutral disjunction.
+;; This is the primary L3 join node for the L0-L3 semilattice.
 (define-union-language search-base-lang
   delay-lang
   disj-lang)

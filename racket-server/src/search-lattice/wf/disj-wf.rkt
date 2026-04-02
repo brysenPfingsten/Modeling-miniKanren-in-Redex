@@ -39,8 +39,8 @@
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-resolved/disj? search_tail c_2)
-   ------------------- "resolved freshened scope wf/disj"
-   (wf-resolved/disj? (Freshened c_1 search_tail tag_1) c)])
+   ------------------- "resolved tree-freshened scope wf/disj"
+   (wf-resolved/disj? (FreshenedTree c_1 search_tail tag_1) c)])
 
 (define-judgment-form
   disj-lang
@@ -49,19 +49,19 @@
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-work/disj? runnable-search_tail c_2)
-   ------------------- "work freshened scope wf/disj"
-   (wf-work/disj? (Freshened c_1 runnable-search_tail tag_1) c)]
+   ------------------- "work tree-freshened scope wf/disj"
+   (wf-work/disj? (FreshenedTree c_1 runnable-search_tail tag_1) c)]
   [(wf-state/at-scope? (state sub dis c_i trail tag) c)
    (wf-goal/disj? g () c_i)
    ------------------- "goal/state wf/disj"
    (wf-work/disj? (g (state sub dis c_i trail tag)) c)]
   [(lvars-same-members? c c_i)
-   (wf-frontier/disj? search_i c_i)
+   (wf-search/disj? search_i c_i)
    (wf-goal/disj? g () c_i)
    ------------------- "conj wf/disj"
    (wf-work/disj? (search_i × g c_i) c)]
-  [(wf-frontier/disj? search_1 c)
-   (wf-frontier/disj? search_2 c)
+  [(wf-search/disj? search_1 c)
+   (wf-search/disj? search_2 c)
    ------------------- "branch work wf/disj"
    (wf-work/disj? (search_1 <-+ search_2) c)])
 
@@ -69,6 +69,11 @@
   disj-lang
   #:contract (wf-search/disj? search c)
   #:mode (wf-search/disj? I I)
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-search/disj? search_tail c_2)
+   ------------------- "search tree-freshened scope wf/disj"
+   (wf-search/disj? (FreshenedTree c_1 search_tail tag_1) c)]
   [(wf-resolved/disj? search_i c)
    ------------------- "resolved search wf/disj"
    (wf-search/disj? search_i c)]
@@ -86,8 +91,8 @@
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-promoted/disj? promoted_tail c_2)
-   ------------------- "promoted freshened scope wf/disj"
-   (wf-promoted/disj? (Freshened c_1 promoted_tail tag_1) c)])
+   ------------------- "promoted shell-freshened scope wf/disj"
+   (wf-promoted/disj? (FreshenedShell c_1 promoted_tail tag_1) c)])
 
 (define-judgment-form
   disj-lang
@@ -103,8 +108,8 @@
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/disj? cfg_tail c_2)
-   ------------------- "cfg freshened scope wf/disj"
-   (wf-frontier/disj? (Freshened c_1 cfg_tail tag_1) c)])
+   ------------------- "cfg shell-freshened scope wf/disj"
+   (wf-frontier/disj? (FreshenedShell c_1 cfg_tail tag_1) c)])
 
 (define-judgment-form
   disj-lang

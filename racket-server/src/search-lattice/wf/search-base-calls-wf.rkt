@@ -79,8 +79,8 @@
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-resolved/search-base-calls? search_tail c_2)
-   ------------------- "resolved freshened scope wf/search-base-calls"
-   (wf-resolved/search-base-calls? (Freshened c_1 search_tail tag_1) c)])
+   ------------------- "resolved tree-freshened scope wf/search-base-calls"
+   (wf-resolved/search-base-calls? (FreshenedTree c_1 search_tail tag_1) c)])
 
 (define-judgment-form
   search-base-calls-lang
@@ -89,19 +89,19 @@
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-work/search-base-calls? search_tail Γ c_2)
-   ------------------- "work freshened scope wf/search-base-calls"
-   (wf-work/search-base-calls? (Freshened c_1 search_tail tag_1) Γ c)]
+   ------------------- "work tree-freshened scope wf/search-base-calls"
+   (wf-work/search-base-calls? (FreshenedTree c_1 search_tail tag_1) Γ c)]
   [(wf-state/at-scope? (state sub dis c_i trail tag) c)
    (wf-goal/search-base-calls? g Γ () c_i)
    ------------------- "goal/state wf/search-base-calls"
    (wf-work/search-base-calls? (g (state sub dis c_i trail tag)) Γ c)]
   [(lvars-same-members? c c_i)
-   (wf-frontier/search-base-calls? search_i Γ c_i)
+   (wf-search/search-base-calls? search_i Γ c_i)
    (wf-goal/search-base-calls? g Γ () c_i)
    ------------------- "conj wf/search-base-calls"
    (wf-work/search-base-calls? (search_i × g c_i) Γ c)]
-  [(wf-frontier/search-base-calls? search_1 Γ c)
-   (wf-frontier/search-base-calls? search_2 Γ c)
+  [(wf-search/search-base-calls? search_1 Γ c)
+   (wf-search/search-base-calls? search_2 Γ c)
    ------------------- "disj wf/search-base-calls"
    (wf-work/search-base-calls? (search_1 <-+ search_2) Γ c)])
 
@@ -109,6 +109,11 @@
   search-base-calls-lang
   #:contract (wf-search/search-base-calls? search Γ c)
   #:mode (wf-search/search-base-calls? I I I)
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-search/search-base-calls? search_tail Γ c_2)
+   ------------------- "search tree-freshened scope wf/search-base-calls"
+   (wf-search/search-base-calls? (FreshenedTree c_1 search_tail tag_1) Γ c)]
   [(wf-resolved/search-base-calls? search_i c)
    ------------------- "resolved search wf/search-base-calls"
    (wf-search/search-base-calls? search_i Γ c)]
@@ -132,6 +137,9 @@
   [(wf-search/search-base-calls? search_i Γ c)
    ------------------- "search frontier wf/search-base-calls"
    (wf-frontier/search-base-calls? search_i Γ c)]
+  [(wf-search/search-base-calls? search_i Γ c)
+   ------------------- "bounced search frontier wf/search-base-calls"
+   (wf-frontier/search-base-calls? (Bounced search_i) Γ c)]
   [(wf-promoted/search-base-calls? promoted_i c)
    (wf-frontier/search-base-calls? cfg_tail Γ c)
    ------------------- "promoted stream node wf/search-base-calls"
@@ -142,8 +150,8 @@
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/search-base-calls? cfg_tail Γ c_2)
-   ------------------- "cfg freshened scope wf/search-base-calls"
-   (wf-frontier/search-base-calls? (Freshened c_1 cfg_tail tag_1) Γ c)])
+   ------------------- "cfg shell-freshened scope wf/search-base-calls"
+   (wf-frontier/search-base-calls? (FreshenedShell c_1 cfg_tail tag_1) Γ c)])
 
 (define-judgment-form
   search-base-calls-lang

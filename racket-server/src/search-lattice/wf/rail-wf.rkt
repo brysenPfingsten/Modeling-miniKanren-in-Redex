@@ -36,8 +36,8 @@
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-resolved/rail? search_tail c_2)
-   ------------------- "resolved freshened scope wf/rail"
-   (wf-resolved/rail? (Freshened c_1 search_tail tag_1) c)])
+   ------------------- "resolved tree-freshened scope wf/rail"
+   (wf-resolved/rail? (FreshenedTree c_1 search_tail tag_1) c)])
 
 (define-judgment-form
   rail-lang
@@ -46,23 +46,23 @@
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-work/rail? search_tail c_2)
-   ------------------- "work freshened scope wf/rail"
-   (wf-work/rail? (Freshened c_1 search_tail tag_1) c)]
+   ------------------- "work tree-freshened scope wf/rail"
+   (wf-work/rail? (FreshenedTree c_1 search_tail tag_1) c)]
   [(wf-state/at-scope? (state sub dis c_i trail tag) c)
    (wf-goal/rail? g () c_i)
    ------------------- "goal/state wf/rail"
    (wf-work/rail? (g (state sub dis c_i trail tag)) c)]
   [(lvars-same-members? c c_i)
-   (wf-frontier/rail? search_i c_i)
+   (wf-search/rail? search_i c_i)
    (wf-goal/rail? g () c_i)
    ------------------- "conj wf/rail"
    (wf-work/rail? (search_i × g c_i) c)]
-  [(wf-frontier/rail? search_1 c)
-   (wf-frontier/rail? search_2 c)
+  [(wf-search/rail? search_1 c)
+   (wf-search/rail? search_2 c)
    ------------------- "left disj wf/rail"
    (wf-work/rail? (search_1 <-+ search_2) c)]
-  [(wf-frontier/rail? search_1 c)
-   (wf-frontier/rail? search_2 c)
+  [(wf-search/rail? search_1 c)
+   (wf-search/rail? search_2 c)
    ------------------- "right disj wf/rail"
    (wf-work/rail? (search_1 +-> search_2) c)])
 
@@ -70,6 +70,11 @@
   rail-lang
   #:contract (wf-search/rail? search c)
   #:mode (wf-search/rail? I I)
+  [(lvars-fresh-extension? c_1 c)
+   (where c_2 (c-append c_1 c))
+   (wf-search/rail? search_tail c_2)
+   ------------------- "search tree-freshened scope wf/rail"
+   (wf-search/rail? (FreshenedTree c_1 search_tail tag_1) c)]
   [(wf-resolved/rail? search_i c)
    ------------------- "resolved search wf/rail"
    (wf-search/rail? search_i c)]
@@ -93,6 +98,9 @@
   [(wf-search/rail? search_i c)
    ------------------- "search frontier wf/rail"
    (wf-frontier/rail? search_i c)]
+  [(wf-search/rail? search_i c)
+   ------------------- "bounced search frontier wf/rail"
+   (wf-frontier/rail? (Bounced search_i) c)]
   [(wf-promoted/rail? promoted_i c)
    (wf-frontier/rail? cfg_tail c)
    ------------------- "promoted stream node wf/rail"
@@ -103,8 +111,8 @@
   [(lvars-fresh-extension? c_1 c)
    (where c_2 (c-append c_1 c))
    (wf-frontier/rail? cfg_tail c_2)
-   ------------------- "cfg freshened scope wf/rail"
-   (wf-frontier/rail? (Freshened c_1 cfg_tail tag_1) c)])
+   ------------------- "cfg shell-freshened scope wf/rail"
+   (wf-frontier/rail? (FreshenedShell c_1 cfg_tail tag_1) c)])
 
 (define-judgment-form
   rail-lang

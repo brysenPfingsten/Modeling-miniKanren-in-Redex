@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../languages/search-base-seq-lang.rkt"
+         "../languages/search-base-lang.rkt"
          "./private/step-utils.rkt"
          "./search-base-seq-red.rkt")
 
@@ -13,14 +13,15 @@
 
 (define search-dfs-seq-extra/base
   (reduction-relation
-   search-base-seq-lang
+   search-base-lang
    #:domain cfg
-   [--> (in-hole KBranch ((delay runnable-search_1) <-+ search_2))
-        (in-hole KBranch (delay (runnable-search_1 <-+ search_2)))
+   [--> (in-hole KBranch ((in-hole QFresh (delay runnable-search_1)) <-+ search_2))
+        (in-hole KBranch
+                 (delay ((in-hole QFresh runnable-search_1) <-+ search_2)))
         "search-dfs-seq/delay-through-left"]))
 
 (define search-dfs-seq-extra
-  (context-closure search-dfs-seq-extra/base search-base-seq-lang QShell))
+  (context-closure search-dfs-seq-extra/base search-base-lang QShell))
 
 (define search-dfs-seq-red
   (union-reduction-relations

@@ -5,14 +5,16 @@
          "./private/common.rkt"
          "./private/step-utils.rkt")
 
-(provide core-base/raw
-         extend-core-redex
+(provide core-local/base
+         core-shell/base
+         extend-core-local-redex
+         extend-core-shell-redex
          core-red
          step-once)
 
 (check-redundancy #t)
 
-(define core-base/raw
+(define core-local/base
   (reduction-relation
    core-lang
    #:domain search
@@ -25,7 +27,7 @@
    [--> ((fail tag) σ)
         (empty-tree)
         "core/fail"]
-   [--> (Freshened () search_tail tag_i)
+   [--> (FreshenedTree () search_tail tag_i)
         search_tail
         "core/prune-empty-scope"]
    [--> ((in-hole QFresh (⊤ σ)) × g c_2)
@@ -38,7 +40,7 @@
         (g (state sub dis c trail tag_1))
         "core/elide-empty-fresh"]
    [--> ((∃ (x_first x_rest ...) g tag) (state sub dis c trail tag_1))
-        (Freshened (u_1 ...) (g_new (state sub dis (u_1 ... ,@(term c)) trail tag_1)) tag)
+        (FreshenedTree (u_1 ...) (g_new (state sub dis (u_1 ... ,@(term c)) trail tag_1)) tag)
         (where ((x_bound u_1) ...)
                (fresh-substitution c (x_first x_rest ...)))
         (where g_new
@@ -69,14 +71,46 @@
         (where #t (invalid? sub dis_1))
         "core/disequality-fail"]))
 
-(define-syntax-rule (extend-core-redex lang)
-  (extend-reduction-relation core-base/raw lang))
-
-(define core-red
-  (context-closure
-   (context-closure core-base/raw core-lang KLocal)
+(define core-shell/base
+  (reduction-relation
    core-lang
-   QShell))
+   #:domain cfg
+   [--> (in-hole QShell (in-hole QFresh (⊤ σ)))
+        (in-hole QShell cfg_i)
+        (where cfg_i
+               ,(tree-prefix->shell/host
+                 (term (in-hole QFresh (⊤ σ)))))
+        (side-condition
+         (not (equal? (term cfg_i)
+                      (term (in-hole QFresh (⊤ σ))))))
+        "core/final-answer-into-shell"]
+   [--> (in-hole QShell (in-hole QFresh (empty-tree)))
+        (in-hole QShell cfg_i)
+        (where cfg_i
+               ,(tree-prefix->shell/host
+                 (term (in-hole QFresh (empty-tree)))))
+        (side-condition
+         (not (equal? (term cfg_i)
+                      (term (in-hole QFresh (empty-tree))))))
+        "core/final-fail-into-shell"]))
+
+(define-syntax-rule (extend-core-local-redex lang)
+  (extend-reduction-relation core-local/base lang))
+
+(define-syntax-rule (extend-core-shell-redex lang)
+  (extend-reduction-relation core-shell/base lang))
+
+(define core-local/search
+  (context-closure core-local/base core-lang KLocal))
+
+(define core-local
+  (context-closure core-local/search core-lang QShell))
+
+;; Core splits unfinished tree work from the one final lift into the shell.
+(define core-red
+  (union-reduction-relations
+   core-local
+   core-shell/base))
 
 (define (step-once prog)
   (step-once/deterministic core-red prog))

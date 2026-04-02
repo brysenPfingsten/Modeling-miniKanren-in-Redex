@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../languages/rail-fused-lang.rkt"
+         "../languages/rail-lang.rkt"
          "./private/step-utils.rkt"
          "./search-base-fused-red.rkt")
 
@@ -16,22 +16,24 @@
 (define lifted-search-base-fused-red
   (extend-reduction-relation
    search-base-fused-red
-   rail-fused-lang))
+   rail-lang))
 
 (define rail-fused-local/base
   (reduction-relation
-   rail-fused-lang
+   rail-lang
    #:domain cfg
-   [--> (in-hole KLate ((delay runnable-search_1) <-+ search_2))
-        (in-hole KLate (delay (runnable-search_1 +-> search_2)))
+   [--> (in-hole KLate ((in-hole QFresh (delay runnable-search_1)) <-+ search_2))
+        (in-hole KLate
+                 (delay ((in-hole QFresh runnable-search_1) +-> search_2)))
         "rail-fused/enter-right"]
-   [--> (in-hole KLate (search_2 +-> (delay runnable-search_1)))
-        (in-hole KLate (delay (search_2 <-+ runnable-search_1)))
+   [--> (in-hole KLate (search_2 +-> (in-hole QFresh (delay runnable-search_1))))
+        (in-hole KLate
+                 (delay (search_2 <-+ (in-hole QFresh runnable-search_1))))
         "rail-fused/return-left"]))
 
 (define rail-fused-frontier/base
   (reduction-relation
-   rail-fused-lang
+   rail-lang
    #:domain cfg
    [--> (in-hole QShell (in-hole KLate (search_left +-> ((promoted_i <-+ search_mid) <-+ search_right))))
         (in-hole QShell (promoted_i + (in-hole KLate (search_left +-> (search_mid <-+ search_right)))))
@@ -53,7 +55,7 @@
         "rail-fused/skip-right-fail"]))
 
 (define rail-fused-local/under-QShell
-  (context-closure rail-fused-local/base rail-fused-lang QShell))
+  (context-closure rail-fused-local/base rail-lang QShell))
 
 (define rail-fused-red
   (union-reduction-relations

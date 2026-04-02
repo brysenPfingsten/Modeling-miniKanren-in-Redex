@@ -20,8 +20,12 @@
          cfg-disj
          cfg-delay-goal
          delayed-left-search
+         scoped-delayed-left-search
+         cfg-scoped-delay-through-conj
          cfg-flip
+         cfg-scoped-flip
          cfg-rail
+         cfg-scoped-rail
          cfg-mixed-answer
          cfg-mixed-fail
          cfg-call
@@ -32,7 +36,9 @@
   (match f
     ['(empty-tree) #t]
     [`(⊤ ,_) #t]
-    [(list 'Freshened _ inner _) (final-frontier? inner)]
+    [(or (list 'FreshenedTree _ inner _)
+         (list 'FreshenedShell _ inner _))
+     (final-frontier? inner)]
     [`(Bounced ,inner) (final-frontier? inner)]
     [`(,_ + ,rest) (final-frontier? rest)]
     [_ #f]))
@@ -81,7 +87,8 @@
   (match prog
     [`(,_gamma ,cfg)
      (produced-answer-spine-only? cfg inside-branch?)]
-    [(list 'Freshened _ inner _)
+    [(or (list 'FreshenedTree _ inner _)
+         (list 'FreshenedShell _ inner _))
      (produced-answer-spine-only? inner inside-branch?)]
     [`(Bounced ,inner)
      (produced-answer-spine-only? inner inside-branch?)]
@@ -140,13 +147,33 @@
 (define delayed-left-search
   (term (delay ((succeed (label "late")) ,sigma-s))))
 
+(define scoped-delayed-left-search
+  (term (FreshenedTree (u:0)
+                       (delay ((succeed (label "late")) ,sigma-s))
+                       (label "fresh"))))
+
+(define cfg-scoped-delay-through-conj
+  (term (,scoped-delayed-left-search
+         × (succeed (label "k"))
+         ())))
+
 (define cfg-flip
   (term (,delayed-left-search
          <-+
          (⊤ ,sigma-b))))
 
+(define cfg-scoped-flip
+  (term (,scoped-delayed-left-search
+         <-+
+         (⊤ ,sigma-b))))
+
 (define cfg-rail
   (term (,delayed-left-search
+         <-+
+         (⊤ ,sigma-b))))
+
+(define cfg-scoped-rail
+  (term (,scoped-delayed-left-search
          <-+
          (⊤ ,sigma-b))))
 

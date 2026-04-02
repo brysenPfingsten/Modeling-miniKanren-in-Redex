@@ -11,7 +11,9 @@
   (match f
     ['(empty-tree) #t]
     [`(⊤ ,_) #t]
-    [(list 'Freshened _ inner _) (final-frontier? inner)]
+    [(or (list 'FreshenedTree _ inner _)
+         (list 'FreshenedShell _ inner _))
+     (final-frontier? inner)]
     [`(Bounced ,inner) (final-frontier? inner)]
     [`(,_ + ,rest) (final-frontier? rest)]
     [_ #f]))

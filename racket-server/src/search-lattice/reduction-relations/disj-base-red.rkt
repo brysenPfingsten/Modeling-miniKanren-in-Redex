@@ -2,19 +2,30 @@
 
 (require redex/reduction-semantics
          "../languages/disj-lang.rkt"
-         "./core-red.rkt")
+         (only-in "./core-red.rkt"
+                  extend-core-local-redex
+                  extend-core-shell-redex)
+         "./private/common.rkt")
 
 (provide disj-core-local/base
+         disj-core-shell/base
          disj-goal-local/base
          disj-frontier/local-base)
 
 (check-redundancy #t)
 
-(define core-base/disj
-  (extend-core-redex disj-lang))
+(define core-local/disj/base
+  (extend-core-local-redex disj-lang))
+
+(define core-shell/disj/base
+  (extend-core-shell-redex disj-lang))
 
 (define disj-core-local/base
-  (context-closure core-base/disj disj-lang KLocal))
+  (context-closure core-local/disj/base disj-lang KLocal))
+
+(define disj-core-shell/base
+  core-shell/disj/base)
+
 (define disj-goal-local/base
   (reduction-relation
    disj-lang
@@ -27,15 +38,34 @@
   (reduction-relation
    disj-lang
    #:domain cfg
-   [--> ((promoted_i <-+ search_mid) <-+ search_right)
-        (promoted_i <-+ (search_mid <-+ search_right))
+   [--> (in-hole QFresh_1 (((in-hole QFresh_2 (⊤ σ)) <-+ search_mid) <-+ search_right))
+        cfg_i
+        (where cfg_i
+               ,(tree-prefix->shell/host
+                 (term (in-hole QFresh_1
+                                ((in-hole QFresh_2 (⊤ σ))
+                                 <-+
+                                 (search_mid <-+ search_right))))))
         "disj/reassociate-left-answer"]
-   [--> (promoted_i <-+ search_right)
-        (promoted_i + search_right)
+   [--> (in-hole QFresh_1 ((in-hole QFresh_2 (⊤ σ)) <-+ search_right))
+        cfg_i
+        (where promoted_i
+               ,(tree-prefix->shell/host
+                 (term (in-hole QFresh_2 (⊤ σ)))))
+        (where cfg_i
+               ,(tree-prefix->shell/host
+                 (term (in-hole QFresh_1 (promoted_i + search_right)))))
         "disj/promote-left-answer"]
-   [--> (((empty-tree) <-+ search_mid) <-+ search_right)
-        (search_mid <-+ search_right)
+   [--> (in-hole QFresh_1 (((in-hole QFresh_2 (empty-tree)) <-+ search_mid) <-+ search_right))
+        cfg_i
+        (where cfg_i
+               ,(tree-prefix->shell/host
+                 (term (in-hole QFresh_1
+                                (search_mid <-+ search_right)))))
         "disj/erase-left-fail"]
-   [--> ((empty-tree) <-+ search_right)
-        search_right
-        "disj/erase-left-fail-top"]))
+   [--> (in-hole QFresh_1 ((in-hole QFresh_2 (empty-tree)) <-+ search_right))
+        cfg_i
+        (where cfg_i
+               ,(tree-prefix->shell/host
+                 (term (in-hole QFresh_1 search_right))))
+        "disj/skip-left-fail"]))

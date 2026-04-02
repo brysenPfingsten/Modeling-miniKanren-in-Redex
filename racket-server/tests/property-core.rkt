@@ -59,7 +59,9 @@
   (match f
     ['(empty-tree) #t]
     [`(⊤ ,_) #t]
-    [(list 'Freshened _ inner _) (final-frontier? inner)]
+    [(or (list 'FreshenedTree _ inner _)
+         (list 'FreshenedShell _ inner _))
+     (final-frontier? inner)]
     [`(Bounced ,inner) (final-frontier? inner)]
     [`(,_ + ,rest) (final-frontier? rest)]
     [_ #f]))
@@ -73,7 +75,7 @@
   (judgment-holds (wf-cfg/core? ,cfg)))
 
 (define (core-shape-term? cfg)
-  (redex-match? core-lang search cfg))
+  (redex-match? core-lang cfg cfg))
 
 (define (next-cfg* cfg)
   (remove-duplicates
@@ -321,7 +323,7 @@
        (fresh-scope-extension c))
      (if (null? intro)
          (gen-live-tree c (sub1 depth))
-         `(Freshened ,intro
+         `(FreshenedTree ,intro
                      ,(gen-live-tree c^ (sub1 depth))
                      ,(make-label "fresh")))]))
 
@@ -338,7 +340,7 @@
        (fresh-scope-extension c))
      (if (null? intro)
          (gen-live-tree c depth)
-         `(Freshened ,intro
+         `(FreshenedTree ,intro
                      ,(gen-live-tree c^ (sub1 depth))
                      ,(make-label "fresh")))]))
 
@@ -367,7 +369,8 @@
 (define (tree-coverage s)
   (match s
     [`(empty-tree) (values #f #f #f 0)]
-    [(list 'Freshened _ s-inner _)
+    [(or (list 'FreshenedTree _ s-inner _)
+         (list 'FreshenedShell _ s-inner _))
      (tree-coverage s-inner)]
     [`(⊤ ,st) (define csz (state-c-size st))
               (values (> csz 0) #f #f csz)]

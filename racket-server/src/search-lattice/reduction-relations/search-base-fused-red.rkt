@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../languages/search-base-fused-lang.rkt"
+         "../languages/search-base-lang.rkt"
          "./search-base-fused-pre-red.rkt"
          "./private/step-utils.rkt")
 
@@ -12,17 +12,19 @@
 
 (define search-base-fused-branch-local/base
   (reduction-relation
-   search-base-fused-lang
+   search-base-lang
    #:domain cfg
    [--> (in-hole KLate (((in-hole QFresh (⊤ σ_new)) <-+ search_rest) × g c))
-        (in-hole KLate ((in-hole QFresh (g σ_new)) <-+ (search_rest × g c)))
+        (in-hole KLate
+                 ((in-hole QFresh (g σ_new)) <-+ (search_rest × g c)))
         "search-base-fused/continue-left-answer"]
-   [--> (in-hole KLate (((empty-tree) <-+ search_rest) × g c))
+   [--> (in-hole KLate (((in-hole QFresh (empty-tree)) <-+ search_rest) × g c))
         (in-hole KLate (search_rest × g c))
         "search-base-fused/continue-left-fail"]))
 
+;; Fused-only policy steps, still wrapped by the outer committed shell.
 (define search-base-fused-branch-local/under-QShell
-  (context-closure search-base-fused-branch-local/base search-base-fused-lang QShell))
+  (context-closure search-base-fused-branch-local/base search-base-lang QShell))
 
 (define search-base-fused-red
   (union-reduction-relations

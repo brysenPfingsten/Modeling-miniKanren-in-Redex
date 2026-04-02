@@ -15,5 +15,9 @@
           (delay runnable-search)]
   [cfg ....
        (Bounced cfg)]
-  [QShell ::= ....
+  ;; First committed shell context on the delay branch.
+  ;; First divergent layer: L1/delay.
+  ;; Allowed extension direction: add shell constructors only.
+  [QShell ::= hole
+              (FreshenedShell c QShell tag)
               (Bounced QShell)])

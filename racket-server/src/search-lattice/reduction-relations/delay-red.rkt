@@ -3,7 +3,9 @@
 (require redex/reduction-semantics
          "../languages/delay-lang.rkt"
          (only-in "./core-red.rkt"
-                  extend-core-redex)
+                  extend-core-local-redex
+                  extend-core-shell-redex)
+         "./private/common.rkt"
          "./private/step-utils.rkt")
 
 (provide delay-local/base
@@ -14,14 +16,20 @@
 
 (check-redundancy #t)
 
-(define core-base/delay
-  (extend-core-redex delay-lang))
+(define core-local/delay/base
+  (extend-core-local-redex delay-lang))
 
 (define core-local/delay
-  (context-closure core-base/delay delay-lang KLocal))
+  (context-closure core-local/delay/base delay-lang KLocal))
 
+(define core-shell/delay/base
+  (extend-core-shell-redex delay-lang))
+
+;; Delay lifts core local work under the first committed shell: QShell ∘ KLocal.
 (define core-red/delay
-  (context-closure core-local/delay delay-lang QShell))
+  (union-reduction-relations
+   (context-closure core-local/delay delay-lang QShell)
+   core-shell/delay/base))
 
 (define delay-local/base
   (reduction-relation
@@ -30,16 +38,20 @@
    [--> (in-hole KLocal ((suspend g tag) σ))
         (in-hole KLocal (delay (g σ)))
         "delay/suspend-goal"]
-   [--> (in-hole KLocal ((delay runnable-search_1) × g c))
-        (in-hole KLocal (delay (runnable-search_1 × g c)))
+   [--> (in-hole KLocal ((in-hole QFresh (delay runnable-search_1)) × g c))
+        (in-hole KLocal
+                 (delay ((in-hole QFresh runnable-search_1) × g c)))
         "delay/delay-through-conj"]))
 
 (define delay-frontier/base
   (reduction-relation
    delay-lang
    #:domain cfg
-   [--> (in-hole QShell (delay runnable-search_1))
-        (in-hole QShell (Bounced runnable-search_1))
+   [--> (in-hole QShell (in-hole QFresh (delay runnable-search_i)))
+        (in-hole QShell cfg_i)
+        (where cfg_i
+               ,(tree-prefix->shell/host
+                 (term (in-hole QFresh (Bounced runnable-search_i)))))
         "delay/invoke-delay"]))
 
 (define delay-local/under-QShell
