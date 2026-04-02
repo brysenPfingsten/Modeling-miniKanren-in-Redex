@@ -59,6 +59,11 @@ During stabilization:
   `QFresh` is now the shared pure-prefix helper for scoped phase heads
   `(delay runnable-search)`, `(⊤ σ)`, and `(empty-tree)`, not just the L0
   conjunction-handoff witness.
+  Empty-frame note:
+  empty fresh frames are real runtime frames in the scoped semantics.
+  `fresh ()` now steps to `FreshenedTree () ...`, shellification preserves that
+  empty frame as `FreshenedShell () ...`, and the old
+  `core/elide-empty-fresh` / `core/prune-empty-scope` story is retired.
   Lean-core note:
   core owns only the shell/tree role split and the local-work factoring it
   actually uses: `QShell`, `QFresh`, `KConj`, and `KLocal`.
@@ -272,6 +277,10 @@ causes a correctness bug or import failure.
   it is the pure `FreshenedTree*` helper used by core scoped conjunction
   handoff, by the scoped delay/answer/fail phase rules, and by fused answer
   continuation.
+- Why empty fresh frames remain:
+  the scoped semantics is refining source fresh-frame structure, not only
+  non-empty lvar introduction. So `FreshenedTree ()` is meaningful and should
+  erase away, not be pruned by an extra administrative step.
 - Why `QShell` is separate:
   it is the committed shell path over `FreshenedShell`, then extended by
   `Bounced` at L1 and `(promoted + ...)` at L2.

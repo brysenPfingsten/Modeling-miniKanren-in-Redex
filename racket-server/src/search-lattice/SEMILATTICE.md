@@ -355,6 +355,11 @@ semilattice.
 - `QFresh` is the pure `FreshenedTree*` helper used for scoped handoff.
 - `QFresh` is also the locked Option D helper for phase-boundary heads only:
   `(delay runnable-search)`, `(⊤ σ)`, and `(empty-tree)`.
+- empty fresh-frame note:
+  `FreshenedTree ()` and `FreshenedShell ()` are now real frames, not garbage to
+  prune. The scoped machine keeps source fresh-frame nesting even when the
+  intro list is empty, and erase-scope drops those frames without needing a
+  separate stuttering prune step.
 - `QShell(delay)` is the committed shell path for `FreshenedShell` and
   `Bounced`.
 - `QShell(disj)` is the committed shell path for `FreshenedShell` and

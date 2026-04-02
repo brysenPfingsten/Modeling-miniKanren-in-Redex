@@ -93,8 +93,7 @@
    (lvars-same-members? c_1 c_2)])
 
 (define (lvars-fresh-extension?/host c-intro c-outer)
-  (and (positive? (length c-intro))
-       (= (length c-intro)
+  (and (= (length c-intro)
           (length (remove-duplicates c-intro)))
        (for/and ([u (in-list c-intro)])
          (not (member u c-outer)))))

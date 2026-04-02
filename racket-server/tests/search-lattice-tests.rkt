@@ -172,6 +172,75 @@
                                      (label "fresh"))
                                   ,sigma-s)))))
 
+  (test-case "empty fresh frames are real scoped frames"
+    (define empty-fresh
+      (term ((∃ ()
+                (succeed (label "inner"))
+                (label "fresh-empty"))
+             ,sigma-s)))
+    (define-values (step-1-name step-1)
+      (named-step (apply-reduction-relation/tag-with-names
+                   red:core-red
+                   empty-fresh)))
+    (define-values (step-2-name step-2)
+      (named-step (apply-reduction-relation/tag-with-names
+                   red:core-red
+                   step-1)))
+    (define-values (step-3-name step-3)
+      (named-step (apply-reduction-relation/tag-with-names
+                   red:core-red
+                   step-2)))
+    (check-equal? (~a step-1-name) "core/fresh-substitute")
+    (check-equal? (~a step-2-name) "core/succeed")
+    (check-equal? (~a step-3-name) "core/final-answer-into-shell")
+    (check-equal? step-1
+                  (term (FreshenedTree ()
+                                       ((succeed (label "inner")) ,sigma-s)
+                                       (label "fresh-empty"))))
+    (check-equal? step-2
+                  (term (FreshenedTree ()
+                                       (⊤ ,sigma-s)
+                                       (label "fresh-empty"))))
+    (check-equal? step-3
+                  (term (FreshenedShell ()
+                                        (⊤ ,sigma-s)
+                                        (label "fresh-empty")))))
+
+  (test-case "nested fresh traces preserve empty middle frames"
+    (define nested-fresh
+      (term ((∃ (x:0)
+                (∃ ()
+                   (∃ (x:1)
+                      (succeed (label "ok"))
+                      (label "fy"))
+                   (label "fempty"))
+                (label "fx"))
+             ,sigma-s)))
+    (define-values (step-1-name step-1)
+      (named-step (apply-reduction-relation/tag-with-names
+                   red:core-red
+                   nested-fresh)))
+    (define-values (step-2-name step-2)
+      (named-step (apply-reduction-relation/tag-with-names
+                   red:core-red
+                   step-1)))
+    (define-values (step-3-name step-3)
+      (named-step (apply-reduction-relation/tag-with-names
+                   red:core-red
+                   step-2)))
+    (check-equal? (~a step-1-name) "core/fresh-substitute")
+    (check-equal? (~a step-2-name) "core/fresh-substitute")
+    (check-equal? (~a step-3-name) "core/fresh-substitute")
+    (check-equal? step-3
+                  (term (FreshenedTree (u:0)
+                                       (FreshenedTree ()
+                                                       (FreshenedTree (u:1)
+                                                                       ((succeed (label "ok"))
+                                                                        (state () () (u:1 u:0) () (label "s")))
+                                                                       (label "fy"))
+                                                       (label "fempty"))
+                                       (label "fx")))))
+
   (test-case "scoped delay-floating keeps subtree-local QFresh on the payload"
     (define scoped-conj-expected
       (term (delay ((FreshenedTree (u:0)

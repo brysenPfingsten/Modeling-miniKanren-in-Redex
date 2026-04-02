@@ -122,6 +122,12 @@
             (label "fresh"))
          ,sigma-s)))
 
+(define cfg-core-empty-fresh
+  (term ((∃ ()
+            (succeed (label "inner"))
+            (label "fresh-empty"))
+         ,sigma-s)))
+
 (define cfg-delay-through-conj
   (term ((delay ((succeed (label "inner")) ,sigma-s))
          × (succeed (label "k"))
@@ -179,6 +185,13 @@
     (check-equal? conj-success-next
                   (term ((succeed (label "k")) ,sigma-a)))
     (check-equal? conj-fail-next (term (empty-tree)))
+    (define-values (empty-fresh-name empty-fresh-next)
+      (named-step red:core-red cfg-core-empty-fresh))
+    (check-equal? empty-fresh-name "core/fresh-substitute")
+    (check-equal? empty-fresh-next
+                  (term (FreshenedTree ()
+                                       ((succeed (label "inner")) ,sigma-s)
+                                       (label "fresh-empty"))))
     (check-true (trace-locked? red:core-red
                                wf-core?
                                core-shape?

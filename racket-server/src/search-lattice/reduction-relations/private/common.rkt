@@ -74,8 +74,6 @@
 
 (define (tree-prefix->shell/host t)
   (match t
-    [`(FreshenedTree () ,inner ,_)
-     (tree-prefix->shell/host inner)]
     [`(FreshenedTree ,intro ,inner ,tag)
      `(FreshenedShell ,intro ,(tree-prefix->shell/host inner) ,tag)]
     [_ t]))
