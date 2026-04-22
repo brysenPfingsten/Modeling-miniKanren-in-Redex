@@ -92,6 +92,69 @@ Execution notes:
   then steps that program under the internal `+calls` configuration selected by
   `searchStrategy`.
 
+## **Direct Library Surface**
+
+If you want to run programs without the site, import
+`racket-server/src/program-runner.rkt` and call `run-source` or
+`run-source->answers` directly.
+
+```racket
+#lang racket
+
+(require (file "racket-server/src/program-runner.rkt"))
+
+(run-source->answers
+ "(defrel (same x y)
+    (== x y))
+  (run* (q)
+    (same q 'cat))")
+;; => '(#hasheq((sym . "cat")))
+```
+
+The runner accepts the same main knobs as the app boundary:
+- `#:source-mode` (`"mini"` or `"micro"`)
+- `#:compile-profile` for mini source
+- `#:search-strategy`, for example `(search-strategy "early" "rail")`
+- `#:step-cap` to bound diverging programs
+
+If you want something closer to the effect of `(require miniKanren)`, import
+`racket-server/src/minikanren.rkt`. That module provides `defrel`, `run`, and
+`run*` bindings for the mini surface syntax, but they are backed by this
+project's modeled Redex semantics rather than `hosted-minikanren`.
+
+`run*` runs the modeled search to completion and returns reified answers.
+`run n ...` stops once `n` answers have been surfaced and reified, without
+forcing the rest of the search to finish.
+
+```racket
+#lang racket
+
+(require (file "racket-server/src/minikanren.rkt"))
+
+(defrel (same x y)
+  (== x y))
+
+(run* (q)
+  (same q 'cat))
+;; => '(cat)
+
+(run 2 (q)
+  (conde
+    [(== q 'a)]
+    [(== q 'b)]
+    [(== q 'c)]))
+;; => '(a b)
+```
+
+Important limitation:
+- relation definitions are tracked per file/module, so keep the `defrel`s and
+  the corresponding `run`/`run*` in the same source file unless you use an
+  explicit evaluator object
+
+If you want the lower-level runner surface directly, use
+`racket-server/src/program-runner.rkt`. It also exposes
+`run-source->host-answers` and `run-forms->host-answers`.
+
 ## **Semantics Reading Order**
 
 If you are studying the repo as a semantics artifact, use this order:
