@@ -33,9 +33,11 @@ contract/redex(D,C)   decompose/redex(plug-C(C),D')
 
 `decomposed-red/direct` is separately stated as 28 Redex reduction clauses.
 It repeats each contraction pattern and reconstructs the next decomposition;
-it does not invoke `contract/redex`.  This duplication is deliberate evidence:
-Redex checks that the direct relation has exactly the same labeled successor
-set as the compositional judgment.
+it does not invoke `contract/redex`.  Its shared root-redecomposition operation
+is a Redex metafunction whose output is bound by `decompose/redex`, not a host
+Racket dispatcher.  This duplication is deliberate evidence: Redex checks
+that the direct relation has exactly the same labeled successor set as the
+compositional judgment.
 
 ## Constructor and rule translations
 
@@ -62,4 +64,3 @@ On toy-kernel well-formed source terms:
 
 `decomposition-image` and the trace-carrying
 `reachable-decomposition/via` judgment state the meaningful target domain.
-

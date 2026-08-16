@@ -109,7 +109,36 @@
       skip-right-failure
       rail-return-left
       reassociate-right-result]
-  [ell (rn owner)]
+  ;; Owner provenance is indexed by rule name.  Enumerating the valid pairs
+  ;; keeps the other 80 name/owner combinations outside the language.
+  [ell (expose-frontier-fresh core)
+       (finish-success core)
+       (finish-failure core)
+       (force-delay delay)
+       (commit-choice-answer disj)
+       (commit-right-choice-answer search-join)
+       (work-succeed core)
+       (work-fail core)
+       (work-put core)
+       (allocate-fresh core)
+       (expand-conjunction core)
+       (expand-disjunction disj)
+       (suspend-goal delay)
+       (expose-choice-through-work-fresh disj)
+       (expose-choice-through-work-fresh search-join)
+       (erase-dead-fresh core)
+       (bubble-delay-through-fresh delay)
+       (conj-return core)
+       (conj-fail core)
+       (bubble-delay-through-conj delay)
+       (late-distribute-settled disj)
+       (late-distribute-right-settled search-join)
+       (skip-left-failure disj)
+       (rail-enter-right search-join)
+       (reassociate-left-result disj)
+       (skip-right-failure search-join)
+       (rail-return-left search-join)
+       (reassociate-right-result search-join)]
 
   [WW hole
       (WorkFresh intro WW tag)

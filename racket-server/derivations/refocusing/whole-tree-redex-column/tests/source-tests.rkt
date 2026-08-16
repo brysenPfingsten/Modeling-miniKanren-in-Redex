@@ -105,7 +105,11 @@
                    (term (More hole))))
     (check-false
      (frontier-in-language?
-      '(More (Emit (Answer (state unit)) Done)))))
+      '(More (Emit (Answer (state unit)) Done))))
+    (check-false (label-in-language? '(work-succeed delay)))
+    (check-false
+     (label-in-language?
+      '(expose-choice-through-work-fresh core))))
 
    (test-case
     "toy well-formedness is an executable judgment"

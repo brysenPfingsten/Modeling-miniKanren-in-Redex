@@ -157,6 +157,18 @@
        (format "~e" frontier))))
 
    (test-case
+    "reachable corpus locks all 28 valid rule/owner pairs"
+    (define observed
+      (remove-duplicates
+       (append*
+        (for/list ([frontier (in-list all-trace-states)])
+          (for/list ([successor (in-list (source-successors frontier))])
+            (first successor))))))
+    (check-equal? (length observed) 28)
+    (for ([label (in-list observed)])
+      (check-true (label-in-language? label) (format "~e" label))))
+
+   (test-case
     "boundary and branch-local fresh decompositions select different contexts"
     (define success '(Returned (state unit)))
     (define alternate
@@ -225,6 +237,25 @@
        (or (not (judgment-holds (wf-frontier/toy F)))
            (equal? (contract-source-successors frontier)
                    (source-successors frontier))))
+     #:attempts 1000))
+
+   (test-case
+    "bounded Redex generation compares direct and compositional D steps"
+    (redex-check
+     redex-column-decomposition-lang
+     F
+     (let ([frontier (term F)])
+       (or (not (judgment-holds (wf-frontier/toy F)))
+           (let* ([decomposition (first (decompositions frontier))]
+                  [direct* (direct-successors decomposition)]
+                  [spec* (spec-successors decomposition)])
+             (and
+              (equal? direct* spec*)
+              (equal?
+               (for/list ([successor (in-list direct*)])
+                 (match-define (list label next) successor)
+                 (list label (term (plug-D ,next))))
+               (source-successors frontier))))))
      #:attempts 1000))))
 
 (module+ test

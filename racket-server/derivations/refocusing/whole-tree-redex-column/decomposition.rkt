@@ -321,28 +321,19 @@
             (decomposition-choice-success SC))
      WF))])
 
-;; A functional projection is useful only after the relational laws establish
-;; that decompose/redex is total and single-valued on the source domain.
-(define (decompose-one/host frontier)
-  (match (judgment-holds
-          (decompose/redex ,frontier D)
-          D)
-    [(list only-result) only-result]
-    [results
-     (error 'decompose-one
-            "expected one decomposition for ~e; received ~e"
-            frontier
-            results)]))
-
+;; These functional views remain Redex-internal: their output variables are
+;; bound by the decomposition judgment.  Totality and single-valuedness are
+;; separate executable laws, so no host dispatcher chooses a focus.
 (define-metafunction redex-column-decomposition-lang
   decompose-one : F -> D
-  [(decompose-one F)
-   ,(decompose-one/host (term F))])
+  [(decompose-one F) D
+   (judgment-holds (decompose/redex F D))])
 
 (define-metafunction redex-column-decomposition-lang
   next-decomposition : C -> D
-  [(next-decomposition C)
-   (decompose-one (plug-C C))])
+  [(next-decomposition C) D
+   (where F (plug-C C))
+   (judgment-holds (decompose/redex F D))])
 
 ;; Compositional specification: contract one decomposed redex, reconstruct its
 ;; result, and ask the decomposition judgment for the next unique focus.
@@ -386,8 +377,8 @@
    (reachable-decomposition/via F Labels D)])
 
 ;; The direct presentation repeats the contractum clauses rather than invoking
-;; contract/redex.  Each clause then uses the relational decompose-one
-;; projection solely for the root re-decomposition common to this stage.
+;; contract/redex.  Each clause then invokes the judgment-backed Redex
+;; metafunction solely for the root re-decomposition common to this stage.
 (define decomposed-red/direct
   (reduction-relation
    redex-column-decomposition-lang
