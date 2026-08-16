@@ -1,7 +1,12 @@
 #lang racket
 
-(require rackunit/text-ui
-         "./source-tests.rkt")
+(require rackunit
+         rackunit/text-ui
+         "./source-tests.rkt"
+         "./decomposition-tests.rkt")
 
-(run-tests source-tests)
-
+(run-tests
+ (test-suite
+  "whole-tree Redex column"
+  source-tests
+  decomposition-tests))
