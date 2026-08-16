@@ -2,6 +2,8 @@
 
 (require redex/reduction-semantics
          "./decomposition.rkt"
+         (only-in "./kernel-toy.rkt"
+                  wf-frontier/toy)
          "./refocused.rkt")
 
 (provide initial-Z
@@ -44,8 +46,8 @@
   redex-column-refocused-lang
   #:contract (reachable-refocused/via F ZLabels Z)
   #:mode (reachable-refocused/via I O O)
-  [(where Z_0 (initial-Z F))
+  [(wf-frontier/toy F)
+   (where Z_0 (initial-Z F))
    (refocused-steps/direct Z_0 ZLabels Z)
    ---------------------------------------------------- "reachable refocused state with trace"
    (reachable-refocused/via F ZLabels Z)])
-

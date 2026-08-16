@@ -363,7 +363,8 @@
   redex-column-decomposition-lang
   #:contract (decomposition-image F D)
   #:mode (decomposition-image I O)
-  [(decompose/redex F D)
+  [(wf-frontier/toy F)
+   (decompose/redex F D)
    ---------------------------------------------------- "decomposition image"
    (decomposition-image F D)])
 
@@ -371,7 +372,8 @@
   redex-column-decomposition-lang
   #:contract (reachable-decomposition/via F Labels D)
   #:mode (reachable-decomposition/via I O O)
-  [(decompose/redex F D_0)
+  [(wf-frontier/toy F)
+   (decompose/redex F D_0)
    (decomposed-steps/spec D_0 Labels D)
    ---------------------------------------------------- "reachable decomposition with trace"
    (reachable-decomposition/via F Labels D)])

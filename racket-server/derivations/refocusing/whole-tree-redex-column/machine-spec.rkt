@@ -2,6 +2,8 @@
 
 (require redex/reduction-semantics
          "./decomposition.rkt"
+         (only-in "./kernel-toy.rkt"
+                  wf-frontier/toy)
          "./machine.rkt"
          "./refocused.rkt")
 
@@ -50,8 +52,8 @@
   redex-column-machine-lang
   #:contract (reachable-machine/via F MLabels M)
   #:mode (reachable-machine/via I O O)
-  [(where M_0 (initial-M F))
+  [(wf-frontier/toy F)
+   (where M_0 (initial-M F))
    (machine-steps/direct M_0 MLabels M)
    ---------------------------------------------------- "reachable marked machine with trace"
    (reachable-machine/via F MLabels M)])
-
