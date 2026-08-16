@@ -39,7 +39,7 @@
       (DisjR W Dead)
       (DisjR W (PendingDelay W))
       (DisjR W SC)]
-  [B (BRun W WF)
+  [B (BRun NW WF)
      (BSettled SR WF)
      (BDead WF)
      (BDelay W WF)
@@ -51,10 +51,10 @@
   [Path no-path
         (path Marks B)]
   ;; Private derivation program points, never operational states.
-  [BQ (BQRun W WF)
-      (BQLocal W WF)
+  [BQ (BQRun NW WF)
+      (BQLocal NW WF)
       (BQAtomic g st WF)
-      (BQFresh intro W tag WF)
+      (BQFresh intro W tag WF+)
       (BQConj W g WF)
       (BQLeft W W WF)
       (BQRight W W WF)
@@ -123,36 +123,6 @@
                (FrontierFresh intro (More hole) tag))))) ]
 
   [(symbolic-path/direct
-    (BQSettled (Returned st) (in-hole FF (More hole)))
-    Path)
-   ---------------------------------------------------- "compress root returned"
-   (symbolic-path/direct
-    (BQRun (Returned st) (in-hole FF (More hole)))
-    Path)]
-
-  [(symbolic-path/direct
-    (BQSettled SC (in-hole FF (More hole)))
-    Path)
-   ---------------------------------------------------- "compress root settled choice"
-   (symbolic-path/direct
-    (BQRun SC (in-hole FF (More hole)))
-    Path)]
-
-  [(symbolic-path/direct (BQDead (in-hole FF (More hole))) Path)
-   ---------------------------------------------------- "compress root dead"
-   (symbolic-path/direct
-    (BQRun Dead (in-hole FF (More hole)))
-    Path)]
-
-  [(symbolic-path/direct
-    (BQDelay W (in-hole FF (More hole)))
-    Path)
-   ---------------------------------------------------- "compress root delay"
-   (symbolic-path/direct
-    (BQRun (PendingDelay W) (in-hole FF (More hole)))
-    Path)]
-
-  [(symbolic-path/direct
     (BQLocal (Work g st) (in-hole FF (More hole)))
     Path)
    ---------------------------------------------------- "compress root atomic"
@@ -184,31 +154,19 @@
     (BQRun (DisjR W_1 W_2) (in-hole FF (More hole)))
     Path)]
 
-  [(symbolic-path/direct (BQLocal W WF+) Path)
+  [(symbolic-path/direct (BQLocal NW WF+) Path)
    ---------------------------------------------------- "compress nonroot run"
-   (symbolic-path/direct (BQRun W WF+) Path)]
+   (symbolic-path/direct (BQRun NW WF+) Path)]
 
   ;; Constructor dispatcher outside the More-priority case.
   [(symbolic-path/direct (BQAtomic g st WF) Path)
    ---------------------------------------------------- "compress local atomic"
    (symbolic-path/direct (BQLocal (Work g st) WF) Path)]
 
-  [(symbolic-path/direct (BQSettled (Returned st) WF) Path)
-   ---------------------------------------------------- "compress local returned"
-   (symbolic-path/direct (BQLocal (Returned st) WF) Path)]
-
-  [(symbolic-path/direct (BQDead WF) Path)
-   ---------------------------------------------------- "compress local dead"
-   (symbolic-path/direct (BQLocal Dead WF) Path)]
-
-  [(symbolic-path/direct (BQDelay W WF) Path)
-   ---------------------------------------------------- "compress local delay"
-   (symbolic-path/direct (BQLocal (PendingDelay W) WF) Path)]
-
-  [(symbolic-path/direct (BQFresh intro W tag WF) Path)
+  [(symbolic-path/direct (BQFresh intro W tag WF+) Path)
    ---------------------------------------------------- "compress local fresh"
-   (symbolic-path/direct
-    (BQLocal (WorkFresh intro W tag) WF)
+  (symbolic-path/direct
+    (BQLocal (WorkFresh intro W tag) WF+)
     Path)]
 
   [(symbolic-path/direct (BQConj W g WF) Path)
@@ -301,49 +259,49 @@
 
   ;; WorkFresh dispatcher.
   [(symbolic-path/direct
-    (BQSettled (WorkFresh intro S tag) WF)
+    (BQSettled (WorkFresh intro S tag) WF+)
     Path)
    ---------------------------------------------------- "compress settled fresh success"
-   (symbolic-path/direct (BQFresh intro S tag WF) Path)]
+   (symbolic-path/direct (BQFresh intro S tag WF+) Path)]
 
   [---------------------------------------------------- "compress expose left through fresh"
    (symbolic-path/direct
-    (BQFresh intro (DisjL S W) tag WF)
+    (BQFresh intro (DisjL S W) tag WF+)
     (path
      ((expose-choice-through-work-fresh disj))
      (BSettled
       (DisjL (WorkFresh intro S tag)
              (WorkFresh intro W tag))
-      WF)))]
+      WF+)))]
 
   [---------------------------------------------------- "compress expose right through fresh"
    (symbolic-path/direct
-    (BQFresh intro (DisjR W S) tag WF)
+    (BQFresh intro (DisjR W S) tag WF+)
     (path
      ((expose-choice-through-work-fresh search-join))
      (BSettled
       (DisjR (WorkFresh intro W tag)
              (WorkFresh intro S tag))
-      WF)))]
+      WF+)))]
 
   [---------------------------------------------------- "compress erase dead fresh"
    (symbolic-path/direct
-    (BQFresh intro Dead tag WF)
-    (path ((erase-dead-fresh core)) (BDead WF)))]
+    (BQFresh intro Dead tag WF+)
+    (path ((erase-dead-fresh core)) (BDead WF+)))]
 
   [---------------------------------------------------- "compress bubble delay through fresh"
    (symbolic-path/direct
-    (BQFresh intro (PendingDelay W) tag WF)
+    (BQFresh intro (PendingDelay W) tag WF+)
     (path
      ((bubble-delay-through-fresh delay))
-     (BDelay (WorkFresh intro W tag) WF)))]
+     (BDelay (WorkFresh intro W tag) WF+)))]
 
   [(symbolic-path/direct
     (BQRun NW
-           (in-hole WF (WorkFresh intro hole tag)))
+           (in-hole WF+ (WorkFresh intro hole tag)))
     Path)
    ---------------------------------------------------- "compress descend fresh"
-   (symbolic-path/direct (BQFresh intro NW tag WF) Path)]
+   (symbolic-path/direct (BQFresh intro NW tag WF+) Path)]
 
   ;; Conjunction dispatcher.
   [(where Path_1
@@ -741,11 +699,11 @@
   #:contract (compressed-step/direct B Span B)
   #:mode (compressed-step/direct I O O)
   [(symbolic-path/direct
-    (BQRun W WF)
+    (BQRun NW WF)
     (path (ell_0 ell_rest ...) B_1))
    ---------------------------------------------------- "compressed run step"
    (compressed-step/direct
-    (BRun W WF)
+    (BRun NW WF)
     (transition-span ell_0 ell_rest ...)
     B_1)]
   [(symbolic-path/direct
@@ -825,7 +783,7 @@
 
 (define-metafunction redex-column-compressed-lang
   compressed-readback : B -> F
-  [(compressed-readback (BRun W WF)) (in-hole WF W)]
+  [(compressed-readback (BRun NW WF)) (in-hole WF NW)]
   [(compressed-readback (BSettled SR WF)) (in-hole WF SR)]
   [(compressed-readback (BDead WF)) (in-hole WF Dead)]
   [(compressed-readback (BDelay W WF))

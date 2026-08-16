@@ -243,7 +243,24 @@
      (redex-match?
       redex-column-compressed-lang
       Span
-      '(transition-span (work-succeed core)))))
+      '(transition-span (work-succeed core))))
+    ;; The running payload is indexed by the unfinished-work subset.  A
+    ;; settled choice belongs in BSettled and is not an alternate raw BRun
+    ;; representation of the same reachable phase.
+    (define settled-choice
+      '(DisjL
+        (Returned (state unit))
+        (Work (succeed (label "later")) (state unit))))
+    (check-false
+     (redex-match?
+      redex-column-compressed-lang
+      B
+      `(BRun ,settled-choice ,(term (More hole)))))
+    (check-true
+     (redex-match?
+      redex-column-compressed-lang
+      B
+      `(BSettled ,settled-choice ,(term (More hole))))))
 
    (test-case
     "every reachable direct edge is exactly the compositional corridor specification"
@@ -356,7 +373,23 @@
      F
      (or (not (judgment-holds (wf-frontier/toy F)))
          (root-arrow-holds? (term F)))
-     #:attempts 500))
+     #:attempts 500)
+    (redex-check
+     redex-column-compressed-lang
+     B
+     (<= (length
+          (build-derivations
+           (compressed-step/direct B Span B_1)))
+         1)
+     #:attempts 1000)
+    (redex-check
+     redex-column-compressed-lang
+     BQ
+     (<= (length
+          (build-derivations
+           (symbolic-path/direct BQ Path)))
+         1)
+     #:attempts 1000))
 
    (test-case
     "the direct artifact contains no exact-step replay or host control dispatcher"

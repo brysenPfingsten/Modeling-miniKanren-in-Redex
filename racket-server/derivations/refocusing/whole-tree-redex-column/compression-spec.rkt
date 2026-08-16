@@ -84,11 +84,11 @@
   #:mode (decode-BM I O)
 
   [(machine-refocus-query/direct
-    (MQWork W TopW FF)
+    (MQWork NW TopW FF)
     M)
    ---------------------------------------------------- "decode running residual"
    (decode-BM
-    (BRun W (in-hole FF (More TopW)))
+    (BRun NW (in-hole FF (More TopW)))
     M)]
 
   [(machine-refocus-query/direct

@@ -14,14 +14,17 @@ holds.  Its private `BQ` forms are derivation program points, not machine
 states.  The public state grammar has exactly these constructors:
 
 ```text
-BRun(W, WF)       downward work dispatcher
+BRun(NW, WF)      downward unfinished-work dispatcher
 BSettled(SR, WF)  upward settled-result dispatcher
 BDead(WF)         failure propagation dispatcher
 BDelay(W, WF)     delay/rail propagation dispatcher
 BFinal(T, FF)     terminal frontier
 ```
 
-The contexts are still the actual-hole, grammar-indexed `W -> F` and `F -> F`
+`NW` is the grammatical complement of settled work inside `W`; putting that
+index directly in `BRun` excludes phase-incoherent raw states without a
+runtime compatibility check.  The contexts are still the actual-hole,
+grammar-indexed `W -> F` and `F -> F`
 families.  There is no sort field, compatibility flag, scheduler register,
 cached ambient scope, or erased fresh marker.
 
