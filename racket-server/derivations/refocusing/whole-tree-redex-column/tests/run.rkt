@@ -6,7 +6,8 @@
          "./decomposition-tests.rkt"
          "./refocused-tests.rkt"
          "./machine-tests.rkt"
-         "./compression-tests.rkt")
+         "./compression-tests.rkt"
+         "./big-step-tests.rkt")
 
 (run-tests
  (test-suite
@@ -15,4 +16,5 @@
   decomposition-tests
   refocused-tests
   machine-tests
-  compression-tests))
+  compression-tests
+  big-step-tests))
