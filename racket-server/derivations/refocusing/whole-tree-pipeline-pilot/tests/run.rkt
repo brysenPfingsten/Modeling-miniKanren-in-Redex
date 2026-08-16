@@ -1,6 +1,14 @@
 #lang racket
 
-(require rackunit/text-ui
+(require rackunit
+         rackunit/text-ui
+         "./decomposition-tests.rkt"
          "./source-tests.rkt")
 
-(exit (if (zero? (run-tests source-tests)) 0 1))
+(define pilot-tests
+  (test-suite
+   "whole-tree pipeline pilot"
+   source-tests
+   decomposition-tests))
+
+(exit (if (zero? (run-tests pilot-tests)) 0 1))
