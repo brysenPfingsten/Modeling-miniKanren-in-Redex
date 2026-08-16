@@ -3,12 +3,14 @@
 (require rackunit
          rackunit/text-ui
          "./decomposition-tests.rkt"
+         "./refocused-tests.rkt"
          "./source-tests.rkt")
 
 (define pilot-tests
   (test-suite
    "whole-tree pipeline pilot"
    source-tests
-   decomposition-tests))
+   decomposition-tests
+   refocused-tests))
 
 (exit (if (zero? (run-tests pilot-tests)) 0 1))
