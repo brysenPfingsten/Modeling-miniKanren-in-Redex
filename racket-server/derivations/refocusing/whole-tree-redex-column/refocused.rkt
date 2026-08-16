@@ -27,14 +27,18 @@
      Dead
      (PendingDelay W)
      SC]
-  [Z (ZWork W WF)
+  ;; Z is exactly the image of D.  The single ZWork constructor has three
+  ;; grammar-indexed alternatives rather than admitting arbitrary unfocused
+  ;; W/context pairs.
+  [Z (ZWork BR BF)
+     (ZWork LFR LF)
+     (ZWork LR WF)
      (ZFrontier T FF)]
   ;; Q is derivation-program-point syntax for one mutually recursive Redex
   ;; judgment.  It is not an operational machine state.
   [Q (QContract C)
      (QFrontier F FF)
-     (QWork W WW FF)
-     (QResume R WW FF)]
+     (QWork W WF)]
   [ZLabels (ell ...)])
 
 ;; Executable complement of the completed-work class R.  It is used only to
@@ -104,11 +108,10 @@
   #:contract (refocus-query/direct Q Z)
   #:mode (refocus-query/direct I O)
 
-  [(refocus-query/direct (QWork W TopW FF) Z)
+  [(refocus-query/direct (QWork W WF) Z)
    ---------------------------------------------------- "refocus retained work contract"
    (refocus-query/direct
-    (QContract
-     (ContractWork ell W (in-hole FF (More TopW))))
+    (QContract (ContractWork ell W WF))
     Z)]
 
   [(refocus-query/direct (QFrontier F FF) Z)
@@ -139,99 +142,77 @@
    ---------------------------------------------------- "refocus through forced"
    (refocus-query/direct (QFrontier (Forced F) FF) Z)]
 
-  [(refocus-query/direct (QWork W hole FF) Z)
+  [(refocus-query/direct
+    (QWork W (in-hole FF (More hole)))
+    Z)
    ---------------------------------------------------- "refocus frontier More"
    (refocus-query/direct (QFrontier (More W) FF) Z)]
 
   [---------------------------------------------------- "refocus frontier terminal"
    (refocus-query/direct (QFrontier T FF) (ZFrontier T FF))]
 
-  ;; More-boundary priority is explicit: every BR is focused when the retained
-  ;; WW context is hole, before any branch-local WorkFresh equation applies.
+  ;; More-boundary priority and branch locality are properties of complete
+  ;; W-to-F contexts.  BF and LF are disjoint grammar refinements of WF.
   [---------------------------------------------------- "refocus More boundary"
    (refocus-query/direct
-    (QWork BR hole FF)
-    (ZWork BR (in-hole FF (More hole))))]
+    (QWork BR BF)
+    (ZWork BR BF))]
 
   [---------------------------------------------------- "refocus local WorkFresh redex"
    (refocus-query/direct
-    (QWork LFR TopW+ FF)
-    (ZWork LFR (in-hole FF (More TopW+))))]
+    (QWork LFR LF)
+    (ZWork LFR LF))]
 
   [---------------------------------------------------- "refocus other local redex"
    (refocus-query/direct
-    (QWork LR TopW FF)
-    (ZWork LR (in-hole FF (More TopW))))]
+    (QWork LR WF)
+    (ZWork LR WF))]
 
-  [(refocus-query/direct (QResume R TopW+ FF) Z)
-   ---------------------------------------------------- "refocus completed work upward"
-   (refocus-query/direct (QWork R TopW+ FF) Z)]
-
+  ;; Descend by moving exactly one W frame from the term into the complete
+  ;; W-to-F context.  WorkFresh has a separate LF-only clause: this makes a
+  ;; WorkFresh immediately below More ineligible to descend, so the BF rule
+  ;; above has grammatical priority without constructing an ill-sorted query.
   [(non-outcome/redex W)
    (refocus-query/direct
     (QWork W
-           (in-hole TopW+
-                    (WorkFresh intro hole tag))
-           FF)
+           (in-hole LF
+                    (WorkFresh intro hole tag)))
     Z)
-   ---------------------------------------------------- "refocus down through work fresh"
+   ---------------------------------------------------- "refocus down through local work fresh"
    (refocus-query/direct
-    (QWork (WorkFresh intro W tag) TopW+ FF)
+    (QWork (WorkFresh intro W tag) LF)
     Z)]
 
   [(non-outcome/redex W)
    (refocus-query/direct
-    (QWork W (in-hole TopW (Conj hole g)) FF)
+    (QWork W (in-hole WF (Conj hole g)))
     Z)
    ---------------------------------------------------- "refocus down through conjunction"
-   (refocus-query/direct (QWork (Conj W g) TopW FF) Z)]
+   (refocus-query/direct (QWork (Conj W g) WF) Z)]
 
   [(non-outcome/redex W_1)
    (refocus-query/direct
-    (QWork W_1 (in-hole TopW (DisjL hole W_2)) FF)
+    (QWork W_1 (in-hole WF (DisjL hole W_2)))
     Z)
    ---------------------------------------------------- "refocus down left choice"
-   (refocus-query/direct (QWork (DisjL W_1 W_2) TopW FF) Z)]
+   (refocus-query/direct (QWork (DisjL W_1 W_2) WF) Z)]
 
   [(non-outcome/redex W_2)
    (refocus-query/direct
-    (QWork W_2 (in-hole TopW (DisjR W_1 hole)) FF)
+    (QWork W_2 (in-hole WF (DisjR W_1 hole)))
     Z)
    ---------------------------------------------------- "refocus down right choice"
-   (refocus-query/direct (QWork (DisjR W_1 W_2) TopW FF) Z)]
+   (refocus-query/direct (QWork (DisjR W_1 W_2) WF) Z)]
 
-  [---------------------------------------------------- "resume at More boundary"
-   (refocus-query/direct
-    (QResume R hole FF)
-    (ZWork R (in-hole FF (More hole))))]
-
+  ;; Completed work moves in the other direction.  WFrame is exactly one
+  ;; frame, so this inverse decomposition exposes the frame adjacent to the
+  ;; hole uniquely; no QResume control form is needed.
   [(refocus-query/direct
-    (QWork (WorkFresh intro R tag) TopW FF)
+    (QWork (in-hole WFrame R) WF)
     Z)
-   ---------------------------------------------------- "resume through work fresh"
+   ---------------------------------------------------- "refocus completed work up one frame"
    (refocus-query/direct
-    (QResume
-     R
-     (in-hole TopW (WorkFresh intro hole tag))
-     FF)
-    Z)]
-
-  [(refocus-query/direct (QWork (Conj R g) TopW FF) Z)
-   ---------------------------------------------------- "resume through conjunction"
-   (refocus-query/direct
-    (QResume R (in-hole TopW (Conj hole g)) FF)
-    Z)]
-
-  [(refocus-query/direct (QWork (DisjL R W) TopW FF) Z)
-   ---------------------------------------------------- "resume through left choice"
-   (refocus-query/direct
-    (QResume R (in-hole TopW (DisjL hole W)) FF)
-    Z)]
-
-  [(refocus-query/direct (QWork (DisjR W R) TopW FF) Z)
-   ---------------------------------------------------- "resume through right choice"
-   (refocus-query/direct
-    (QResume R (in-hole TopW (DisjR W hole)) FF)
+    (QWork R (in-hole WF WFrame))
     Z)])
 
 (define-judgment-form

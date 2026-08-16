@@ -12,6 +12,19 @@
 
 (provide decomposition-tests)
 
+;; LF contains at least one work frame.  Decomposition/refocusing may pop its
+;; innermost frame by matching the complete W-to-F context, without first
+;; splitting it into separate WW and FF values.
+(define-judgment-form
+  redex-column-decomposition-lang
+  #:contract (pop-work-frame/full WF WF WFrame)
+  #:mode (pop-work-frame/full I O O)
+  [---------------------------------------------------- "pop innermost work frame"
+   (pop-work-frame/full
+    (in-hole WF_outer WFrame_inner)
+    WF_outer
+    WFrame_inner)])
+
 (define outside-work
   '(Work (put (sym "outside") (label "outside")) (state unit)))
 
@@ -53,8 +66,7 @@
     (list (term (redex-name->label ,(~a name))) next)))
 
 (define (decompositions frontier)
-  (remove-duplicates
-   (judgment-holds (decompose/redex ,frontier D) D)))
+  (judgment-holds (decompose/redex ,frontier D) D))
 
 (define (contractions decomposition)
   (remove-duplicates
@@ -116,6 +128,15 @@
                                              (succeed (label "k"))))))))
     (check-true
      (redex-match? redex-column-decomposition-lang
+                   BF
+                   (term (Forced (More hole)))))
+    (check-true
+     (redex-match? redex-column-decomposition-lang
+                   LF
+                   (term (Forced (More (Conj hole
+                                             (succeed (label "k"))))))))
+    (check-true
+     (redex-match? redex-column-decomposition-lang
                    FF
                    (term (Emit (Answer (state unit))
                                (FrontierFresh (u:0)
@@ -125,6 +146,53 @@
      (redex-match? redex-column-decomposition-lang WW 'ww-hole))
     (check-false
      (redex-match? redex-column-decomposition-lang FF 'ff-hole)))
+
+   (test-case
+    "full local contexts have one innermost work-frame decomposition"
+    (redex-check
+     redex-column-decomposition-lang
+     BF
+     (null?
+      (judgment-holds
+       (pop-work-frame/full BF WF_outer WFrame_inner)
+       (WF_outer WFrame_inner)))
+     #:attempts 5000)
+    (redex-check
+     redex-column-decomposition-lang
+     LF
+     (= 1
+        (length
+         (judgment-holds
+          (pop-work-frame/full LF WF_outer WFrame_inner)
+          (WF_outer WFrame_inner))))
+     #:attempts 5000))
+
+   (test-case
+    "D grammar admits exactly the three structural work-focus cases"
+    (check-true
+     (redex-match?
+      redex-column-decomposition-lang
+      D
+      (term
+       (DecWork
+        (Returned (state unit))
+        (Forced (More hole))))))
+    (check-true
+     (redex-match?
+      redex-column-decomposition-lang
+      D
+      (term
+       (DecWork
+        (WorkFresh (u:0) Dead (label "local"))
+        (More (Conj hole (succeed (label "k"))))))))
+    (check-false
+     (redex-match?
+      redex-column-decomposition-lang
+      D
+      (term
+       (DecWork
+        (Returned (state unit))
+        (More (Conj hole (succeed (label "not-a-focus")))))))))
 
    (test-case
     "decomposition is unique and reconstructs every reachable source state"
@@ -181,6 +249,12 @@
     (define local-tree `(More (DisjL ,fresh-choice ,outside-work)))
     (define boundary-D (first (decompositions boundary-tree)))
     (define local-D (first (decompositions local-tree)))
+    (match-define `(DecWork ,_ ,boundary-context) boundary-D)
+    (match-define `(DecWork ,__ ,local-context) local-D)
+    (check-true
+     (redex-match? redex-column-decomposition-lang BF boundary-context))
+    (check-true
+     (redex-match? redex-column-decomposition-lang LF local-context))
     (check-equal?
      boundary-D
      (term

@@ -81,26 +81,27 @@
         (in-hole WF (PendingDelay (Work g st)))
         "suspend-goal/delay"]
 
-   ;; WF+ excludes a WorkFresh immediately below More.  These are therefore
-   ;; precisely the branch-local rules; global WorkFresh uses the first rule.
-   [--> (in-hole WF+
+   ;; LF contains a complete W-to-F context with a first Conj/Disj frame below
+   ;; More.  These are therefore precisely the branch-local rules; a
+   ;; WorkFresh in BF uses the frontier-exposure rule above.
+   [--> (in-hole LF
                  (WorkFresh intro (DisjL S W) tag))
-        (in-hole WF+
+        (in-hole LF
                  (DisjL (WorkFresh intro S tag)
                         (WorkFresh intro W tag)))
         "expose-choice-through-work-fresh/disj"]
-   [--> (in-hole WF+
+   [--> (in-hole LF
                  (WorkFresh intro (DisjR W S) tag))
-        (in-hole WF+
+        (in-hole LF
                  (DisjR (WorkFresh intro W tag)
                         (WorkFresh intro S tag)))
         "expose-choice-through-work-fresh/search-join"]
-   [--> (in-hole WF+ (WorkFresh intro Dead tag))
-        (in-hole WF+ Dead)
+   [--> (in-hole LF (WorkFresh intro Dead tag))
+        (in-hole LF Dead)
         "erase-dead-fresh/core"]
-   [--> (in-hole WF+
+   [--> (in-hole LF
                  (WorkFresh intro (PendingDelay W) tag))
-        (in-hole WF+
+        (in-hole LF
                  (PendingDelay (WorkFresh intro W tag)))
         "bubble-delay-through-fresh/delay"]
 

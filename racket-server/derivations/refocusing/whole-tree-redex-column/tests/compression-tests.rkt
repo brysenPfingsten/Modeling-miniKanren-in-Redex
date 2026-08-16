@@ -334,6 +334,45 @@
       (check-not-false (member expected observed) (format "~e" expected))))
 
    (test-case
+    "full contexts pop the unique innermost work frame"
+    (define query
+      (term
+       (BQSettled
+        (DisjL
+         (Returned (state (sym "inside")))
+         ,outside-work)
+        (More
+         (Conj
+          (WorkFresh
+           (u:outer)
+           (WorkFresh (u:inner) hole (label "inner"))
+           (label "outer"))
+          (succeed (label "tail")))))))
+    (define expected
+      (term
+       (path
+        ((expose-choice-through-work-fresh disj))
+        (BSettled
+         (DisjL
+          (WorkFresh
+           (u:inner)
+           (Returned (state (sym "inside")))
+           (label "inner"))
+          (WorkFresh (u:inner) ,outside-work (label "inner")))
+         (More
+          (Conj
+           (WorkFresh (u:outer) hole (label "outer"))
+           (succeed (label "tail"))))))))
+    (check-true (redex-match? redex-column-compressed-lang BQ query))
+    (check-equal?
+     (judgment-holds (symbolic-path/direct ,query Path) Path)
+     (list expected))
+    (check-equal?
+     (length
+      (build-derivations (symbolic-path/direct ,query Path)))
+     1))
+
+   (test-case
     "reachability carries the exact prefix certificate and rejects malformed roots"
     (for ([frontier (in-list witness-trees)])
       (define-values (spans states) (trace-for frontier))
@@ -383,12 +422,17 @@
          1)
      #:attempts 1000)
     (redex-check
+     redex-column-compression-spec-lang
+     B
+     (= (length (build-derivations (decode-BM B M))) 1)
+     #:attempts 1000)
+    (redex-check
      redex-column-compressed-lang
      BQ
-     (<= (length
-          (build-derivations
-           (symbolic-path/direct BQ Path)))
-         1)
+     (= (length
+         (build-derivations
+          (symbolic-path/direct BQ Path)))
+        1)
      #:attempts 1000))
 
    (test-case

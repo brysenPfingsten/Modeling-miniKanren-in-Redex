@@ -93,16 +93,27 @@
                                    (label "outer")))))
     (check-true
      (redex-match? redex-column-source-lang
-                   WF+
+                   LF
                    (term
                     (More (DisjL (WorkFresh (u:0)
-                                                hole
-                                                (label "local"))
-                                      Dead)))))
+                                           hole
+                                           (label "local"))
+                                 Dead)))))
+    (check-true
+     (redex-match? redex-column-source-lang
+                   BF
+                   (term
+                    (Emit (Answer (state unit))
+                          (More hole)))))
     (check-false
      (redex-match? redex-column-source-lang
-                   WF+
+                   LF
                    (term (More hole))))
+    (check-false
+     (redex-match? redex-column-source-lang
+                   BF
+                   (term (More (Conj hole
+                                     (succeed (label "local")))))))
     (check-false
      (frontier-in-language?
       '(More (Emit (Answer (state unit)) Done))))
@@ -110,6 +121,28 @@
     (check-false
      (label-in-language?
       '(expose-choice-through-work-fresh core))))
+
+   (test-case
+    "boundary and local full contexts form a disjoint WF partition"
+    (redex-check
+     redex-column-source-lang
+     BF
+     (and (redex-match? redex-column-source-lang WF (term BF))
+          (not (redex-match? redex-column-source-lang LF (term BF))))
+     #:attempts 2000)
+    (redex-check
+     redex-column-source-lang
+     LF
+     (and (redex-match? redex-column-source-lang WF (term LF))
+          (not (redex-match? redex-column-source-lang BF (term LF))))
+     #:attempts 2000)
+    (redex-check
+     redex-column-source-lang
+     WF
+     (not (equal?
+           (redex-match? redex-column-source-lang BF (term WF))
+           (redex-match? redex-column-source-lang LF (term WF))))
+     #:attempts 2000))
 
    (test-case
     "toy well-formedness is an executable judgment"

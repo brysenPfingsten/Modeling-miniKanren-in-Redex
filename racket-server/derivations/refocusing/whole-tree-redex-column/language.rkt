@@ -16,15 +16,19 @@
 ;; context nonterminals below are actual Redex contexts containing holes.  They
 ;; form an indexed inductive family:
 ;;
-;;   WW   : W -> W
-;;   FF   : F -> F
-;;   WF   : W -> F
-;;   WF+  : W -> F, with at least one non-fresh W frame below More
+;;   WW     : W -> W
+;;   WFrame : W -> W, exactly one frame
+;;   NFWW   : W -> W, with a first non-fresh frame
+;;   FF     : F -> F
+;;   BF     : W -> F, with the hole immediately below More
+;;   LF     : W -> F, with a first non-fresh frame below More
+;;   WF     : W -> F, the disjoint union of BF and LF
 ;;
-;; TopW deliberately omits WorkFresh as its first frame.  Consequently no
-;; local rule can descend through a WorkFresh immediately below More; the
-;; frontier exposure rule has grammatical priority there.  WW still admits
-;; WorkFresh below a Conj/Disj frame, which is exactly the branch-local case.
+;; BF and LF make the priority boundary explicit as complete contexts.  A
+;; WorkFresh in BF owns all residual work and must be exposed at the frontier;
+;; a WorkFresh in LF is branch-local because a Conj/Disj frame already lies
+;; between it and More.  WW still admits WorkFresh below that first local
+;; frame.  These are grammar indices and refinements, not runtime tags.
 (define-language redex-column-source-lang
   [p (sym string)
      (nat number)
@@ -145,25 +149,26 @@
       (Conj WW g)
       (DisjL WW W)
       (DisjR W WW)]
-  [TopW hole
-        (Conj WW g)
+  [WFrame (WorkFresh intro hole tag)
+          (Conj hole g)
+          (DisjL hole W)
+          (DisjR W hole)]
+  [NFWW (Conj WW g)
         (DisjL WW W)
         (DisjR W WW)]
-  [TopW+ (Conj WW g)
-         (DisjL WW W)
-         (DisjR W WW)]
   [FF hole
       (FrontierFresh intro FF tag)
       (Emit A FF)
       (Forced FF)]
-  [WF (More TopW)
-      (FrontierFresh intro WF tag)
-      (Emit A WF)
-      (Forced WF)]
-  [WF+ (More TopW+)
-       (FrontierFresh intro WF+ tag)
-       (Emit A WF+)
-       (Forced WF+)])
+  [BF (More hole)
+      (FrontierFresh intro BF tag)
+      (Emit A BF)
+      (Forced BF)]
+  [LF (More NFWW)
+      (FrontierFresh intro LF tag)
+      (Emit A LF)
+      (Forced LF)]
+  [WF BF LF])
 
 (define (goal-in-language? term)
   (redex-match? redex-column-source-lang g term))

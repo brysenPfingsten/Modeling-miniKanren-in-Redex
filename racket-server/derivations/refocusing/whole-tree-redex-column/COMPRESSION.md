@@ -21,19 +21,25 @@ BDelay(W, WF)     delay/rail propagation dispatcher
 BFinal(T, FF)     terminal frontier
 ```
 
-`NW` is the grammatical complement of settled work inside `W`; putting that
-index directly in `BRun` excludes phase-incoherent raw states without a
-runtime compatibility check.  The contexts are still the actual-hole,
-grammar-indexed `W -> F` and `F -> F`
-families.  There is no sort field, compatibility flag, scheduler register,
-cached ambient scope, or erased fresh marker.
+`NW` is the grammatical unfinished-work phase, disjoint from settled, dead,
+and delayed dispatcher phases.  Putting that index directly in `BRun`
+excludes phase-incoherent raw states without a runtime compatibility check.
+Every running mode retains one complete
+actual-hole `WF : W -> F` context.  Its disjoint subclasses distinguish a
+boundary hole (`BF`) from a branch-local hole (`LF`); the latter has an
+ordinary conjunction or choice frame below `More`.  Upward control pops the
+unique innermost frame with patterns such as
+`(in-hole WF (Conj hole g))` and
+`(in-hole LF (WorkFresh intro hole tag))`.  There is no split `WW`/`FF`
+continuation, sort field, compatibility flag, scheduler register, cached
+ambient scope, or erased fresh marker.
 
 ## Translation and image
 
 `decode-BM` is a Redex judgment from `B` to the exact machine.  It invokes only
 the already-derived retained-context refocuser to locate the represented exact
-control point.  It is deliberately a decoder, not an operational dependency
-of the direct compressed relation.
+control point, passing the complete `WF` context directly.  It is deliberately
+a decoder, not an operational dependency of the direct compressed relation.
 
 `reachable-compressed/via` and
 `reachable-compression-correspondence` carry the complete ordered span prefix
@@ -89,6 +95,12 @@ label/owner replay, literal trace partitioning, all 28 valid marks, the four
 golden witness partitions, and well-formed reachability.  A bounded
 `redex-check` repeats the direct/specification comparison over generated whole
 frontier terms.
+
+The private `BQ` grammar is restricted to actual derivation program points:
+nonfresh local dispatch uses `NR`, and fresh dispatch requires `LF`.  Bounded
+generation therefore checks totality and uniqueness together--every generated
+`BQ` has exactly one raw direct derivation--rather than merely checking that
+there is at most one derivation.
 
 The reduction relation `compressed-red/direct` is only the trace/visualization
 projection.  The span-producing judgment is authoritative because ordinary

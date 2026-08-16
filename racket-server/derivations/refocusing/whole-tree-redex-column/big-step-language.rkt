@@ -16,20 +16,15 @@
   redex-column-source-lang
   [T Done (Last A)]
   [SR S SC]
-  [NW (Work g st)
-      (WorkFresh intro NW tag)
-      (WorkFresh intro Dead tag)
-      (WorkFresh intro (PendingDelay W) tag)
-      (WorkFresh intro SC tag)
+  ;; Shared phase indices keep the closure specification and independent
+  ;; direct evaluator on the same public B grammar.
+  [U NW Dead (PendingDelay W) SC]
+  [NR (Work g st)
       (Conj W g)
-      (DisjL NW W)
-      (DisjL Dead W)
-      (DisjL (PendingDelay W) W)
-      (DisjL SC W)
-      (DisjR W NW)
-      (DisjR W Dead)
-      (DisjR W (PendingDelay W))
-      (DisjR W SC)]
+      (DisjL U W)
+      (DisjR W U)]
+  [NW NR
+      (WorkFresh intro U tag)]
   ;; B and Span are present solely so the specification module can state the
   ;; preceding-stage closure in this shared outcome language.  The direct
   ;; module imports no compressed operational artifact and never mentions

@@ -23,17 +23,19 @@
 
 (check-redundancy #t)
 
-;; The specialization result retains exactly two indexed control shapes.  The
-;; payloads and actual-hole contexts are deliberately unchanged; the distinct
-;; M constructors make the conceptual Z -> M arrow and its laws executable.
+;; The specialization result retains exactly two indexed control shapes.  Its
+;; work alternatives are the exact focused image of Z/D, so every grammar-
+;; admitted M is meaningful; the distinct M constructors make the conceptual
+;; Z -> M arrow and its laws executable.
 (define-extended-language redex-column-machine-lang
   redex-column-refocused-lang
-  [M (MWork W WF)
+  [M (MWork BR BF)
+     (MWork LFR LF)
+     (MWork LR WF)
      (MFrontier T FF)]
   [MQ (MQContract C)
       (MQFrontier F FF)
-      (MQWork W WW FF)
-      (MQResume R WW FF)]
+      (MQWork W WF)]
   [MLabels (ell ...)])
 
 (define-metafunction redex-column-machine-lang
@@ -68,11 +70,10 @@
   #:contract (machine-refocus-query/direct MQ M)
   #:mode (machine-refocus-query/direct I O)
 
-  [(machine-refocus-query/direct (MQWork W TopW FF) M)
+  [(machine-refocus-query/direct (MQWork W WF) M)
    ---------------------------------------------------- "machine retained work contract"
    (machine-refocus-query/direct
-    (MQContract
-     (ContractWork ell W (in-hole FF (More TopW))))
+    (MQContract (ContractWork ell W WF))
     M)]
 
   [(machine-refocus-query/direct (MQFrontier F FF) M)
@@ -103,7 +104,9 @@
    ---------------------------------------------------- "machine through forced"
    (machine-refocus-query/direct (MQFrontier (Forced F) FF) M)]
 
-  [(machine-refocus-query/direct (MQWork W hole FF) M)
+  [(machine-refocus-query/direct
+    (MQWork W (in-hole FF (More hole)))
+    M)
    ---------------------------------------------------- "machine frontier More"
    (machine-refocus-query/direct (MQFrontier (More W) FF) M)]
 
@@ -114,88 +117,57 @@
 
   [---------------------------------------------------- "machine More boundary"
    (machine-refocus-query/direct
-    (MQWork BR hole FF)
-    (MWork BR (in-hole FF (More hole))))]
+    (MQWork BR BF)
+    (MWork BR BF))]
 
   [---------------------------------------------------- "machine local WorkFresh redex"
    (machine-refocus-query/direct
-    (MQWork LFR TopW+ FF)
-    (MWork LFR (in-hole FF (More TopW+))))]
+    (MQWork LFR LF)
+    (MWork LFR LF))]
 
   [---------------------------------------------------- "machine other local redex"
    (machine-refocus-query/direct
-    (MQWork LR TopW FF)
-    (MWork LR (in-hole FF (More TopW))))]
-
-  [(machine-refocus-query/direct (MQResume R TopW+ FF) M)
-   ---------------------------------------------------- "machine completed work upward"
-   (machine-refocus-query/direct (MQWork R TopW+ FF) M)]
+    (MQWork LR WF)
+    (MWork LR WF))]
 
   [(non-outcome/redex W)
    (machine-refocus-query/direct
     (MQWork W
-            (in-hole TopW+
-                     (WorkFresh intro hole tag))
-            FF)
+            (in-hole LF
+                     (WorkFresh intro hole tag)))
     M)
-   ---------------------------------------------------- "machine down through work fresh"
+   ---------------------------------------------------- "machine down through local work fresh"
    (machine-refocus-query/direct
-    (MQWork (WorkFresh intro W tag) TopW+ FF)
+    (MQWork (WorkFresh intro W tag) LF)
     M)]
 
   [(non-outcome/redex W)
    (machine-refocus-query/direct
-    (MQWork W (in-hole TopW (Conj hole g)) FF)
+    (MQWork W (in-hole WF (Conj hole g)))
     M)
    ---------------------------------------------------- "machine down through conjunction"
-   (machine-refocus-query/direct (MQWork (Conj W g) TopW FF) M)]
+   (machine-refocus-query/direct (MQWork (Conj W g) WF) M)]
 
   [(non-outcome/redex W_1)
    (machine-refocus-query/direct
-    (MQWork W_1 (in-hole TopW (DisjL hole W_2)) FF)
+    (MQWork W_1 (in-hole WF (DisjL hole W_2)))
     M)
    ---------------------------------------------------- "machine down left choice"
-   (machine-refocus-query/direct (MQWork (DisjL W_1 W_2) TopW FF) M)]
+   (machine-refocus-query/direct (MQWork (DisjL W_1 W_2) WF) M)]
 
   [(non-outcome/redex W_2)
    (machine-refocus-query/direct
-    (MQWork W_2 (in-hole TopW (DisjR W_1 hole)) FF)
+    (MQWork W_2 (in-hole WF (DisjR W_1 hole)))
     M)
    ---------------------------------------------------- "machine down right choice"
-   (machine-refocus-query/direct (MQWork (DisjR W_1 W_2) TopW FF) M)]
-
-  [---------------------------------------------------- "machine resume at More boundary"
-   (machine-refocus-query/direct
-    (MQResume R hole FF)
-    (MWork R (in-hole FF (More hole))))]
+   (machine-refocus-query/direct (MQWork (DisjR W_1 W_2) WF) M)]
 
   [(machine-refocus-query/direct
-    (MQWork (WorkFresh intro R tag) TopW FF)
+    (MQWork (in-hole WFrame R) WF)
     M)
-   ---------------------------------------------------- "machine resume through work fresh"
+   ---------------------------------------------------- "machine completed work up one frame"
    (machine-refocus-query/direct
-    (MQResume
-     R
-     (in-hole TopW (WorkFresh intro hole tag))
-     FF)
-    M)]
-
-  [(machine-refocus-query/direct (MQWork (Conj R g) TopW FF) M)
-   ---------------------------------------------------- "machine resume through conjunction"
-   (machine-refocus-query/direct
-    (MQResume R (in-hole TopW (Conj hole g)) FF)
-    M)]
-
-  [(machine-refocus-query/direct (MQWork (DisjL R W) TopW FF) M)
-   ---------------------------------------------------- "machine resume through left choice"
-   (machine-refocus-query/direct
-    (MQResume R (in-hole TopW (DisjL hole W)) FF)
-    M)]
-
-  [(machine-refocus-query/direct (MQWork (DisjR W R) TopW FF) M)
-   ---------------------------------------------------- "machine resume through right choice"
-   (machine-refocus-query/direct
-    (MQResume R (in-hole TopW (DisjR W hole)) FF)
+    (MQWork R (in-hole WF WFrame))
     M)])
 
 (define-judgment-form
@@ -235,4 +207,3 @@
    [--> M_0 M_1
         (judgment-holds (machine-step/direct M_0 ell M_1))
         (computed-name (term (label->redex-name ell)))]))
-

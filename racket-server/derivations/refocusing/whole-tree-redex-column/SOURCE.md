@@ -8,14 +8,21 @@ grammar:
 | Context | Index | Purpose |
 | --- | --- | --- |
 | `WW` | W -> W | local active-work path |
+| `WFrame` | W -> W | exactly one local work frame |
+| `NFWW` | W -> W | path whose first frame is conjunction or disjunction |
 | `FF` | F -> F | committed frontier prefix |
-| `WF` | W -> F | active work below `More` and an `FF` prefix |
-| `WF+` | W -> F | branch-local path with a non-fresh frame below `More` |
+| `BF` | W -> F | hole immediately below `More`, under an `FF` prefix |
+| `LF` | W -> F | branch-local path with a first non-fresh frame below `More` |
+| `WF` | W -> F | disjoint union of `BF` and `LF` |
 
-`TopW`, used inside `WF`, does not contain a first `WorkFresh` frame.  This
-makes `More (WorkFresh ...)` select `expose-frontier-fresh`.  `WF+` admits a
-`WorkFresh` only below a conjunction or active disjunction frame, where
-`expose-choice-through-work-fresh` copies the existing introduction marker.
+The priority distinction is now a partition of complete W-to-F contexts,
+rather than a split pair of work and frontier contexts.  A `WorkFresh` in
+`BF` owns the whole residual computation and selects
+`expose-frontier-fresh`.  A `WorkFresh` in `LF` has a conjunction or active
+disjunction frame between it and `More`, so
+`expose-choice-through-work-fresh` copies the existing introduction marker to
+the two descendants.  `BF` and `LF` are disjoint, and every `WF` belongs to
+exactly one of them.
 
 Every rule name has the form `source-name/owner`; `redex-name->label` and
 `label->redex-name` are inverse Redex metafunctions over the finite label
@@ -33,4 +40,3 @@ The source suite checks:
 - complete representative traces, including both fresh-exposure cases.
 
 The oracle dependency occurs only in tests.
-

@@ -306,16 +306,16 @@
     (redex-check
      redex-column-big-step-direct-lang
      EQ
-     (<= (length
-          (build-derivations (evaluate-query/direct EQ O)))
-         1)
+     (= (length
+         (build-derivations (evaluate-query/direct EQ O)))
+        1)
      #:attempts 1000)
     (redex-check
      redex-column-big-step-direct-lang
      B
-     (<= (length
-          (build-derivations (promote/direct B O)))
-         1)
+     (= (length
+         (build-derivations (promote/direct B O)))
+        1)
      #:attempts 1000))
 
    (test-case

@@ -46,7 +46,12 @@
       (DisjR W (PendingDelay W))
       (DisjR W SC)]
 
-  [D (DecWork W WF)
+  ;; The work cases are the exact structural image of decomposition.  The
+  ;; outer constructor remains DecWork because all three alternatives have
+  ;; the same W-to-F result shape; BF/LF/WF encode the priority refinement.
+  [D (DecWork BR BF)
+     (DecWork LFR LF)
+     (DecWork LR WF)
      (DecFrontier T FF)]
   [C (ContractWork ell W WF)
      (ContractFrontier ell F FF)]
@@ -83,8 +88,8 @@
 
 ;; This is the primary decomposition artifact.  It is a Redex judgment over
 ;; actual-hole contexts, not an ordered Racket traversal.  The three redex
-;; clauses are disjoint on source-image terms because WF+ excludes the More
-;; boundary and LR excludes WorkFresh.
+;; clauses are disjoint by grammar: BF and LF partition the boundary/local
+;; cases, while LR excludes WorkFresh.
 (define-judgment-form
   redex-column-decomposition-lang
   #:contract (decompose/redex F D)
@@ -92,13 +97,13 @@
 
   [---------------------------------------------------- "decompose More boundary"
    (decompose/redex
-    (in-hole FF (More BR))
-    (DecWork BR (in-hole FF (More hole))))]
+    (in-hole BF BR)
+    (DecWork BR BF))]
 
   [---------------------------------------------------- "decompose local WorkFresh"
    (decompose/redex
-    (in-hole WF+ LFR)
-    (DecWork LFR WF+))]
+    (in-hole LF LFR)
+    (DecWork LFR LF))]
 
   [---------------------------------------------------- "decompose local work"
    (decompose/redex
@@ -214,34 +219,34 @@
 
   [---------------------------------------------------- "contract expose left choice through fresh"
    (contract/redex
-    (DecWork (WorkFresh intro (DisjL S W) tag) WF+)
+    (DecWork (WorkFresh intro (DisjL S W) tag) LF)
     (ContractWork
      (expose-choice-through-work-fresh disj)
      (DisjL (WorkFresh intro S tag)
             (WorkFresh intro W tag))
-     WF+))]
+     LF))]
 
   [---------------------------------------------------- "contract expose right choice through fresh"
    (contract/redex
-    (DecWork (WorkFresh intro (DisjR W S) tag) WF+)
+    (DecWork (WorkFresh intro (DisjR W S) tag) LF)
     (ContractWork
      (expose-choice-through-work-fresh search-join)
      (DisjR (WorkFresh intro W tag)
             (WorkFresh intro S tag))
-     WF+))]
+     LF))]
 
   [---------------------------------------------------- "contract erase dead fresh"
    (contract/redex
-    (DecWork (WorkFresh intro Dead tag) WF+)
-    (ContractWork (erase-dead-fresh core) Dead WF+))]
+    (DecWork (WorkFresh intro Dead tag) LF)
+    (ContractWork (erase-dead-fresh core) Dead LF))]
 
   [---------------------------------------------------- "contract bubble delay through fresh"
    (contract/redex
-    (DecWork (WorkFresh intro (PendingDelay W) tag) WF+)
+    (DecWork (WorkFresh intro (PendingDelay W) tag) LF)
     (ContractWork
      (bubble-delay-through-fresh delay)
      (PendingDelay (WorkFresh intro W tag))
-     WF+))]
+     LF))]
 
   [---------------------------------------------------- "contract conjunction return"
    (contract/redex
@@ -471,32 +476,32 @@
           WF))
         "suspend-goal/delay"]
 
-   [--> (DecWork (WorkFresh intro (DisjL S W) tag) WF+)
+   [--> (DecWork (WorkFresh intro (DisjL S W) tag) LF)
         (next-decomposition
          (ContractWork
           (expose-choice-through-work-fresh disj)
           (DisjL (WorkFresh intro S tag)
                  (WorkFresh intro W tag))
-          WF+))
+          LF))
         "expose-choice-through-work-fresh/disj"]
-   [--> (DecWork (WorkFresh intro (DisjR W S) tag) WF+)
+   [--> (DecWork (WorkFresh intro (DisjR W S) tag) LF)
         (next-decomposition
          (ContractWork
           (expose-choice-through-work-fresh search-join)
           (DisjR (WorkFresh intro W tag)
                  (WorkFresh intro S tag))
-          WF+))
+          LF))
         "expose-choice-through-work-fresh/search-join"]
-   [--> (DecWork (WorkFresh intro Dead tag) WF+)
+   [--> (DecWork (WorkFresh intro Dead tag) LF)
         (next-decomposition
-         (ContractWork (erase-dead-fresh core) Dead WF+))
+         (ContractWork (erase-dead-fresh core) Dead LF))
         "erase-dead-fresh/core"]
-   [--> (DecWork (WorkFresh intro (PendingDelay W) tag) WF+)
+   [--> (DecWork (WorkFresh intro (PendingDelay W) tag) LF)
         (next-decomposition
          (ContractWork
           (bubble-delay-through-fresh delay)
           (PendingDelay (WorkFresh intro W tag))
-          WF+))
+          LF))
         "bubble-delay-through-fresh/delay"]
 
    [--> (DecWork (Conj S g) WF)

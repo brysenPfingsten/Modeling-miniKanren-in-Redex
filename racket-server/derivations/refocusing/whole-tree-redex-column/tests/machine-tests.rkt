@@ -68,6 +68,9 @@
    (machine-step/spec ,machine ell M_next)
    (ell M_next)))
 
+(define (machine-refocus-query-results query)
+  (judgment-holds (machine-refocus-query/direct ,query M) M))
+
 (define (m-relation-successors machine)
   (for/list ([named
               (in-list
@@ -193,6 +196,16 @@
      #:attempts 1000))
 
    (test-case
+    "the direct machine query grammar is total and single-valued"
+    (redex-check
+     redex-column-machine-lang
+     MQ
+     (= (length
+         (machine-refocus-query-results (term MQ)))
+        1)
+     #:attempts 1000))
+
+   (test-case
     "transported and independently direct machine successors coincide"
     (for ([frontier (in-list all-trace-states)])
       (define machine (term (initial-M ,frontier)))
@@ -293,7 +306,7 @@
                     (null? (source-successors machine-readback)))))
 
    (test-case
-    "progress and raw derivation uniqueness are claimed only on reachable states"
+    "reachable states have unique exact Z and M derivations"
     (for* ([initial (in-list witness-trees)]
            [pair (in-list (z/m-trace initial))])
       (match-define (list z machine) pair)
@@ -316,19 +329,33 @@
        (list machine)
        (format "correspondence: ~e" z)))
 
-    ;; M admits every indexed focus/context pair.  An arbitrary such pair need
-    ;; not already be focused at a redex; progress is intentionally not claimed
-    ;; for this larger raw grammar.
+    ;; The exact M grammar now rejects the unfocused pair admitted by the
+    ;; earlier broad W/WF product.
     (define unfocused-machine
       (term
        (MWork
         (Conj (Work (succeed (label "inside")) (state unit))
               (fail (label "after")))
         (More hole))))
-    (check-true
-     (redex-match? redex-column-machine-lang M unfocused-machine))
-    (check-false (terminal-machine? unfocused-machine))
-    (check-equal? (m-direct-successors unfocused-machine) '()))
+    (check-false
+     (redex-match? redex-column-machine-lang M unfocused-machine)))
+
+   (test-case
+    "every raw M state has the exact expected successor count"
+    (redex-check
+     redex-column-machine-lang
+     M
+     (let* ([machine (term M)]
+            [expected-count (if (terminal-machine? machine) 0 1)]
+            [direct* (m-direct-successors machine)]
+            [spec* (m-spec-successors machine)]
+            [relation* (m-relation-successors machine)])
+       (and (= (length direct*) expected-count)
+            (= (length spec*) expected-count)
+            (= (length relation*) expected-count)
+            (equal? direct* spec*)
+            (equal? direct* relation*)))
+     #:attempts 1000))
 
    (test-case
     "direct machine module has only the declared lower-stage dependencies"

@@ -22,23 +22,17 @@
 (define-extended-language redex-column-compressed-lang
   redex-column-machine-lang
   [SR S SC]
-  ;; Exact grammatical complement of SR within W.  Keeping this
-  ;; classification in the transformed language makes downward dispatch a
-  ;; Redex grammar decision, with no call back into refocused control.
-  [NW (Work g st)
-      (WorkFresh intro NW tag)
-      (WorkFresh intro Dead tag)
-      (WorkFresh intro (PendingDelay W) tag)
-      (WorkFresh intro SC tag)
+  ;; U is every non-success child phase.  NR is unfinished work whose outer
+  ;; constructor is not WorkFresh; NW is the exact unfinished-work phase.
+  ;; These mutually recursive grammatical classes make downward dispatch a
+  ;; Redex syntax decision, with no call back into refocused control.
+  [U NW Dead (PendingDelay W) SC]
+  [NR (Work g st)
       (Conj W g)
-      (DisjL NW W)
-      (DisjL Dead W)
-      (DisjL (PendingDelay W) W)
-      (DisjL SC W)
-      (DisjR W NW)
-      (DisjR W Dead)
-      (DisjR W (PendingDelay W))
-      (DisjR W SC)]
+      (DisjL U W)
+      (DisjR W U)]
+  [NW NR
+      (WorkFresh intro U tag)]
   [B (BRun NW WF)
      (BSettled SR WF)
      (BDead WF)
@@ -48,20 +42,18 @@
   ;; Public certificates are nonempty by grammar, not by a runtime guard.
   [Span (transition-span ell ell ...)]
   [Spans (Span ...)]
-  [Path no-path
-        (path Marks B)]
+  [Path (path Marks B)]
   ;; Private derivation program points, never operational states.
   [BQ (BQRun NW WF)
-      (BQLocal NW WF)
+      (BQLocal NR WF)
       (BQAtomic g st WF)
-      (BQFresh intro W tag WF+)
+      (BQFresh intro W tag LF)
       (BQConj W g WF)
       (BQLeft W W WF)
       (BQRight W W WF)
       (BQSettled SR WF)
       (BQDead WF)
-      (BQDelay W WF)
-      (BQAfter W WF)])
+      (BQDelay W WF)])
 
 (define-metafunction redex-column-compressed-lang
   compressed-choice-success : SC -> S
@@ -82,7 +74,6 @@
 
 (define-metafunction redex-column-compressed-lang
   prepend-path : ell Path -> Path
-  [(prepend-path ell no-path) no-path]
   [(prepend-path ell (path (ell_rest ...) B))
    (path (ell ell_rest ...) B)])
 
@@ -123,50 +114,50 @@
                (FrontierFresh intro (More hole) tag))))) ]
 
   [(symbolic-path/direct
-    (BQLocal (Work g st) (in-hole FF (More hole)))
+    (BQLocal (Work g st) BF)
     Path)
    ---------------------------------------------------- "compress root atomic"
    (symbolic-path/direct
-    (BQRun (Work g st) (in-hole FF (More hole)))
+    (BQRun (Work g st) BF)
     Path)]
 
   [(symbolic-path/direct
-    (BQLocal (Conj W g) (in-hole FF (More hole)))
+    (BQLocal (Conj W g) BF)
     Path)
    ---------------------------------------------------- "compress root conjunction"
    (symbolic-path/direct
-    (BQRun (Conj W g) (in-hole FF (More hole)))
+    (BQRun (Conj W g) BF)
     Path)]
 
   [(symbolic-path/direct
-    (BQLeft W_1 W_2 (in-hole FF (More hole)))
+    (BQLeft W_1 W_2 BF)
     Path)
    ---------------------------------------------------- "compress root left choice"
    (symbolic-path/direct
-    (BQRun (DisjL W_1 W_2) (in-hole FF (More hole)))
+    (BQRun (DisjL W_1 W_2) BF)
     Path)]
 
   [(symbolic-path/direct
-    (BQRight W_1 W_2 (in-hole FF (More hole)))
+    (BQRight W_1 W_2 BF)
     Path)
    ---------------------------------------------------- "compress root right choice"
    (symbolic-path/direct
-    (BQRun (DisjR W_1 W_2) (in-hole FF (More hole)))
+    (BQRun (DisjR W_1 W_2) BF)
     Path)]
 
-  [(symbolic-path/direct (BQLocal NW WF+) Path)
+  [(symbolic-path/direct (BQLocal NR LF) Path)
    ---------------------------------------------------- "compress nonroot run"
-   (symbolic-path/direct (BQRun NW WF+) Path)]
+   (symbolic-path/direct (BQRun NR LF) Path)]
 
   ;; Constructor dispatcher outside the More-priority case.
   [(symbolic-path/direct (BQAtomic g st WF) Path)
    ---------------------------------------------------- "compress local atomic"
    (symbolic-path/direct (BQLocal (Work g st) WF) Path)]
 
-  [(symbolic-path/direct (BQFresh intro W tag WF+) Path)
+  [(symbolic-path/direct (BQFresh intro W tag LF) Path)
    ---------------------------------------------------- "compress local fresh"
   (symbolic-path/direct
-    (BQLocal (WorkFresh intro W tag) WF+)
+    (BQRun (WorkFresh intro W tag) LF)
     Path)]
 
   [(symbolic-path/direct (BQConj W g WF) Path)
@@ -259,49 +250,49 @@
 
   ;; WorkFresh dispatcher.
   [(symbolic-path/direct
-    (BQSettled (WorkFresh intro S tag) WF+)
+    (BQSettled (WorkFresh intro S tag) LF)
     Path)
    ---------------------------------------------------- "compress settled fresh success"
-   (symbolic-path/direct (BQFresh intro S tag WF+) Path)]
+   (symbolic-path/direct (BQFresh intro S tag LF) Path)]
 
   [---------------------------------------------------- "compress expose left through fresh"
    (symbolic-path/direct
-    (BQFresh intro (DisjL S W) tag WF+)
+    (BQFresh intro (DisjL S W) tag LF)
     (path
      ((expose-choice-through-work-fresh disj))
      (BSettled
       (DisjL (WorkFresh intro S tag)
              (WorkFresh intro W tag))
-      WF+)))]
+      LF)))]
 
   [---------------------------------------------------- "compress expose right through fresh"
    (symbolic-path/direct
-    (BQFresh intro (DisjR W S) tag WF+)
+    (BQFresh intro (DisjR W S) tag LF)
     (path
      ((expose-choice-through-work-fresh search-join))
      (BSettled
       (DisjR (WorkFresh intro W tag)
              (WorkFresh intro S tag))
-      WF+)))]
+      LF)))]
 
   [---------------------------------------------------- "compress erase dead fresh"
    (symbolic-path/direct
-    (BQFresh intro Dead tag WF+)
-    (path ((erase-dead-fresh core)) (BDead WF+)))]
+    (BQFresh intro Dead tag LF)
+    (path ((erase-dead-fresh core)) (BDead LF)))]
 
   [---------------------------------------------------- "compress bubble delay through fresh"
    (symbolic-path/direct
-    (BQFresh intro (PendingDelay W) tag WF+)
+    (BQFresh intro (PendingDelay W) tag LF)
     (path
      ((bubble-delay-through-fresh delay))
-     (BDelay (WorkFresh intro W tag) WF+)))]
+     (BDelay (WorkFresh intro W tag) LF)))]
 
   [(symbolic-path/direct
     (BQRun NW
-           (in-hole WF+ (WorkFresh intro hole tag)))
+           (in-hole LF (WorkFresh intro hole tag)))
     Path)
    ---------------------------------------------------- "compress descend fresh"
-   (symbolic-path/direct (BQFresh intro NW tag WF+) Path)]
+   (symbolic-path/direct (BQFresh intro NW tag LF) Path)]
 
   ;; Conjunction dispatcher.
   [(where Path_1
@@ -468,80 +459,69 @@
 
   [(symbolic-path/direct
     (BQSettled (WorkFresh intro S tag)
-               (in-hole FF (More TopW)))
+               LF)
     Path)
    ---------------------------------------------------- "compress silently cross fresh success"
    (symbolic-path/direct
     (BQSettled
      S
-     (in-hole FF
-              (More
-               (in-hole TopW
-                        (WorkFresh intro hole tag)))))
+     (in-hole LF (WorkFresh intro hole tag)))
     Path)]
 
   [---------------------------------------------------- "compress expose left choice at fresh frame"
    (symbolic-path/direct
     (BQSettled
      (DisjL S W)
-     (in-hole FF
-              (More
-               (in-hole TopW
-                        (WorkFresh intro hole tag)))))
+     (in-hole LF (WorkFresh intro hole tag)))
     (path
      ((expose-choice-through-work-fresh disj))
      (BSettled
       (DisjL (WorkFresh intro S tag)
              (WorkFresh intro W tag))
-      (in-hole FF (More TopW)))))]
+      LF)))]
 
   [---------------------------------------------------- "compress expose right choice at fresh frame"
    (symbolic-path/direct
     (BQSettled
      (DisjR W S)
-     (in-hole FF
-              (More
-               (in-hole TopW
-                        (WorkFresh intro hole tag)))))
+     (in-hole LF (WorkFresh intro hole tag)))
     (path
      ((expose-choice-through-work-fresh search-join))
      (BSettled
       (DisjR (WorkFresh intro W tag)
              (WorkFresh intro S tag))
-      (in-hole FF (More TopW)))))]
+      LF)))]
 
   [(where Path_1
           (after-unfinished
            (kernel-resume S g)
-           (in-hole FF (More TopW))))
+           WF))
    (where Path_2
           (prepend-path (conj-return core) Path_1))
    ---------------------------------------------------- "compress settled through conjunction"
    (symbolic-path/direct
     (BQSettled
      S
-     (in-hole FF
-              (More (in-hole TopW (Conj hole g)))))
+     (in-hole WF (Conj hole g)))
     Path_2)]
 
   [(where Path_1
           (after-unfinished
            (DisjL (kernel-resume S g) (Conj W g))
-           (in-hole FF (More TopW))))
+           WF))
    (where Path_2
           (prepend-path (late-distribute-settled disj) Path_1))
    ---------------------------------------------------- "compress settled left through conjunction"
    (symbolic-path/direct
     (BQSettled
      (DisjL S W)
-     (in-hole FF
-              (More (in-hole TopW (Conj hole g)))))
+     (in-hole WF (Conj hole g)))
     Path_2)]
 
   [(where Path_1
           (after-unfinished
            (DisjR (Conj W g) (kernel-resume S g))
-           (in-hole FF (More TopW))))
+           WF))
    (where Path_2
           (prepend-path
            (late-distribute-right-settled search-join)
@@ -550,60 +530,55 @@
    (symbolic-path/direct
     (BQSettled
      (DisjR W S)
-     (in-hole FF
-              (More (in-hole TopW (Conj hole g)))))
+     (in-hole WF (Conj hole g)))
     Path_2)]
 
   [(symbolic-path/direct
     (BQSettled (DisjL S W)
-               (in-hole FF (More TopW)))
+               WF)
     Path)
    ---------------------------------------------------- "compress silently form left choice"
    (symbolic-path/direct
     (BQSettled
      S
-     (in-hole FF
-              (More (in-hole TopW (DisjL hole W)))))
+     (in-hole WF (DisjL hole W)))
     Path)]
 
   [---------------------------------------------------- "compress reassociate settled left frame"
    (symbolic-path/direct
     (BQSettled
      SC
-     (in-hole FF
-              (More (in-hole TopW (DisjL hole W_2)))))
+     (in-hole WF (DisjL hole W_2)))
     (path
      ((reassociate-left-result disj))
      (BSettled
       (DisjL (compressed-choice-success SC)
              (DisjL (compressed-choice-alternate SC) W_2))
-      (in-hole FF (More TopW)))))]
+      WF)))]
 
   [(symbolic-path/direct
     (BQSettled (DisjR W S)
-               (in-hole FF (More TopW)))
+               WF)
     Path)
    ---------------------------------------------------- "compress silently form right choice"
    (symbolic-path/direct
     (BQSettled
      S
-     (in-hole FF
-              (More (in-hole TopW (DisjR W hole)))))
+     (in-hole WF (DisjR W hole)))
     Path)]
 
   [---------------------------------------------------- "compress reassociate settled right frame"
    (symbolic-path/direct
     (BQSettled
      SC
-     (in-hole FF
-              (More (in-hole TopW (DisjR W_1 hole)))))
+     (in-hole WF (DisjR W_1 hole)))
     (path
      ((reassociate-right-result search-join))
      (BSettled
       (DisjR
        (DisjR W_1 (compressed-choice-alternate SC))
        (compressed-choice-success SC))
-      (in-hole FF (More TopW)))))]
+      WF)))]
 
   ;; Failure and delay propagation dispatchers.
   [---------------------------------------------------- "compress finish failure"
@@ -614,36 +589,34 @@
   [---------------------------------------------------- "compress dead through fresh"
    (symbolic-path/direct
     (BQDead
-     (in-hole FF
-              (More (in-hole TopW
-                             (WorkFresh intro hole tag)))))
+     (in-hole LF (WorkFresh intro hole tag)))
     (path
      ((erase-dead-fresh core))
-     (BDead (in-hole FF (More TopW)))))]
+     (BDead LF)))]
 
   [---------------------------------------------------- "compress dead through conjunction"
    (symbolic-path/direct
     (BQDead
-     (in-hole FF (More (in-hole TopW (Conj hole g)))))
+     (in-hole WF (Conj hole g)))
     (path
      ((conj-fail core))
-     (BDead (in-hole FF (More TopW)))))]
+     (BDead WF)))]
 
   [---------------------------------------------------- "compress dead skips left"
    (symbolic-path/direct
     (BQDead
-     (in-hole FF (More (in-hole TopW (DisjL hole W)))))
+     (in-hole WF (DisjL hole W)))
     (path
      ((skip-left-failure disj))
-     (residual-state W (in-hole FF (More TopW)))))]
+     (residual-state W WF)))]
 
   [---------------------------------------------------- "compress dead skips right"
    (symbolic-path/direct
     (BQDead
-     (in-hole FF (More (in-hole TopW (DisjR W hole)))))
+     (in-hole WF (DisjR W hole)))
     (path
      ((skip-right-failure search-join))
-     (residual-state W (in-hole FF (More TopW)))))]
+     (residual-state W WF)))]
 
   [---------------------------------------------------- "compress force delay"
    (symbolic-path/direct
@@ -658,41 +631,39 @@
    (symbolic-path/direct
     (BQDelay
      W
-     (in-hole FF
-              (More (in-hole TopW
-                             (WorkFresh intro hole tag)))))
+     (in-hole LF (WorkFresh intro hole tag)))
     (path
      ((bubble-delay-through-fresh delay))
      (BDelay
       (WorkFresh intro W tag)
-      (in-hole FF (More TopW)))))]
+      LF)))]
 
   [---------------------------------------------------- "compress delay through conjunction"
    (symbolic-path/direct
     (BQDelay
      W
-     (in-hole FF (More (in-hole TopW (Conj hole g)))))
+     (in-hole WF (Conj hole g)))
     (path
      ((bubble-delay-through-conj delay))
-     (BDelay (Conj W g) (in-hole FF (More TopW)))))]
+     (BDelay (Conj W g) WF)))]
 
   [---------------------------------------------------- "compress delay enters right rail"
    (symbolic-path/direct
     (BQDelay
      W_1
-     (in-hole FF (More (in-hole TopW (DisjL hole W_2)))))
+     (in-hole WF (DisjL hole W_2)))
     (path
      ((rail-enter-right search-join))
-     (BDelay (DisjR W_1 W_2) (in-hole FF (More TopW)))))]
+     (BDelay (DisjR W_1 W_2) WF)))]
 
   [---------------------------------------------------- "compress delay returns left rail"
    (symbolic-path/direct
     (BQDelay
      W_2
-     (in-hole FF (More (in-hole TopW (DisjR W_1 hole)))))
+     (in-hole WF (DisjR W_1 hole)))
     (path
      ((rail-return-left search-join))
-     (BDelay (DisjL W_1 W_2) (in-hole FF (More TopW)))))])
+     (BDelay (DisjL W_1 W_2) WF)))])
 
 (define-judgment-form
   redex-column-compressed-lang

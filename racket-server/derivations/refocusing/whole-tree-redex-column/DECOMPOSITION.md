@@ -7,14 +7,20 @@ The source grammar is extended with terminal frontier `T`, boundary-redex
 `D`, and contraction result `C`:
 
 ```text
-D ::= DecWork(W, WF) | DecFrontier(T, FF)
+D ::= DecWork(BR, BF)
+    | DecWork(LFR, LF)
+    | DecWork(LR, WF)
+    | DecFrontier(T, FF)
 C ::= ContractWork(label, W, WF)
     | ContractFrontier(label, F, FF)
 ```
 
-`WW`, `WF`, and `FF` remain genuine Redex contexts containing `hole`.  Their
-input/output categories are their grammar indices; neither `D` nor `C` carries
-a W/F field.
+`WW`, `BF`, `LF`, `WF`, and `FF` remain genuine Redex contexts containing
+`hole`.  Their input/output categories are their grammar indices; neither `D`
+nor `C` carries a W/F field.  `BF` and `LF` are the boundary/local partition
+of complete W-to-F contexts.  Consequently the grammar of `D`, not a dynamic
+predicate, excludes impossible pairs such as a bare `Returned` focus beneath
+a conjunction frame.
 
 ## Arrow presentations
 
@@ -43,8 +49,9 @@ compositional judgment.
 
 | Source position | Decomposition | Contractum |
 | --- | --- | --- |
-| local W redex in `WF` | `DecWork(redex,WF)` | `ContractWork(label,W',WF)` |
-| W redex immediately below `More` in `FF` | `DecWork(redex,FF[More(hole)])` | `ContractFrontier(label,F',FF)` |
+| ordinary local W redex in `WF` | `DecWork(LR,WF)` | `ContractWork(label,W',WF)` |
+| branch-local fresh redex in `LF` | `DecWork(LFR,LF)` | `ContractWork(label,W',LF)` |
+| W redex immediately below `More` in `BF` | `DecWork(BR,BF)` | `ContractFrontier(label,F',FF)` |
 | terminal in `FF` | `DecFrontier(T,FF)` | none |
 
 Every source rule maps to the identically named/owned contract clause.  The
@@ -64,3 +71,7 @@ On toy-kernel well-formed source terms:
 
 `decomposition-image` and the trace-carrying
 `reachable-decomposition/via` judgment state the meaningful target domain.
+Generated checks also establish that `BF` has no work-frame pop and every
+`LF` has exactly one innermost `WFrame` decomposition.  This is the structural
+fact used by the full-context refocuser: it can push with `in-hole` and pop the
+innermost frame without storing separate `WW` and `FF` components.

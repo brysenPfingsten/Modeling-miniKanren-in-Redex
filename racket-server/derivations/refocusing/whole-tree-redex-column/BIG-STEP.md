@@ -61,16 +61,19 @@ big-final/direct(T, FF, O)
 ```
 
 `NW` is unfinished work, so the running entry cannot also encode a settled,
-dead, or delayed residual phase.  `EQFresh` is indexed by `WF+`, because a
-fresh node immediately below `More` is handled by frontier exposure rather
-than branch-local traversal.
+dead, or delayed residual phase.  All modes carry one complete actual-hole
+`WF : W -> F` context.  `EQFresh` is indexed by `LF`, because a fresh node in a
+branch-local context is traversed while one at a `BF` boundary is handled by
+frontier exposure.  Upward clauses pop a literal innermost work frame directly
+from the full context.
 
 Redex does not permit forward references among separately declared mutually
 recursive judgments.  The private `EQ` grammar therefore names derivation
 program points for one self-recursive `evaluate-query/direct` judgment.  `EQ`
 terms are not semantic states: they carry no labels, spans, cached data, or
-sort tag, and arbitrary generated `EQ` queries have at most one raw
-derivation.
+sort tag.  Its grammar excludes phase/context combinations that are not
+derivation program points, and bounded generation checks that every generated
+`EQ` has exactly one raw derivation.
 
 `promote/direct` is the explicit, nonrecursive `B -> O` translation that
 dispatches the five `B` constructors to their corresponding mode entry.

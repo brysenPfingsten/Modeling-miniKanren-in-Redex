@@ -29,25 +29,13 @@
       (PendingDelay W)
       (DisjL W W)
       (DisjR W W)]
-  ;; Running work whose outer constructor is not WorkFresh.  This makes the
-  ;; More-boundary dispatcher disjoint from its WorkFresh-priority clause.
-  [NR (Work g st)
-      (Conj W g)
-      (DisjL NW W)
-      (DisjL Dead W)
-      (DisjL (PendingDelay W) W)
-      (DisjL SC W)
-      (DisjR W NW)
-      (DisjR W Dead)
-      (DisjR W (PendingDelay W))
-      (DisjR W SC)]
   [EQ (EQRoot F FF)
       (EQContinue W WF)
       (EQAfter W WF)
       (EQRun NW WF)
       (EQLocal NR WF)
       (EQAtomic g st WF)
-      (EQFresh intro W tag WF+)
+      (EQFresh intro W tag LF)
       (EQConj W g WF)
       (EQLeft W W WF)
       (EQRight W W WF)
@@ -128,8 +116,8 @@
    (evaluate-query/direct (EQContinue NW WF) O)]
 
   ;; Fixed-point image of after-unfinished.  The first clause performs the
-  ;; statically known More-boundary exposure.  NF and WF+ make the two stop
-  ;; cases positive and disjoint.
+  ;; statically known More-boundary exposure.  NF, BF, and LF make the cases
+  ;; positive and disjoint.
   [(evaluate-query/direct
     (EQContinue
      W
@@ -143,16 +131,16 @@
     O)]
 
   [(evaluate-query/direct
-    (EQContinue NF (in-hole FF (More hole)))
+    (EQContinue NF BF)
     O)
    ---------------------------------------------------- "direct after root nonfresh"
    (evaluate-query/direct
-    (EQAfter NF (in-hole FF (More hole)))
+    (EQAfter NF BF)
     O)]
 
-  [(evaluate-query/direct (EQContinue W WF+) O)
+  [(evaluate-query/direct (EQContinue W LF) O)
    ---------------------------------------------------- "direct after nonroot"
-   (evaluate-query/direct (EQAfter W WF+) O)]
+   (evaluate-query/direct (EQAfter W LF) O)]
 
   ;; Downward run dispatcher, with More-boundary priority.
   [(evaluate-query/direct
@@ -168,24 +156,24 @@
     O)]
 
   [(evaluate-query/direct
-    (EQLocal NR (in-hole FF (More hole)))
+    (EQLocal NR BF)
     O)
    ---------------------------------------------------- "direct run root nonfresh"
    (evaluate-query/direct
-    (EQRun NR (in-hole FF (More hole)))
+    (EQRun NR BF)
     O)]
 
   [(evaluate-query/direct
-    (EQFresh intro W tag WF+)
+    (EQFresh intro W tag LF)
     O)
    ---------------------------------------------------- "direct run nonroot fresh"
    (evaluate-query/direct
-    (EQRun (WorkFresh intro W tag) WF+)
+    (EQRun (WorkFresh intro W tag) LF)
     O)]
 
-  [(evaluate-query/direct (EQLocal NR WF+) O)
+  [(evaluate-query/direct (EQLocal NR LF) O)
    ---------------------------------------------------- "direct run nonroot nonfresh"
-   (evaluate-query/direct (EQRun NR WF+) O)]
+   (evaluate-query/direct (EQRun NR LF) O)]
 
   ;; Local constructor dispatcher.
   [(evaluate-query/direct (EQAtomic g st WF) O)
@@ -274,57 +262,57 @@
 
   ;; WorkFresh dispatcher.
   [(evaluate-query/direct
-    (EQSettled (WorkFresh intro S tag) WF+)
+    (EQSettled (WorkFresh intro S tag) LF)
     O)
    ---------------------------------------------------- "direct fresh success"
    (evaluate-query/direct
-    (EQFresh intro S tag WF+)
+    (EQFresh intro S tag LF)
     O)]
 
   [(evaluate-query/direct
     (EQSettled
      (DisjL (WorkFresh intro S tag)
             (WorkFresh intro W tag))
-     WF+)
+     LF)
     O)
    ---------------------------------------------------- "direct expose left through fresh"
    (evaluate-query/direct
-    (EQFresh intro (DisjL S W) tag WF+)
+    (EQFresh intro (DisjL S W) tag LF)
     O)]
 
   [(evaluate-query/direct
     (EQSettled
      (DisjR (WorkFresh intro W tag)
             (WorkFresh intro S tag))
-     WF+)
+     LF)
     O)
    ---------------------------------------------------- "direct expose right through fresh"
    (evaluate-query/direct
-    (EQFresh intro (DisjR W S) tag WF+)
+    (EQFresh intro (DisjR W S) tag LF)
     O)]
 
-  [(evaluate-query/direct (EQDead WF+) O)
+  [(evaluate-query/direct (EQDead LF) O)
    ---------------------------------------------------- "direct erase dead fresh"
    (evaluate-query/direct
-    (EQFresh intro Dead tag WF+)
+    (EQFresh intro Dead tag LF)
     O)]
 
   [(evaluate-query/direct
-    (EQDelay (WorkFresh intro W tag) WF+)
+    (EQDelay (WorkFresh intro W tag) LF)
     O)
    ---------------------------------------------------- "direct bubble fresh delay"
    (evaluate-query/direct
-    (EQFresh intro (PendingDelay W) tag WF+)
+    (EQFresh intro (PendingDelay W) tag LF)
     O)]
 
   [(evaluate-query/direct
     (EQRun NW
-           (in-hole WF+
+           (in-hole LF
                     (WorkFresh intro hole tag)))
     O)
    ---------------------------------------------------- "direct descend fresh"
    (evaluate-query/direct
-    (EQFresh intro NW tag WF+)
+    (EQFresh intro NW tag LF)
     O)]
 
   ;; Conjunction dispatcher.
@@ -489,125 +477,110 @@
   [(evaluate-query/direct
     (EQSettled
      (WorkFresh intro S tag)
-     (in-hole FF (More TopW)))
+     LF)
     O)
    ---------------------------------------------------- "direct cross fresh success"
    (evaluate-query/direct
     (EQSettled
      S
-     (in-hole FF
-              (More
-               (in-hole TopW
-                        (WorkFresh intro hole tag)))))
+     (in-hole LF (WorkFresh intro hole tag)))
     O)]
 
   [(evaluate-query/direct
     (EQSettled
      (DisjL (WorkFresh intro S tag)
             (WorkFresh intro W tag))
-     (in-hole FF (More TopW)))
+     LF)
     O)
    ---------------------------------------------------- "direct expose left at fresh frame"
    (evaluate-query/direct
     (EQSettled
      (DisjL S W)
-     (in-hole FF
-              (More
-               (in-hole TopW
-                        (WorkFresh intro hole tag)))))
+     (in-hole LF (WorkFresh intro hole tag)))
     O)]
 
   [(evaluate-query/direct
     (EQSettled
      (DisjR (WorkFresh intro W tag)
             (WorkFresh intro S tag))
-     (in-hole FF (More TopW)))
+     LF)
     O)
    ---------------------------------------------------- "direct expose right at fresh frame"
    (evaluate-query/direct
     (EQSettled
      (DisjR W S)
-     (in-hole FF
-              (More
-               (in-hole TopW
-                        (WorkFresh intro hole tag)))))
+     (in-hole LF (WorkFresh intro hole tag)))
     O)]
 
   [(evaluate-query/direct
     (EQAfter
      (kernel-resume S g)
-     (in-hole FF (More TopW)))
+     WF)
     O)
    ---------------------------------------------------- "direct settled through conjunction"
    (evaluate-query/direct
     (EQSettled
      S
-     (in-hole FF
-              (More (in-hole TopW (Conj hole g)))))
+     (in-hole WF (Conj hole g)))
     O)]
 
   [(evaluate-query/direct
     (EQAfter
      (DisjL (kernel-resume S g) (Conj W g))
-     (in-hole FF (More TopW)))
+     WF)
     O)
    ---------------------------------------------------- "direct settled left through conjunction"
    (evaluate-query/direct
     (EQSettled
      (DisjL S W)
-     (in-hole FF
-              (More (in-hole TopW (Conj hole g)))))
+     (in-hole WF (Conj hole g)))
     O)]
 
   [(evaluate-query/direct
     (EQAfter
      (DisjR (Conj W g) (kernel-resume S g))
-     (in-hole FF (More TopW)))
+     WF)
     O)
    ---------------------------------------------------- "direct settled right through conjunction"
    (evaluate-query/direct
     (EQSettled
      (DisjR W S)
-     (in-hole FF
-              (More (in-hole TopW (Conj hole g)))))
+     (in-hole WF (Conj hole g)))
     O)]
 
   [(evaluate-query/direct
     (EQSettled (DisjL S W)
-               (in-hole FF (More TopW)))
+               WF)
     O)
    ---------------------------------------------------- "direct form left choice"
    (evaluate-query/direct
     (EQSettled
      S
-     (in-hole FF
-              (More (in-hole TopW (DisjL hole W)))))
+     (in-hole WF (DisjL hole W)))
     O)]
 
   [(evaluate-query/direct
     (EQSettled
      (DisjL (direct-choice-success SC)
             (DisjL (direct-choice-alternate SC) W_2))
-     (in-hole FF (More TopW)))
+     WF)
     O)
    ---------------------------------------------------- "direct reassociate settled left frame"
    (evaluate-query/direct
     (EQSettled
      SC
-     (in-hole FF
-              (More (in-hole TopW (DisjL hole W_2)))))
+     (in-hole WF (DisjL hole W_2)))
     O)]
 
   [(evaluate-query/direct
     (EQSettled (DisjR W S)
-               (in-hole FF (More TopW)))
+               WF)
     O)
    ---------------------------------------------------- "direct form right choice"
    (evaluate-query/direct
     (EQSettled
      S
-     (in-hole FF
-              (More (in-hole TopW (DisjR W hole)))))
+     (in-hole WF (DisjR W hole)))
     O)]
 
   [(evaluate-query/direct
@@ -615,14 +588,13 @@
      (DisjR
       (DisjR W_1 (direct-choice-alternate SC))
       (direct-choice-success SC))
-     (in-hole FF (More TopW)))
+     WF)
     O)
    ---------------------------------------------------- "direct reassociate settled right frame"
    (evaluate-query/direct
     (EQSettled
      SC
-     (in-hole FF
-              (More (in-hole TopW (DisjR W_1 hole)))))
+     (in-hole WF (DisjR W_1 hole)))
     O)]
 
   ;; Failure and delay propagation.
@@ -633,45 +605,39 @@
     O)]
 
   [(evaluate-query/direct
-    (EQDead (in-hole FF (More TopW)))
+    (EQDead LF)
     O)
    ---------------------------------------------------- "direct dead through fresh"
    (evaluate-query/direct
     (EQDead
-     (in-hole FF
-              (More
-               (in-hole TopW
-                        (WorkFresh intro hole tag)))))
+     (in-hole LF (WorkFresh intro hole tag)))
     O)]
 
   [(evaluate-query/direct
-    (EQDead (in-hole FF (More TopW)))
+    (EQDead WF)
     O)
    ---------------------------------------------------- "direct dead through conjunction"
    (evaluate-query/direct
     (EQDead
-     (in-hole FF
-              (More (in-hole TopW (Conj hole g)))))
+     (in-hole WF (Conj hole g)))
     O)]
 
   [(evaluate-query/direct
-    (EQContinue W (in-hole FF (More TopW)))
+    (EQContinue W WF)
     O)
    ---------------------------------------------------- "direct dead skips left"
    (evaluate-query/direct
     (EQDead
-     (in-hole FF
-              (More (in-hole TopW (DisjL hole W)))))
+     (in-hole WF (DisjL hole W)))
     O)]
 
   [(evaluate-query/direct
-    (EQContinue W (in-hole FF (More TopW)))
+    (EQContinue W WF)
     O)
    ---------------------------------------------------- "direct dead skips right"
    (evaluate-query/direct
     (EQDead
-     (in-hole FF
-              (More (in-hole TopW (DisjR W hole)))))
+     (in-hole WF (DisjR W hole)))
     O)]
 
   [(evaluate-query/direct
@@ -687,52 +653,46 @@
   [(evaluate-query/direct
     (EQDelay
      (WorkFresh intro W tag)
-     (in-hole FF (More TopW)))
+     LF)
     O)
    ---------------------------------------------------- "direct delay through fresh"
    (evaluate-query/direct
     (EQDelay
      W
-     (in-hole FF
-              (More
-               (in-hole TopW
-                        (WorkFresh intro hole tag)))))
+     (in-hole LF (WorkFresh intro hole tag)))
     O)]
 
   [(evaluate-query/direct
     (EQDelay (Conj W g)
-             (in-hole FF (More TopW)))
+             WF)
     O)
    ---------------------------------------------------- "direct delay through conjunction"
    (evaluate-query/direct
     (EQDelay
      W
-     (in-hole FF
-              (More (in-hole TopW (Conj hole g)))))
+     (in-hole WF (Conj hole g)))
     O)]
 
   [(evaluate-query/direct
     (EQDelay (DisjR W_1 W_2)
-             (in-hole FF (More TopW)))
+             WF)
     O)
    ---------------------------------------------------- "direct delay enters right rail"
    (evaluate-query/direct
     (EQDelay
      W_1
-     (in-hole FF
-              (More (in-hole TopW (DisjL hole W_2)))))
+     (in-hole WF (DisjL hole W_2)))
     O)]
 
   [(evaluate-query/direct
     (EQDelay (DisjL W_1 W_2)
-             (in-hole FF (More TopW)))
+             WF)
     O)
    ---------------------------------------------------- "direct delay returns left rail"
    (evaluate-query/direct
     (EQDelay
      W_2
-     (in-hole FF
-              (More (in-hole TopW (DisjR W_1 hole)))))
+     (in-hole WF (DisjR W_1 hole)))
     O)]
 
   ;; Category-specific terminal result.

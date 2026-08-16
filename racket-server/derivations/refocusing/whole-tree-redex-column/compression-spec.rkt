@@ -84,35 +84,35 @@
   #:mode (decode-BM I O)
 
   [(machine-refocus-query/direct
-    (MQWork NW TopW FF)
+    (MQWork NW WF)
     M)
    ---------------------------------------------------- "decode running residual"
    (decode-BM
-    (BRun NW (in-hole FF (More TopW)))
+    (BRun NW WF)
     M)]
 
   [(machine-refocus-query/direct
-    (MQWork SR TopW FF)
+    (MQWork SR WF)
     M)
    ---------------------------------------------------- "decode settled residual"
    (decode-BM
-    (BSettled SR (in-hole FF (More TopW)))
+    (BSettled SR WF)
     M)]
 
   [(machine-refocus-query/direct
-    (MQWork Dead TopW FF)
+    (MQWork Dead WF)
     M)
    ---------------------------------------------------- "decode dead residual"
    (decode-BM
-    (BDead (in-hole FF (More TopW)))
+    (BDead WF)
     M)]
 
   [(machine-refocus-query/direct
-    (MQWork (PendingDelay W) TopW FF)
+    (MQWork (PendingDelay W) WF)
     M)
    ---------------------------------------------------- "decode delayed residual"
    (decode-BM
-    (BDelay W (in-hole FF (More TopW)))
+    (BDelay W WF)
     M)]
 
   [---------------------------------------------------- "decode final residual"
@@ -171,7 +171,7 @@
    (root-fresh-machine
     (MWork
      (WorkFresh intro W tag)
-     (in-hole FF (More hole))))])
+     BF))])
 
 (define-judgment-form
   redex-column-compression-spec-lang
@@ -180,10 +180,10 @@
 
   [---------------------------------------------------- "nonfresh root machine state"
    (not-root-fresh-machine
-    (MWork NonFreshRoot (in-hole FF (More hole))))]
+    (MWork NonFreshRoot BF))]
 
   [---------------------------------------------------- "machine state below ordinary frame"
-   (not-root-fresh-machine (MWork W WF+))]
+   (not-root-fresh-machine (MWork W LF))]
 
   [---------------------------------------------------- "frontier machine state is not root fresh"
    (not-root-fresh-machine (MFrontier T FF))])

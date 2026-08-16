@@ -114,6 +114,9 @@
 (define (refocus-direct-results contraction)
   (judgment-holds (refocus-direct ,contraction Z) Z))
 
+(define (refocus-query-results query)
+  (judgment-holds (refocus-query/direct ,query Z) Z))
+
 (define (z-spec-successors z)
   (remove-duplicates
    (judgment-holds
@@ -148,7 +151,57 @@
        (redex-match? redex-column-refocused-lang Z z))
       (check-equal? (term (Z->D ,z)) decomposition)
       (check-equal? (term (D->Z (Z->D ,z))) z)
-      (check-equal? (term (readback-Z ,z)) frontier)))
+      (check-equal? (term (readback-Z ,z)) frontier))
+    (redex-check
+     redex-column-refocused-lang
+     D
+     (let ([decomposition (term D)])
+       (equal? (term (Z->D (D->Z ,decomposition))) decomposition))
+     #:attempts 1000)
+    (redex-check
+     redex-column-refocused-lang
+     Z
+     (let ([z (term Z)])
+       (equal? (term (D->Z (Z->D ,z))) z))
+     #:attempts 1000))
+
+   (test-case
+    "the full-context query grammar is total and single-valued"
+    (redex-check
+     redex-column-refocused-lang
+     Q
+     (= (length (refocus-query-results (term Q))) 1)
+     #:attempts 1000))
+
+   (test-case
+    "BF and LF distinguish boundary ownership from branch-local search"
+    (define pending
+      (term
+       (WorkFresh
+        (u:scope)
+        (Work (succeed (label "inside")) (state unit))
+        (label "fresh"))))
+    (check-equal?
+     (refocus-query-results
+      (term (QWork ,pending (More hole))))
+     (list (term (ZWork ,pending (More hole)))))
+    (check-equal?
+     (refocus-query-results
+      (term
+       (QWork
+        ,pending
+        (More (DisjL hole ,outside-work)))))
+     (list
+      (term
+       (ZWork
+        (Work (succeed (label "inside")) (state unit))
+        (More
+         (DisjL
+          (WorkFresh
+           (u:scope)
+           hole
+           (label "fresh"))
+          ,outside-work)))))))
 
    (test-case
     "direct refocusing equals plug-and-redecompose for every contraction"
