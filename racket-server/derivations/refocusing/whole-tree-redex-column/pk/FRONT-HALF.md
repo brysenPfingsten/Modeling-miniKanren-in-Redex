@@ -5,20 +5,22 @@ both `Ktoy` and `Kmk`.
 
 ## Source
 
-`source-step/K` is the primary labeled Redex judgment:
+`source-red/K` is the primary source semantics.  Its 25 shared control
+equations are genuine, individually named `reduction-relation` clauses under
+the grammar-defined `FF`, `WF`, and `LF` contexts.
 
 ```text
-source-step/K(F, ell, F')
+F --rule-name--> F'
 ```
 
-Its two atomic clauses invoke `kernel-step/K`.  Success produces
-`Returned(kst')`; failure produces `Dead`.  No kernel rule selects a search
-context, priority rule, fresh rule, or scheduler rule.  All other clauses are
-shared control equations over BF/LF/WF.
-
-`source-red/K` is the named reduction-relation presentation of that judgment.
-The name is computed from the exact `ell`, so successor, label, owner, and
-trace comparisons remain executable.
+Each precise instance also supplies a direct leaf reduction relation over
+`W`, with one statically named clause per kernel outcome.  The shared schema
+uses `context-closure` to lift those clauses through `WF`, then unions the
+result with the 25 control clauses.  `Ktoy` therefore has 28 actual source
+rules and `Kmk` has 32.  There is no generic source clause whose premise asks
+a judgment which rule or successor to choose.  The finite rule-name maps
+recover the exact first-class `ell`, so successor, label, owner, and trace
+comparisons remain executable.
 
 The selected fresh equations are unchanged:
 
@@ -70,10 +72,13 @@ table used twice.
 
 ## Executable claims in this checkpoint
 
-- BF and LF are disjoint, and every generated LF has exactly one innermost
-  work-frame pop while BF has none.
-- Decomposition is total, unique, and reconstructing under generated bounded
-  enumeration for both precise languages.
+- BF and LF are disjoint, and every generated LF has exactly one raw
+  innermost work-frame pop while BF has none.
+- The four grammar-only `in-hole` factorizations form a unique cover of `F`;
+  decomposition then has exactly one raw proof and reconstructs its input in
+  both precise languages.
+- The source relations expose exactly 28 static rules for `Ktoy` and 32 for
+  `Kmk`; tests reject a generic judgment-backed source projection.
 - Source successors equal contraction-and-plug successors.
 - Direct D successors equal compositional D successors, including labels.
 - Both source and D steps preserve shared marker-indexed well-formedness on
@@ -87,5 +92,6 @@ table used twice.
   rejected by the `Ktoy` F/D grammars.
 
 These are executable bounded checks, not universal mechanized proofs.  The
-separate judgments and direct relations make the intended theorem statements
-inspectable and leave a clear route to stronger proofs.
+direct source relation, grammatical decomposition judgment, and independent
+derived presentations make the intended theorem statements inspectable and
+leave a clear route to stronger proofs.

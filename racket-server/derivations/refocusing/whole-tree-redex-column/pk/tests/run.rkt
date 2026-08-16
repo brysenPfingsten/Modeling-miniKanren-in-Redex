@@ -3,6 +3,7 @@
 (require rackunit
          rackunit/text-ui
          "./front-half-tests.rkt"
+         "./grammar-litmus-tests.rkt"
          "./middle-tests.rkt"
          "./back-half-tests.rkt")
 
@@ -10,6 +11,7 @@
   (test-suite
    "whole-tree P[K] column"
    front-half-tests
+   grammar-litmus-tests
    middle-tests
    pk-back-half-tests))
 

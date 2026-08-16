@@ -2,6 +2,7 @@
 
 (require rackunit
          rackunit/text-ui
+         racket/runtime-path
          redex/reduction-semantics
          "../decomposition.rkt"
          "../kernel-toy.rkt"
@@ -13,6 +14,8 @@
                     "../../whole-tree-pipeline-pilot/corpus.rkt"))
 
 (provide refocused-tests)
+
+(define-runtime-path refocused-module "../refocused.rkt")
 
 (define outside-work
   '(Work (put (sym "outside") (label "outside")) (state unit)))
@@ -166,12 +169,36 @@
      #:attempts 1000))
 
    (test-case
-    "the full-context query grammar is total and single-valued"
+    "completed and unfinished work are a disjoint grammar partition"
+    (redex-check
+     redex-column-refocused-lang
+     W
+     (not
+      (equal?
+       (redex-match? redex-column-refocused-lang R (term W))
+       (redex-match? redex-column-refocused-lang NW (term W))))
+     #:attempts 5000))
+
+   (test-case
+    "the full-context query grammar has one raw derivation"
     (redex-check
      redex-column-refocused-lang
      Q
-     (= (length (refocus-query-results (term Q))) 1)
+     (and
+      (= (length (refocus-query-results (term Q))) 1)
+      (= (length
+          (build-derivations
+           (refocus-query/direct Q Z)))
+         1))
      #:attempts 1000))
+
+   (test-case
+    "direct refocusing contains no semantic focus classifier"
+    (define module-text (file->string refocused-module))
+    (check-false
+     (regexp-match?
+      #rx"(non-outcome|more-redex\\?|work-redex\\?)"
+      module-text)))
 
    (test-case
     "BF and LF distinguish boundary ownership from branch-local search"

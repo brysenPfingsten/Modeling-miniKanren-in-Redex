@@ -276,7 +276,8 @@
    contract-id
    plug-C-id
    contract-label-id
-   source-step-id
+   source-red-id
+   redex-name->label-id
    decomposed-step/spec-id
    decomposed-step/direct-id)
   (redex-check
@@ -288,9 +289,16 @@
       (let ([decomposition*
              (judgment-holds (decompose-id F D) D)]
             [source*
-             (judgment-holds
-              (source-step-id F ell F_next)
-              (ell F_next))])
+             (for/list
+                 ([named
+                   (in-list
+                    (apply-reduction-relation/tag-with-names
+                     source-red-id
+                     frontier))])
+               (match-define (list name next) named)
+               (list
+                (term (redex-name->label-id ,(~a name)))
+                next))])
         (match decomposition*
           [(list decomposition)
            (define contract*
@@ -708,7 +716,8 @@
      toy-d:contract/toy
      toy-d:plug-C/toy
      toy-d:contract-label/toy
-     toy-s:source-step/toy
+     toy-s:source-red/toy
+     toy-l:redex-name->label/toy
      toy-d:decomposed-step/spec/toy
      toy-d:decomposed-step/direct/toy)
     (check-generated-front-half
@@ -719,7 +728,8 @@
      mk-d:contract/mk
      mk-d:plug-C/mk
      mk-d:contract-label/mk
-     mk-s:source-step/mk
+     mk-s:source-red/mk
+     mk-l:redex-name->label/mk
      mk-d:decomposed-step/spec/mk
      mk-d:decomposed-step/direct/mk))
 

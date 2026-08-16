@@ -62,12 +62,16 @@ other rules produce `ContractWork`.
 
 On toy-kernel well-formed source terms:
 
-1. `decompose/redex(F,D)` has exactly one result.
-2. `plug-D(D) = F`.
-3. The source named successor set equals the set obtained by decomposition,
+1. The raw match counts for `(in-hole BF BR)`, `(in-hole LF LFR)`,
+   `(in-hole WF LR)`, and `(in-hole FF T)` sum to exactly one, before the
+   decomposition judgment is invoked.
+2. `decompose/redex(F,D)` has exactly one raw derivation, not merely one
+   deduplicated result.
+3. `plug-D(D) = F`.
+4. The source named successor set equals the set obtained by decomposition,
    contraction, and `plug-C` (preservation and reflection).
-4. The compositional and direct decomposed successor sets are identical.
-5. Successor decompositions read back to the exact source successor.
+5. The compositional and direct decomposed successor sets are identical.
+6. Successor decompositions read back to the exact source successor.
 
 `decomposition-image` and the trace-carrying
 `reachable-decomposition/via` judgment state the meaningful target domain.

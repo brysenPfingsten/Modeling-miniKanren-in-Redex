@@ -8,7 +8,6 @@
          "./labels.rkt")
 
 (provide redex-column-refocused-lang
-         non-outcome/redex
          refocus-query/direct
          refocus-direct
          D->Z
@@ -23,10 +22,19 @@
 
 (define-extended-language redex-column-refocused-lang
   redex-column-decomposition-lang
-  [R S
-     Dead
-     (PendingDelay W)
-     SC]
+  ;; R and NW are a disjoint grammatical partition of completed versus
+  ;; unfinished work.  U is every non-success child phase; NR is unfinished
+  ;; work whose outer constructor is not WorkFresh.  These refinements make
+  ;; the next descent/upward move a fact about syntax, not a predicate premise.
+  [SR S SC]
+  [R SR Dead (PendingDelay W)]
+  [U NW Dead (PendingDelay W) SC]
+  [NR (Work g st)
+      (Conj W g)
+      (DisjL U W)
+      (DisjR W U)]
+  [NW NR
+      (WorkFresh intro U tag)]
   ;; Z is exactly the image of D.  The single ZWork constructor has three
   ;; grammar-indexed alternatives rather than admitting arbitrary unfocused
   ;; W/context pairs.
@@ -40,50 +48,6 @@
      (QFrontier F FF)
      (QWork W WF)]
   [ZLabels (ell ...)])
-
-;; Executable complement of the completed-work class R.  It is used only to
-;; make the downward refocusing clauses disjoint from redex/outcome clauses.
-;; The judgment examines source syntax; no host predicate selects control.
-(define-judgment-form
-  redex-column-refocused-lang
-  #:contract (non-outcome/redex W)
-  #:mode (non-outcome/redex I)
-
-  [---------------------------------------------------- "atomic work is non-outcome"
-   (non-outcome/redex (Work g st))]
-
-  [(non-outcome/redex W)
-   ---------------------------------------------------- "unfinished fresh is non-outcome"
-   (non-outcome/redex (WorkFresh intro W tag))]
-  [---------------------------------------------------- "dead fresh redex is non-outcome"
-   (non-outcome/redex (WorkFresh intro Dead tag))]
-  [---------------------------------------------------- "delayed fresh redex is non-outcome"
-   (non-outcome/redex (WorkFresh intro (PendingDelay W) tag))]
-  [---------------------------------------------------- "choice fresh redex is non-outcome"
-   (non-outcome/redex (WorkFresh intro SC tag))]
-
-  [---------------------------------------------------- "conjunction is non-outcome"
-   (non-outcome/redex (Conj W g))]
-
-  [(non-outcome/redex W_1)
-   ---------------------------------------------------- "unfinished left choice is non-outcome"
-   (non-outcome/redex (DisjL W_1 W_2))]
-  [---------------------------------------------------- "dead left choice is non-outcome"
-   (non-outcome/redex (DisjL Dead W))]
-  [---------------------------------------------------- "delayed left choice is non-outcome"
-   (non-outcome/redex (DisjL (PendingDelay W_1) W_2))]
-  [---------------------------------------------------- "nested left choice is non-outcome"
-   (non-outcome/redex (DisjL SC W))]
-
-  [(non-outcome/redex W_2)
-   ---------------------------------------------------- "unfinished right choice is non-outcome"
-   (non-outcome/redex (DisjR W_1 W_2))]
-  [---------------------------------------------------- "dead right choice is non-outcome"
-   (non-outcome/redex (DisjR W Dead))]
-  [---------------------------------------------------- "delayed right choice is non-outcome"
-   (non-outcome/redex (DisjR W_1 (PendingDelay W_2)))]
-  [---------------------------------------------------- "nested right choice is non-outcome"
-   (non-outcome/redex (DisjR W SC))])
 
 (define-metafunction redex-column-refocused-lang
   D->Z : D -> Z
@@ -172,37 +136,33 @@
   ;; W-to-F context.  WorkFresh has a separate LF-only clause: this makes a
   ;; WorkFresh immediately below More ineligible to descend, so the BF rule
   ;; above has grammatical priority without constructing an ill-sorted query.
-  [(non-outcome/redex W)
-   (refocus-query/direct
-    (QWork W
+  [(refocus-query/direct
+    (QWork NW
            (in-hole LF
                     (WorkFresh intro hole tag)))
     Z)
    ---------------------------------------------------- "refocus down through local work fresh"
    (refocus-query/direct
-    (QWork (WorkFresh intro W tag) LF)
+    (QWork (WorkFresh intro NW tag) LF)
     Z)]
 
-  [(non-outcome/redex W)
-   (refocus-query/direct
-    (QWork W (in-hole WF (Conj hole g)))
+  [(refocus-query/direct
+    (QWork NW (in-hole WF (Conj hole g)))
     Z)
    ---------------------------------------------------- "refocus down through conjunction"
-   (refocus-query/direct (QWork (Conj W g) WF) Z)]
+   (refocus-query/direct (QWork (Conj NW g) WF) Z)]
 
-  [(non-outcome/redex W_1)
-   (refocus-query/direct
-    (QWork W_1 (in-hole WF (DisjL hole W_2)))
+  [(refocus-query/direct
+    (QWork NW (in-hole WF (DisjL hole W)))
     Z)
    ---------------------------------------------------- "refocus down left choice"
-   (refocus-query/direct (QWork (DisjL W_1 W_2) WF) Z)]
+   (refocus-query/direct (QWork (DisjL NW W) WF) Z)]
 
-  [(non-outcome/redex W_2)
-   (refocus-query/direct
-    (QWork W_2 (in-hole WF (DisjR W_1 hole)))
+  [(refocus-query/direct
+    (QWork NW (in-hole WF (DisjR W hole)))
     Z)
    ---------------------------------------------------- "refocus down right choice"
-   (refocus-query/direct (QWork (DisjR W_1 W_2) WF) Z)]
+   (refocus-query/direct (QWork (DisjR W NW) WF) Z)]
 
   ;; Completed work moves in the other direction.  WFrame is exactly one
   ;; frame, so this inverse decomposition exposes the frame adjacent to the

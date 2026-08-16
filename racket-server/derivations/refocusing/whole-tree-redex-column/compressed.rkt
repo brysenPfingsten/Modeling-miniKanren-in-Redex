@@ -21,18 +21,9 @@
 
 (define-extended-language redex-column-compressed-lang
   redex-column-machine-lang
-  [SR S SC]
-  ;; U is every non-success child phase.  NR is unfinished work whose outer
-  ;; constructor is not WorkFresh; NW is the exact unfinished-work phase.
-  ;; These mutually recursive grammatical classes make downward dispatch a
-  ;; Redex syntax decision, with no call back into refocused control.
-  [U NW Dead (PendingDelay W) SC]
-  [NR (Work g st)
-      (Conj W g)
-      (DisjL U W)
-      (DisjR W U)]
-  [NW NR
-      (WorkFresh intro U tag)]
+  ;; SR/NR/NW are inherited from refocusing.  Compression therefore consumes
+  ;; the same grammatical completed/unfinished partition that was derived for
+  ;; the down/up traversal rather than restating a later phase classifier.
   [B (BRun NW WF)
      (BSettled SR WF)
      (BDead WF)

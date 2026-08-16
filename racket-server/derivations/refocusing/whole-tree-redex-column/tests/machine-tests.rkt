@@ -366,8 +366,7 @@
        (only-in "./decomposition.rkt" contract/redex contract-label)
        "./labels.rkt"
        (only-in "./refocused.rkt"
-                redex-column-refocused-lang
-                non-outcome/redex))))
+                redex-column-refocused-lang))))
 
    (test-case
     "trace-certified reachability reaches the exact final machine"

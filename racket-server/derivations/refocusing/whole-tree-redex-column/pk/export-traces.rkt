@@ -5,6 +5,7 @@
          redex/reduction-semantics
          (prefix-in corpus:
                     "../../whole-tree-pipeline-pilot/corpus.rkt")
+         (prefix-in toy-l: "toy/labels.rkt")
          (prefix-in toy-s: "toy/source.rkt")
          (prefix-in toy-d: "toy/decomposition.rkt")
          (prefix-in toy-z: "toy/refocused.rkt")
@@ -15,6 +16,7 @@
          (prefix-in toy-bs: "toy/big-step-spec.rkt")
          (prefix-in toy-bd: "toy/big-step.rkt")
          (prefix-in toy-bl: "toy/big-step-language.rkt")
+         (prefix-in mk-l: "mk/labels.rkt")
          (prefix-in mk-s: "mk/source.rkt")
          (prefix-in mk-d: "mk/decomposition.rkt")
          (prefix-in mk-z: "mk/refocused.rkt")
@@ -76,9 +78,15 @@
     [_ (error 'span-labels "not a transition certificate: ~e" span)]))
 
 (define (toy-source-successors frontier)
-  (judgment-holds
-   (toy-s:source-step/toy ,frontier ell F_next)
-   (ell F_next)))
+  (for/list
+      ([named
+        (in-list
+         (apply-reduction-relation/tag-with-names
+          toy-s:source-red/toy
+          frontier))])
+    (match-define (list name next) named)
+    (list (term (toy-l:redex-name->label/toy ,(~a name)))
+          next)))
 
 (define (toy-initial-machine frontier)
   (term (toy-ms:initial-M/toy ,frontier)))
@@ -164,9 +172,15 @@
             toy-big-step-readback))
 
 (define (mk-source-successors frontier)
-  (judgment-holds
-   (mk-s:source-step/mk ,frontier ell F_next)
-   (ell F_next)))
+  (for/list
+      ([named
+        (in-list
+         (apply-reduction-relation/tag-with-names
+          mk-s:source-red/mk
+          frontier))])
+    (match-define (list name next) named)
+    (list (term (mk-l:redex-name->label/mk ,(~a name)))
+          next)))
 
 (define (mk-initial-machine frontier)
   (term (mk-ms:initial-M/mk ,frontier)))

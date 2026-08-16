@@ -78,6 +78,11 @@ semantic fork.
 
 `Ktoy` has three atomic labels.  `Kmk` has seven and uses a c-free state with
 substitution, disequality store, unification history, and provenance.
+At the source boundary, each instance exposes those outcomes as a raw direct
+relation over `W`, with one statically named clause per label.  The shared
+source schema lifts that leaf relation through `WF`; `kernel-step/K` may
+compute opaque leaf data, but it never selects a search context or a generic
+source rule.
 
 ## Labels
 
@@ -88,8 +93,9 @@ ell ::= cell-ell | (kernel kname core)
 ```
 
 `cell-ell` enumerates the 25 non-atomic rule/owner pairs.  A kernel step always
-returns the tagged second form.  Redex `computed-name` renders the exact label
-on an operational edge.
+returns the tagged second form.  Every source edge comes from an individually
+named Redex clause; the finite name maps recover the exact label as semantic
+data for the derived arrow checks.
 
 `toy/labels.rkt` contains an explicit executable translation between tagged
 toy labels and the committed 28-label family.  `mk/labels.rkt` retains all
@@ -120,7 +126,7 @@ K/labels.rkt
   label->redex-name/K, redex-name->label/K
 
 K/source.rkt
-  initial-tree/K, source-step/K, source-red/K
+  initial-tree/K, source-red/K
 
 K/decomposition.rkt
   pk-K-decomposition-lang
@@ -140,6 +146,7 @@ The executable arrow contracts are described stage by stage in
 
 ```sh
 raco test racket-server/derivations/refocusing/whole-tree-redex-column/pk/tests/front-half-tests.rkt
+raco test racket-server/derivations/refocusing/whole-tree-redex-column/pk/tests/grammar-litmus-tests.rkt
 raco test racket-server/derivations/refocusing/whole-tree-redex-column/pk/tests/middle-tests.rkt
 raco test racket-server/derivations/refocusing/whole-tree-redex-column/pk/tests/back-half-tests.rkt
 racket racket-server/derivations/refocusing/whole-tree-redex-column/pk/tests/run.rkt
@@ -151,6 +158,11 @@ and decomposition step to the committed oracle after explicit label
 translation, checks all seven `Kmk` atomic labels, follows a compound `Kmk`
 trace, tests global support and marker-indexed well-formedness, and rejects
 mixed-kernel `F` and `D` terms.
+
+The grammatical-focus litmus bypasses the decomposition judgment to count the
+four raw `in-hole` factorizations directly, counts raw derivation trees, checks
+the `R`/`NW` partition, pins both source-rule inventories, and rejects the old
+generic source-projection presentation.
 
 The middle and back-half suites apply the same generated laws to both kernels:
 refocus/direct versus plug-and-redecompose, Z/M codec and labeled bisimulation,

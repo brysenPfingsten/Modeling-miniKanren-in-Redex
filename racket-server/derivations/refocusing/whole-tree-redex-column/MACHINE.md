@@ -39,8 +39,7 @@ The direct module's dependency boundary is also executable. Its parsed
 
 - `contract/redex` and `contract-label` from decomposition;
 - the label projection support; and
-- the inherited Z language plus `non-outcome/redex`, which is shared static
-  syntax classification rather than a Z transition or refocusing operation.
+- the inherited Z language, including the grammatical `R`/`NW` partition.
 
 In particular, the direct machine does not import the source relation, root
 decomposition, plugging, the slow refocuser, or either Z step relation.

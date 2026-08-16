@@ -80,10 +80,11 @@ The coherent genericization checkpoint is now complete in [`pk/`](pk/).  Its
 
 1. Structural control goals are separated from kernel-owned atomic goals, and
    the common grammar treats kernel states opaquely.
-2. Every source, decomposition, refocusing, exact-machine, compression, and
-   promoted-big-step presentation invokes the instance's `kernel-step/K` only
-   at an atomic leaf.  The specification and direct presentations remain
-   independently stated.
+2. Each source instance presents one genuine named leaf rule per kernel
+   outcome and lifts those rules through `WF`.  Derived decomposition,
+   refocusing, exact-machine, compression, and promoted-big-step artifacts
+   invoke `kernel-step/K` only at an atomic leaf.  The specification and direct
+   presentations remain independently stated.
 3. Exact labels include `(kernel kname core)`, and compressed spans retain the
    dynamic kernel label as a nonempty certificate component.
 4. Whole-frontier marker support, `control-freeze/K`, `control-resume/K`, and

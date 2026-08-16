@@ -113,15 +113,19 @@ reified source sorts.
 
 | Arrow | Translation or correspondence | Compositional specification | Direct Redex artifact | Executable contract |
 | --- | --- | --- | --- | --- |
-| `R -> D` | `decompose`, `plug-D`; `contract`, `plug-C` | decompose, contract, plug, then decompose | independently repeated decomposed clauses | unique reconstruction; complete named source successors equal contraction successors; direct D successors equal specification successors |
+| `R -> D` | `decompose`, `plug-D`; `contract`, `plug-C` | decompose, contract, plug, then decompose | independently repeated decomposed clauses | the four raw `in-hole` factorizations form a unique cover; complete named source successors equal contraction successors; direct D successors equal specification successors |
 | `D -> Z` | `D->Z`, `Z->D`, `readback-Z` | `decompose(plug-C(C))` | retained-context `refocus-direct(C,Z)` | codecs/readback agree; direct refocus equals slow plug-and-redecompose; labeled direct/spec Z successors agree |
 | `Z <-> M` | `encode-ZM`, `decode-MZ` | transport a Z step across the codecs | independently repeated M refocus/step clauses | codecs are inverse on the exact grammars; labeled Z/M commuting square and reachable prefix images agree |
 | `M -> B` | `decode-BM`; reachable correspondence judgment | canonical one-, two-, or three-edge exact-M corridor | symbolic residual dispatch over `BQ` | complete direct/spec successor sets agree; every nonempty span replays exactly to the decoded target; concatenated spans partition exact traces |
 | `B -> B_downarrow` | `promote/direct`; `FinalResult(T,FF)` readback | strict finite closure carrying the ordered span list | independent syntax-directed fixed point over `EQ` | closure/direct results agree; one-step unfold removes exactly the first span; root-entry square and terminal readbacks agree |
 
-The presentations do not share a host-language rule-selection dispatcher.
-Host Racket supplies kernel operations and syntax-building infrastructure;
-Redex judgments decide which control clause fires.
+The source semantics consists of genuine individually named Redex rules under
+the grammar-defined `FF`, `WF`, and `LF` contexts.  The presentations do not
+share a host-language rule-selection dispatcher.  Host Racket supplies kernel
+operations and syntax-building infrastructure; the redex and context grammars
+determine which control clause applies, while Redex judgments reify those
+grammatical facts and derived transitions.  Removing a judgment or query
+projection therefore does not introduce a new choice of focus.
 
 ## Labels and compression certificates
 
@@ -156,8 +160,9 @@ schema macros instantiate precise Redex languages because language bindings
 must be known at expansion time.  No relation is defined over the abstract
 template itself.
 
-Each kernel supplies only atomic stepping, an initial state, fresh opening,
-and kernel-specific well-formedness.  `toy/` and `mk/` replace every abstract
+Each kernel supplies atomic stepping together with its named source-leaf
+presentation, an initial state, fresh opening, and kernel-specific
+well-formedness.  `toy/` and `mk/` replace every abstract
 atomic/state/name leaf before any operational artifact is defined, so mixed
 kernel values are rejected by grammar rather than a dynamic kernel tag.
 
@@ -175,11 +180,13 @@ The aggregate parameterized suite is:
 racket racket-server/derivations/refocusing/whole-tree-redex-column/pk/tests/run.rkt
 ```
 
-The latest local run completed 39 RackUnit tests with no failures or errors.
-It included 30 bounded `redex-check` campaigns: front and middle checks use
-1,000 attempts, and back-half raw-query/state checks use 500 attempts.  The
-suite also walks complete deterministic witness traces and every reachable
-suffix rather than relying only on generated terms.
+The latest local run completed 47 RackUnit tests with no failures or errors.
+Its grammatical-focus litmus counts the four raw `in-hole` factorizations
+without invoking `decompose`, counts raw proof trees rather than deduplicated
+judgment results, checks `R`/`NW` as a disjoint exhaustive partition, and pins
+the complete 28-rule `Ktoy` and 32-rule `Kmk` source inventories.  The broader
+suite also runs bounded `redex-check` campaigns and walks complete
+deterministic witness traces and every reachable suffix.
 
 The concrete marked-oracle suite remains green as a separate baseline:
 
@@ -187,7 +194,7 @@ The concrete marked-oracle suite remains green as a separate baseline:
 racket racket-server/derivations/refocusing/whole-tree-redex-column/tests/run.rkt
 ```
 
-Its latest local run completed 68 tests with no failures or errors, including
+Its latest local run completed 70 tests with no failures or errors, including
 the larger source, BF/LF, decomposition, refocusing, machine, compression,
 fixed-point, and isolated-kernel enumeration campaigns.
 

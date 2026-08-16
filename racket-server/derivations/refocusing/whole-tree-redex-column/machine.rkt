@@ -6,8 +6,7 @@
                   contract-label)
          "./labels.rkt"
          (only-in "./refocused.rkt"
-                  redex-column-refocused-lang
-                  non-outcome/redex))
+                  redex-column-refocused-lang))
 
 (provide redex-column-machine-lang
          encode-ZM
@@ -130,37 +129,33 @@
     (MQWork LR WF)
     (MWork LR WF))]
 
-  [(non-outcome/redex W)
-   (machine-refocus-query/direct
-    (MQWork W
+  [(machine-refocus-query/direct
+    (MQWork NW
             (in-hole LF
                      (WorkFresh intro hole tag)))
     M)
    ---------------------------------------------------- "machine down through local work fresh"
    (machine-refocus-query/direct
-    (MQWork (WorkFresh intro W tag) LF)
+    (MQWork (WorkFresh intro NW tag) LF)
     M)]
 
-  [(non-outcome/redex W)
-   (machine-refocus-query/direct
-    (MQWork W (in-hole WF (Conj hole g)))
+  [(machine-refocus-query/direct
+    (MQWork NW (in-hole WF (Conj hole g)))
     M)
    ---------------------------------------------------- "machine down through conjunction"
-   (machine-refocus-query/direct (MQWork (Conj W g) WF) M)]
+   (machine-refocus-query/direct (MQWork (Conj NW g) WF) M)]
 
-  [(non-outcome/redex W_1)
-   (machine-refocus-query/direct
-    (MQWork W_1 (in-hole WF (DisjL hole W_2)))
+  [(machine-refocus-query/direct
+    (MQWork NW (in-hole WF (DisjL hole W)))
     M)
    ---------------------------------------------------- "machine down left choice"
-   (machine-refocus-query/direct (MQWork (DisjL W_1 W_2) WF) M)]
+   (machine-refocus-query/direct (MQWork (DisjL NW W) WF) M)]
 
-  [(non-outcome/redex W_2)
-   (machine-refocus-query/direct
-    (MQWork W_2 (in-hole WF (DisjR W_1 hole)))
+  [(machine-refocus-query/direct
+    (MQWork NW (in-hole WF (DisjR W hole)))
     M)
    ---------------------------------------------------- "machine down right choice"
-   (machine-refocus-query/direct (MQWork (DisjR W_1 W_2) WF) M)]
+   (machine-refocus-query/direct (MQWork (DisjR W NW) WF) M)]
 
   [(machine-refocus-query/direct
     (MQWork (in-hole WFrame R) WF)

@@ -59,9 +59,10 @@ factorization is unique on `LF`; consequently resumption is an equation of the
 same `QWork` program point rather than a separate control mode.
 
 Frontier traversal analogously moves `Emit`, `FrontierFresh`, and `Forced`
-frames into `FF`; entering More creates a `BF` context. `non-outcome/redex` is
-an executable Redex judgment that separates downward search from completed
-work; host predicates do not select control clauses.
+frames into `FF`; entering More creates a `BF` context. The mutually recursive
+grammar refinements `R` and `NW` partition completed from unfinished work.
+Consequently the downward clauses accept `NW` directly while the upward clause
+accepts `R`: no judgment or host predicate classifies the next focus.
 
 The two refocused transition presentations contract the same `Z` state and
 then use `refocus-spec` or `refocus-direct`. `refocused-red/direct` is the
