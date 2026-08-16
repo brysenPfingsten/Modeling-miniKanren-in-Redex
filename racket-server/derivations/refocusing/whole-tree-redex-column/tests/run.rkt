@@ -7,7 +7,8 @@
          "./refocused-tests.rkt"
          "./machine-tests.rkt"
          "./compression-tests.rkt"
-         "./big-step-tests.rkt")
+         "./big-step-tests.rkt"
+         "./kernel-parameter-tests.rkt")
 
 (run-tests
  (test-suite
@@ -17,4 +18,5 @@
   refocused-tests
   machine-tests
   compression-tests
-  big-step-tests))
+  big-step-tests
+  kernel-parameter-tests))
