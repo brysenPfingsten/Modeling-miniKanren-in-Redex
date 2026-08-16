@@ -66,34 +66,44 @@ becomes `FrontierFresh`.  Consequently the root scope is marker-owned and the
 semantic root remains an `F`, with no configuration envelope or hidden scope
 cache.
 
-## Deliberate integration boundary
+## From isolated prototype to the generic column
 
-These files do not claim that the existing toy column is already generic.  It
-is not: the current language fixes `(state p)`, puts toy atomic forms directly
-in `g`, and fixes the complete label alphabet to `work-succeed`, `work-fail`,
-and `work-put`.  Source, decomposition, compression, and promoted big-step
-artifacts all contain corresponding direct clauses.
+`kernel-interface.rkt`, `kernel-toy.rkt`, and `kernel-mk.rkt` remain the
+isolated protocol prototype and its focused tests.  They established the
+boundary before changing every artifact, but the original sibling modules in
+this parent directory are intentionally still the concrete toy oracle: their
+language fixes `(state p)`, their atomic goals occur directly in `g`, and
+their three atomic labels are untagged.
 
-The next change must be one coherent genericization checkpoint:
+The coherent genericization checkpoint is now complete in [`pk/`](pk/).  Its
+[architecture guide](pk/README.md) records these changes:
 
-1. Split structural control goals from the kernel-owned atomic-goal
-   nonterminal and make state opaque in the common grammar.
-2. Replace the three toy leaf clauses at every direct/specification stage with
-   a generated or extended `kernel-step/K` clause while retaining independent
-   Redex presentations for each arrow.
-3. Generalize the label grammar and compression's producer-followup class to
-   `kernel(kname, core)`.
-4. Keep `freeze`/`resume` and marker-indexed answer/work well-formedness in the
-   common control layer.
-5. Run the complete arrow suite twice, with separate Ktoy and Kmk grammars, so
-   mixed kernel goal/state terms are rejected by grammar rather than a dynamic
-   compatibility check.
+1. Structural control goals are separated from kernel-owned atomic goals, and
+   the common grammar treats kernel states opaquely.
+2. Every source, decomposition, refocusing, exact-machine, compression, and
+   promoted-big-step presentation invokes the instance's `kernel-step/K` only
+   at an atomic leaf.  The specification and direct presentations remain
+   independently stated.
+3. Exact labels include `(kernel kname core)`, and compressed spans retain the
+   dynamic kernel label as a nonempty certificate component.
+4. Whole-frontier marker support, `control-freeze/K`, `control-resume/K`, and
+   marker-indexed recursive well-formedness remain in the shared control
+   layer.
+5. Precise `Ktoy` and `Kmk` language extensions replace all abstract leaves
+   before defining relations.  The complete arrow suite runs for both, and
+   each grammar rejects the other kernel's goal/state terms without a runtime
+   compatibility tag.
 
-Focused tests in `tests/kernel-parameter-tests.rkt` currently establish the
-protocol shape, all seven Kmk atomic labels and outcomes, c-freedom, fresh
-opening and capture avoidance, canonical outer-fresh translation,
-marker-indexed state/answer well-formedness, successful-step preservation, and
-query observation.  They also compare every atomic outcome, state update, and
-rule name against the production core Redex relation after restoring ambient
-`c` only at that test boundary.  Full-source and every-arrow conformance remain
-explicitly pending until the genericization checkpoint above.
+The isolated `tests/kernel-parameter-tests.rkt` still checks protocol shape,
+all seven Kmk atomic labels and outcomes, c-freedom, capture-avoiding fresh
+opening, canonical outer-fresh translation, marker-indexed well-formedness,
+successful-step preservation, and query observation.  The parameterized
+front-half suite additionally compares each Kmk atomic outcome and rule name
+against the production core Redex relation, restoring ambient `c` only at
+that test boundary; the full parameterized suite then exercises every arrow.
+
+What remains is deliberately beyond this kernel checkpoint: the Q maps for
+caching and erasure, feature-lattice conservative extension and naturality,
+the `relcall` overlay, and a divergence-sensitive semantics.  The present
+finite and bounded executable correspondence checks are not universal proofs
+of those later claims.

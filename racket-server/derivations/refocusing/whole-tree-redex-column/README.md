@@ -28,3 +28,8 @@ The grammars keep unfinished work `W` internal and frontier terms `F` at the
 root.  Context families are indexed by their grammatical input and output
 categories.  The sorts are implicit in the grammar, with no reified sort tags.
 
+[`REPORT.md`](REPORT.md) gives the end-to-end pilot verdict, the revised BF/LF
+context rationale, compact arrow and label contracts, validation scope, and
+remaining research boundary.  [`pk/README.md`](pk/README.md) documents the
+completed `P[K]` instantiation, and [`pk/TRACES.md`](pk/TRACES.md) is the
+checked-in output of its self-validating representative-trace exporter.
