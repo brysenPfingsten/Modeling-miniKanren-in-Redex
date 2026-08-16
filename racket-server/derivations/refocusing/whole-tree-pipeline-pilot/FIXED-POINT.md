@@ -207,6 +207,12 @@ oracle and checks:
 7. a 10,000-delay finite witness completes with the expected 10,000 retained
    `ff-forced` frames, exercising proper tail calls.
 
+The correspondence claim ranges over direct root entries and the residual
+control states reachable from the compressed machine.  It does not claim that
+every manually assembled, merely grammar-shaped mode/context pair satisfies a
+stronger phase invariant.  Reachability carries that invariant; this stage
+does not add a dynamic compatibility predicate or reified phase tag.
+
 Run this checkpoint alone with:
 
 ```sh
