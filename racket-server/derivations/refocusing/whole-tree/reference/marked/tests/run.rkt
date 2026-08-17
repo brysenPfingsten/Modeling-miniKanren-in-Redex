@@ -6,6 +6,7 @@
          "./grammar-litmus-tests.rkt"
          "./middle-tests.rkt"
          "./back-half-tests.rkt"
+         "./observation-tests.rkt"
          "./intrinsic-dependency-tests.rkt")
 
 (define pk-tests
@@ -15,6 +16,7 @@
    grammar-litmus-tests
    middle-tests
    pk-back-half-tests
+   observation-tests
    intrinsic-dependency-tests))
 
 (exit (if (zero? (run-tests pk-tests)) 0 1))

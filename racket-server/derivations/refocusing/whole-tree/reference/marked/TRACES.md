@@ -6,8 +6,10 @@ This file is deterministically rendered by `racket export-traces.rkt`. The expor
 - every aligned D, Z, and M state satisfies the explicit readback/codec equations;
 - the nonempty compressed spans partition that exact sequence;
 - the closure certificate equals the direct compressed path;
-- the closure specification and independently promoted big-step judgment return the same result; and
-- source, exact, compressed, and promoted terminal readbacks agree.
+- the closure specification and independently promoted big-step judgment return the same result;
+- source, exact, compressed, and promoted terminal readbacks agree;
+- the intrinsic trace-label projection equals that exact sequence; and
+- intrinsic unit cost, force count, and allocation evidence agree with the exact trace and compressed spans.
 
 These are executable traces of the selected witnesses, not universal proofs.
 
@@ -49,6 +51,51 @@ The source has 13 exact edges and terminates at:
    (AnswerFresh (u:1) (Answer (state (u:0 : u:1))) (label "branch-fresh"))
    (Last (Answer (state u:0)))))
  (label "outer-fresh"))
+```
+
+### Intrinsic source-trace observations
+
+The observation layer projects the actual source trace and its terminal frontier. Its label projection is the exact R/D/Z/M sequence, and its unit cost is also the total length of the compressed certificates:
+
+```racket
+((trace-labels
+  ((allocate-fresh core)
+   (expose-frontier-fresh core)
+   (expand-disjunction disj)
+   (allocate-fresh core)
+   (expand-disjunction disj)
+   (kernel work-put core)
+   (expose-choice-through-work-fresh disj)
+   (reassociate-left-result disj)
+   (commit-choice-answer disj)
+   (kernel work-put core)
+   (commit-choice-answer disj)
+   (kernel work-put core)
+   (finish-success core)))
+ (committed-frontier-events
+  ((FrontierFreshEvent (u:0) (label "outer-fresh"))
+   (EmitEvent (AnswerFresh (u:1) (Answer (state (u:0 : u:1))) (label "branch-fresh")))
+   (EmitEvent (AnswerFresh (u:1) (Answer (state (u:0 : u:1))) (label "branch-fresh")))))
+ (answer-payloads
+  ((AnswerFresh (u:1) (Answer (state (u:0 : u:1))) (label "branch-fresh"))
+   (AnswerFresh (u:1) (Answer (state (u:0 : u:1))) (label "branch-fresh"))
+   (Answer (state u:0))))
+ (answer-states ((state (u:0 : u:1)) (state (u:0 : u:1)) (state u:0)))
+ (scoped-answers
+  ((ScopedAnswer
+    (state (u:0 : u:1))
+    ((Owner (u:0) (label "outer-fresh")) (Owner (u:1) (label "branch-fresh"))))
+   (ScopedAnswer
+    (state (u:0 : u:1))
+    ((Owner (u:0) (label "outer-fresh")) (Owner (u:1) (label "branch-fresh"))))
+   (ScopedAnswer (state u:0) ((Owner (u:0) (label "outer-fresh"))))))
+ (forced-events ())
+ (residual (Last (Answer (state u:0))))
+ (rule-cost 13)
+ (force-count 0)
+ (allocation-events
+  ((AllocateEvent (label "outer-fresh") (x:outer) (u:0))
+   (AllocateEvent (label "branch-fresh") (x:inner) (u:1)))))
 ```
 
 ### Decomposition, refocusing, and exact-machine alignment
@@ -366,6 +413,34 @@ The source has 10 exact edges and terminates at:
 (Emit (Answer (state (sym "left"))) (Last (Answer (state (sym "right")))))
 ```
 
+### Intrinsic source-trace observations
+
+The observation layer projects the actual source trace and its terminal frontier. Its label projection is the exact R/D/Z/M sequence, and its unit cost is also the total length of the compressed certificates:
+
+```racket
+((trace-labels
+  ((expand-conjunction core)
+   (expand-disjunction disj)
+   (kernel work-put core)
+   (late-distribute-settled disj)
+   (kernel work-succeed core)
+   (commit-choice-answer disj)
+   (kernel work-put core)
+   (conj-return core)
+   (kernel work-succeed core)
+   (finish-success core)))
+ (committed-frontier-events ((EmitEvent (Answer (state (sym "left"))))))
+ (answer-payloads ((Answer (state (sym "left"))) (Answer (state (sym "right")))))
+ (answer-states ((state (sym "left")) (state (sym "right"))))
+ (scoped-answers
+  ((ScopedAnswer (state (sym "left")) ()) (ScopedAnswer (state (sym "right")) ())))
+ (forced-events ())
+ (residual (Last (Answer (state (sym "right")))))
+ (rule-cost 10)
+ (force-count 0)
+ (allocation-events ()))
+```
+
 ### Decomposition, refocusing, and exact-machine alignment
 
 The independently stated R, direct D, direct Z, and direct M relations agree on all 10 labels. At every state, `plug-D(D) = R`, `D->Z(D) = Z`, and `encode-ZM(Z) = M`:
@@ -549,6 +624,36 @@ The source has 11 exact edges and terminates at:
 ```racket
 (Forced
  (Forced (Emit (Answer (state (sym "left"))) (Last (Answer (state (sym "right")))))))
+```
+
+### Intrinsic source-trace observations
+
+The observation layer projects the actual source trace and its terminal frontier. Its label projection is the exact R/D/Z/M sequence, and its unit cost is also the total length of the compressed certificates:
+
+```racket
+((trace-labels
+  ((expand-disjunction disj)
+   (suspend-goal delay)
+   (rail-enter-right search-join)
+   (force-delay delay)
+   (suspend-goal delay)
+   (rail-return-left search-join)
+   (force-delay delay)
+   (kernel work-put core)
+   (commit-choice-answer disj)
+   (kernel work-put core)
+   (finish-success core)))
+ (committed-frontier-events
+  (ForcedEvent ForcedEvent (EmitEvent (Answer (state (sym "left"))))))
+ (answer-payloads ((Answer (state (sym "left"))) (Answer (state (sym "right")))))
+ (answer-states ((state (sym "left")) (state (sym "right"))))
+ (scoped-answers
+  ((ScopedAnswer (state (sym "left")) ()) (ScopedAnswer (state (sym "right")) ())))
+ (forced-events (ForcedEvent ForcedEvent))
+ (residual (Last (Answer (state (sym "right")))))
+ (rule-cost 11)
+ (force-count 2)
+ (allocation-events ()))
 ```
 
 ### Decomposition, refocusing, and exact-machine alignment
@@ -757,6 +862,51 @@ The source has 21 exact edges and terminates at:
  (Emit
   (AnswerFresh (u:0) (Answer (state (sym "now"))) (label "fresh"))
   (FrontierFresh (u:0) (Last (Answer (state (sym "later")))) (label "fresh"))))
+```
+
+### Intrinsic source-trace observations
+
+The observation layer projects the actual source trace and its terminal frontier. Its label projection is the exact R/D/Z/M sequence, and its unit cost is also the total length of the compressed certificates:
+
+```racket
+((trace-labels
+  ((expand-conjunction core)
+   (expand-conjunction core)
+   (allocate-fresh core)
+   (kernel work-put core)
+   (conj-return core)
+   (expand-disjunction disj)
+   (suspend-goal delay)
+   (rail-enter-right search-join)
+   (bubble-delay-through-fresh delay)
+   (bubble-delay-through-conj delay)
+   (force-delay delay)
+   (kernel work-put core)
+   (expose-choice-through-work-fresh search-join)
+   (late-distribute-right-settled search-join)
+   (kernel work-succeed core)
+   (commit-right-choice-answer search-join)
+   (kernel work-put core)
+   (conj-return core)
+   (expose-frontier-fresh core)
+   (kernel work-succeed core)
+   (finish-success core)))
+ (committed-frontier-events
+  (ForcedEvent
+   (EmitEvent (AnswerFresh (u:0) (Answer (state (sym "now"))) (label "fresh")))
+   (FrontierFreshEvent (u:0) (label "fresh"))))
+ (answer-payloads
+  ((AnswerFresh (u:0) (Answer (state (sym "now"))) (label "fresh"))
+   (Answer (state (sym "later")))))
+ (answer-states ((state (sym "now")) (state (sym "later"))))
+ (scoped-answers
+  ((ScopedAnswer (state (sym "now")) ((Owner (u:0) (label "fresh"))))
+   (ScopedAnswer (state (sym "later")) ((Owner (u:0) (label "fresh"))))))
+ (forced-events (ForcedEvent))
+ (residual (Last (Answer (state (sym "later")))))
+ (rule-cost 21)
+ (force-count 1)
+ (allocation-events ((AllocateEvent (label "fresh") (x:q) (u:0)))))
 ```
 
 ### Decomposition, refocusing, and exact-machine alignment
@@ -1109,6 +1259,55 @@ The source has 13 exact edges and terminates at:
       ((u:0 =? (sym "cat") (label "bind")))
       (label "s"))))))
  (label "query"))
+```
+
+### Intrinsic source-trace observations
+
+The observation layer projects the actual source trace and its terminal frontier. Its label projection is the exact R/D/Z/M sequence, and its unit cost is also the total length of the compressed certificates:
+
+```racket
+((trace-labels
+  ((allocate-fresh core)
+   (expose-frontier-fresh core)
+   (expand-disjunction disj)
+   (expand-conjunction core)
+   (kernel unify-success core)
+   (conj-return core)
+   (suspend-goal delay)
+   (rail-enter-right search-join)
+   (force-delay delay)
+   (kernel disequality-success core)
+   (commit-right-choice-answer search-join)
+   (kernel succeed core)
+   (finish-success core)))
+ (committed-frontier-events
+  ((FrontierFreshEvent (u:0) (label "query"))
+   ForcedEvent
+   (EmitEvent (Answer (state () ((u:0 (sym "dog"))) () (label "s"))))))
+ (answer-payloads
+  ((Answer (state () ((u:0 (sym "dog"))) () (label "s")))
+   (Answer
+    (state ((u:0 (sym "cat"))) () ((u:0 =? (sym "cat") (label "bind"))) (label "s")))))
+ (answer-states
+  ((state () ((u:0 (sym "dog"))) () (label "s"))
+   (state ((u:0 (sym "cat"))) () ((u:0 =? (sym "cat") (label "bind"))) (label "s"))))
+ (scoped-answers
+  ((ScopedAnswer
+    (state () ((u:0 (sym "dog"))) () (label "s"))
+    ((Owner (u:0) (label "query"))))
+   (ScopedAnswer
+    (state ((u:0 (sym "cat"))) () ((u:0 =? (sym "cat") (label "bind"))) (label "s"))
+    ((Owner (u:0) (label "query"))))))
+ (forced-events (ForcedEvent))
+ (residual
+  (Last
+   (Answer
+    (state ((u:0 (sym "cat"))) () ((u:0 =? (sym "cat") (label "bind"))) (label "s")))))
+ (rule-cost 13)
+ (force-count 1)
+ (allocation-events ((AllocateEvent (label "query") (x:q) (u:0))))
+ (explicit-query (u:0))
+ (query-answers ((u:0) ((sym "cat")))))
 ```
 
 ### Decomposition, refocusing, and exact-machine alignment

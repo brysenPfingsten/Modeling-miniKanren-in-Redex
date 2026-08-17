@@ -16,9 +16,9 @@ full search carrier (delay plus disjunction join)
 ```
 
 The selected marked source keeps the complete answer frontier, fresh ownership,
-and force/cost evidence in the tree.  Its grammatical categories and contexts
-carry their own indices; decompositions and states do not contain reified W/F
-sort tags.
+and force-event evidence in the tree; exact labels separately supply unit-cost
+evidence.  Its grammatical categories and contexts carry their own indices;
+decompositions and states do not contain reified W/F sort tags.
 
 ## Present references and intended family
 
@@ -29,11 +29,19 @@ and generated witnesses are:
 
 - [`../whole-tree-redex-column/REPORT.md`](../whole-tree-redex-column/REPORT.md)
 - [`reference/marked/README.md`](reference/marked/README.md)
+- [`reference/marked/OBSERVATIONS.md`](reference/marked/OBSERVATIONS.md)
 - [`reference/marked/TRACES.md`](reference/marked/TRACES.md)
 
 Its legacy parity checks now live outside the intrinsic marked suite.  The
 concrete Redex column, the handwritten pilot, and the broad spike are
 transition oracles, not additional canonical marked implementations.
+
+The marked observation boundary is now intrinsic and grammar-first: every
+frontier factors uniquely into its committed `FF` prefix and residual tail;
+answer payloads, raw answer states, scoped ownership, force events, unit rule
+cost, and dynamic allocation events are separately executable.  Temporary
+agreement with the pilot and broad-spike observation equations lives in the
+outer canonical test suite, not in the reference implementation.
 
 An independently stated lean reference will live at `reference/lean/`.  It
 must have its own genuine named source relation and complete derivation:

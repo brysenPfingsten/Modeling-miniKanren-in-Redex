@@ -133,6 +133,19 @@ K/decomposition.rkt
   decompose/K, contract/K, plug-D/K, plug-C/K, contract-label/K
   decomposed-step/spec/K, decomposed-step/direct/K
   decomposed-red/direct/K
+
+K/observations.rkt
+  pk-K-observation-lang
+  frontier-split/K, restore-frontier/K, residual/K
+  frontier-prefix-events/K, answer-payloads/K, answer-states/K
+  scoped-answers/K, forced-events/K
+  trace-labels/K, rule-cost/K, force-count/K
+  allocation-edge/K, allocation-events/K
+  observation-prefix/K, frontier-delta/K
+
+mk/observations.rkt additionally exports query-answers/mk, whose explicit
+query-variable argument distinguishes user observations from raw kernel
+states.
 ```
 
 Consumers may import both instances with prefixes; no conventional unqualified
@@ -140,7 +153,8 @@ alias modules are needed.
 
 The executable arrow contracts are described stage by stage in
 [`FRONT-HALF.md`](./FRONT-HALF.md), [`MIDDLE.md`](./MIDDLE.md), and
-[`BACK-HALF.md`](./BACK-HALF.md).
+[`BACK-HALF.md`](./BACK-HALF.md).  The intrinsic observation boundary and its
+laws are described in [`OBSERVATIONS.md`](./OBSERVATIONS.md).
 
 ## Focused checks
 
@@ -149,6 +163,7 @@ raco test racket-server/derivations/refocusing/whole-tree/reference/marked/tests
 raco test racket-server/derivations/refocusing/whole-tree/reference/marked/tests/grammar-litmus-tests.rkt
 raco test racket-server/derivations/refocusing/whole-tree/reference/marked/tests/middle-tests.rkt
 raco test racket-server/derivations/refocusing/whole-tree/reference/marked/tests/back-half-tests.rkt
+raco test racket-server/derivations/refocusing/whole-tree/reference/marked/tests/observation-tests.rkt
 racket racket-server/derivations/refocusing/whole-tree/reference/marked/tests/run.rkt
 ```
 
@@ -168,5 +183,10 @@ generic source-projection presentation.
 The middle and back-half suites apply the same generated laws to both kernels:
 refocus/direct versus plug-and-redecompose, Z/M codec and labeled bisimulation,
 canonical nonempty compression spans with exact replay, and finite promoted
-big-step versus strict compressed closure.  The aggregate runner executes all
-three suites.
+big-step versus strict compressed closure.  The observation suite checks raw
+unique frontier factorization and reconstruction, generated one-step
+prefix/delta laws, ordered trace-label projection, dynamic allocation and force
+evidence, explicit Kmk query observations, and cross-stage readback preservation
+at every source frontier on the representative Ktoy and Kmk paths.  The
+aggregate runner executes all focused suites, including the whole-reference
+dependency audit.

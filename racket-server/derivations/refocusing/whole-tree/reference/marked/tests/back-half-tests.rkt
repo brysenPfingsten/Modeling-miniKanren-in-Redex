@@ -25,7 +25,7 @@
          "../mk/big-step-spec.rkt"
          "../mk/big-step.rkt"
          "../mk/big-step-correspondence.rkt"
-         "../mk/kernel.rkt"
+         "../mk/observations.rkt"
          (prefix-in corpus:
                     "../../../corpus/scenarios.rkt"))
 
@@ -284,40 +284,6 @@
     (kernel unify-fail core)
     (kernel disequality-success core)
     (kernel disequality-fail core)))
-
-;; Test-side observations deliberately consume only the public marked syntax
-;; and Kmk's observation hook.  This makes terminal observation preservation
-;; executable without adding an observation cache or sort field to any state.
-(define-metafunction pk-mk-big-step-direct-lang
-  observe-answer/mk : A intro -> observation
-  [(observe-answer/mk (Answer kst) intro)
-   (kernel-observe/mk intro kst)]
-  [(observe-answer/mk
-    (AnswerFresh (u_new ...) A tag)
-    (u_outer ...))
-   (observe-answer/mk A (u_new ... u_outer ...))])
-
-(define-metafunction pk-mk-big-step-direct-lang
-  observe-frontier/mk : F intro -> (observation ...)
-  [(observe-frontier/mk Done intro) ()]
-  [(observe-frontier/mk (Last A) intro)
-   ((observe-answer/mk A intro))]
-  [(observe-frontier/mk (Emit A F) intro)
-   (observation_first observation_rest ...)
-   (where observation_first (observe-answer/mk A intro))
-   (where (observation_rest ...)
-          (observe-frontier/mk F intro))]
-  [(observe-frontier/mk
-    (FrontierFresh (u_new ...) F tag)
-    (u_outer ...))
-   (observe-frontier/mk F (u_new ... u_outer ...))]
-  [(observe-frontier/mk (Forced F) intro)
-   (observe-frontier/mk F intro)])
-
-(define-metafunction pk-mk-big-step-direct-lang
-  observe-result/mk : O -> (observation ...)
-  [(observe-result/mk (FinalResult T FF))
-   (observe-frontier/mk (in-hole FF T) ())])
 
 (define (unique-result who results)
   (match results
@@ -637,12 +603,18 @@
     (check-equal? direct* (map second spec*))
     (check-equal?
      (map (lambda (result)
-            (term (observe-result/mk ,result)))
+            (term
+             (query-answers/mk
+              (big-step-readback/mk ,result)
+              (u:0))))
           direct*)
      (list expected))
     (check-equal?
      (for/list ([certified (in-list spec*)])
-       (term (observe-result/mk ,(second certified))))
+       (term
+        (query-answers/mk
+         (big-step-readback/mk ,(second certified))
+         (u:0))))
      (list expected))
     (define-values (_spans states)
       (trace-states
@@ -650,9 +622,9 @@
        b-successors/mk))
     (check-equal?
      (term
-      (observe-frontier/mk
+      (query-answers/mk
        ,(b-readback/mk (last states))
-       ()))
+       (u:0)))
      expected))
 
    (test-case

@@ -30,6 +30,15 @@ during the transition:
 | [`NOTES.md`](../NOTES.md) | Working derivation history. Move durable decisions into the canonical README, decision record, rule tables, or regression explanations. Retire or reduce it only after every still-current claim has a destination. |
 | untracked `stream-spike/` in the production worktree | Superseded as a source-language proposal. Preserve only unique projection, committed-prefix, force/cost, or cache observations. Do not add it as another canonical semantics. Remove it from the dirty worktree only after inventory and explicit approval. |
 
+The committed-prefix/residual split, `Last`/`Emit` distinction, scoped-answer
+ownership, ordered force evidence, unit exact-step cost, and dynamic allocation
+laws have now moved to
+[`reference/marked/OBSERVATIONS.md`](reference/marked/OBSERVATIONS.md), the
+semantic-import-free [`corpus/observation-cases.rkt`](corpus/observation-cases.rkt),
+and the temporary external-oracle parity suite.  This transfers those laws; it
+does not yet satisfy the older artifacts' remaining feature-survey, cache, Q,
+or naturality retirement gates.
+
 ## Production progress witnesses
 
 These witnesses are durable regressions, not disposable spike examples.
@@ -78,10 +87,11 @@ boundary.
 
 During consolidation, legacy parity and production-kernel comparison tests may
 temporarily import both sides, but they live in `whole-tree/tests/`, outside
-the intrinsic marked reference.  The current executable gate rejects direct
-forbidden imports from the intrinsic test suite.  A resolved transitive import
-graph, including compile-time phases, remains a required gate before reference
-retirement.
+the intrinsic marked reference.  The current executable gate scans every
+marked-reference Racket module and whitelists only intra-reference imports,
+corpus data from tests/the trace exporter, and the two exact Kmk atomic-kernel
+helpers from `mk/kernel.rkt`.  A resolved transitive import graph, including
+compile-time phases, remains a required gate before reference retirement.
 
 ## Cleanliness invariants
 

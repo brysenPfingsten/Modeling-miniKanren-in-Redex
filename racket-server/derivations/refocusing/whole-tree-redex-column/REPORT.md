@@ -183,9 +183,9 @@ The aggregate parameterized suite is:
 racket racket-server/derivations/refocusing/whole-tree/reference/marked/tests/run.rkt
 ```
 
-The latest intrinsic run completed 44 RackUnit tests with no failures or
-errors.  The canonical aggregate, including four temporary external-oracle
-parity tests, completed 48 tests.
+The latest intrinsic run completed 55 RackUnit tests with no failures or
+errors.  The canonical aggregate, including temporary pipeline, concrete,
+production-kernel, and observation parity tests, completed 64 tests.
 Its grammatical-focus litmus counts the four raw `in-hole` factorizations
 without invoking `decompose`, counts raw proof trees rather than deduplicated
 judgment results, checks `R`/`NW` as a disjoint exhaustive partition, and pins
@@ -221,7 +221,9 @@ racket racket-server/derivations/refocusing/whole-tree/reference/marked/export-t
 The transcript includes the exact before/after trees for boundary fresh
 lifting, local marker replication, right-active exposure, late distribution,
 and rail turns, as well as compact initial/terminal D, Z, M, B, and big-step
-artifacts.
+artifacts.  Each witness also records the intrinsic committed-prefix, answer,
+scope, force, residual, label, cost, and allocation projections derived from
+its actual source path.
 
 ## Claim boundary and next experiment
 

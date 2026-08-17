@@ -16,6 +16,7 @@
          (prefix-in toy-bs: "toy/big-step-spec.rkt")
          (prefix-in toy-bd: "toy/big-step.rkt")
          (prefix-in toy-bl: "toy/big-step-language.rkt")
+         (prefix-in toy-o: "toy/observations.rkt")
          (prefix-in mk-l: "mk/labels.rkt")
          (prefix-in mk-s: "mk/source.rkt")
          (prefix-in mk-d: "mk/decomposition.rkt")
@@ -26,7 +27,8 @@
          (prefix-in mk-b: "mk/compressed.rkt")
          (prefix-in mk-bs: "mk/big-step-spec.rkt")
          (prefix-in mk-bd: "mk/big-step.rkt")
-         (prefix-in mk-bl: "mk/big-step-language.rkt"))
+         (prefix-in mk-bl: "mk/big-step-language.rkt")
+         (prefix-in mk-o: "mk/observations.rkt"))
 
 (provide render-traces)
 
@@ -47,10 +49,26 @@
    compressed-readback
    big-step/spec
    big-step/direct
-   big-step-readback)
+   big-step-readback
+   observe-trace)
   #:transparent)
 
 (struct witness (title purpose root semantics) #:transparent)
+
+(struct intrinsic-observation
+  (trace-labels
+   frontier-prefix-events
+   answer-payloads
+   answer-states
+   scoped-answers
+   forced-events
+   residual
+   rule-cost
+   force-count
+   allocation-events
+   query
+   query-answers)
+  #:transparent)
 
 (define (unique who results)
   (match results
@@ -76,6 +94,12 @@
   (match span
     [`(transition-span ,labels ...) labels]
     [_ (error 'span-labels "not a transition certificate: ~e" span)]))
+
+(define (trace-edges labels states)
+  (for/list ([label (in-list labels)]
+             [before (in-list states)]
+             [after (in-list (rest states))])
+    `(Edge ,before ,label ,after)))
 
 (define (toy-source-successors frontier)
   (for/list
@@ -152,6 +176,22 @@
 (define (toy-big-step-readback result)
   (term (toy-bl:big-step-readback/toy ,result)))
 
+(define (toy-observe-trace final edges)
+  (define labels (term (toy-o:trace-labels/toy ,edges)))
+  (intrinsic-observation
+   labels
+   (term (toy-o:frontier-prefix-events/toy ,final))
+   (term (toy-o:answer-payloads/toy ,final))
+   (term (toy-o:answer-states/toy ,final))
+   (term (toy-o:scoped-answers/toy ,final))
+   (term (toy-o:forced-events/toy ,final))
+   (term (toy-o:residual/toy ,final))
+   (term (toy-o:rule-cost/toy ,labels))
+   (term (toy-o:force-count/toy ,labels))
+   (term (toy-o:allocation-events/toy ,edges))
+   #f
+   #f))
+
 (define toy-instance
   (instance toy-source-successors
             toy-decompose
@@ -169,7 +209,8 @@
             toy-compressed-readback
             toy-big-step/spec
             toy-big-step/direct
-            toy-big-step-readback))
+            toy-big-step-readback
+            toy-observe-trace))
 
 (define (mk-source-successors frontier)
   (for/list
@@ -246,6 +287,24 @@
 (define (mk-big-step-readback result)
   (term (mk-bl:big-step-readback/mk ,result)))
 
+(define mk-witness-query '(u:0))
+
+(define (mk-observe-trace final edges)
+  (define labels (term (mk-o:trace-labels/mk ,edges)))
+  (intrinsic-observation
+   labels
+   (term (mk-o:frontier-prefix-events/mk ,final))
+   (term (mk-o:answer-payloads/mk ,final))
+   (term (mk-o:answer-states/mk ,final))
+   (term (mk-o:scoped-answers/mk ,final))
+   (term (mk-o:forced-events/mk ,final))
+   (term (mk-o:residual/mk ,final))
+   (term (mk-o:rule-cost/mk ,labels))
+   (term (mk-o:force-count/mk ,labels))
+   (term (mk-o:allocation-events/mk ,edges))
+   mk-witness-query
+   (term (mk-o:query-answers/mk ,final ,mk-witness-query))))
+
 (define mk-instance
   (instance mk-source-successors
             mk-decompose
@@ -263,7 +322,8 @@
             mk-compressed-readback
             mk-big-step/spec
             mk-big-step/direct
-            mk-big-step-readback))
+            mk-big-step-readback
+            mk-observe-trace))
 
 (define mk-witness-goal
   '(fresh
@@ -337,6 +397,37 @@
     (printf "~a. `~s`\n" index value))
   (newline))
 
+(define (write-intrinsic-observation observation)
+  (match-define
+    (intrinsic-observation labels
+                           frontier-events
+                           answer-payloads
+                           answer-states
+                           scoped-answers
+                           forced-events
+                           residual
+                           rule-cost
+                           force-count
+                           allocation-events
+                           query
+                           query-answers)
+    observation)
+  (write-term
+   `((trace-labels ,labels)
+     (committed-frontier-events ,frontier-events)
+     (answer-payloads ,answer-payloads)
+     (answer-states ,answer-states)
+     (scoped-answers ,scoped-answers)
+     (forced-events ,forced-events)
+     (residual ,residual)
+     (rule-cost ,rule-cost)
+     (force-count ,force-count)
+     (allocation-events ,allocation-events)
+     ,@(if query
+           `((explicit-query ,query)
+             (query-answers ,query-answers))
+           '()))))
+
 (define (write-salient-excerpts labels states)
   (define selected
     (for/list ([label (in-list labels)]
@@ -379,7 +470,8 @@
               compressed-readback
               big-step/spec
               big-step/direct
-              big-step-readback)
+              big-step-readback
+              observe-trace)
     semantics)
 
   (define-values (source-labels source-states)
@@ -424,6 +516,39 @@
     (error 'write-witness "specification and promoted result disagree for ~a" title))
 
   (define source-final (last source-states))
+  (define source-edges (trace-edges source-labels source-states))
+  (define observation (observe-trace source-final source-edges))
+  (define initial-observation (observe-trace root '()))
+  (define observation-labels
+    (intrinsic-observation-trace-labels observation))
+  (define observation-cost
+    (intrinsic-observation-rule-cost observation))
+  (define compressed-cost
+    (for/sum ([span (in-list spans)])
+      (length (span-labels span))))
+  (unless (equal? observation-labels source-labels)
+    (error 'write-witness
+           "intrinsic trace-label projection disagrees for ~a"
+           title))
+  (unless (= observation-cost
+             (length source-labels)
+             compressed-cost)
+    (error 'write-witness
+           "exact, intrinsic, and compressed costs disagree for ~a"
+           title))
+  (unless (= (intrinsic-observation-force-count observation)
+             (count (lambda (label)
+                      (equal? label '(force-delay delay)))
+                    source-labels)
+             (- (length (intrinsic-observation-forced-events observation))
+                (length
+                 (intrinsic-observation-forced-events initial-observation))))
+    (error 'write-witness "intrinsic force counts disagree for ~a" title))
+  (unless (= (length (intrinsic-observation-allocation-events observation))
+             (count (lambda (label)
+                      (equal? label '(allocate-fresh core)))
+                    source-labels))
+    (error 'write-witness "intrinsic allocation count disagrees for ~a" title))
   (define machine-final (last machine-states))
   (define compressed-final (last compressed-states))
   (define readbacks
@@ -447,6 +572,12 @@
   (printf "The source has ~a exact edges and terminates at:\n\n"
           (length source-labels))
   (write-term source-final)
+
+  (displayln "### Intrinsic source-trace observations")
+  (newline)
+  (displayln "The observation layer projects the actual source trace and its terminal frontier. Its label projection is the exact R/D/Z/M sequence, and its unit cost is also the total length of the compressed certificates:")
+  (newline)
+  (write-intrinsic-observation observation)
 
   (displayln "### Decomposition, refocusing, and exact-machine alignment")
   (newline)
@@ -506,8 +637,10 @@
       (displayln "- every aligned D, Z, and M state satisfies the explicit readback/codec equations;")
       (displayln "- the nonempty compressed spans partition that exact sequence;")
       (displayln "- the closure certificate equals the direct compressed path;")
-      (displayln "- the closure specification and independently promoted big-step judgment return the same result; and")
-      (displayln "- source, exact, compressed, and promoted terminal readbacks agree.")
+      (displayln "- the closure specification and independently promoted big-step judgment return the same result;")
+      (displayln "- source, exact, compressed, and promoted terminal readbacks agree;")
+      (displayln "- the intrinsic trace-label projection equals that exact sequence; and")
+      (displayln "- intrinsic unit cost, force count, and allocation evidence agree with the exact trace and compressed spans.")
       (newline)
       (displayln "These are executable traces of the selected witnesses, not universal proofs.")
       (newline)
