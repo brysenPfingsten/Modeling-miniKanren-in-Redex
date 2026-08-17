@@ -8,7 +8,7 @@
          (prefix-in legacy-d: "../../decomposition.rkt")
          (prefix-in legacy-s: "../../source.rkt")
          (prefix-in corpus:
-                    "../../../whole-tree-pipeline-pilot/corpus.rkt")
+                    "../../../whole-tree/corpus/scenarios.rkt")
          (prefix-in mk-d: "../mk/decomposition.rkt")
          (prefix-in mk-k: "../mk/kernel.rkt")
          (prefix-in mk-l: "../mk/labels.rkt")
@@ -25,10 +25,19 @@
 (provide front-half-tests)
 
 (define witness-trees
-  (list corpus:nested-scope-witness-tree
-        corpus:late-hoist-witness-tree
-        corpus:rail-turn-witness-tree
-        corpus:right-active-fresh-witness-tree))
+  (list
+   (term
+    (toy-s:initial-tree/toy
+     ,corpus:nested-scope-witness-goal))
+   (term
+    (toy-s:initial-tree/toy
+     ,corpus:late-hoist-witness-goal))
+   (term
+    (toy-s:initial-tree/toy
+     ,corpus:rail-turn-witness-goal))
+   (term
+    (toy-s:initial-tree/toy
+     ,corpus:right-active-fresh-witness-goal))))
 
 (define (legacy-source-successors frontier)
   (for/list

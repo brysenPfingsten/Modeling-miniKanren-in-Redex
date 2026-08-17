@@ -4,7 +4,7 @@
          racket/pretty
          redex/reduction-semantics
          (prefix-in corpus:
-                    "../../whole-tree-pipeline-pilot/corpus.rkt")
+                    "../../whole-tree/corpus/scenarios.rkt")
          (prefix-in toy-l: "toy/labels.rkt")
          (prefix-in toy-s: "toy/source.rkt")
          (prefix-in toy-d: "toy/decomposition.rkt")
@@ -284,22 +284,30 @@
    (witness
     "Ktoy: nested fresh ownership"
     "The boundary fresh owns the whole frontier; the branch-local fresh is replicated across exactly its two choice descendants."
-    corpus:nested-scope-witness-tree
+    (term
+     (toy-s:initial-tree/toy
+      ,corpus:nested-scope-witness-goal))
     toy-instance)
    (witness
     "Ktoy: late hoisting"
     "A settled branch is distributed only after conjunction work has become available."
-    corpus:late-hoist-witness-tree
+    (term
+     (toy-s:initial-tree/toy
+      ,corpus:late-hoist-witness-goal))
     toy-instance)
    (witness
     "Ktoy: rail / flip-flop scheduling"
     "Two delayed branches exercise the rail turn and return rules."
-    corpus:rail-turn-witness-tree
+    (term
+     (toy-s:initial-tree/toy
+      ,corpus:rail-turn-witness-goal))
     toy-instance)
    (witness
     "Ktoy: right-active local fresh"
     "A delayed-left choice rotates right while its fresh scope remains branch-local, exposing the search-join-owned symmetric rule."
-    corpus:right-active-fresh-witness-tree
+    (term
+     (toy-s:initial-tree/toy
+      ,corpus:right-active-fresh-witness-goal))
     toy-instance)
    (witness
     "Kmk: unification, delay, and disequality"

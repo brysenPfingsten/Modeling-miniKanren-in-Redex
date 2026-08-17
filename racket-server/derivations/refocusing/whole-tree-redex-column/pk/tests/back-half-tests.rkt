@@ -27,21 +27,41 @@
          "../mk/big-step-correspondence.rkt"
          "../mk/kernel.rkt"
          (prefix-in corpus:
-                    "../../../whole-tree-pipeline-pilot/corpus.rkt"))
+                    "../../../whole-tree/corpus/scenarios.rkt"))
 
 (provide pk-back-half-tests)
 
 (define toy-outside-work
   '(Work (put (sym "outside") (label "outside")) (state unit)))
 
+(define nested-scope-witness-tree/toy
+  (term
+   (initial-tree/toy
+    ,corpus:nested-scope-witness-goal)))
+
+(define late-hoist-witness-tree/toy
+  (term
+   (initial-tree/toy
+    ,corpus:late-hoist-witness-goal)))
+
+(define rail-turn-witness-tree/toy
+  (term
+   (initial-tree/toy
+    ,corpus:rail-turn-witness-goal)))
+
+(define right-active-fresh-witness-tree/toy
+  (term
+   (initial-tree/toy
+    ,corpus:right-active-fresh-witness-goal)))
+
 ;; This is the committed toy compression suite's twelve-root coverage corpus.
 ;; Keeping the corpus literal here makes the Ktoy oracle boundary inspectable;
 ;; the test-only translation below reuses its control shapes for Kmk.
 (define toy-roots
-  (list corpus:nested-scope-witness-tree
-        corpus:late-hoist-witness-tree
-        corpus:rail-turn-witness-tree
-        corpus:right-active-fresh-witness-tree
+  (list nested-scope-witness-tree/toy
+        late-hoist-witness-tree/toy
+        rail-turn-witness-tree/toy
+        right-active-fresh-witness-tree/toy
         '(More (Work (fail (label "fail")) (state unit)))
         '(More Dead)
         `(More
@@ -547,19 +567,19 @@
     "the four toy witnesses retain their canonical tagged partitions"
     (define-values (nested _nested-states)
       (trace-states
-       (initial-b/toy corpus:nested-scope-witness-tree)
+       (initial-b/toy nested-scope-witness-tree/toy)
        b-successors/toy))
     (define-values (rail _rail-states)
       (trace-states
-       (initial-b/toy corpus:rail-turn-witness-tree)
+       (initial-b/toy rail-turn-witness-tree/toy)
        b-successors/toy))
     (define-values (late _late-states)
       (trace-states
-       (initial-b/toy corpus:late-hoist-witness-tree)
+       (initial-b/toy late-hoist-witness-tree/toy)
        b-successors/toy))
     (define-values (right _right-states)
       (trace-states
-       (initial-b/toy corpus:right-active-fresh-witness-tree)
+       (initial-b/toy right-active-fresh-witness-tree/toy)
        b-successors/toy))
     (check-equal? nested toy-nested-partition)
     (check-equal? rail toy-rail-partition)
