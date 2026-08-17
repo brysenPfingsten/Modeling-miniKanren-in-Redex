@@ -12,17 +12,17 @@
          (prefix-in kernel-corpus: "../corpus/kernel-cases.rkt")
          (prefix-in corpus: "../corpus/scenarios.rkt")
          (prefix-in mk-k:
-                    "../../whole-tree-redex-column/pk/mk/kernel.rkt")
+                    "../reference/marked/mk/kernel.rkt")
          (prefix-in toy-d:
-                    "../../whole-tree-redex-column/pk/toy/decomposition.rkt")
+                    "../reference/marked/toy/decomposition.rkt")
          (prefix-in toy-l:
-                    "../../whole-tree-redex-column/pk/toy/labels.rkt")
+                    "../reference/marked/toy/labels.rkt")
          (prefix-in toy-lang:
-                    "../../whole-tree-redex-column/pk/toy/language.rkt")
+                    "../reference/marked/toy/language.rkt")
          (prefix-in toy-s:
-                    "../../whole-tree-redex-column/pk/toy/source.rkt")
+                    "../reference/marked/toy/source.rkt")
          (prefix-in toy-wf:
-                    "../../whole-tree-redex-column/pk/toy/wf.rkt"))
+                    "../reference/marked/toy/wf.rkt"))
 
 (provide temporary-oracle-parity-tests)
 

@@ -27,7 +27,7 @@
          "../mk/big-step-correspondence.rkt"
          "../mk/kernel.rkt"
          (prefix-in corpus:
-                    "../../../whole-tree/corpus/scenarios.rkt"))
+                    "../../../corpus/scenarios.rkt"))
 
 (provide pk-back-half-tests)
 

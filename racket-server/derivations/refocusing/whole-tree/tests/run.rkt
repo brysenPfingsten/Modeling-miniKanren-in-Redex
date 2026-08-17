@@ -2,11 +2,11 @@
 
 (require rackunit
          rackunit/text-ui
-         "../../whole-tree-redex-column/pk/tests/front-half-tests.rkt"
-         "../../whole-tree-redex-column/pk/tests/grammar-litmus-tests.rkt"
-         "../../whole-tree-redex-column/pk/tests/middle-tests.rkt"
-         "../../whole-tree-redex-column/pk/tests/back-half-tests.rkt"
-         "../../whole-tree-redex-column/pk/tests/intrinsic-dependency-tests.rkt"
+         "../reference/marked/tests/front-half-tests.rkt"
+         "../reference/marked/tests/grammar-litmus-tests.rkt"
+         "../reference/marked/tests/middle-tests.rkt"
+         "../reference/marked/tests/back-half-tests.rkt"
+         "../reference/marked/tests/intrinsic-dependency-tests.rkt"
          "./temporary-oracle-parity-tests.rkt")
 
 (define whole-tree-tests

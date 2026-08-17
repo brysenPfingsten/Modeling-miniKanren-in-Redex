@@ -1,9 +1,9 @@
 # P[K]: kernel-parametric marked column
 
 This subtree rebuilds the marked vertical pipeline as one family of Redex
-artifacts parameterized by an atomic kernel.  The committed parent directory
-remains the frozen `Ktoy` oracle; no parent artifact is imported as an
-implementation shortcut by this subtree's generic schemas.
+artifacts parameterized by an atomic kernel.  The concrete `Ktoy` column
+remains an external, temporary parity oracle; no oracle artifact is imported
+as an implementation shortcut by this subtree's generic schemas.
 
 The architecture has three layers:
 
@@ -145,19 +145,20 @@ The executable arrow contracts are described stage by stage in
 ## Focused checks
 
 ```sh
-raco test racket-server/derivations/refocusing/whole-tree-redex-column/pk/tests/front-half-tests.rkt
-raco test racket-server/derivations/refocusing/whole-tree-redex-column/pk/tests/grammar-litmus-tests.rkt
-raco test racket-server/derivations/refocusing/whole-tree-redex-column/pk/tests/middle-tests.rkt
-raco test racket-server/derivations/refocusing/whole-tree-redex-column/pk/tests/back-half-tests.rkt
-racket racket-server/derivations/refocusing/whole-tree-redex-column/pk/tests/run.rkt
+raco test racket-server/derivations/refocusing/whole-tree/reference/marked/tests/front-half-tests.rkt
+raco test racket-server/derivations/refocusing/whole-tree/reference/marked/tests/grammar-litmus-tests.rkt
+raco test racket-server/derivations/refocusing/whole-tree/reference/marked/tests/middle-tests.rkt
+raco test racket-server/derivations/refocusing/whole-tree/reference/marked/tests/back-half-tests.rkt
+racket racket-server/derivations/refocusing/whole-tree/reference/marked/tests/run.rkt
 ```
 
-The front-half suite executes the same generated source/decomposition arrow
-laws for both kernels, compares every reachable representative `Ktoy` source
-and decomposition step to the committed oracle after explicit label
-translation, checks all seven `Kmk` atomic labels, follows a compound `Kmk`
-trace, tests global support and marker-indexed well-formedness, and rejects
-mixed-kernel `F` and `D` terms.
+The intrinsic front-half suite executes the same generated
+source/decomposition arrow laws for both kernels, checks all seven `Kmk`
+atomic labels, follows a compound `Kmk` trace, tests global support and
+marker-indexed well-formedness, and rejects mixed-kernel `F` and `D` terms.
+Temporary comparison with the concrete `Ktoy` oracle and production atomic
+kernel lives outside this reference in
+[`../../tests/temporary-oracle-parity-tests.rkt`](../../tests/temporary-oracle-parity-tests.rkt).
 
 The grammatical-focus litmus bypasses the decomposition judgment to count the
 four raw `in-hole` factorizations directly, counts raw derivation trees, checks

@@ -75,8 +75,9 @@ this parent directory are intentionally still the concrete toy oracle: their
 language fixes `(state p)`, their atomic goals occur directly in `g`, and
 their three atomic labels are untagged.
 
-The coherent genericization checkpoint is now complete in [`pk/`](pk/).  Its
-[architecture guide](pk/README.md) records these changes:
+The coherent genericization checkpoint is now complete in the canonical
+[`whole-tree/reference/marked/`](../whole-tree/reference/marked/README.md).
+Its architecture guide records these changes:
 
 1. Structural control goals are separated from kernel-owned atomic goals, and
    the common grammar treats kernel states opaquely.

@@ -4,7 +4,7 @@
          rackunit/text-ui
          redex/reduction-semantics
          (prefix-in kernel-corpus:
-                    "../../../whole-tree/corpus/kernel-cases.rkt")
+                    "../../../corpus/kernel-cases.rkt")
          (prefix-in mk-d: "../mk/decomposition.rkt")
          (prefix-in mk-k: "../mk/kernel.rkt")
          (prefix-in mk-l: "../mk/labels.rkt")

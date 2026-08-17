@@ -10,7 +10,8 @@ The current derivation account and witness transcript remain authoritative
 during the transition:
 
 - [`../whole-tree-redex-column/REPORT.md`](../whole-tree-redex-column/REPORT.md)
-- [`../whole-tree-redex-column/pk/TRACES.md`](../whole-tree-redex-column/pk/TRACES.md)
+- [`reference/marked/README.md`](reference/marked/README.md)
+- [`reference/marked/TRACES.md`](reference/marked/TRACES.md)
 
 ## Artifact dispositions
 
@@ -18,8 +19,8 @@ during the transition:
 |---|---|
 | [`whole-tree-spike/`](../whole-tree-spike/) | Broad source-design survey only. Harvest its feature-cell survey, `Last`/`Emit` distinction, fresh normalization and ownership analysis, force/committed-prefix observations, cache experiments, and any unique counterexample. Retire the executable after each retained item has a canonical document, scenario, or test and the marked reference remains green. |
 | [`whole-tree-pipeline-pilot/`](../whole-tree-pipeline-pilot/) | Handwritten behavioral oracle for the first complete vertical pipeline. Its four source goals have moved to the constructor-neutral canonical corpus; its remaining arrow laws, span witnesses, and prose must be checked off before removal. Retire after `P[Ktoy]` parity and byte-identical canonical traces are recorded without an inbound pilot dependency. |
-| [`whole-tree-redex-column/`](../whole-tree-redex-column/) excluding `pk/` | Concrete Ktoy Redex oracle. Retain temporarily for exact labeled parity of source, decomposition, refocusing, machine, compression, and finite big step. Retire after those parity checks live outside the sole marked reference and all unique laws have moved. |
-| [`whole-tree-redex-column/pk/`](../whole-tree-redex-column/pk/) | Sole temporary marked reference. Move once to `whole-tree/reference/marked/`; retain through independent lean, reference Q, and modular-family validation. Retire only when every criterion in [`README.md`](README.md) is satisfied by the modular marked instantiation. |
+| [`whole-tree-redex-column/`](../whole-tree-redex-column/) | Concrete Ktoy Redex oracle. Retain temporarily for exact labeled parity of source, decomposition, refocusing, machine, compression, and finite big step. Retire after those parity checks live outside the sole marked reference and all unique laws have moved. |
+| [`reference/marked/`](reference/marked/README.md) | Sole temporary marked reference, moved once from the concrete-column subtree. Retain through independent lean, reference Q, and modular-family validation. Retire only when every criterion in [`README.md`](README.md) is satisfied by the modular marked instantiation. |
 | [`premachine/`](../premachine/) | Older derivation evidence. Harvest only unique state-shape or transition-correspondence cases; otherwise retire after the canonical machine codec and bisimulation suite subsume it. |
 | [`zipper/`](../zipper/) | Older zipper derivation evidence, not a source representation. Harvest any unique plug/context law; retire when grammatical decomposition and refocusing cover it. Do not reintroduce an answer-stream zipper into the source calculus. |
 | [`cfree/`](../cfree/) | Earlier c-free experiment. Transfer unique cache-insensitivity examples and state translations to the lean/cache bridge corpus; retire after the canonical c verdict and bridge laws subsume it. |
@@ -47,7 +48,7 @@ These witnesses are durable regressions, not disposable spike examples.
    The current production rail relation can reach a well-formed nonterminal
    state with no successor because its right-active/rail context coverage is
    incomplete.  The canonical marked trace is retained in
-   [`../whole-tree-redex-column/pk/TRACES.md`](../whole-tree-redex-column/pk/TRACES.md).
+   [`reference/marked/TRACES.md`](reference/marked/TRACES.md).
    Production reintegration must assert progress, the expected rail motion,
    force events, marker ownership, and the eventual answers.
 
@@ -76,9 +77,11 @@ kernel helper; no source-focus or search-control relation may cross that
 boundary.
 
 During consolidation, legacy parity and production-kernel comparison tests may
-temporarily import both sides, but they live outside the intrinsic marked
-reference before its canonical move.  The resolved import graph, including
-compile-time phases, becomes an executable architecture gate.
+temporarily import both sides, but they live in `whole-tree/tests/`, outside
+the intrinsic marked reference.  The current executable gate rejects direct
+forbidden imports from the intrinsic test suite.  A resolved transitive import
+graph, including compile-time phases, remains a required gate before reference
+retirement.
 
 ## Cleanliness invariants
 

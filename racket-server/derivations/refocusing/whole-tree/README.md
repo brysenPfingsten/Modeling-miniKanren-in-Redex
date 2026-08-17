@@ -23,18 +23,17 @@ sort tags.
 ## Present references and intended family
 
 The current kernel-parametric `P[K]` column is the **sole temporary marked
-reference**.  During consolidation it remains at
-[`../whole-tree-redex-column/pk/`](../whole-tree-redex-column/pk/).  Its
-authoritative account and generated witnesses are:
+reference**.  It has moved once to
+[`reference/marked/`](reference/marked/README.md).  Its authoritative account
+and generated witnesses are:
 
 - [`../whole-tree-redex-column/REPORT.md`](../whole-tree-redex-column/REPORT.md)
-- [`../whole-tree-redex-column/pk/README.md`](../whole-tree-redex-column/pk/README.md)
-- [`../whole-tree-redex-column/pk/TRACES.md`](../whole-tree-redex-column/pk/TRACES.md)
+- [`reference/marked/README.md`](reference/marked/README.md)
+- [`reference/marked/TRACES.md`](reference/marked/TRACES.md)
 
-It will move once to `reference/marked/` after its legacy parity checks and
-corpus dependencies have been separated.  The concrete Redex column, the
-handwritten pilot, and the broad spike are transition oracles, not additional
-canonical marked implementations.
+Its legacy parity checks now live outside the intrinsic marked suite.  The
+concrete Redex column, the handwritten pilot, and the broad spike are
+transition oracles, not additional canonical marked implementations.
 
 An independently stated lean reference will live at `reference/lean/`.  It
 must have its own genuine named source relation and complete derivation:

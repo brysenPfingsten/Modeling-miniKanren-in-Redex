@@ -10,9 +10,9 @@
 
 (define-runtime-path tests-root ".")
 (define-runtime-path pk-root "..")
-(define-runtime-path concrete-root "../..")
-(define-runtime-path pilot-root "../../../whole-tree-pipeline-pilot")
-(define-runtime-path production-root "../../../../../src/search-lattice")
+(define-runtime-path concrete-root "../../../../whole-tree-redex-column")
+(define-runtime-path pilot-root "../../../../whole-tree-pipeline-pilot")
+(define-runtime-path production-root "../../../../../../src/search-lattice")
 
 (define intrinsic-test-paths
   (for/list ([name (in-list '("front-half-tests.rkt"

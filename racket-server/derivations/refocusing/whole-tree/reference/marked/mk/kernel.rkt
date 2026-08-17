@@ -1,8 +1,8 @@
 #lang racket
 
 (require redex/reduction-semantics
-         (prefix-in shared: "../../../shared/kernel.rkt")
-         (only-in "../../../../../src/search-lattice/wf/kernel-base.rkt"
+         (prefix-in shared: "../../../../shared/kernel.rkt")
+         (only-in "../../../../../../src/search-lattice/wf/kernel-base.rkt"
                   substitution-acyclic?)
          "../control-schema.rkt"
          "../shared-host.rkt"

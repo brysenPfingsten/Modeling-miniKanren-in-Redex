@@ -4,7 +4,7 @@
          racket/pretty
          redex/reduction-semantics
          (prefix-in corpus:
-                    "../../whole-tree/corpus/scenarios.rkt")
+                    "../../corpus/scenarios.rkt")
          (prefix-in toy-l: "toy/labels.rkt")
          (prefix-in toy-s: "toy/source.rkt")
          (prefix-in toy-d: "toy/decomposition.rkt")
