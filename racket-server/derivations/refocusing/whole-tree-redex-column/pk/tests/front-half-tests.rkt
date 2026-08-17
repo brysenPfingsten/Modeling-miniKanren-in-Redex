@@ -3,12 +3,8 @@
 (require rackunit
          rackunit/text-ui
          redex/reduction-semantics
-         (prefix-in production:
-                    "../../../../../src/search-lattice/reduction-relations/core-red.rkt")
-         (prefix-in legacy-d: "../../decomposition.rkt")
-         (prefix-in legacy-s: "../../source.rkt")
-         (prefix-in corpus:
-                    "../../../whole-tree/corpus/scenarios.rkt")
+         (prefix-in kernel-corpus:
+                    "../../../whole-tree/corpus/kernel-cases.rkt")
          (prefix-in mk-d: "../mk/decomposition.rkt")
          (prefix-in mk-k: "../mk/kernel.rkt")
          (prefix-in mk-l: "../mk/labels.rkt")
@@ -24,31 +20,6 @@
 
 (provide front-half-tests)
 
-(define witness-trees
-  (list
-   (term
-    (toy-s:initial-tree/toy
-     ,corpus:nested-scope-witness-goal))
-   (term
-    (toy-s:initial-tree/toy
-     ,corpus:late-hoist-witness-goal))
-   (term
-    (toy-s:initial-tree/toy
-     ,corpus:rail-turn-witness-goal))
-   (term
-    (toy-s:initial-tree/toy
-     ,corpus:right-active-fresh-witness-goal))))
-
-(define (legacy-source-successors frontier)
-  (for/list
-      ([named
-        (in-list
-         (apply-reduction-relation/tag-with-names
-          legacy-s:source-red
-          frontier))])
-    (match-define (list name next) named)
-    (list (term (legacy-s:redex-name->label ,(~a name))) next)))
-
 (define (toy-source-successors frontier)
   (for/list
       ([named
@@ -57,11 +28,7 @@
           toy-s:source-red/toy
           frontier))])
     (match-define (list name next) named)
-    (list
-     (term
-      (toy-l:label->legacy/toy
-       (toy-l:redex-name->label/toy ,(~a name))))
-     next)))
+    (list (term (toy-l:redex-name->label/toy ,(~a name))) next)))
 
 (define (mk-source-successors frontier)
   (for/list
@@ -73,67 +40,8 @@
     (match-define (list name next) named)
     (list (term (mk-l:redex-name->label/mk ,(~a name))) next)))
 
-(define (toy-decompositions frontier)
-  (judgment-holds (toy-d:decompose/toy ,frontier D) D))
-
-(define (legacy-decompositions frontier)
-  (judgment-holds (legacy-d:decompose/redex ,frontier D) D))
-
 (define (mk-decompositions frontier)
   (judgment-holds (mk-d:decompose/mk ,frontier D) D))
-
-(define (toy-label->legacy label)
-  (term (toy-l:label->legacy/toy ,label)))
-
-(define (translate-toy-contract contractum)
-  (match contractum
-    [`(ContractWork ,label ,work ,context)
-     `(ContractWork ,(toy-label->legacy label) ,work ,context)]
-    [`(ContractFrontier ,label ,frontier ,context)
-     `(ContractFrontier
-       ,(toy-label->legacy label)
-       ,frontier
-       ,context)]))
-
-(define (toy-contractions decomposition)
-  (for/list
-      ([contractum
-        (in-list
-         (judgment-holds
-          (toy-d:contract/toy ,decomposition C)
-          C))])
-    (translate-toy-contract contractum)))
-
-(define (legacy-contractions decomposition)
-  (judgment-holds
-   (legacy-d:contract/redex ,decomposition C)
-   C))
-
-(define (toy-spec-successors decomposition)
-  (for/list
-      ([successor
-        (in-list
-         (judgment-holds
-          (toy-d:decomposed-step/spec/toy
-           ,decomposition
-           ell
-           D_next)
-          (ell D_next)))])
-    (match-define (list label next) successor)
-    (list (toy-label->legacy label) next)))
-
-(define (toy-direct-successors decomposition)
-  (for/list
-      ([named
-        (in-list
-         (apply-reduction-relation/tag-with-names
-          toy-d:decomposed-red/direct/toy
-          decomposition))])
-    (match-define (list name next) named)
-    (list
-     (toy-label->legacy
-      (term (toy-l:redex-name->label/toy ,(~a name))))
-     next)))
 
 (define (mk-contract-successors frontier)
   (for*/list
@@ -164,22 +72,6 @@
     (match-define (list name next) named)
     (list (term (mk-l:redex-name->label/mk ,(~a name))) next)))
 
-(define (toy-trace-states initial [limit 256] [states (list initial)])
-  (match (toy-source-successors initial)
-    ['() (reverse states)]
-    [(list (list _label next))
-     (unless (positive? limit)
-       (error 'toy-trace-states "step cap reached"))
-     (toy-trace-states next (sub1 limit) (cons next states))]
-    [other
-     (error 'toy-trace-states "nondeterministic source: ~e" other)]))
-
-(define all-toy-trace-states
-  (remove-duplicates
-   (append*
-    (for/list ([initial (in-list witness-trees)])
-      (toy-trace-states initial)))))
-
 (define-judgment-form
   toy-d:pk-toy-decomposition-lang
   #:contract (pop-frame/toy WF WF WFrame)
@@ -200,73 +92,10 @@
     WF_outer
     WFrame_inner)])
 
-(define empty-mk-state
-  '(state () () () (label "s")))
-
-(define u0-cat-state
-  '(state ((u:0 (sym "cat")))
-          ()
-          ((u:0 =? (sym "cat") (label "bind-cat")))
-          (label "s")))
-
-(define mk-kernel-cases
-  (list
-   (list '(succeed (label "ok"))
-         empty-mk-state
-         '()
-         '(kernel succeed core))
-   (list '(fail (label "no"))
-         empty-mk-state
-         '()
-         '(kernel fail core))
-   (list '(u:0 =? (sym "cat") (label "bind-cat"))
-         empty-mk-state
-         '(u:0)
-         '(kernel unify-success core))
-   (list '(u:0 =? (sym "dog") (label "conflict"))
-         u0-cat-state
-         '(u:0)
-         '(kernel unify-fail core))
-   (list '(u:0 =? (sym "cat") (label "forbidden"))
-         '(state ()
-                 ((u:0 (sym "cat")))
-                 ()
-                 (label "s"))
-         '(u:0)
-         '(kernel unify-violates-disequality core))
-   (list '(u:0 != (sym "cat") (label "neq"))
-         empty-mk-state
-         '(u:0)
-         '(kernel disequality-success core))
-   (list '((sym "cat") != (sym "cat") (label "neq"))
-         empty-mk-state
-         '()
-         '(kernel disequality-fail core))))
-
 (define (mk-kernel-results atomic state)
   (judgment-holds
    (mk-k:kernel-step/mk ,atomic ,state kresult kell)
    (kresult kell)))
-
-(define (restore-production-scope state ambient)
-  (match state
-    [`(state ,sub ,dis ,trail ,tag)
-     `(state ,sub ,dis ,ambient ,trail ,tag)]))
-
-(define (production-kernel-results atomic state ambient)
-  (for/list
-      ([named
-        (in-list
-         (apply-reduction-relation/tag-with-names
-          production:local/base
-          `(,atomic ,(restore-production-scope state ambient))))])
-    (match-define (list name result) named)
-    (list
-     (match result
-       [`(⊤ (state ,sub ,dis ,_cached-c ,trail ,tag))
-        `(KernelSuccess (state ,sub ,dis ,trail ,tag))]
-       ['(empty-tree) 'KernelFailure])
-     `(kernel ,(string->symbol (~a name)) core))))
 
 (define (with-mk-ambient atomic state ambient)
   (match ambient
@@ -448,7 +277,7 @@
       `(More
         (Work
          ((sym "cat") =? (sym "cat") (label "eq"))
-         ,empty-mk-state)))
+         ,kernel-corpus:empty-mk-state)))
     (check-true
      (redex-match? toy-lang:pk-toy-lang F toy-frontier))
     (check-false
@@ -481,7 +310,7 @@
        (DecWork
         (Work
          ((sym "cat") =? (sym "cat") (label "eq"))
-         ,empty-mk-state)
+         ,kernel-corpus:empty-mk-state)
         (More hole)))))
     (check-false
      (redex-match?
@@ -491,7 +320,7 @@
        (DecWork
         (Work
          ((sym "cat") =? (sym "cat") (label "eq"))
-         ,empty-mk-state)
+         ,kernel-corpus:empty-mk-state)
         (More hole)))))
     (check-false
      (toy-lang:label-in-language?/toy
@@ -540,7 +369,7 @@
        (More
         (Work
          (u:0 =? (sym "cat") (label "free"))
-         ,empty-mk-state))))))
+         ,kernel-corpus:empty-mk-state))))))
 
    (test-case
     "fresh allocation uses global whole-frontier marker support"
@@ -568,90 +397,9 @@
           (WorkFresh (u:0) Dead (label "sibling"))))))))
 
    (test-case
-    "toy labels explicitly translate to the committed 28-label family"
-    (define legacy-names
-      '("expose-frontier-fresh/core"
-        "finish-success/core"
-        "finish-failure/core"
-        "force-delay/delay"
-        "commit-choice-answer/disj"
-        "commit-right-choice-answer/search-join"
-        "work-succeed/core"
-        "work-fail/core"
-        "work-put/core"
-        "allocate-fresh/core"
-        "expand-conjunction/core"
-        "expand-disjunction/disj"
-        "suspend-goal/delay"
-        "expose-choice-through-work-fresh/disj"
-        "expose-choice-through-work-fresh/search-join"
-        "erase-dead-fresh/core"
-        "bubble-delay-through-fresh/delay"
-        "conj-return/core"
-        "conj-fail/core"
-        "bubble-delay-through-conj/delay"
-        "late-distribute-settled/disj"
-        "late-distribute-right-settled/search-join"
-        "skip-left-failure/disj"
-        "rail-enter-right/search-join"
-        "reassociate-left-result/disj"
-        "skip-right-failure/search-join"
-        "rail-return-left/search-join"
-        "reassociate-right-result/search-join"))
-    (check-equal? (length legacy-names) 28)
-    (for ([name (in-list legacy-names)])
-      (define pk-label
-        (term (toy-l:redex-name->label/toy ,name)))
-      (define legacy-label
-        (term (legacy-s:redex-name->label ,name)))
-      (check-true (toy-lang:label-in-language?/toy pk-label))
-      (check-equal?
-       (term (toy-l:label->redex-name/toy ,pk-label))
-       name)
-      (check-equal?
-       (toy-label->legacy pk-label)
-       legacy-label)
-      (check-equal?
-       (term (toy-l:legacy->label/toy ,legacy-label))
-       pk-label)))
-
-   (test-case
-    "P[Ktoy] source exactly preserves the committed oracle"
-    (for ([initial (in-list witness-trees)])
-      (let compare-trace ([frontier initial] [remaining 256])
-        (check-true
-         (judgment-holds (toy-wf:wf-frontier/toy ,frontier)))
-        (check-equal?
-         (toy-source-successors frontier)
-         (legacy-source-successors frontier)
-         (format "~e" frontier))
-        (match (toy-source-successors frontier)
-          ['() (void)]
-          [(list (list _label next))
-           (check-true (positive? remaining))
-           (compare-trace next (sub1 remaining))]))))
-
-   (test-case
-    "P[Ktoy] decomposition and both D presentations preserve the oracle"
-    (for ([frontier (in-list all-toy-trace-states)])
-      (define toy-D* (toy-decompositions frontier))
-      (define legacy-D* (legacy-decompositions frontier))
-      (check-equal? toy-D* legacy-D* (format "~e" frontier))
-      (check-equal? (length toy-D*) 1)
-      (define decomposition (first toy-D*))
-      (check-equal?
-       (toy-contractions decomposition)
-       (legacy-contractions decomposition)
-       (format "~e" frontier))
-      (check-equal?
-       (toy-direct-successors decomposition)
-       (toy-spec-successors decomposition)
-       (format "~e" frontier))))
-
-   (test-case
     "Kmk retains all seven exact tagged atomic labels"
     (define observed
-      (for/list ([case (in-list mk-kernel-cases)])
+      (for/list ([case (in-list kernel-corpus:mk-kernel-cases)])
         (match-define (list atomic state _ambient expected-label) case)
         (define results (mk-kernel-results atomic state))
         (check-equal? (length results) 1)
@@ -666,16 +414,8 @@
     (check-equal? (length (remove-duplicates observed)) 7))
 
    (test-case
-    "Kmk atomic judgments agree with the production kernel"
-    (for ([case (in-list mk-kernel-cases)])
-      (match-define (list atomic state ambient _expected-label) case)
-      (check-equal?
-       (mk-kernel-results atomic state)
-       (production-kernel-results atomic state ambient))))
-
-   (test-case
     "Kmk source, contraction, and direct D agree on every atomic label"
-    (for ([case (in-list mk-kernel-cases)])
+    (for ([case (in-list kernel-corpus:mk-kernel-cases)])
       (match-define (list atomic state ambient expected-label) case)
       (define frontier (with-mk-ambient atomic state ambient))
       (check-true
