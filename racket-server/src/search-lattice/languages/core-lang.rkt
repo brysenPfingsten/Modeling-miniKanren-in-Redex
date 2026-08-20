@@ -3,41 +3,25 @@
 (require redex/reduction-semantics)
 
 (provide core-lang
-         c-append
-         fresh-tree-prefix->shell-prefix
+         owners-append
          unify
          walk
          extend
          occurs?
-         invalid?
-         fresh-substitution)
+         invalid?)
 
 (check-redundancy #t)
 
+;; The runtime carrier is phase-stratified. W is unfinished work and F is the
+;; whole answer frontier. The distinction is grammatical
 (define-language core-lang
-  [cfg search
-       (ScopedShell c cfg tag)]
-
-  [search answer
-          (empty-tree)
-          runnable-root
-          (ScopedTree c search tag)]
-
-  [runnable-search runnable-root
-                   (ScopedTree c runnable-search tag)]
-
-  [runnable-root (g σ)
-                 (search × g c)]
-
   [d (x_!_ ...)]
 
-  [answer (⊤ σ)]
-
   [eq (t =? t tag)]
-  [neq (t != t tag)]
 
+  ;; Goal vocabulary
   [g eq
-     neq
+     (t != t tag)
      (succeed tag)
      (fail tag)
      (∃ d g tag)
@@ -58,45 +42,49 @@
   [u (variable-prefix u:)]
   [tag (label string)]
 
-  [σ (state sub dis c trail tag)]
+  [σ (state sub dis trail tag)]
   [sub ((u_!_ t) ...)]
   [dis ((t t) ...)]
   [maybe-sub sub #f]
-  [trail (eq ...)] ;; what about neq?
-  [c (u_!_ ...)]
-  [c+ (u u_!_ ...)]
-  [summary (wf-summary number number number number)]
+  [trail (eq ...)] ;; disequalities are stored separately in dis
+  [intro (u_!_ ...)]
+  [owner (Owner intro tag)]
+  [owners (Owners owner ...)]
 
-  ;; Outer committed shell wrappers. L0 owns the shell/tail split, even though
-  ;; shell growth first becomes interesting once later layers add more shell
-  ;; constructors.
-  [ShellCtx ::= hole
-              (ScopedShell c ShellCtx tag)]
+  [A (Answer owners σ)]
 
-  ;; Pure introduction-provenance chain for scoped phase-boundary focus.
-  ;; L0 uses it for conjunction handoff; later layers reuse the same helper for
-  ;; delay / answer / fail heads without introducing per-node scoped families.
-  ;; First divergent layer: L0/core.
-  ;; Allowed extension direction: reuse as pure ScopedTree* only.
-  [FreshCtx ::= hole
-              (ScopedTree c FreshCtx tag)]
-  ;; One-or-more ScopedTree frames. Used when a shellification step should
-  ;; only fire if it actually has a tree prefix to convert.
-  [FreshCtx+ ::= (ScopedTree c FreshCtx tag)]
-  ;; One-or-more pending conjunction layers, each optionally wrapped in
-  ;; ScopedTree* before the next outer layer.
-  [ConjCtx ::= (LocalCtx × g c)
-             (ScopedTree c ConjCtx tag)]
-  ;; Frozen local-work path used by inherited lower-layer rules.
-  ;; First divergent layer: L0/core.
-  ;; Allowed extension direction: later policy helpers may branch from it, but
-  ;; core itself stays frozen at pure ScopedTree* bottoms plus conjunction
-  ;; layers built around them.
-  [LocalCtx ::= FreshCtx
-              ConjCtx]
+  ;; Settled success is a derived grammatical subset of W.
+  [S (Returned owners σ)]
+
+  [W (Work owners g σ)
+     (Returned owners σ)
+     (Dead owners)
+     (Conj owners W g)]
+
+  [F (Last owners A)
+     (Done owners)
+     (More W)]
+
+  ;; Select the leading owner field of exactly one work constructor. Feature
+  ;; languages extend this slot when they add work constructors.
+  [WorkOwnerSlot (Work hole g σ)
+                 (Returned hole σ)
+                 (Dead hole)
+                 (Conj hole W g)]
+
+  [WorkPath hole (Conj owners WorkPath g)]
+
+  [SpineContext hole]
+
+  [WorkFocus (in-hole SpineContext (More WorkPath))]
 
   #:binding-forms
   (∃ (x ...) g #:refers-to (shadow x ...)))
+
+(define-metafunction core-lang
+  owners-append : owners owners -> owners
+  [(owners-append (Owners owner_outer ...) (Owners owner_inner ...))
+   (Owners owner_outer ... owner_inner ...)])
 
 (define-metafunction core-lang
   walk : t sub -> t
@@ -111,39 +99,6 @@
    (where sub (unify (walk t_1 sub) (walk t_2 sub) sub))]
   [(invalid? sub ((t_1 t_2) (t_3 t_4) ...))
    (invalid? sub ((t_3 t_4) ...))])
-
-(define (fresh-u-symbol used [n 0])
-  (define u
-    (string->symbol (format "u:~a" n)))
-  (cond
-    [(member u used) (fresh-u-symbol used (add1 n))]
-    [else u]))
-
-(define-metafunction core-lang
-  fresh-substitution : c d -> ((x u) ...)
-  [(fresh-substitution c (x ...))
-   ,(let ([xs (term (x ...))]
-          [used0 (term c)])
-      (define-values (rev-pairs _used)
-        (for/fold ([rev-pairs '()]
-                   [used used0])
-                  ([x (in-list xs)])
-          (define u (fresh-u-symbol used))
-          (values (cons (list x u) rev-pairs)
-                  (cons u used))))
-      (reverse rev-pairs))])
-
-(define-metafunction core-lang
-  c-append : c c -> c
-  [(c-append (u_1 ...) (u_2 ...))
-   (u_1 ... u_2 ...)])
-
-(define-metafunction core-lang
-  fresh-tree-prefix->shell-prefix : any -> any
-  [(fresh-tree-prefix->shell-prefix (ScopedTree c any_1 tag))
-   (ScopedShell c (fresh-tree-prefix->shell-prefix any_1) tag)]
-  [(fresh-tree-prefix->shell-prefix any_1)
-   any_1])
 
 (define-relation core-lang
   occurs? ⊆ u × t × sub

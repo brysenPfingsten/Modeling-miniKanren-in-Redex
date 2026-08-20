@@ -53,7 +53,7 @@
           'stepName (hash-ref payload 'stepName)
           'root (json-root-name program)
           'hasFreshened (json-contains-name? program "Freshened")
-          'hasBounced (json-contains-name? program "Deferred")))
+          'hasForced (json-contains-name? program "Deferred")))
 
 (define (collect-step-summaries ses remaining)
   (cond
@@ -103,7 +103,7 @@
                                     'delayPlacement "disj")))
   (define-values (_init-response ses1)
     (init-session-for disj-relcall-program
-                      (search-strategy "early" "rail")
+                      (search-strategy "rail")
                       payload
                       'ui-smoke-disj))
   (define steps (collect-step-summaries ses1 24))
@@ -121,9 +121,9 @@
    (reset-restores-init-summary (example-src "fives/fours"))
    'fivesFoursDefault
    (first-visible-steps-summary (example-src "fives/fours"))
-   'fivesFoursEarlyRail
+   'fivesFoursRail
    (first-visible-steps-summary (example-src "fives/fours")
-                                (search-strategy "early" "rail"))
+                                (search-strategy "rail"))
    'disjDelayPlacement
    (disj-delay-summary)))
 

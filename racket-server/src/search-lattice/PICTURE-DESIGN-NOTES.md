@@ -1,163 +1,77 @@
-# Picture Design Notes
+# Picture design notes
 
-These notes capture the current design judgment around pictures, freshening,
-and the stored scope component `c`. They are intentionally more discursive than
-`SEMILATTICE.md`, because they record open choices rather than settled
-interface facts.
+`picture.rkt` is the single renderer-facing view of the production
+owner-annotated carrier. The app and tests consume this module rather than
+reconstructing visible trees from raw Redex terms.
 
-They are a supplemental note, not the primary repo-level semantics overview.
+## Operational and extensional pictures
 
-## Recommended Commit Story
+The operational picture preserves control structure that matters while
+stepping:
 
-The current refactor naturally splits into five commits:
+- `PendingDelay` renders as `Delay`;
+- `Forced` renders as the friendly `Deferred` wrapper;
+- `DisjL` and production-rail-local `DisjR` share a branch shape but select
+  different active children; the isolated distributed experiment retains the
+  same right-active syntax on its common carrier;
+- `Conj`, `Emit`, work goals, and committed answers remain explicit.
 
-1. `Split transpiler into subsystem modules`
-2. `Introduce wf summary kernel and summary judgments`
-3. `Move structural support/tests onto wf summaries`
-4. `Move visible-tree denotation into picture/answer-node and switch app`
-5. `Add picture/core properties and refresh semilattice docs`
+The extensional picture follows the same traversal but erases `Forced`.
+It does not turn the frontier into an answer stream: `Emit` and `Last`
+remain structural answer evidence.
 
-This is preferable to one or two large commits because the seams are real:
-transpiler structure, WF summary semantics, support/test migration, and visible
-picture denotation each have their own failure modes and own bisect value.
+## Owner stacks
 
-## Operational Picture Versus Administration-Erased Picture
+Every owner-bearing semantic node stores an explicit owner stack:
 
-The term "extensional picture" can be misleading. A better phrase is
-"administration-erased picture" or "semantic picture."
+```text
+Owners(Owner(intro, label) ...)
+```
 
-Current intended meanings:
+Records are ordered outermost-to-innermost. The renderer unwraps `Owners` and
+displays each record as one nested `Freshened` node; the stack wrapper is not a
+visible node. Record
+boundaries, lexical introduction order, labels, and empty introduction lists
+are preserved. A node's owner view wraps that node once; shared owners around a
+choice or `Emit` are not duplicated into its children.
 
-- Operational picture:
-  the tree shown for the current machine state, including administrative
-  wrappers that matter to the operational story.
-- Administration-erased picture:
-  the same tree after forgetting wrappers that are only bookkeeping.
+While descending, the renderer also accumulates the introductions visible on
+that structural path and supplies them when rendering a state. That inherited
+list is traversal evidence, not allocated-name support and not a runtime cache.
+Reification uses the largest
+visible numeric logic-variable identifier rather than the list length, so
+gapped identifiers created by sibling ownership are handled correctly.
 
-Concrete example:
+The renderer recognizes only owner-annotated operational syntax. It does not
+reconstruct or accept the retired fresh-marker constructors.
 
-- Machine state:
-  `Deferred(ScopedShell(... Answer ...))`
-- Operational picture:
-  `Deferred -> Freshened -> Answer`
-- Administration-erased picture:
-  `Freshened -> Answer`
+## Deliberately invisible phase edges
 
-So the second picture is not a vague denotational object. It is the visible
-tree modulo administrative structure.
+`More` and `Last` are not visible nodes, while `Dead` and `Done` both
+render as `Empty`. Consequently exactly these named transitions may leave the
+operational picture unchanged:
 
-## What It Means to Make Picture Denotation Primary
+```text
+finish-success
+finish-failure
+```
 
-"Make picture denotation the primary semantic interface" means:
+The response `stepName` certifies which edge produced a picture. Every other
+representative adjacent named transition must change the visible tree. This is
+a finite, testable exception set rather than a blanket visual-change claim.
 
-- one module says what picture a machine configuration denotes
-- app/tests/UI consume that module
-- downstream code does not each reconstruct its own visible tree from raw
-  machine syntax
+## Property boundary
 
-That is exactly the role of `picture.rkt` in the current refactor. The app asks
-for a picture of a configuration; it does not derive tree structure on its own.
+The permanent tests cover:
 
-## Strength of the Intended Picture-Preservation Property
+- operational and extensional pictures over core and assembled-search traces;
+- exact owner nesting, including empty and multi-name owner records;
+- visible node vocabulary and serialized AST shape;
+- committed-answer and force counts through independent structural
+  observations;
+- the two visibility-neutral completion edges;
+- visible change for every other representative adjacent transition.
 
-The right strong property is not:
-
-- every step preserves the administration-erased picture
-
-because real computational steps should change the denoted picture.
-
-The intended strong property is:
-
-- purely administrative steps preserve the administration-erased picture
-  exactly
-- computational steps change it in one small local justified way
-
-This is much stronger than "eventually the same answer stream," which is too
-weak to support a clean small-step derivation story by itself.
-
-## ScopedTree Versus ScopedShell
-
-Current recommendation:
-
-- keep them distinct internally
-- collapse them in the exported visible picture unless a later use justifies
-  exposing the distinction
-
-Reason:
-
-- `ScopedTree` marks scope wrapped around tree-side payloads, including
-  answers payloads on the left of `+`
-- `ScopedShell` marks scope wrapped around enclosing frontier/shell
-  structure
-
-That distinction is mathematically useful in the machine derivation because it
-records exactly which layer owns the scope wrapper. But the current visible
-picture has both denote the same visible `Freshened` node.
-
-Open question:
-
-- should the exported operational picture eventually distinguish tree-freshening
-  from shell-freshening, or should that distinction remain internal only?
-
-## The Stored Scope Component `c`
-
-Current judgment:
-
-- in a well-formed configuration, `c` should be derivable from the surrounding
-  freshening context
-- the WF rules already enforce this agreement
-
-In particular, `wf-state/at-scope?` treats the state's stored `c` as required to
-match the ambient scope supplied by context.
-
-So semantically, `c` appears redundant.
-
-Reasons to keep it anyway:
-
-- local reduction rules remain local
-- fragment judgments remain self-contained
-- the machine need not recompute ambient scope by walking outward through
-  wrappers each time
-
-So `c` behaves more like a cached environment register than like a zipper. A
-zipper stores the full surrounding context. `c` stores only one projection of
-that context: which fresh variables are currently in scope.
-
-Open question:
-
-- once redundancy is fully characterized, should `c` remain a first-class
-  machine component, or should later presentations erase it and recover it from
-  wrapper context?
-
-## Property Work That Does Not Need Further Design Decisions
-
-The following properties fit the current design without additional decisions:
-
-- administration-erased picture WF on pure core configurations
-- administration-erased picture WF through pure core traces
-- zero shell-freshening in pure core/source states
-- operational and administration-erased pictures agree in pure core
-- zero `Deferred` in pure core configurations and traces
-
-These properties are now implemented in `property-core.rkt`.
-
-## Property Work That Still Depends on Design Choices
-
-The following properties still depend on unresolved design intent:
-
-- whether administrative steps above core must preserve the
-  administration-erased picture exactly, or whether some higher-layer wrappers
-  still count as semantically visible
-- whether the exported operational picture should distinguish
-  `ScopedTree` from `ScopedShell`
-- whether `c` should remain explicit in the long-term machine presentation once
-  derivability from context is fully established
-
-## Current Recommendation
-
-Until those choices are settled:
-
-- keep tree/shell distinction internal
-- keep `c` explicit
-- strengthen properties around exact preservation of the
-  administration-erased picture for clearly administrative steps
+`Forced` remains semantic cost and provenance evidence in the operational
+frontier even though the extensional picture erases its wrapper. Answer-only
+equality therefore does not imply equal forcing cost.

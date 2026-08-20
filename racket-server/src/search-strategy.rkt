@@ -6,50 +6,44 @@
          search-strategy->jsexpr
          normalize-search-strategy)
 
-(struct search-strategy (hoist scheduler) #:transparent)
+(struct search-strategy (scheduler) #:transparent)
 
 (define default-search-strategy
-  (search-strategy "early" "rail"))
+  (search-strategy "rail"))
 
 (define all-surfaced-search-strategies
-  (list (search-strategy "early" "dfs")
-        (search-strategy "late" "dfs")
-        (search-strategy "early" "flip")
-        (search-strategy "late" "flip")
-        (search-strategy "early" "rail")
-        (search-strategy "late" "rail")))
+  (list (search-strategy "dfs")
+        (search-strategy "flip")
+        (search-strategy "rail")))
 
 (define/match (search-strategy->jsexpr strategy)
-  [((search-strategy hoist scheduler))
-  (hasheq 'hoist hoist
-          'scheduler scheduler)])
+  [((search-strategy scheduler))
+   (hasheq 'scheduler scheduler)])
 
-(define (normalize-axis maybe-value valid-values key)
-  (match maybe-value
-    [#f #f]
-    [`,v #:when (member v valid-values) v]
-    [_ (error 'normalize-search-strategy
-              "invalid searchStrategy.~a ~e; expected one of ~e"
-              key
-              maybe-value
-              valid-values)]))
+(define valid-schedulers '("dfs" "flip" "rail"))
+
+(define (normalize-scheduler maybe-scheduler)
+  (match maybe-scheduler
+    [(? string? scheduler)
+     #:when (member scheduler valid-schedulers)
+     scheduler]
+    [_
+     (error 'normalize-search-strategy
+            "invalid searchStrategy.scheduler ~e; expected one of ~e"
+            maybe-scheduler
+            valid-schedulers)]))
 
 (define (normalize-search-strategy maybe-strategy)
   (match maybe-strategy
     [#f default-search-strategy]
-    [(? search-strategy?) maybe-strategy]
+    [(search-strategy scheduler)
+     (search-strategy (normalize-scheduler scheduler))]
     [(? hash? strategy)
-     (match (list (normalize-axis (hash-ref strategy 'hoist #f)
-                                  '("early" "late")
-                                  'hoist)
-                  (normalize-axis (hash-ref strategy 'scheduler #f)
-                                  '("dfs" "flip" "rail")
-                                  'scheduler))
-       [(list (? string? hoist)
-              (? string? scheduler))
-        (search-strategy hoist scheduler)]
-       [_ (error 'normalize-search-strategy
-                 "searchStrategy must contain hoist and scheduler")])]
+     (when (hash-has-key? strategy 'hoist)
+       (error 'normalize-search-strategy
+              "searchStrategy.hoist is not part of the factored runtime"))
+     (search-strategy
+      (normalize-scheduler (hash-ref strategy 'scheduler #f)))]
     [_ (error 'normalize-search-strategy
               "searchStrategy must be a hash or search-strategy, got ~e"
               maybe-strategy)]))

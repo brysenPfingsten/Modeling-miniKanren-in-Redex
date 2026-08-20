@@ -12,7 +12,6 @@ import Sidebar from './components/Sidebar';
 import { exampleById } from './utils/example_programs.js';
 import {
   DEFAULT_SEARCH_STRATEGY,
-  HOIST_OPTIONS,
   SCHEDULER_OPTIONS,
 } from './utils/search_strategy.js';
 import {
@@ -248,9 +247,9 @@ function App() {
     setSelectedExampleId(exampleId);
   };
 
-  const handleSearchStrategyChange = (axis, value) => {
+  const handleSchedulerChange = (scheduler) => {
     if (isFrozen) return;
-    setSearchStrategy((current) => ({ ...current, [axis]: value }));
+    setSearchStrategy({ scheduler });
   };
 
   const handleCodeChange = (nextCode) => {
@@ -280,10 +279,9 @@ function App() {
             disjAssocOptions={DISJ_ASSOC_OPTIONS}
             delayPlacementOptions={DELAY_PLACEMENT_OPTIONS}
             onCompileProfileChange={handleCompileProfileChange}
-            searchStrategy={searchStrategy}
-            hoistOptions={HOIST_OPTIONS}
+            schedulerValue={searchStrategy.scheduler}
             schedulerOptions={SCHEDULER_OPTIONS}
-            onSearchStrategyChange={handleSearchStrategyChange}
+            onSchedulerChange={handleSchedulerChange}
             isFrozen={isFrozen}
             isExampleLoading={isExampleLoading}
           />

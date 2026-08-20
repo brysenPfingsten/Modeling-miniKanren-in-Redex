@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { exampleById, exampleOptions } from "../src/utils/example_programs.js";
 import {
   DEFAULT_SEARCH_STRATEGY,
-  HOIST_OPTIONS,
   SCHEDULER_OPTIONS,
 } from "../src/utils/search_strategy.js";
 import {
@@ -70,15 +70,48 @@ test("exampleById returns the semantic example source of truth", () => {
   assert.equal(exampleById("missing-example"), null);
 });
 
-test("search strategy option catalogs expose the hoist and scheduler axes", () => {
-  assert.deepEqual(
-    HOIST_OPTIONS.map(({ value }) => value),
-    ["early", "late"],
-  );
+test("search strategy data exposes only the scheduler axis", () => {
+  assert.deepEqual(DEFAULT_SEARCH_STRATEGY, { scheduler: "rail" });
   assert.deepEqual(
     SCHEDULER_OPTIONS.map(({ value }) => value),
     ["dfs", "flip", "rail"],
   );
+});
+
+test("search UI exposes only the scheduler control", () => {
+  const appSource = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+  const headerSource = readFileSync(
+    new URL("../src/components/CodeHeader.jsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(headerSource, /search-scheduler/);
+  assert.doesNotMatch(headerSource, /search-hoist|hoistOptions|"Hoist"/);
+  assert.doesNotMatch(appSource, /HOIST_OPTIONS|onSearchStrategyChange/);
+});
+
+test("trace navigation preserves selected configuration and reset thaws controls", () => {
+  const appSource = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+  const navigationSource = appSource.match(
+    /const handleStep[\s\S]*?(?=\n {2}useEffect\()/,
+  )?.[0];
+
+  assert.ok(navigationSource);
+  assert.match(navigationSource, /const handleBack/);
+  assert.match(navigationSource, /const handleReset/);
+  assert.match(navigationSource, /deriveThawedEditorState/);
+  assert.match(navigationSource, /setFrozen\(nextState\.isFrozen\)/);
+  assert.doesNotMatch(
+    navigationSource,
+    /setSourceMode|setCompileProfile|setSearchStrategy/,
+  );
+});
+
+test("factored continuation example replaces the retired hoist witness", () => {
+  const example = exampleById("factored-continuation");
+  assert.equal(example.label, "factored continuation");
+  assert.match(example.miniSource, /'factored/);
+  assert.match(example.miniSource, /'continuation/);
+  assert.equal(exampleById("hoist-witness"), null);
 });
 
 test("source mode and compile profile option catalogs expose the expected axes", () => {

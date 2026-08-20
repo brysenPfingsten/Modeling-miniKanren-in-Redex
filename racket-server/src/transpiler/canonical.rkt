@@ -202,8 +202,10 @@
        (transpile-canonical/list qs count1 hidden-count))
      (define-values (tg count3 hidden2 guids2)
        (transpile-canonical goal count2 hidden1))
-     (values `((∃ ,tq ,tg ,(id->label id))
-               (state () () () () (label "s")))
+     (values `(More
+               (Work (Owners)
+                     (∃ ,tq ,tg ,(id->label id))
+                     (state () () () (label "s"))))
              count3 hidden2
              (cons id (append guids1 guids2)))]))
 
@@ -212,7 +214,7 @@
                               #:compile-profile [compile-profile #f])
   (define-values (ast display-ast _profile)
     (prepare-program lst source-mode compile-profile))
-  (define-values (canonical-prog _counter _hidden guid-list)
+  (define-values (compiled-config _counter _hidden guid-list)
     (transpile-canonical ast 0 0))
   (define-values (html-prog _rest) (add-guids display-ast 0 guid-list))
-  (values canonical-prog html-prog))
+  (values compiled-config html-prog))

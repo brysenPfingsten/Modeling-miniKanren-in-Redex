@@ -6,17 +6,13 @@
 
 (provide lvar-member?
          lvars-subset?
-         lvars-same-members?
          lvars-fresh-extension?
-         scope-pop/host
+         wf-owner-stack?
          wf-term?
          wf-sub?
          wf-dis?
-         fresh-lv
-         fresh-lvars
          wf-trail-unify*s-to-sub
          wf-sub/wf+equiv-trail?
-         wf-state/at-scope?
          wf-state?
          symbols-in/set
          substitution-acyclic?
@@ -63,152 +59,159 @@
 
 (define-judgment-form
   core-lang
-  #:contract (lvar-member? u c)
+  #:contract (lvar-member? u intro)
   #:mode (lvar-member? I I)
   [-------- "lvar member"
    (lvar-member? u (u_1 ... u u_2 ...))])
 
 (define-judgment-form
   core-lang
-  #:contract (lvars-subset? (u ...) (u ...))
+  #:contract (lvars-subset? intro intro)
   #:mode (lvars-subset? I I)
-  [------------------- "empty ⊆ anything"
-   (lvars-subset? () c)]
-  [(lvar-member? u c_2)
-   (lvars-subset? (u_rest ...) c_2)
-   ------------------- "cons ⊆"
-   (lvars-subset? (u u_rest ...) c_2)])
+  [------------------- "empty subset"
+   (lvars-subset? () intro)]
+  [(lvar-member? u intro_2)
+   (lvars-subset? (u_rest ...) intro_2)
+   ------------------- "cons subset"
+   (lvars-subset? (u u_rest ...) intro_2)])
 
-(define (lvars-same-members?/host c_1 c_2)
-  (and (for/and ([u (in-list c_1)])
-         (and (member u c_2) #t))
-       (for/and ([u (in-list c_2)])
-         (and (member u c_1) #t))))
-
-(define-judgment-form
-  core-lang
-  #:contract (lvars-same-members? (u ...) (u ...))
-  #:mode (lvars-same-members? I I)
-  [(where #t ,(lvars-same-members?/host (term c_1) (term c_2)))
-   ------------------- "same lvars, order irrelevant"
-   (lvars-same-members? c_1 c_2)])
-
-(define (lvars-fresh-extension?/host c-intro c-outer)
-  (and (= (length c-intro)
-          (length (remove-duplicates c-intro)))
-       (for/and ([u (in-list c-intro)])
-         (not (member u c-outer)))))
-
-(define (scope-pop/host intro current)
-  (define n (length intro))
-  (cond
-    [(< (length current) n) #f]
-    [(equal? intro (take current n)) (drop current n)]
-    [else #f]))
+(define (lvars-fresh-extension?/host intro visible-intros)
+  (and (= (length intro)
+          (length (remove-duplicates intro)))
+       (for/and ([u (in-list intro)])
+         (not (member u visible-intros)))))
 
 (define-judgment-form
   core-lang
-  #:contract (lvars-fresh-extension? c c)
+  #:contract (lvars-fresh-extension? intro intro)
   #:mode (lvars-fresh-extension? I I)
-  [(where #t ,(lvars-fresh-extension?/host (term c_1) (term c_2)))
-   ------------------- "fresh lvar extension"
-   (lvars-fresh-extension? c_1 c_2)])
+  [(where #t
+          ,(lvars-fresh-extension?/host
+            (term intro_new)
+            (term intro_visible)))
+   ------------------- "fresh visible introduction"
+   (lvars-fresh-extension? intro_new intro_visible)])
 
 (define-judgment-form
   core-lang
-  #:contract (wf-term? t (x ...) c)
+  #:contract (wf-owner-stack? owners intro intro)
+  #:mode (wf-owner-stack? I I O)
+  [------------------- "empty owner stack"
+   (wf-owner-stack? (Owners) intro_visible intro_visible)]
+  [(lvars-fresh-extension? (u_new ...) (u_visible ...))
+   (wf-owner-stack?
+    (Owners owner_rest ...)
+    (u_visible ... u_new ...)
+    intro_body)
+   ------------------- "well-formed owner stack"
+   (wf-owner-stack?
+    (Owners (Owner (u_new ...) tag) owner_rest ...)
+    (u_visible ...)
+    intro_body)])
+
+(define-judgment-form
+  core-lang
+  #:contract (wf-term? t (x ...) intro)
   #:mode (wf-term? I I I)
-  [(lvar-member? u c)
-   -------------- "lv in extant lvs"
-   (wf-term? u (x ...) c)]
-  [-------------- "primitive terms are wf and valid"
-   (wf-term? pt (x ...) c)]
-  [(wf-term? t_2 (x ...) c)
-   (wf-term? t_1 (x ...) c)
-   -------------- "pairs wf when constituents wf"
-   (wf-term? (t_1 : t_2) (x ...) c)]
-  [-------------- "lexical var is in lv bindings"
-   (wf-term? x_2 (x_1 ... x_2 x_3 ...) c)])
+  [(lvar-member? u intro)
+   -------------- "logic variable is visibly introduced"
+   (wf-term? u (x ...) intro)]
+  [-------------- "primitive terms are well formed"
+   (wf-term? pt (x ...) intro)]
+  [(wf-term? t_2 (x ...) intro)
+   (wf-term? t_1 (x ...) intro)
+   -------------- "pairs are componentwise well formed"
+   (wf-term? (t_1 : t_2) (x ...) intro)]
+  [-------------- "lexical variable is bound"
+   (wf-term? x_2 (x_1 ... x_2 x_3 ...) intro)])
 
 (define-judgment-form
   core-lang
-  #:contract (wf-sub? sub c)
+  #:contract (wf-sub? sub intro)
   #:mode (wf-sub? I I)
-  [(wf-term? t () c) ...
-   (lvar-member? u c) ...
+  [(wf-term? t () intro) ...
+   (lvar-member? u intro) ...
    (where #t (acyclic-sub? ([u t] ...)))
-   ------------------ "sub closed under c w/no lexical vars"
-   (wf-sub? ([u t] ...) c)])
+   ------------------ "substitution is closed under visible introductions"
+   (wf-sub? ([u t] ...) intro)])
 
 (define-judgment-form
   core-lang
-  #:contract (wf-dis? dis c)
+  #:contract (wf-dis? dis intro)
   #:mode (wf-dis? I I)
-  [------------------ "empty disequality store is wf"
-   (wf-dis? () c)]
-  [(wf-term? t_1 () c)
-   (wf-term? t_2 () c)
-   (wf-dis? ((t_3 t_4) ...) c)
-   ------------------ "disequality pair wf"
-   (wf-dis? ((t_1 t_2) (t_3 t_4) ...) c)])
-
-(define-metafunction core-lang
-  fresh-lv : (u ...) -> u
-  [(fresh-lv (u ...)) ,(variable-not-in (cons 'u: (term (u ...))) 'u:)])
-
-(define-metafunction core-lang
-  fresh-lvars : (x ...) c -> c
-  [(fresh-lvars (x ...) c)
-   ,(let-values ([(fv* _used)
-                  (for/fold ([fv* '()]
-                             [used (term c)])
-                            ([_ (in-list (term (x ...)))])
-                    (define fv (variable-not-in (cons 'u: used) 'u:))
-                    (values (cons fv fv*) (cons fv used)))])
-      fv*)])
+  [------------------ "empty disequality store"
+   (wf-dis? () intro)]
+  [(wf-term? t_1 () intro)
+   (wf-term? t_2 () intro)
+   (wf-dis? ((t_3 t_4) ...) intro)
+   ------------------ "well-formed disequality pair"
+   (wf-dis? ((t_1 t_2) (t_3 t_4) ...) intro)])
 
 (define-judgment-form
   core-lang
-  #:contract (wf-trail-unify*s-to-sub (eq ...) c sub sub)
+  #:contract (wf-trail-unify*s-to-sub (eq ...) intro sub sub)
   #:mode (wf-trail-unify*s-to-sub I I I I)
-  [------------------- "trail is empty, acc is our sub"
-   (wf-trail-unify*s-to-sub () c sub sub)]
+  [------------------- "empty trail yields accumulator"
+   (wf-trail-unify*s-to-sub () intro sub sub)]
   [(where sub_acc2 (unify (walk t_1 sub_acc) (walk t_2 sub_acc) sub_acc))
-   (wf-term? t_1 () c)
-   (wf-term? t_2 () c)
-   (wf-trail-unify*s-to-sub (eq ...) c sub_acc2 sub)
-   ------------------- "this pair is well formed and unify"
-   (wf-trail-unify*s-to-sub ((t_1 =? t_2 tag) eq ...) c sub_acc sub)])
+   (wf-term? t_1 () intro)
+   (wf-term? t_2 () intro)
+   (wf-trail-unify*s-to-sub (eq ...) intro sub_acc2 sub)
+   ------------------- "trail step is well formed and unifies"
+   (wf-trail-unify*s-to-sub
+    ((t_1 =? t_2 tag) eq ...)
+    intro
+    sub_acc
+    sub)])
 
 (define-judgment-form
   core-lang
-  #:contract (wf-sub/wf+equiv-trail? sub c trail)
+  #:contract (wf-sub/wf+equiv-trail? sub intro trail)
   #:mode (wf-sub/wf+equiv-trail? I I I)
-  [(wf-sub? sub c)
-   (wf-trail-unify*s-to-sub (eq ...) c () sub)
-   ------------------- "goal w/ sub wf"
-   (wf-sub/wf+equiv-trail? sub c (eq ...))])
+  [(wf-sub? sub intro)
+   (wf-trail-unify*s-to-sub (eq ...) intro () sub)
+   ------------------- "substitution agrees with trail"
+   (wf-sub/wf+equiv-trail? sub intro (eq ...))])
 
 (define-judgment-form
   core-lang
-  #:contract (wf-state/at-scope? σ c)
-  #:mode (wf-state/at-scope? I I)
-  [(lvars-same-members? c c_i)
-   (wf-sub/wf+equiv-trail? sub c_i trail)
-   (wf-dis? dis c_i)
-   ----------------------- "state wf at exact ambient scope"
-   (wf-state/at-scope? (state sub dis c_i trail tag) c)])
-
-(define-judgment-form
-  core-lang
-  #:contract (wf-state? σ)
-  #:mode (wf-state? I)
-  [(wf-state/at-scope? (state sub dis c trail tag) c)
-   (where #f (invalid? sub dis))
-   ----------------------- "state wf"
-   (wf-state? (state sub dis c trail tag))])
+  #:contract (wf-state? σ intro)
+  #:mode (wf-state? I I)
+  [(wf-sub/wf+equiv-trail? sub intro trail)
+   (wf-dis? dis intro)
+   ----------------------- "state is closed under visible introductions"
+   (wf-state? (state sub dis trail tag) intro)])
 
 (module+ test
   (check-true (judgment-holds (lvar-member? u:0 (u:0))))
+  (check-equal?
+   (judgment-holds
+    (wf-owner-stack?
+     (Owners
+      (Owner (u:0 u:1) (label "outer"))
+      (Owner (u:2) (label "inner")))
+     ()
+     intro_body)
+    intro_body)
+   '((u:0 u:1 u:2)))
+  (check-equal?
+   (judgment-holds
+    (wf-owner-stack?
+     (Owners (Owner () (label "empty")))
+     (u:0)
+     intro_body)
+    intro_body)
+   '((u:0)))
+  (check-false
+   (judgment-holds
+    (wf-owner-stack?
+     (Owners
+      (Owner (u:0) (label "outer"))
+      (Owner (u:0) (label "inner")))
+     ()
+     intro_body)))
   (check-true (judgment-holds (wf-term? (sym "a") () ())))
-  (check-true (judgment-holds (wf-sub? ((u:0 (sym "x"))) (u:0)))))
+  (check-true (judgment-holds (wf-sub? ((u:0 (sym "x"))) (u:0))))
+  (check-true
+   (judgment-holds
+    (wf-state? (state () () () (label "state")) ()))))

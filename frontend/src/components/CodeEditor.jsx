@@ -1,15 +1,15 @@
-import React, { forwardRef, useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import Editor from '@monaco-editor/react';
 import { conf, language } from '../utils/minikanren-language';
 import { parseTaggedText } from '../utils/tagged_source.js';
 import { selectedSourceSegments } from '../utils/source_mapping.js';
 import '../styles.css';
 
-const CodeEditor = forwardRef(({ 
-  codeText, setCodeText, 
+const CodeEditor = ({
+  codeText, setCodeText,
   isFrozen, isDark,
   goalId, onTagClick,
-}, ref) => {
+}) => {
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
   const decorationIds = useRef([]);
@@ -159,6 +159,6 @@ const CodeEditor = forwardRef(({
       />
     </div>
   );
-});
+};
 
 export default CodeEditor;

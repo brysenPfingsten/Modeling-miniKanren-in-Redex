@@ -41,10 +41,10 @@ const same = `(defrel (same x y)
        [(== q 'dog)])]
     [(same q 'fish)]))`;
 
-const hoistWitness = `(run 2 (q)
+const factoredContinuation = `(run 2 (q)
   (conde
-    [(== q 'hoist)]
-    [(== q 'witness)])
+    [(== q 'factored)]
+    [(== q 'continuation)])
   (== q q))`;
 
 const freshWitness = `(run* (q)
@@ -187,9 +187,9 @@ export const semanticExamples = Object.freeze([
     miniSource: same,
   }),
   Object.freeze({
-    id: "hoist-witness",
-    label: "hoist witness",
-    miniSource: hoistWitness,
+    id: "factored-continuation",
+    label: "factored continuation",
+    miniSource: factoredContinuation,
   }),
   Object.freeze({
     id: "div3o",

@@ -6,14 +6,10 @@
          canonical-compile-profile
          canonical-compile-profile-jsexpr
          normalize-compile-profile
-         compile-profile->jsexpr
-         canonical-parser-profile
-         canonical-parser-target-id)
+         compile-profile->jsexpr)
 
 (struct compile-profile (conj-assoc disj-assoc delay-placement) #:transparent)
 
-(define canonical-parser-profile "surface->canonical")
-(define canonical-parser-target-id "canonical/config")
 (define default-source-mode "mini")
 
 (define/match (compile-profile->jsexpr profile)

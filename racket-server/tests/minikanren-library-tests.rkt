@@ -7,7 +7,7 @@
 (module wrapper-usage racket
   (require "../src/minikanren.rkt")
   (provide wrapper-session
-           wrapper-late-session
+           wrapper-flip-session
            wrapper-bounded-results)
 
   (defrel (same x y)
@@ -17,9 +17,9 @@
     (run* (q)
       (same q 'cat)))
 
-  (define wrapper-late-session
+  (define wrapper-flip-session
     (parameterize ([current-minikanren-search-strategy
-                    (search-strategy "late" "flip")])
+                    (search-strategy "flip")])
       (run* (q)
         (same q 'dog))))
 
@@ -38,7 +38,7 @@
                   '(cat)))
 
   (test-case "wrapper respects the current search-strategy parameter"
-    (check-equal? wrapper-late-session
+    (check-equal? wrapper-flip-session
                   '(dog)))
 
   (test-case "run stops after the requested number of answers"

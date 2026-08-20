@@ -1,95 +1,38 @@
 #lang racket
 
 (require redex/reduction-semantics
+         "../src/search-lattice/structural-observations.rkt"
+         (prefix-in lang: "../src/search-lattice/languages/all.rkt")
          (prefix-in wf: "../src/search-lattice/wf/all.rkt"))
 
-(provide count-bounced
-         count-answers
-         count-freshened
-         count-freshened-tree
-         count-freshened-shell
-         state-c-agrees-with-scope?
-         core-c-scope-agreement?
-         config-c-scope-agreement?
-         core-exact-scope?
-         config-exact-scope?
+(provide (all-from-out
+          "../src/search-lattice/structural-observations.rkt")
+         structurally-well-formed?
          visible-json-wf?
          visible-json-trace-wf?
          trace-deterministic)
 
-(define (first-summary holds)
-  (match holds
-    [(list summary) summary]
-    [_ #f]))
-
-(define (safe-summary thunk)
-  (with-handlers ([exn:fail? (lambda (_exn) #f)])
-    (first-summary (thunk))))
-
-(define (summary-for-config cfg)
-  (or (safe-summary (lambda () (judgment-holds (wf:wf-summary-config/rail-relcall? ,cfg summary) summary)))
-      (safe-summary (lambda () (judgment-holds (wf:wf-summary-config/search-relcall? ,cfg summary) summary)))
-      (safe-summary (lambda () (judgment-holds (wf:wf-summary-config/relcall? ,cfg summary) summary)))
-      (safe-summary (lambda () (judgment-holds (wf:wf-summary-cfg/rail? ,cfg summary) summary)))
-      (safe-summary (lambda () (judgment-holds (wf:wf-summary-cfg/search? ,cfg summary) summary)))
-      (safe-summary (lambda () (judgment-holds (wf:wf-summary-cfg/disj? ,cfg summary) summary)))
-      (safe-summary (lambda () (judgment-holds (wf:wf-summary-cfg/delay? ,cfg summary) summary)))
-      (safe-summary (lambda () (judgment-holds (wf:wf-summary-cfg/core? ,cfg summary) summary)))))
-
-(define (summary-for-frontier cfg scope)
-  (or (safe-summary (lambda () (judgment-holds (wf:wf-summary-frontier/rail? ,cfg ,scope summary) summary)))
-      (safe-summary (lambda () (judgment-holds (wf:wf-summary-frontier/search? ,cfg ,scope summary) summary)))
-      (safe-summary (lambda () (judgment-holds (wf:wf-summary-frontier/disj? ,cfg ,scope summary) summary)))
-      (safe-summary (lambda () (judgment-holds (wf:wf-summary-frontier/delay? ,cfg ,scope summary) summary)))
-      (safe-summary (lambda () (judgment-holds (wf:wf-summary-frontier/core? ,cfg ,scope summary) summary)))))
-
-(define (state-c-agrees-with-scope? st scope)
-  (match st
-    [`(state ,sub ,dis ,c ,trail ,_tag)
-     (equal? c scope)]
-    [_ #f]))
-
-(define (core-c-scope-agreement? f [scope '()])
-  (and (summary-for-frontier f scope) #t))
-
-(define (core-exact-scope? f [scope '()])
-  (and (summary-for-frontier f scope) #t))
-
-(define (config-c-scope-agreement? cfg)
-  (and (summary-for-config cfg) #t))
-
-(define (config-exact-scope? cfg)
-  (and (summary-for-config cfg) #t))
-
-(define (count-bounced datum)
-  (match (summary-for-config datum)
-    [summary #:when summary
-             (wf:summary-bounced-count/host summary)]
-    [_ 0]))
-
-(define (count-answers datum)
-  (match (summary-for-config datum)
-    [summary #:when summary
-             (wf:summary-answer-count/host summary)]
-    [_ 0]))
-
-(define (count-freshened datum)
-  (match (summary-for-config datum)
-    [summary #:when summary
-             (wf:summary-freshened-count/host summary)]
-    [_ 0]))
-
-(define (count-freshened-tree datum)
-  (match (summary-for-config datum)
-    [summary #:when summary
-             (wf:summary-freshened-tree-count/host summary)]
-    [_ 0]))
-
-(define (count-freshened-shell datum)
-  (match (summary-for-config datum)
-    [summary #:when summary
-             (wf:summary-freshened-shell-count/host summary)]
-    [_ 0]))
+;; Test support accepts either ordinary search or rail syntax, with or without
+;; relcall. This is intentionally broader than any one production strategy
+;; domain, because crosscutting trace laws inspect all surfaced fibers. Every
+;; branch first proves membership in its exact grammar root; no untyped
+;; fallback acceptance is involved.
+(define (structurally-well-formed? datum)
+  (match datum
+    [(list (? list?) _frontier)
+     (or (and (redex-match? lang:search-relcall-lang config datum)
+              (judgment-holds
+               (wf:wf-config/search-relcall? ,datum)))
+         (and (redex-match? lang:rail-relcall-lang config datum)
+              (judgment-holds
+               (wf:wf-config/rail-relcall? ,datum))))]
+    [_
+     (or (and (redex-match? lang:search-lang F datum)
+              (judgment-holds
+               (wf:wf-cfg/search? ,datum)))
+         (and (redex-match? lang:rail-lang F datum)
+              (judgment-holds
+               (wf:wf-cfg/rail? ,datum))))]))
 
 (define (trace-deterministic rel cfg [step-cap 64])
   (define next*
@@ -209,7 +152,7 @@
             #:open)
      (visible-root? child)]
     [(hash* ['name "Deferred"]
-            ['renderRole "bounced"]
+            ['renderRole "forced"]
             ['activeChildIndex 0]
             ['children (list child)]
             #:open)
@@ -257,7 +200,7 @@
      (and (visible-root? left)
           (visible-root? right))]
     [(hash* ['name "Deferred"]
-            ['renderRole "bounced"]
+            ['renderRole "forced"]
             ['children (list child)]
             #:open)
      (visible-root? child)]

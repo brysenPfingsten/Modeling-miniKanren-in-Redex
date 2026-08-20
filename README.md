@@ -35,62 +35,71 @@ Use the lane that matches what you are validating.
 ### **1) Headless lane (default CI/local smoke)**
 
 ```sh
-raco test racket-server/tests/test-all-headless.rkt
+PLTUSERHOME=/tmp/decorated-lattice-plt \
+  raco test racket-server/tests/test-all-headless.rkt
 ```
 
-Includes the modern runtime surface only:
-- helper/property checks
-- search-lattice/internal runtime tests
-- frontend example compatibility
-- structured strategy overlap/confidence/matrix checks
+Includes the direct source-to-W/F compiler boundary, direct WF and generated
+law checks, node and conservative edge suites, literal search-union evidence,
+scheduler fibers (including rail's right-active carrier extension), the
+isolated distributed presentation, fiber-specific progress, structural
+ownership, and whole-frontier allocation. See
+`racket-server/tests/TEST-LANES.md` for the exact suite inventory and focused
+commands.
 
 ### **2) App/API regression lane**
 
 ```sh
-raco test racket-server/tests/test-all.rkt
+PLTUSERHOME=/tmp/decorated-lattice-plt \
+  raco test racket-server/tests/test-app.rkt
+PLTUSERHOME=/tmp/decorated-lattice-plt \
+  racket racket-server/tests/ui-payload-smoke.rkt
 ```
 
 ### **3) Frontend lane**
 
 ```sh
 npm --prefix frontend test
+npm --prefix frontend run lint
+npm --prefix frontend run build
 ```
 
-### **4) Strategy×Example API-flow matrix lane**
+### **4) Compiler×runtime matrix and API-flow lane**
 
-Automates structured search-strategy selection + example execution checks across
-the surfaced cross-product using backend endpoints, up to 25 steps or
+Exercises one bounded representative miniKanren program across all 36
+combinations of conjunction association, disjunction association, delay
+placement, and scheduler. The same suite retains scheduler/example execution
+through both direct and backend API paths, up to its configured step cap or
 termination.
 
 ```sh
-raco test racket-server/tests/model-example-matrix-tests.rkt
+PLTUSERHOME=/tmp/decorated-lattice-plt \
+  raco test racket-server/tests/model-example-matrix-tests.rkt
 ```
 
 ## **Backend Init Contract**
 
-The GUI/API boundary no longer exposes raw backend model ids. A run is selected
-structurally instead.
+The GUI/API boundary selects each run structurally.
 
 `POST /api/post/init` accepts:
 - `text`
 - `sourceMode` = `"mini"` or `"micro"`
 - optional `compileProfile` when `sourceMode = "mini"`
 - `searchStrategy`, a JSON object with:
-  - `hoist` = `"early"` or `"late"`
   - `scheduler` = `"dfs"`, `"flip"`, or `"rail"`
 
 Default surfaced strategy:
-- `hoist = "early"`
 - `scheduler = "rail"`
 
 Execution notes:
 - `compileProfile` controls source-to-micro compilation choices such as
   conjunction associativity, disjunction associativity, and delay placement.
-- `searchStrategy` controls the backend stepping machine independently of the
-  source compilation settings.
-- The backend parses directly to the canonical search-lattice target config and
-  then steps that program under the internal `+calls` configuration selected by
-  `searchStrategy`.
+- `searchStrategy` selects only the scheduler; the primary source relation is
+  the factored source.
+- The canonicalizing compiler emits the W/F-stratified `(Γ F)` production
+  configuration directly, rooted at `More(Work(...))`. The backend checks the
+  production language/WF judgment and then steps the selected scheduler's named
+  Redex relation.
 
 ## **Direct Library Surface**
 
@@ -114,8 +123,11 @@ If you want to run programs without the site, import
 The runner accepts the same main knobs as the app boundary:
 - `#:source-mode` (`"mini"` or `"micro"`)
 - `#:compile-profile` for mini source
-- `#:search-strategy`, for example `(search-strategy "early" "rail")`
+- `#:search-strategy`, for example `(search-strategy "rail")`
 - `#:step-cap` to bound diverging programs
+
+The exported runner configuration structs contain the internal W/F runtime
+carrier. Source text and answer-returning entry points form the public boundary.
 
 If you want something closer to the effect of `(require miniKanren)`, import
 `racket-server/src/minikanren.rkt`. That module provides `defrel`, `run`, and
@@ -163,17 +175,15 @@ If you are studying the repo as a semantics artifact, use this order:
    - primary repo-level overview
    - explains what the active runtime is and how the main axes fit together
 2. `racket-server/src/search-lattice/SEMILATTICE.md`
-   - lower-lattice technical note
-   - explains the L0-L3 runtime/context story in more detail
+   - carrier grammar, compositional contexts, rule ownership, and scheduler
+     boundary
 3. `racket-server/src/search-lattice/PICTURE-DESIGN-NOTES.md`
-   - supplemental note on visible pictures, freshening, and the status of `c`
-   - records open design choices rather than settled runtime facts
-4. `racket-server/derivations/refocusing/NOTES.md`
-   - separate derivational experiment
-   - explains the context-first and refocused preimage of the current machine
-
-`STABILIZATION.md` is a contributor ledger for the active rebuild. It is not the
-best first document for understanding the repo from scratch.
+   - operational/extensional pictures and structural fresh ownership
+4. `racket-server/src/search-lattice/wf/LAYERING-NOTES.md`
+   - current direct WF schemas and public judgment names
+5. `racket-server/tests/search-lattice/README.md`
+   - mirrored node, edge, join, grammar, fiber, overlay, law, and experiment
+     tests
 
 ## **Current Runtime Surface**
 
@@ -186,6 +196,35 @@ The active runtime path is the feature-based search lattice:
 - structured strategy API: `racket-server/src/search-strategy.rkt`
 
 The app/API boundary runs through that lattice directly.
+
+The primary source semantics is the factored source. Delay and disjunction are
+additive feature extensions, and search is their literal language/relation
+union. DFS and flip operate on that search carrier. Rail remains a scheduler
+fiber, but extends search with the right-active `DisjR` carrier and the rules
+needed to close that carrier under rail execution. The
+distributed presentation is retained separately under
+`racket-server/src/search-lattice/experiments/distributed/` as an executable
+experiment, not as a surfaced runtime policy.
+
+That retained experiment is a deliberate exception to the production carrier
+split: its common distributed-search carrier still includes `DisjR` and the
+right-active normalization/closure rules, while distributed rail adds only its
+two scheduler transitions. This historical experiment boundary does not widen
+ordinary production search.
+
+The production relation modules follow those immediate semantic predecessors:
+search combines assembled disjunction with the delay deltas, rail lifts
+assembled search plus its local delta, and rail-relcall lifts assembled
+search-relcall plus that delta under `Γ`. A retained raw join seam serves only
+the isolated distributed presentation.
+
+Fresh scope is structural. Every work, answer, terminal, delay, and choice
+constructor carries an explicitly tagged `Owners(...)` stack ordered
+outermost-to-innermost. Each `Owner(intro, tag)` records one binder's ordered,
+duplicate-free introductions; states contain substitution, disequality, trail,
+and tag fields only. Allocated-name support is derived from the entire live
+frontier, against which allocation chooses names deterministically; it is not a
+stored owner field, cache, or counter.
 
 ## **Orientation (Minimal)**
 
@@ -211,7 +250,8 @@ Use this if you are jumping in with no project history:
 Fast validation command:
 
 ```sh
-raco test racket-server/tests/test-all-headless.rkt
+PLTUSERHOME=/tmp/decorated-lattice-plt \
+  raco test racket-server/tests/test-all-headless.rkt
 ```
 
 ## **Configuration**

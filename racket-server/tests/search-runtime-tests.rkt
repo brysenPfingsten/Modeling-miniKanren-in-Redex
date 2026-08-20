@@ -19,13 +19,28 @@
 (define (parse-src/canonical src)
   (parse-prog/canonical (read-all-sexprs (open-input-string src))))
 
-(define hoist-witness-micro-program
+(define factored-continuation-micro-program
   "(run 2 (q)
      (conj
        (disj
-         (== q 'hoist)
+         (== q 'continuation)
          (== q 'witness))
        (== q q)))")
+
+(define right-active-rail-cfg
+  '(()
+    (More
+     (DisjR (Owners)
+            (Dead (Owners))
+            (Returned (Owners)
+                      (state () () () (label "right")))))))
+
+(define right-active-rail-next
+  '(()
+    (Emit (Owners)
+          (Answer (Owners)
+                  (state () () () (label "right")))
+          (More (Dead (Owners))))))
 
 (define (collect-step-names stepper cfg [remaining 8])
   (cond
@@ -38,6 +53,20 @@
               (collect-step-names stepper next (sub1 remaining)))])]))
 
 (define/provide-test-suite SEARCH-RUNTIME
+  (test-case "search strategy is scheduler-only and rejects retired hoist data"
+    (check-equal? default-search-strategy (search-strategy "rail"))
+    (check-equal? (search-strategy->jsexpr (search-strategy "flip"))
+                  (hasheq 'scheduler "flip"))
+    (check-equal? (normalize-search-strategy (hasheq 'scheduler "dfs"))
+                  (search-strategy "dfs"))
+    (check-exn exn:fail?
+               (lambda ()
+                 (normalize-search-strategy
+                  (hasheq 'hoist "late" 'scheduler "rail"))))
+    (check-exn exn:fail?
+               (lambda ()
+                 (normalize-search-strategy (search-strategy "zigzag")))))
+
   (test-case "strategy registry covers every surfaced structured strategy"
     (define-values (cfg0 _html) (parse-src/canonical (example-src "fives/fours")))
     (for ([strategy (in-list all-surfaced-search-strategies)])
@@ -57,21 +86,45 @@
       (check-equal? (step-once cfg0)
                     ((lookup-search-step-once strategy) cfg0))))
 
-  (test-case "late flip hoist witness continues past expand-disjunction"
+  (test-case "right-active search is rail-only in the runtime domain"
+    (for ([strategy (in-list (list (search-strategy "dfs")
+                                   (search-strategy "flip")))])
+      (check-false (search-config-in-domain? strategy right-active-rail-cfg))
+      (check-exn exn:fail?
+                 (lambda ()
+                   (check-search-config strategy right-active-rail-cfg)))
+      (check-exn exn:fail?
+                 (lambda ()
+                   ((lookup-search-step-once strategy)
+                    right-active-rail-cfg))))
+
+    (define rail (search-strategy "rail"))
+    (check-true (search-config-in-domain? rail right-active-rail-cfg))
+    (check-true (search-config-well-formed? rail right-active-rail-cfg))
+    (check-not-exn
+     (lambda ()
+       (check-search-config rail right-active-rail-cfg)))
+    (check-equal?
+     ((lookup-search-step-once rail) right-active-rail-cfg)
+     (list (list "commit-right-choice-answer"
+                 right-active-rail-next))))
+
+  (test-case "factored flip witness continues past expand-disjunction"
     (define-values (cfg0 _html)
       (parse-prog/canonical
-       (read-all-sexprs (open-input-string hoist-witness-micro-program))
+       (read-all-sexprs (open-input-string factored-continuation-micro-program))
        #:source-mode "micro"))
     (define names
       (collect-step-names
-       (lookup-search-step-once (search-strategy "late" "flip"))
+       (lookup-search-step-once (search-strategy "flip"))
        cfg0
        6))
-    (check-equal? (take names 4)
-                  '("fresh-substitute"
-                    "conj-distribute-state"
+    (check-equal? (take names 5)
+                  '("allocate-fresh"
+                    "expand-conjunction"
                     "expand-disjunction"
-                    "unify-success"))))
+                    "unify-success"
+                    "resume-left-choice-success"))))
 
 (module+ test
   (run-tests SEARCH-RUNTIME))

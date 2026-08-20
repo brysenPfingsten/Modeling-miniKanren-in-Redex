@@ -6,8 +6,7 @@
 
 (define (step-once/deterministic rel prog)
   (define named-next*
-    (remove-duplicates
-     (apply-reduction-relation/tag-with-names rel (term ,prog))))
+    (apply-reduction-relation/tag-with-names rel (term ,prog)))
   (match named-next*
     ['() '()]
     [(list only-step) (list only-step)]

@@ -7,9 +7,13 @@
 
 (check-redundancy #t)
 
+;; Rail alone owns the right-active search carrier and its work path.
 (define-extended-language rail-lang search-lang
-  [runnable-root .... (search +-> search)]
-  ;; Rail widens the inherited branch path through the right rail branch.
-  ;; Local and frontier rail rules both reuse this extended branch context.
-  [BranchCtx ::= ....
-               (search +-> BranchCtx)])
+  [W ::= ....
+         (DisjR owners W W)]
+
+  [WorkOwnerSlot ::= ....
+                     (DisjR hole W W)]
+
+  [WorkPath ::= ....
+                (DisjR owners W WorkPath)])

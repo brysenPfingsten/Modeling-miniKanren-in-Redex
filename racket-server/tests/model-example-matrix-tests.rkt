@@ -3,11 +3,19 @@
 (require json
          rackunit
          rackunit/text-ui
+         redex/reduction-semantics
          web-server/http/response-structs
          "../src/app.rkt"
+         "../src/program-runner.rkt"
          "../src/search-runtime.rkt"
          "../src/search-strategy.rkt"
          "../src/sexpr-read.rkt"
+         (prefix-in dfs:
+                    "../src/search-lattice/reduction-relations/search-dfs-relcall-red.rkt")
+         (prefix-in flip:
+                    "../src/search-lattice/reduction-relations/search-flip-relcall-red.rkt")
+         (prefix-in rail:
+                    "../src/search-lattice/reduction-relations/rail-relcall-red.rkt")
          "../src/transpiler.rkt"
          "../src/zipper.rkt"
          "./example-compat-tests.rkt"
@@ -17,18 +25,205 @@
 (provide MODEL-EXAMPLE-MATRIX)
 
 (define MATRIX-STEP-CAP 10)
+(define PRODUCT-MATRIX-STEP-CAP 96)
+
+(define PRODUCT-MATRIX-SOURCE
+  "(defrel (profile-witnesso x)
+     (conde
+       [(== x 'cat) succeed succeed]
+       [fail]
+       [fail]))
+
+   (run* (q)
+     (profile-witnesso q))")
+
+(define PRODUCT-MATRIX-FORMS
+  (read-all-sexprs (open-input-string PRODUCT-MATRIX-SOURCE)))
+
+(define CONJ-ASSOCIATIONS '("left" "right"))
+(define DISJ-ASSOCIATIONS '("left" "right"))
+(define DELAY-PLACEMENTS '("relbody" "relcall" "disj"))
+(define SCHEDULERS '("dfs" "flip" "rail"))
+
+(define EXPECTED-MATRIX-ANSWERS
+  (list (hasheq 'sym "cat")))
 
 (define PRIMARY-STRATEGIES
-  (list (search-strategy "early" "rail")
-        (search-strategy "late" "rail")
-        (search-strategy "early" "dfs")))
+  (list (search-strategy "rail")
+        (search-strategy "flip")
+        (search-strategy "dfs")))
 
 (define REPRESENTATIVE-LABELS
   '("appendoh 1" "fives/fours" "same"))
 
 (define/match (strategy-label strategy)
-  [((search-strategy hoist scheduler))
-   (format "~a/~a" hoist scheduler)])
+  [((search-strategy scheduler)) scheduler])
+
+(define (profile-jsexpr conj-assoc disj-assoc delay-placement)
+  (hasheq 'conjAssoc conj-assoc
+          'disjAssoc disj-assoc
+          'delayPlacement delay-placement))
+
+(define (compile-product-config profile)
+  (define-values (cfg _html)
+    (parse-prog/canonical PRODUCT-MATRIX-FORMS
+                          #:compile-profile profile))
+  cfg)
+
+(define (toggle-association association)
+  (match association
+    ["left" "right"]
+    ["right" "left"]))
+
+(define (next-delay-placement delay-placement)
+  (match delay-placement
+    ["relbody" "relcall"]
+    ["relcall" "disj"]
+    ["disj" "relbody"]))
+
+(define/match (strategy-relation strategy)
+  [((search-strategy "dfs")) dfs:search-dfs-relcall-red]
+  [((search-strategy "flip")) flip:search-flip-relcall-red]
+  [((search-strategy "rail")) rail:rail-relcall-red])
+
+(define (matrix-cell-label conj-assoc disj-assoc delay-placement scheduler)
+  (format "conj=~a disj=~a delay=~a scheduler=~a"
+          conj-assoc
+          disj-assoc
+          delay-placement
+          scheduler))
+
+(define (check-lowering-axis-is-live cfg
+                                     conj-assoc
+                                     disj-assoc
+                                     delay-placement
+                                     who)
+  (define alternative-profiles
+    (list
+     (profile-jsexpr (toggle-association conj-assoc)
+                     disj-assoc
+                     delay-placement)
+     (profile-jsexpr conj-assoc
+                     (toggle-association disj-assoc)
+                     delay-placement)
+     (profile-jsexpr conj-assoc
+                     disj-assoc
+                     (next-delay-placement delay-placement))))
+  (for ([alternative-profile (in-list alternative-profiles)]
+        [axis (in-list '(conjunction disjunction delay))])
+    (check-not-equal?
+     cfg
+     (compile-product-config alternative-profile)
+     (format "~a: changing the ~a lowering axis did not change the compiled program"
+             who
+             axis))))
+
+(define (trace-model-session session static-rule-names who [steps '()])
+  (when (>= (length steps) PRODUCT-MATRIX-STEP-CAP)
+    (error 'trace-model-session
+           "~a: step cap ~a reached before a terminal configuration"
+           who
+           PRODUCT-MATRIX-STEP-CAP))
+  (define next-session (model-session-step session))
+  (cond
+    [(= (model-session-step-index next-session)
+        (model-session-step-index session))
+     (values session (reverse steps))]
+    [else
+     (define step-name (model-session-current-step-name next-session))
+     (check-not-false
+      (and (string? step-name)
+           (member (string->symbol step-name) static-rule-names))
+      (format "~a: reported step ~e is not a named clause of the selected Redex relation"
+              who
+              step-name))
+     (trace-model-session next-session
+                          static-rule-names
+                          who
+                          (cons step-name steps))]))
+
+(define (check-product-cell conj-assoc disj-assoc delay-placement scheduler)
+  (define who
+    (matrix-cell-label conj-assoc disj-assoc delay-placement scheduler))
+  (define profile
+    (profile-jsexpr conj-assoc disj-assoc delay-placement))
+  (define strategy (search-strategy scheduler))
+
+  ;; Compile separately so this cell proves both the source boundary and the
+  ;; model runner consume the requested lowering profile.
+  (define cfg (compile-product-config profile))
+  (check-lowering-axis-is-live cfg
+                               conj-assoc
+                               disj-assoc
+                               delay-placement
+                               who)
+  (check-true (search-config-in-domain? strategy cfg)
+              (format "~a: compiled configuration is outside the scheduler domain"
+                      who))
+  (check-true (search-config-well-formed? strategy cfg)
+              (format "~a: compiled configuration fails scheduler-specific WF"
+                      who))
+
+  (define session
+    (open-source PRODUCT-MATRIX-SOURCE
+                 #:source-mode "mini"
+                 #:compile-profile profile
+                 #:search-strategy strategy))
+  (check-equal? (model-session-current-config session)
+                cfg
+                (format "~a: model-backed initialization did not retain compilation"
+                        who))
+  (check-equal? (model-session-search-strategy session)
+                strategy
+                (format "~a: model-backed initialization changed scheduler"
+                        who))
+  (check-equal? (model-session-current-step-name session)
+                "Initialize Program"
+                (format "~a: initial model step label drifted" who))
+
+  (define static-rule-names
+    (reduction-relation->rule-names (strategy-relation strategy)))
+  (define-values (terminal-session step-names)
+    (trace-model-session session static-rule-names who))
+  (check-true (positive? (length step-names))
+              (format "~a: model-backed stepper took no Redex steps" who))
+  (for ([required-rule (in-list '("expand-relcall"
+                                  "expand-disjunction"
+                                  "suspend-goal"
+                                  "force-delay"))])
+    (check-not-false
+     (member required-rule step-names)
+     (format "~a: execution did not reach required compiler/runtime rule ~a"
+             who
+             required-rule)))
+  (check-true (model-session-done? terminal-session)
+              (format "~a: model-backed stepper did not terminate" who))
+  (check-true (final-config? (model-session-current-config terminal-session))
+              (format "~a: terminal model state is not a final configuration" who))
+  (check-equal? (model-session-current-answers terminal-session)
+                EXPECTED-MATRIX-ANSWERS
+                (format "~a: canonical terminal observations drifted" who))
+  (check-equal? (model-session-current-host-answers terminal-session)
+                '(cat)
+                (format "~a: host terminal observations drifted" who)))
+
+(define PRODUCT-CONFIGURATION-MATRIX
+  (make-test-suite
+   "36-cell miniKanren compiler/runtime product matrix"
+   (for*/list ([conj-assoc (in-list CONJ-ASSOCIATIONS)]
+               [disj-assoc (in-list DISJ-ASSOCIATIONS)]
+               [delay-placement (in-list DELAY-PLACEMENTS)]
+               [scheduler (in-list SCHEDULERS)])
+     (make-test-case
+      (matrix-cell-label conj-assoc
+                         disj-assoc
+                         delay-placement
+                         scheduler)
+      (lambda ()
+        (check-product-cell conj-assoc
+                            disj-assoc
+                            delay-placement
+                            scheduler))))))
 
 (define (step1-name+cfg succ)
   (match succ
@@ -156,6 +351,11 @@
     (define result (runner spec label src))
     (make-heavy-row spec label result)))
 
+(define (assert-complete-heavy-matrix rows specs)
+  (check-equal? (length rows)
+                (* (length specs) (length REPRESENTATIVE-LABELS))
+                "heavy matrix silently omitted a strategy/example pair"))
+
 (define (assert-heavy-rows rows
                            disallowed-statuses
                            #:forbid-nondeterministic? [forbid-nondeterministic? #f]
@@ -237,6 +437,8 @@
     (run-api-steps! ses^ strategy label)))
 
 (define/provide-test-suite MODEL-EXAMPLE-MATRIX
+  PRODUCT-CONFIGURATION-MATRIX
+
   (test-case "matrix lane: structured strategies cover the frontend example corpus"
     (define examples (frontend-example-programs))
     (define heavy-rows
@@ -244,7 +446,8 @@
                           examples
                           (lambda (strategy _label src)
                             (classify-pair strategy src #t))))
-    (assert-heavy-rows heavy-rows '(incompatible)
+    (assert-complete-heavy-matrix heavy-rows all-surfaced-search-strategies)
+    (assert-heavy-rows heavy-rows '(incompatible stuck)
                        #:forbid-nondeterministic? #t
                        #:check-primary-rail? #t
                        #:context "direct matrix")
@@ -254,6 +457,7 @@
     (define examples (frontend-example-programs))
     (define heavy-rows
       (collect-heavy-rows all-surfaced-search-strategies examples run-heavy-row/api))
+    (assert-complete-heavy-matrix heavy-rows all-surfaced-search-strategies)
     (assert-heavy-rows heavy-rows '(incompatible init-error)
                        #:context "api matrix")
     (displayln (format "[matrix-tests] heavy api-flow summary: ~s" (summarize heavy-rows)))))

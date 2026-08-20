@@ -137,11 +137,6 @@
     (parse-prog/canonical sexpr-prog
                           #:source-mode source-mode
                           #:compile-profile compile-profile))
-  (unless (canonical-target-in-domain? model-prog canonical-parser-target-id)
-    (error 'init!
-           "transpiler produced a program outside canonical target ~a"
-           canonical-parser-target-id))
-  (check-canonical-well-formed model-prog canonical-parser-target-id)
   (check-search-config search-strategy model-prog)
   (define ses^
     (init-session (bind-session-search-strategy ses search-strategy) model-prog))

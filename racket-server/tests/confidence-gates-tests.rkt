@@ -28,15 +28,14 @@
 (define (example-cfg label [compile-profile #f])
   (define src (example-src label))
   (unless src
-    (error 'trace-steps (format "missing example label: ~a" label)))
+    (error 'example-cfg (format "missing example label: ~a" label)))
   (define-values (cfg _html)
     (parse-prog/canonical (read-all-sexprs (open-input-string src))
                           #:compile-profile compile-profile))
   cfg)
 
 (define/match (strategy-label strategy)
-  [((search-strategy hoist scheduler))
-   (format "~a/~a" hoist scheduler)])
+  [((search-strategy scheduler)) scheduler])
 
 (define (trace-steps strategy
                      label
@@ -97,15 +96,15 @@
 
 (define REPRESENTATIVE-TRACES
   (list
-   (list (search-strategy "early" "rail")
+   (list (search-strategy "rail")
          "fives/fours"
          #f
-         "enter-right-at-branch")
-   (list (search-strategy "late" "flip")
+         "rail-enter-right")
+   (list (search-strategy "flip")
          "fives/fours"
          #f
-         "delay-swap-left")
-   (list (search-strategy "late" "dfs")
+         "flip-delay-left")
+   (list (search-strategy "dfs")
          "same"
          (hasheq 'conjAssoc "left"
                  'disjAssoc "right"
@@ -139,9 +138,9 @@
 
   (test-case "init/step payloads satisfy UI contract for structured search strategies"
     (define pairs
-      (list (list (search-strategy "early" "rail") "appendoh 1")
-            (list (search-strategy "late" "flip") "fives/fours")
-            (list (search-strategy "late" "dfs") "same")))
+      (list (list (search-strategy "rail") "appendoh 1")
+            (list (search-strategy "flip") "fives/fours")
+            (list (search-strategy "dfs") "same")))
     (for ([pr (in-list pairs)])
       (match-define (list strategy label) pr)
       (define src (example-src label))

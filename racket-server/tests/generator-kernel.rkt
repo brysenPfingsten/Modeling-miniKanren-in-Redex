@@ -10,7 +10,6 @@
          make-r-pool
          pick-one/rng
          make-label/rng
-         extend-c/rng
          gen-term/rng
          fresh-x-list/rng)
 
@@ -40,28 +39,20 @@
 (define (make-label/rng rng prefix)
   `(label ,(format "~a-~a" prefix (rt:rng-random rng 1000000))))
 
-(define (extend-c/rng rng c u-pool c-max max-extra)
-  (define unused
-    (filter (lambda (u) (not (member u c))) u-pool))
-  (define room (- c-max (length c)))
-  (define extra-limit (min max-extra room (length unused)))
-  (define extra-count (rt:rng-random rng (add1 extra-limit)))
-  (append c (rt:random-distinct/rng rng unused extra-count)))
-
-(define (gen-term/rng rng x-env c depth)
+(define (gen-term/rng rng x-env visible-intros depth)
   (define options
     (append '(primitive)
-            (if (null? c) '() '(logic-var))
+            (if (null? visible-intros) '() '(logic-var))
             (if (null? x-env) '() '(lex-var))
             (if (zero? depth) '() '(pair))))
   (case (pick-one/rng rng options)
     [(primitive) (rt:gen-primitive/rng rng)]
-    [(logic-var) (pick-one/rng rng c)]
+    [(logic-var) (pick-one/rng rng visible-intros)]
     [(lex-var) (pick-one/rng rng x-env)]
     [(pair)
-     `(,(gen-term/rng rng x-env c (sub1 depth))
+     `(,(gen-term/rng rng x-env visible-intros (sub1 depth))
        :
-       ,(gen-term/rng rng x-env c (sub1 depth)))]))
+       ,(gen-term/rng rng x-env visible-intros (sub1 depth)))]))
 
 (define (fresh-x-list/rng rng x-env x-pool)
   (define available (filter (lambda (x) (not (member x x-env))) x-pool))

@@ -4,10 +4,8 @@
          redex/reduction-semantics
          "../src/sexpr-read.rkt"
          "../src/transpiler.rkt"
-         (only-in "../src/search-lattice/reduction-relations/search-early-red.rkt"
-                  search-early-red)
-         (only-in "../src/search-lattice/reduction-relations/search-dfs-early-red.rkt"
-                  search-dfs-early-red))
+         (only-in "../src/search-lattice/reduction-relations/search-dfs-red.rkt"
+                  search-dfs-red))
 
 (provide branch-fresh-program
          shared-fresh-program
@@ -16,8 +14,8 @@
 
 ;; For the GUI Redex stepper in DrRacket, evaluate one of:
 ;;   (require redex)
-;;   (traces search-dfs-early-red (parse-witness branch-fresh-program))
-;;   (traces search-dfs-early-red (parse-witness shared-fresh-program))
+;;   (traces search-dfs-red (parse-witness branch-fresh-program))
+;;   (traces search-dfs-red (parse-witness shared-fresh-program))
 ;;
 ;; The shell here is headless, so this file only compiles/prints terminal traces.
 
@@ -40,12 +38,101 @@
       [(== x 'right)
        (== q 'right)])))")
 
+;; The compiler produces `(Γ F)` directly. These GUI examples use the bare
+;; production F relation, so project the empty relation environment supplied
+;; by the witnesses.
 (define (parse-witness src)
-  (define-values (cfg _html)
+  (define-values (config _html)
     (parse-prog/canonical (read-all-sexprs (open-input-string src))))
-  cfg)
+  (match config
+    [`(() ,frontier) frontier]
+    [config
+     (error 'parse-witness
+            "expected an empty relation environment, got ~e"
+            config)]))
 
-(define (print-trace src [step-rel search-dfs-early-red] [limit 24])
+(module+ test
+  (require rackunit)
+
+  (struct witness-result (labels final) #:transparent)
+
+  (define (run-witness/frontier frontier
+                                [remaining 32]
+                                [rev-labels '()])
+    (when (negative? remaining)
+      (error 'run-witness/frontier
+             "trace exceeded its step bound at ~e"
+             frontier))
+    (match (apply-reduction-relation/tag-with-names
+            search-dfs-red
+            frontier)
+      ['()
+       (witness-result (reverse rev-labels) frontier)]
+      [(list (list name frontier^))
+       (run-witness/frontier frontier^
+                             (sub1 remaining)
+                             (cons name rev-labels))]
+      [next*
+       (error 'run-witness/frontier
+              "expected one grammatical successor, got ~e"
+              next*)]))
+
+  (define (run-witness src)
+    (run-witness/frontier (parse-witness src)))
+
+  (test-case "branch-local fresh allocates once per branch and keeps distinct owners"
+    (define result (run-witness branch-fresh-program))
+    (check-equal?
+     (witness-result-labels result)
+     '("allocate-fresh"
+       "expand-disjunction"
+       "allocate-fresh"
+       "expand-conjunction"
+       "unify-success"
+       "conj-return"
+       "unify-success"
+       "commit-choice-answer"
+       "allocate-fresh"
+       "expand-conjunction"
+       "unify-success"
+       "conj-return"
+       "unify-success"
+       "finish-success"))
+    (check-match
+     (witness-result-final result)
+     `(Emit
+       (Owners (Owner (u:0) (label "f0")))
+       (Answer (Owners (Owner (u:1) (label "f2"))) ,_)
+       (Last (Owners (Owner (u:2) (label "f6")))
+             (Answer (Owners) ,_)))))
+
+  (test-case "shared fresh crosses the boundary once and owns both answers"
+    (define result (run-witness shared-fresh-program))
+    (check-equal?
+     (witness-result-labels result)
+     '("allocate-fresh"
+       "allocate-fresh"
+       "expand-disjunction"
+       "expand-conjunction"
+       "unify-success"
+       "conj-return"
+       "unify-success"
+       "commit-choice-answer"
+       "expand-conjunction"
+       "unify-success"
+       "conj-return"
+       "unify-success"
+       "finish-success"))
+    (check-match
+     (witness-result-final result)
+     `(Emit
+       (Owners
+        (Owner (u:0) (label "f0"))
+        (Owner (u:1) (label "f1")))
+       (Answer (Owners) ,_)
+       (Last (Owners) (Answer (Owners) ,_))))))
+
+(define (print-trace src [step-rel search-dfs-red] [limit 24])
   (define (loop cfg i)
     (printf "CFG ~a:\n~s\n" i cfg)
     (match (apply-reduction-relation/tag-with-names step-rel cfg)
@@ -66,9 +153,9 @@
   (match choice
     ['shared
      (displayln "Printing shared-fresh witness trace.")
-     (displayln "In DrRacket, run `(traces search-dfs-early-red (parse-witness shared-fresh-program))`.")
+     (displayln "In DrRacket, run `(traces search-dfs-red (parse-witness shared-fresh-program))`.")
      (print-trace shared-fresh-program)]
     ['branch
      (displayln "Printing branch-local fresh witness trace.")
-     (displayln "In DrRacket, run `(traces search-dfs-early-red (parse-witness branch-fresh-program))`.")
+     (displayln "In DrRacket, run `(traces search-dfs-red (parse-witness branch-fresh-program))`.")
      (print-trace branch-fresh-program)]))

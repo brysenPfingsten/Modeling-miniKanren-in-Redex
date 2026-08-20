@@ -1,93 +1,112 @@
-# WF Layering Notes
+# Structural well-formedness layering
 
-This note describes what a more explicitly layered `wf-*` stack would mean for
-this repo, and where the current stack is and is not already layered.
+The WF layer validates the owner-annotated W/F carrier. It does not choose
+control transitions, synthesize observation summaries, or add runtime scope,
+support, or counter fields.
 
-## Current State
+## Inherited visible introductions
 
-The current `wf-*` stack is layered in two limited ways:
+Every non-root judgment receives a metatheoretic list of logic-variable
+introductions visible along the grammatical path to its subject. A root begins
+with `()`.
 
-- shared kernel helpers live in:
-  - `kernel-base.rkt`
-  - `summary-kernel.rkt`
-  - `core-wf.rkt`
-- some selected extension points already extend lower layers directly:
-  - `wf-summary-goal/*`
-  - `wf-summary-promoted/*`
+For an explicitly tagged `(Owners owner ...)` stack ordered
+outermost-to-innermost, `wf-owner-stack?` checks records sequentially:
 
-The stack is not layered in the same strong sense as the reducer lattice for:
+1. the record's `intro` is duplicate-free;
+2. its names are disjoint from the inherited introductions;
+3. the visible list is extended by that record;
+4. the next record is checked under the extension.
 
-- `wf-summary-resolved/*`
-- `wf-summary-work/*`
-- `wf-summary-search/*`
-- `wf-summary-frontier/*`
-- `wf-summary-cfg/*`
+The node payload is then checked under the resulting visibility. Shared node
+constructors such as `Conj`, `DisjL`, and `Emit` pass that same extended
+visibility to both children. Rail's `DisjR` extension obeys the same rule.
+Branch-local owner stacks extend only their own paths.
 
-Across `delay-wf`, `disj-wf`, `search-base-wf`, `rail-wf`, and the calls-bearing
-analogs, those judgments are mostly restated at each layer with the new syntax
-cases baked in.
+States have shape `(state sub dis trail tag)`. Conjunction has shape
+`(Conj owners W g)`. Neither stores cumulative allocated-name support. That
+support is derived independently from logical-variable occurrences in the
+complete live frontier `F_support` when allocation steps.
 
-So the current stack is:
+## Kernels and schemas
 
-- layered at the kernel/helper level
-- selectively layered at a few judgment extension points
-- mostly "reauthor per layer" for the summary-family spine
+`kernel-base.rkt` defines owner-stack validation, logic-variable membership,
+fresh extension, substitution, disequality, trail, and state judgments. The
+shared schema generators are:
 
-## What "Explicitly Layered" Would Mean
+- `wf-schema.rkt` for call-free frontiers;
+- `relcall-wf-schema.rkt` for relation environments `Γ` and configurations
+  `(Γ F)`.
 
-A more explicitly layered `wf-*` stack would make the layer boundaries visible
-in the same way the reducer stack now does.
+Feature modules contribute clauses only for constructors they own. The schemas
+produce direct Redex judgments; there is no summary-producing judgment and no
+host dispatcher.
 
-That would mean:
+`define-search-well-formedness` and its relcall counterpart package the exact
+delay/disjunction union once. Search instantiates that package with no extra
+work clause. Rail instantiates the same package with exactly one local clause
+for its right-active work constructor, so the rail WF modules remain thin
+carrier extensions rather than copies of the assembled search checker.
 
-- define reusable lower-layer summary judgments as named base extension points,
-  not just goal/promoted
-- give the search-base join a real `wf` join stage, analogous to
-  `search-base-pre-red`
-- make later layers add only their actual delta cases instead of restating an
-  entire family with copied inherited clauses
+## Public judgments
 
-The intended layering target is:
+Call-free modules export names such as:
 
-1. kernel helpers and summary arithmetic
-2. `core-wf` base summary judgments
-3. `delay-wf` delta over core
-4. `disj-wf` delta over core
-5. `search-base-wf` join of delay-side and disjunction-side summary pieces
-6. `rail-wf` delta over search-base
-7. calls-bearing `wf` layers as overlays over the corresponding call-free layer
+```text
+wf-goal/search?
+wf-answer/search?
+wf-settled/search?
+wf-work/search?
+wf-frontier/search?
+wf-cfg/search?
+```
 
-## Why This Is Not Free
+The goal judgment receives lexical variables and visible introductions.
+Answer, settled, work, and frontier judgments receive visible introductions.
+The root judgment supplies the empty list.
 
-- Redex judgment extension is less ergonomic than reducer extension.
-- `search-base` is a genuine two-parent join, so a cleaner layering story will
-  likely introduce more named judgments, not fewer.
-- A too-aggressive factoring could produce a prettier diagram and a muddier
-  implementation.
+Relcall modules export the corresponding configuration-aware names:
 
-So the right test is not "can we remove repeated clauses?" It is:
+```text
+wf-goal/search-relcall?
+wf-answer/search-relcall?
+wf-settled/search-relcall?
+wf-work/search-relcall?
+wf-frontier/search-relcall?
+wf-rel-env/search-relcall?
+wf-config/search-relcall?
+```
 
-- do the new base judgment names correspond to real semantic layer seams?
-- does the resulting code make inherited cases and layer deltas easier to see?
+`Γ` is threaded only through judgments that can inspect goals.
 
-## Recommended Pilot
+Rail exports parallel `wf-*/rail?` and `wf-*/rail-relcall?` judgments. Ordinary
+production search and search-relcall WF exclude `DisjR`; the rail judgments extend those
+domains with the right-active carrier while preserving the same inherited
+visible-introduction discipline.
 
-Start with `wf-summary-frontier/*` and its immediate dependencies.
+The isolated distributed presentation intentionally retains its older common
+right-active carrier. Its tests use the larger right-active WF domain for
+distributed search, DFS, flip, and rail terms without widening the production
+search judgments.
 
-Why this slice first:
+## Independent observations
 
-- it is the clearest place where delay, disjunction, search-base, and rail
-  visibly diverge
-- it already mirrors the shell/frontier runtime story reasonably well
-- it should make the join-vs-extension issue in `search-base-wf` concrete
+`../structural-observations.rkt` defines independent folds for:
 
-Pilot scope:
+- owner-record occurrences;
+- introduced-name occurrences;
+- committed `Answer` occurrences;
+- `Forced` occurrences.
 
-- identify a reusable lower-layer `frontier` base judgment family
-- factor the delay-only delta
-- factor the disjunction-only delta
-- sketch what a `search-base` join judgment would look like
-- sketch what a `rail` delta over that join would look like
+These functions measure explicit syntax. The `Owners` wrapper contributes no
+count of its own. They do not define WF, and their occurrence counts are not
+allocation-event counts.
 
-Do not propagate the pattern through the rest of the stack until that pilot
-either reads better or clearly fails to pay for itself.
+## Scheduler boundary
+
+Production DFS and flip use `search-wf.rkt` and `search-relcall-wf.rkt`; those judgments
+describe the literal delay/disjunction union and reject `DisjR`. Rail is still
+a scheduler fiber, but its execution representation adds right-active syntax,
+so `rail-wf.rkt` and `rail-relcall-wf.rkt` validate that strictly larger
+carrier. Production strategy-domain checks select the matching judgment rather
+than admitting every rail state into ordinary search.

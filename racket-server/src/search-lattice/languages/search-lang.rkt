@@ -8,8 +8,8 @@
 
 (check-redundancy #t)
 
-;; Runtime join of delay and neutral disjunction.
-;; This is the primary L3 join node for the L0-L3 semilattice.
+;; Search is exactly the additive carrier union. Rail extends this language
+;; with the right-active carrier used only by that scheduler.
 (define-union-language search-lang
   delay-lang
   disj-lang)

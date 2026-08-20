@@ -129,13 +129,13 @@ function drawCircle(group, fill, text = "", textColor = "black", fontSize = "20p
     return circle;
 }
 
-function drawGoalConjNode(group, _) { return drawCircle(group, "#57c4ff", "∧", "white"); }
-function drawGoalDisjNode(group, _) { return drawCircle(group, "orange", "∨"); }
-function drawGoalDelayNode(group, _) { return drawCircle(group, "#d9f2ff", "Zzz", "black", "12px"); }
-function drawSucceedNode(group, _)  { return drawCircle(group, "green"); }
-function drawFailNode(group, _)     { return drawCircle(group, "#ffdddd", "×"); }
-function drawAnswerNode(group, _)   { return drawCircle(group, "green", "Answer", undefined, "10px") }
-function drawEmptyNode(group, _)    { return drawCircle(group, "white") }
+function drawGoalConjNode(group) { return drawCircle(group, "#57c4ff", "∧", "white"); }
+function drawGoalDisjNode(group) { return drawCircle(group, "orange", "∨"); }
+function drawGoalDelayNode(group) { return drawCircle(group, "#d9f2ff", "Zzz", "black", "12px"); }
+function drawSucceedNode(group)  { return drawCircle(group, "green"); }
+function drawFailNode(group)     { return drawCircle(group, "#ffdddd", "×"); }
+function drawAnswerNode(group)   { return drawCircle(group, "green", "Answer", undefined, "10px") }
+function drawEmptyNode(group)    { return drawCircle(group, "white") }
 
 function drawTextNode(group, textContent, padding = 10, fill = "lightgray") {
     const textElement = group.append("text")
@@ -198,7 +198,8 @@ function drawEmitNode(group) {
         .attr("fill", "#666");
 }
 
-function drawBouncedNode(group) {
+function drawForcedNode(group) {
+    // "Deferred" is the friendly label shown in the tree UI.
     return drawCircle(group, "#fff2cc", "Deferred", "black", "10px");
 }
 
@@ -247,7 +248,7 @@ const nodeDrawFunctions = {
     "Fresh": drawFreshNode,
     "Emit": drawEmitNode,
     "Freshened": drawFreshenedNode,
-    "Deferred": drawBouncedNode,
+    "Deferred": drawForcedNode,
     "Rel-Call": drawRelCallNode,
     "Goal-Delay": drawGoalDelayNode,
     "Goal-Conj": drawGoalConjNode,

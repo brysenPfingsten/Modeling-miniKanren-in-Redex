@@ -11,13 +11,13 @@
 (define-extended-language delay-lang core-lang
   [g ....
      (suspend g tag)]
-  [search ....
-          (delay runnable-search)]
-  [cfg ....
-       (Deferred cfg)]
-  ;; First committed shell context on the delay branch.
-  ;; First divergent layer: L1/delay.
-  ;; Allowed extension direction: add shell constructors only.
-  [ShellCtx ::= hole
-              (ScopedShell c ShellCtx tag)
-              (Deferred ShellCtx)])
+  [W ....
+     (PendingDelay owners W)]
+  [F ....
+     (Forced owners F)]
+
+  [WorkOwnerSlot ::= ....
+                     (PendingDelay hole W)]
+
+  [SpineContext ::= ....
+                    (Forced owners SpineContext)])

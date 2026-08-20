@@ -50,9 +50,7 @@
          canonical-compile-profile
          canonical-compile-profile-jsexpr
          normalize-compile-profile
-         compile-profile->jsexpr
-         canonical-parser-profile
-         canonical-parser-target-id)
+         compile-profile->jsexpr)
 
 (struct model-step (name config) #:transparent)
 
@@ -95,11 +93,6 @@
     (parse-prog/canonical sexpr-prog
                           #:source-mode source-mode*
                           #:compile-profile compile-profile*))
-  (unless (canonical-target-in-domain? initial-config canonical-parser-target-id)
-    (error 'prepare-source
-           "transpiler produced a program outside canonical target ~a"
-           canonical-parser-target-id))
-  (check-canonical-well-formed initial-config canonical-parser-target-id)
   (check-search-config strategy* initial-config)
   (values initial-config
           (program-query-var-count initial-config)
@@ -107,22 +100,20 @@
 
 (define (final-frontier? frontier)
   (match frontier
-    ['(empty-tree) #t]
-    [`(⊤ ,_) #t]
-    [(or `(ScopedTree ,_ ,inner ,_)
-         `(ScopedShell ,_ ,inner ,_))
+    [(list 'Done (list 'Owners (list 'Owner _ _) ...)) #t]
+    [(list 'Last (list 'Owners (list 'Owner _ _) ...) _) #t]
+    [(list 'Forced (list 'Owners (list 'Owner _ _) ...) inner)
      (final-frontier? inner)]
-    [`(Deferred ,inner)
-     (final-frontier? inner)]
-    [`(,_ + ,rest)
+    [(list 'Emit (list 'Owners (list 'Owner _ _) ...) _ rest)
      (final-frontier? rest)]
     [_ #f]))
 
 (define (final-config? cfg)
   (match cfg
-    [`(,_ ,frontier)
+    [`(,(? list?) ,frontier)
      (final-frontier? frontier)]
-    [_ #f]))
+    [frontier
+     (final-frontier? frontier)]))
 
 (define (picture->answer-nodes node [acc '()])
   (match node

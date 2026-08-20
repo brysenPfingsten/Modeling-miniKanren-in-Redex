@@ -1,8 +1,8 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "./relcall-lang.rkt"
-         "./rail-lang.rkt")
+         "./rail-lang.rkt"
+         "./relcall-lang.rkt")
 
 (provide rail-relcall-lang)
 

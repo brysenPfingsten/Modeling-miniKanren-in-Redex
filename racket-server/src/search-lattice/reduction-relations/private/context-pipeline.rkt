@@ -6,4 +6,7 @@
 
 (define-syntax-rule (define-lift-search-to-relcall name rel lang)
   (define name
-    (context-closure rel lang (Γ hole))))
+    (context-closure
+     (extend-reduction-relation rel lang #:domain any)
+     lang
+     (Γ hole))))

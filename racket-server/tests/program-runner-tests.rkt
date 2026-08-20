@@ -36,7 +36,7 @@
     (define result
       (run-source micro-same-program
                   #:source-mode "micro"
-                  #:search-strategy (search-strategy "late" "flip")))
+                  #:search-strategy (search-strategy "flip")))
     (check-equal? (run-result-answers result)
                   (list (hasheq 'sym "cat")))
     (check-true (positive? (run-result-step-count result)))

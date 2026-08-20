@@ -1,10 +1,14 @@
 #lang racket
-(require rackunit
+(require redex/reduction-semantics
+         rackunit
          rackunit/text-ui
          web-server/http/response-structs
          web-server/http/request-structs
          json
          "../src/app.rkt"
+         "../src/search-lattice/picture.rkt"
+         (prefix-in flip-red:
+                    "../src/search-lattice/reduction-relations/search-flip-relcall-red.rkt")
          "../src/search-strategy.rkt"
          "../src/zipper.rkt"
          "../src/transpiler.rkt"
@@ -12,18 +16,27 @@
          "./example-compat-tests.rkt")
 
 (define sample-tree
-  '(() ((∃
-          (x:q)
-          ((sym "tree1") =? (sym "horse") (label "u5"))
-          (label "f0"))
-        (state () () () () (label "s")))))
+  '(()
+    (More
+     (Work (Owners)
+      (∃
+       (x:q)
+       ((sym "tree1") =? (sym "horse") (label "u5"))
+       (label "f0"))
+      (state () () () (label "s"))))))
 
 (define step/const-tree-output
   (make-stepper (lambda (_) (list (list "foo" sample-tree)))))
 
 (define streamed-answer-tree
-  '(() ((⊤ (state () () () () (label "answer")))
-        + ((succeed (label "ok")) (state () () () () (label "tail"))))))
+  '(()
+    (Emit
+     (Owners)
+     (Answer (Owners) (state () () () (label "answer")))
+     (More
+      (Work (Owners)
+       (succeed (label "ok"))
+       (state () () () (label "tail")))))))
 
 (define step/streamed-answer-output
   (make-stepper (lambda (_) (list (list "stream-step" streamed-answer-tree)))))
@@ -183,11 +196,11 @@
        [(== q 'dog)])]
       [(same q 'fish)]))")
 
-(define hoist-witness-micro-program
+(define factored-continuation-micro-program
   "(run 2 (q)
      (conj
        (disj
-         (== q 'hoist)
+         (== q 'continuation)
          (== q 'witness))
        (== q q)))")
 
@@ -217,6 +230,11 @@
 (define STRATEGY-WITNESS-CAP 120)
 (define PAIR-WITNESS-CAP 12)
 (define DEEP-TRACE-CAP 64)
+
+(define flip-redex-rule-names
+  (map symbol->string
+       (reduction-relation->rule-names
+        flip-red:search-flip-relcall-red)))
 
 (define (render-source->micro src)
   (define response (source-convert! (make-post-source-convert-request src)))
@@ -284,6 +302,17 @@
               (collect-step-payloads ses^
                                      (sub1 remaining)))])]))
 
+(define (find-adjacent-step-payloads payloads left-name right-name)
+  (match payloads
+    [(or '() (list _)) #f]
+    [(cons left (cons right rest))
+     (if (and (equal? (hash-ref left 'stepName) left-name)
+              (equal? (hash-ref right 'stepName) right-name))
+         (list left right)
+         (find-adjacent-step-payloads (cons right rest)
+                                      left-name
+                                      right-name))]))
+
 (define (payload->program-json payload)
   (string->jsexpr (hash-ref payload 'program)))
 
@@ -331,7 +360,7 @@
   #:after  (thunk (displayln "Finished running tests for step!"))
 
   (test-case "step! sends null reponse with header if no more reductions and does not affect zipper"
-              (define zip (zipper '() (step "foo" '(() ())) '() 1))
+              (define zip (zipper '() (step "foo" '(() (Done (Owners)))) '() 1))
               (define stepper (make-stepper (λ (_) '())))
               (define ses (session zip stepper 1 default-search-strategy))
               (define-values (response ses^) (step! ses))
@@ -388,6 +417,31 @@
               (match-define (hash* ['name name] #:open) program-json)
               (check-equal? name "Emit")
               (check-true (json-contains-name? program-json "Answer")))
+
+  (test-case "answer reification uses the largest visible structural introduction"
+    ;; The path intentionally skips u:1. Using the number of visible names as
+    ;; the allocation bound would omit u:2 and make the reification invalid.
+    (define picture
+      (cfg->operational-picture
+       '(Last
+         (Owners
+          (Owner (u:0) (label "outer"))
+          (Owner (u:2) (label "inner")))
+         (Answer
+          (Owners)
+          (state ((u:0 u:2) (u:2 (sym "cat")))
+                 ()
+                 ()
+                 (label "answer"))))
+       1))
+    (match-define
+      (hash* ['children
+              (list
+               (hash* ['children (list answer)] #:open))]
+             #:open)
+      picture)
+    (check-equal? (hash-ref answer 'reified)
+                  (hasheq 'sym "cat")))
 )
 
 (define-test-suite INIT!
@@ -452,6 +506,29 @@
               (check-true (json-contains-name? program-json "Goal-Delay"))
               (check-false (equal? name "Delay")))
 
+  (test-case "init! rejects compileProfile for direct micro source"
+              (define sample-req
+                (make-post-init-request
+                 factored-continuation-micro-program
+                 (hasheq 'text factored-continuation-micro-program
+                         'sourceMode "micro"
+                         'compileProfile
+                         (hasheq 'conjAssoc "right"
+                                 'disjAssoc "left"
+                                 'delayPlacement "disj"))))
+              (define ses
+                (session (make-empty-zipper)
+                         identity
+                         1
+                         default-search-strategy))
+              (check-exn
+               #rx"compileProfile is only valid when sourceMode is \"mini\""
+               (lambda ()
+                 (call-with-values
+                  (lambda ()
+                    (init! ses sample-req 'micro-compile-profile-id))
+                  list))))
+
   (test-case "init!/step! preserve source ids across tagged source and tree JSON"
               (define sample-req
                 (make-post-init-request same-program))
@@ -475,8 +552,8 @@
   (test-case "init!/step! preserve source ids across tagged source and tree JSON for direct micro source"
               (define sample-req
                 (make-post-init-request
-                 hoist-witness-micro-program
-                 (hasheq 'text hoist-witness-micro-program
+                 factored-continuation-micro-program
+                 (hasheq 'text factored-continuation-micro-program
                          'sourceMode "micro")))
               (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
               (define-values (response ses^) (init! ses sample-req 'micro-source-id-test))
@@ -528,32 +605,34 @@
                    (regexp-match? (regexp-quote (format "[[~a]]" id))
                                   html-guids)))))
 
-  (test-case "micro hoist witness changes visible tree on adjacent rail steps"
+  (test-case "rail-enter and force-delay are adjacent visible UI changes"
               (define sample-req
                 (make-post-init-request
-                 hoist-witness-micro-program
-                 (hasheq 'text hoist-witness-micro-program
-                         'sourceMode "micro")
-                 #:strategy (search-strategy "early" "rail")))
+                 disj-delay-program
+                 #:strategy (search-strategy "rail")))
               (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (define-values (response ses^) (init! ses sample-req 'hoist-witness-id))
+              (define-values (response ses^) (init! ses sample-req 'rail-delay-witness-id))
               (check-equal? (response-code response) 200)
-              (define-values (step1-payload ses1) (nth-step-payload ses^ 0))
-              (define-values (step2-payload _ses2) (nth-step-payload ses1 0))
-              (check-not-false step1-payload)
-              (check-not-false step2-payload)
-              (match-define (hash* ['step step1]
-                                   ['program program1]
+              (define rail/force-pair
+                (find-adjacent-step-payloads
+                 (collect-step-payloads ses^ STRATEGY-WITNESS-CAP)
+                 "rail-enter-right"
+                 "force-delay"))
+              (check-not-false rail/force-pair)
+              (match-define (list rail-payload force-payload) rail/force-pair)
+              (match-define (hash* ['step rail-step]
+                                   ['program rail-program]
                                    #:open)
-                step1-payload)
-              (match-define (hash* ['step step2]
-                                   ['program program2]
+                rail-payload)
+              (match-define (hash* ['step force-step]
+                                   ['program force-program]
                                    #:open)
-                step2-payload)
-              (check-equal? step1 1)
-              (check-equal? step2 2)
-              (check-false (equal? (string->jsexpr program1)
-                                   (string->jsexpr program2))))
+                force-payload)
+              (check-equal? force-step (add1 rail-step))
+              (check-true (payload-contains-name? rail-payload "Delay"))
+              (check-true (payload-contains-name? force-payload "Deferred"))
+              (check-false (equal? (string->jsexpr rail-program)
+                                   (string->jsexpr force-program))))
 
   (test-case "fives/fours trace contains multiple scoped adjacent UI changes"
               (define sample-req
@@ -572,14 +651,14 @@
               (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
               (define-values (response ses^) (init! ses sample-req 'fives-fours-debug-id))
               (check-equal? (response-code response) 200)
-              (define scoped-bounced-pair
+              (define scoped-forced-pair
                 (for/first ([pair (in-list (collect-scoped-visible-changes
                                             (collect-step-payloads ses^ SCOPED-VISIBLE-PAIR-CAP)))]
                             #:do [(match-define (list left right) pair)]
                             #:when (or (payload-contains-name? left "Deferred")
                                        (payload-contains-name? right "Deferred")))
                   pair))
-              (check-not-false scoped-bounced-pair))
+              (check-not-false scoped-forced-pair))
 
   (test-case "dotted-pair witness eventually serializes dotted-pair reifications"
               (define sample-req
@@ -635,17 +714,17 @@
               (check-equal? (response-code response) 200)
               (check-equal? (session-search-strategy ses^) default-search-strategy))
 
-  (test-case "init! rejects invalid searchStrategy hoist in payload"
+  (test-case "init! rejects searchStrategy.hoist in payload"
               (define sample-req
                 (make-post-init-request
                  "(run* (q) (== q 'ok))"
                  (hasheq 'text "(run* (q) (== q 'ok))"
                          'sourceMode "mini"
                          'compileProfile (hash-ref default-source-options 'compileProfile)
-                         'searchStrategy (hasheq 'hoist "sideways"
+                         'searchStrategy (hasheq 'hoist "early"
                                                  'scheduler "rail"))))
               (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (check-exn exn:fail?
+              (check-exn #rx"searchStrategy\\.hoist is not part of the factored runtime"
                          (thunk
                           (call-with-values
                            (lambda () (init! ses sample-req 'invalid-hoist-id))
@@ -658,8 +737,7 @@
                  (hasheq 'text disj-delay-program
                          'sourceMode "mini"
                          'compileProfile (hash-ref default-source-options 'compileProfile)
-                         'searchStrategy (hasheq 'hoist "late"
-                                                 'scheduler "zigzag"))))
+                         'searchStrategy (hasheq 'scheduler "zigzag"))))
               (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
               (check-exn exn:fail?
                          (thunk
@@ -677,15 +755,15 @@
                  ses
                  (make-post-init-request
                   disj-delay-program
-                  #:strategy (search-strategy "late" "flip"))
+                  #:strategy (search-strategy "flip"))
                  'init-search-strategy-id))
               (check-equal? (response-code response) 200)
               (check-equal? (session-search-strategy ses^)
-                            (search-strategy "late" "flip"))
+                            (search-strategy "flip"))
               (define names (collect-step-names ses^ STRATEGY-WITNESS-CAP))
-              (check-not-false (member "delay-swap-left" names))
-              (check-false (member "enter-right-at-branch" names))
-              (check-false (member "enter-right-through-scoped-delay" names)))
+              (check-not-false (member "flip-delay-left" names))
+              (check-false (member "rail-enter-right" names))
+              (check-false (member "rail-return-left" names)))
   )
 
 (define-test-suite RESET!
@@ -799,30 +877,28 @@
   #:before (thunk (displayln "Running tests for init search strategy binding!..."))
   #:after (thunk (displayln "Finished running tests for init search strategy binding!."))
 
-  (test-case "late flip strategy emits flip rules and no rail rules"
+  (test-case "flip strategy emits flip rules and no rail rules"
              (define ses (session (make-empty-zipper) step/const-tree-output 1 default-search-strategy))
-             (define-values (response ses^) (init! ses (make-post-init-request disj-delay-program #:strategy (search-strategy "late" "flip")) 'testid))
+             (define-values (response ses^) (init! ses (make-post-init-request disj-delay-program #:strategy (search-strategy "flip")) 'testid))
              (check-equal? (response-code response) 200)
-             (check-equal? (session-search-strategy ses^) (search-strategy "late" "flip"))
+             (check-equal? (session-search-strategy ses^) (search-strategy "flip"))
              (define names (collect-step-names ses^ STRATEGY-WITNESS-CAP))
-             (check-not-false (member "delay-swap-left" names))
-             (check-not-false (member "invoke-delay" names))
-             (check-false (member "enter-right-at-branch" names))
-             (check-false (member "enter-right-through-scoped-delay" names))
-             (check-false (member "return-left-at-branch" names))
-             (check-false (member "return-left-through-scoped-delay" names)))
+             (check-not-false (member "flip-delay-left" names))
+             (check-not-false (member "force-delay" names))
+             (check-false (member "rail-enter-right" names))
+             (check-false (member "rail-return-left" names)))
 
-  (test-case "late flip hoist witness continues to a fourth step"
+  (test-case "factored flip witness reaches unify under owner annotations"
              (define ses (session (make-empty-zipper) step/const-tree-output 1 default-search-strategy))
              (define-values (response ses^)
                (init!
                 ses
                 (make-post-init-request
-                 hoist-witness-micro-program
-                 (hasheq 'text hoist-witness-micro-program
+                 factored-continuation-micro-program
+                 (hasheq 'text factored-continuation-micro-program
                          'sourceMode "micro")
-                 #:strategy (search-strategy "late" "flip"))
-                'hoist-witness-late-flip-id))
+                 #:strategy (search-strategy "flip"))
+                'factored-witness-flip-id))
              (check-equal? (response-code response) 200)
              (define-values (payload _ses^^) (nth-step-payload ses^ 3))
              (check-not-false payload)
@@ -833,33 +909,33 @@
              (check-equal? step 4)
              (check-equal? step-name "unify-success"))
 
-  (test-case "early rail strategy binds the session and keeps flip rules absent"
+  (test-case "rail strategy binds the session and keeps flip rules absent"
              (define ses (session (make-empty-zipper) step/const-tree-output 1 default-search-strategy))
-             (define-values (response ses^) (init! ses (make-post-init-request (example-src "fives/fours") #:strategy (search-strategy "early" "rail")) 'testid))
+             (define-values (response ses^) (init! ses (make-post-init-request (example-src "fives/fours") #:strategy (search-strategy "rail")) 'testid))
              (check-equal? (response-code response) 200)
-             (check-equal? (session-search-strategy ses^) (search-strategy "early" "rail"))
+             (check-equal? (session-search-strategy ses^) (search-strategy "rail"))
              (define names (collect-step-names ses^ STRATEGY-WITNESS-CAP))
-             (check-not-false (member "invoke-delay" names))
-             (check-false (member "delay-swap-left" names)))
+             (check-not-false (member "force-delay" names))
+             (check-false (member "flip-delay-left" names)))
 
-  (test-case "early rail delayed disjunction expands the right relcall after invoke-delay"
+  (test-case "rail delayed disjunction expands the right relcall after force-delay"
              (define ses (session (make-empty-zipper) step/const-tree-output 1 default-search-strategy))
              (define-values (response ses^)
                (init! ses
                       (make-post-init-request disj-delay-program
-                                              #:strategy (search-strategy "early" "rail"))
+                                              #:strategy (search-strategy "rail"))
                       'testid))
              (check-equal? (response-code response) 200)
-             (check-equal? (session-search-strategy ses^) (search-strategy "early" "rail"))
+             (check-equal? (session-search-strategy ses^) (search-strategy "rail"))
              (define names (collect-step-names ses^ STRATEGY-WITNESS-CAP))
-             (check-not-false (member "enter-right-at-branch" names))
-             (check-not-false (member "invoke-delay" names))
+             (check-not-false (member "rail-enter-right" names))
+             (check-not-false (member "force-delay" names))
              (check-true (>= (length (filter (lambda (name)
                                                (equal? name "expand-relcall"))
                                              names))
                              2)))
 
-  (test-case "late dfs relcall-delay profile expands relcall without eager/lazy resume rules"
+  (test-case "dfs relcall-delay profile expands relcall without eager/lazy resume rules"
              (define ses (session (make-empty-zipper) step/const-tree-output 1 default-search-strategy))
              (define-values (response ses^)
                (init!
@@ -871,10 +947,10 @@
                          'compileProfile (hasheq 'conjAssoc "left"
                                                  'disjAssoc "right"
                                                  'delayPlacement "relcall"))
-                 #:strategy (search-strategy "late" "dfs"))
+                 #:strategy (search-strategy "dfs"))
                 'testid))
              (check-equal? (response-code response) 200)
-             (check-equal? (session-search-strategy ses^) (search-strategy "late" "dfs"))
+             (check-equal? (session-search-strategy ses^) (search-strategy "dfs"))
              (define names (collect-step-names ses^ STRATEGY-WITNESS-CAP))
              (check-not-false (member "expand-relcall" names))
              (check-false (ormap (lambda (nm)
@@ -893,16 +969,98 @@
                          'compileProfile (hasheq 'conjAssoc "right"
                                                  'disjAssoc "left"
                                                  'delayPlacement "disj"))
-                 #:strategy (search-strategy "early" "rail"))
+                 #:strategy (search-strategy "rail"))
                 'testid))
              (check-equal? (response-code response) 200)
-             (check-equal? (session-search-strategy ses^) (search-strategy "early" "rail"))
+             (check-equal? (session-search-strategy ses^) (search-strategy "rail"))
              (define names (collect-step-names ses^ STRATEGY-WITNESS-CAP))
              (check-not-false (member "suspend-goal" names))
              (check-not-false (member "expand-relcall" names))
              (check-false (ormap (lambda (nm)
                                    (regexp-match? #rx"eager|lazy|proceed" nm))
                                  names))))
+
+(define-test-suite CONFIGURATION-NAVIGATION!
+  #:before (thunk (displayln "Running product configuration navigation tests..."))
+  #:after (thunk (displayln "Finished product configuration navigation tests."))
+
+  (test-case "non-default compile/runtime configuration survives step, back, and reset"
+             (define selected-profile
+               (hasheq 'conjAssoc "right"
+                       'disjAssoc "left"
+                       'delayPlacement "disj"))
+             (define selected-strategy (search-strategy "flip"))
+             (define req
+               (make-post-init-request
+                disj-relcall-program
+                (hasheq 'text disj-relcall-program
+                        'sourceMode "mini"
+                        'compileProfile selected-profile)
+                #:strategy selected-strategy))
+             (define-values (init-response ses1)
+               (init! (make-empty-session) req 'retained-config-id))
+             (define init-payload
+               (string->jsexpr (response-body->string init-response)))
+             (define init-program (hash-ref init-payload 'program))
+
+             ;; Disjunction placement delays the query's disjunction itself;
+             ;; the canonical relbody profile does not. This distinguishes the
+             ;; selected lowering from mere acceptance of its option values.
+             (check-true
+              (json-contains-name? (string->jsexpr init-program)
+                                   "Goal-Delay"))
+             (define-values (canonical-response _canonical-session)
+               (init!
+                (make-empty-session)
+                (make-post-init-request disj-relcall-program
+                                        #:strategy selected-strategy)
+                'canonical-config-comparison-id))
+             (define canonical-payload
+               (string->jsexpr (response-body->string canonical-response)))
+             (check-false
+              (json-contains-name?
+               (string->jsexpr (hash-ref canonical-payload 'program))
+               "Goal-Delay"))
+
+             ;; The selected lowering has observable operational force, and
+             ;; every surfaced label is the name of an actual Redex clause.
+             (define trace-names
+               (collect-step-names ses1 STRATEGY-WITNESS-CAP))
+             (check-not-false (member "suspend-goal" trace-names))
+             (check-not-false (member "expand-relcall" trace-names))
+             (check-true
+              (andmap (lambda (name)
+                        (if (member name flip-redex-rule-names) #t #f))
+                      trace-names))
+
+             (define-values (first-response ses2) (step! ses1))
+             (define first-payload
+               (string->jsexpr (response-body->string first-response)))
+             (check-equal? (session-search-strategy ses2) selected-strategy)
+
+             (define-values (back-response ses3) (back! ses2))
+             (define back-payload
+               (string->jsexpr (response-body->string back-response)))
+             (check-equal? (hash-ref back-payload 'program) init-program)
+             (check-equal? (session-search-strategy ses3) selected-strategy)
+
+             (define-values (replayed-response ses4) (step! ses3))
+             (define replayed-payload
+               (string->jsexpr (response-body->string replayed-response)))
+             (check-equal? replayed-payload first-payload)
+             (check-equal? (session-search-strategy ses4) selected-strategy)
+
+             (define-values (reset-response ses5) (reset! ses4))
+             (define reset-payload
+               (string->jsexpr (response-body->string reset-response)))
+             (check-equal? (hash-ref reset-payload 'program) init-program)
+             (check-equal? (session-search-strategy ses5) selected-strategy)
+
+             (define-values (post-reset-response ses6) (step! ses5))
+             (define post-reset-payload
+               (string->jsexpr (response-body->string post-reset-response)))
+             (check-equal? post-reset-payload first-payload)
+             (check-equal? (session-search-strategy ses6) selected-strategy)))
 
 (define-test-suite SOURCE-CONVERT!
   (test-case "source-convert! lowers mini source to direct micro source with Zzz"
@@ -939,6 +1097,7 @@
   RESET!
   BACK!
   INIT-SEARCH-STRATEGY!
+  CONFIGURATION-NAVIGATION!
   SOURCE-CONVERT!
 )
 

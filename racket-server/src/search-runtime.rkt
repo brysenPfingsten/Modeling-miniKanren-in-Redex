@@ -3,18 +3,12 @@
 (require redex/reduction-semantics
          (prefix-in lang:
                     "./search-lattice/languages/all.rkt")
-         (rename-in "./search-lattice/reduction-relations/rail-late-relcall-red.rkt"
-                    [step-once step-once/rail-late-relcall])
-         (rename-in "./search-lattice/reduction-relations/rail-early-relcall-red.rkt"
-                    [step-once step-once/rail-early-relcall])
-         (rename-in "./search-lattice/reduction-relations/search-dfs-late-relcall-red.rkt"
-                    [step-once step-once/search-dfs-late-relcall])
-         (rename-in "./search-lattice/reduction-relations/search-dfs-early-relcall-red.rkt"
-                    [step-once step-once/search-dfs-early-relcall])
-         (rename-in "./search-lattice/reduction-relations/search-flip-late-relcall-red.rkt"
-                    [step-once step-once/search-flip-late-relcall])
-         (rename-in "./search-lattice/reduction-relations/search-flip-early-relcall-red.rkt"
-                    [step-once step-once/search-flip-early-relcall])
+         (rename-in "./search-lattice/reduction-relations/rail-relcall-red.rkt"
+                    [step-once step-once/rail-relcall])
+         (rename-in "./search-lattice/reduction-relations/search-dfs-relcall-red.rkt"
+                    [step-once step-once/search-dfs-relcall])
+         (rename-in "./search-lattice/reduction-relations/search-flip-relcall-red.rkt"
+                    [step-once step-once/search-flip-relcall])
          (prefix-in wf:
                     "./search-lattice/wf/all.rkt")
          "search-strategy.rkt")
@@ -30,49 +24,28 @@
 (struct strategy-spec (strategy step-once in-domain? well-formed?) #:transparent)
 
 (define/match (strategy-key strategy)
-  [((search-strategy hoist scheduler))
-   (list hoist scheduler)])
+  [((search-strategy scheduler))
+   scheduler])
 
 (define all-strategy-specs
   (list
    (strategy-spec
-   (search-strategy "early" "dfs")
-    step-once/search-dfs-early-relcall
+    (search-strategy "dfs")
+    step-once/search-dfs-relcall
     (lambda (cfg)
       (redex-match? lang:search-relcall-lang config cfg))
     (lambda (cfg)
       (judgment-holds (wf:wf-config/search-relcall? ,cfg))))
    (strategy-spec
-   (search-strategy "late" "dfs")
-    step-once/search-dfs-late-relcall
+    (search-strategy "flip")
+    step-once/search-flip-relcall
     (lambda (cfg)
       (redex-match? lang:search-relcall-lang config cfg))
     (lambda (cfg)
       (judgment-holds (wf:wf-config/search-relcall? ,cfg))))
    (strategy-spec
-   (search-strategy "early" "flip")
-    step-once/search-flip-early-relcall
-    (lambda (cfg)
-      (redex-match? lang:search-relcall-lang config cfg))
-    (lambda (cfg)
-      (judgment-holds (wf:wf-config/search-relcall? ,cfg))))
-   (strategy-spec
-   (search-strategy "late" "flip")
-    step-once/search-flip-late-relcall
-    (lambda (cfg)
-      (redex-match? lang:search-relcall-lang config cfg))
-    (lambda (cfg)
-      (judgment-holds (wf:wf-config/search-relcall? ,cfg))))
-   (strategy-spec
-   (search-strategy "early" "rail")
-    step-once/rail-early-relcall
-    (lambda (cfg)
-      (redex-match? lang:rail-relcall-lang config cfg))
-    (lambda (cfg)
-      (judgment-holds (wf:wf-config/rail-relcall? ,cfg))))
-   (strategy-spec
-   (search-strategy "late" "rail")
-    step-once/rail-late-relcall
+    (search-strategy "rail")
+    step-once/rail-relcall
     (lambda (cfg)
       (redex-match? lang:rail-relcall-lang config cfg))
     (lambda (cfg)

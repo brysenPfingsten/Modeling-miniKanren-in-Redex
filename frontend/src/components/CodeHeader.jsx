@@ -14,10 +14,9 @@ export default function CodeHeader({
   disjAssocOptions = [],
   delayPlacementOptions = [],
   onCompileProfileChange,
-  searchStrategy,
-  hoistOptions = [],
+  schedulerValue,
   schedulerOptions = [],
-  onSearchStrategyChange,
+  onSchedulerChange,
   isFrozen,
   isExampleLoading = false,
 }) {
@@ -125,19 +124,11 @@ export default function CodeHeader({
           <div className="control-section-title">Search</div>
           <div className="control-section-body">
             {renderRadioGroup(
-              "Hoist",
-              "search-hoist",
-              searchStrategy.hoist,
-              hoistOptions,
-              (value) => onSearchStrategyChange("hoist", value),
-            )}
-
-            {renderRadioGroup(
               "Scheduler",
               "search-scheduler",
-              searchStrategy.scheduler,
+              schedulerValue,
               schedulerOptions,
-              (value) => onSearchStrategyChange("scheduler", value),
+              onSchedulerChange,
             )}
           </div>
         </section>

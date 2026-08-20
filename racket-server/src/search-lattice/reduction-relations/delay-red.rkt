@@ -2,63 +2,83 @@
 
 (require redex/reduction-semantics
          "../languages/delay-lang.rkt"
-         (only-in "../languages/core-lang.rkt" fresh-tree-prefix->shell-prefix)
+         (only-in "../languages/core-lang.rkt" owners-append)
          (prefix-in core: "./core-red.rkt")
          "./private/step-utils.rkt")
 
-(provide local/delta
+(provide work/delta/raw
+         frontier/delta/raw
+         work/delta
          frontier/delta
+         work/raw
+         frontier/raw
+         allocate/base
+         work/base
+         frontier/base
          delay-red
          step-once)
 
 (check-redundancy #t)
 
-(define local/delta
+(define work/delta/raw
   (reduction-relation
    delay-lang
-   #:domain search
-   [--> ((suspend g tag) σ)
-        (delay (g σ))
+   #:domain any
+   [--> (Work owners (suspend g tag) σ)
+        (PendingDelay owners (Work (Owners) g σ))
         "suspend-goal"]
-   [--> ((in-hole FreshCtx (delay runnable-search_1)) × g c)
-        (delay ((in-hole FreshCtx runnable-search_1) × g c))
-        "delay-through-conj"]))
+   [--> (Conj owners_outer
+              (PendingDelay owners_delay
+                            (in-hole WorkOwnerSlot_1 owners_payload))
+              g)
+        (PendingDelay
+         owners_outer
+         (Conj (Owners)
+               (in-hole WorkOwnerSlot_1
+                        owners_attached)
+               g))
+        (where owners_attached
+               (owners-append owners_delay owners_payload))
+        "bubble-delay-through-conj"]))
 
-(define local/base
-  ;; L1 keeps the same two-stage shape as L0: a LocalCtx seam, then the
-  ;; final ShellCtx closure when the runnable machine is assembled.
-  (context-closure
-   (union-reduction-relations
-    (extend-reduction-relation core:local/base delay-lang)
-    local/delta)
+(define frontier/delta/raw
+  (reduction-relation
    delay-lang
-   LocalCtx))
+   #:domain any
+   [--> (More (PendingDelay owners W))
+        (Forced owners (More W))
+        "force-delay"]))
 
-(define local/under-ShellCtx
-  (context-closure
-   local/base
-   delay-lang
-   ShellCtx))
+(define work/raw
+  (union-reduction-relations
+   (extend-reduction-relation core:work/raw delay-lang)
+   work/delta/raw))
+
+(define frontier/raw
+  (union-reduction-relations
+   (extend-reduction-relation core:frontier/raw delay-lang)
+   frontier/delta/raw))
+
+(define allocate/base
+  (extend-reduction-relation core:allocate/base delay-lang))
+
+(define work/delta
+  (context-closure work/delta/raw delay-lang WorkFocus))
 
 (define frontier/delta
-  (reduction-relation
-   delay-lang
-   #:domain cfg
-   [--> (in-hole ShellCtx (in-hole FreshCtx (delay runnable-search_i)))
-        (in-hole ShellCtx
-                 (fresh-tree-prefix->shell-prefix
-                  (in-hole FreshCtx (Deferred runnable-search_i))))
-        "invoke-delay"]))
+  (context-closure frontier/delta/raw delay-lang SpineContext))
 
-(define shell/base
-  (union-reduction-relations
-   (extend-reduction-relation core:shell/base delay-lang)
-   frontier/delta))
+(define work/base
+  (context-closure work/raw delay-lang WorkFocus))
+
+(define frontier/base
+  (context-closure frontier/raw delay-lang SpineContext))
 
 (define delay-red
-  (union-reduction-relations
-   local/under-ShellCtx
-   shell/base))
+  (extend-reduction-relation
+   (union-reduction-relations work/base frontier/base allocate/base)
+   delay-lang
+   #:domain F))
 
 (define (step-once prog)
   (step-once/deterministic delay-red prog))

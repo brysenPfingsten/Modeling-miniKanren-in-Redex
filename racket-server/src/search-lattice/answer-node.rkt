@@ -81,11 +81,11 @@
            [_ (hasheq 'left crumb 'right crumb 'id "bad-trail")]))
        trail))
 
-(define (state-c-bound c)
+(define (introduction-bound introductions)
   (cond
-    [(null? c) 0]
+    [(null? introductions) 0]
     [else
-     (add1 (for/fold ([mx -1]) ([u (in-list c)])
+     (add1 (for/fold ([mx -1]) ([u (in-list introductions)])
              (max mx (or (u-symbol->natural u) -1))))]))
 
 (define (reified? r)
@@ -106,8 +106,8 @@
 (define (underscore-symbol n)
   (string->symbol (string-append "_" (number->string n))))
 
-(define (generate-fresh-names c)
-  (map underscore-symbol (range 1 c)))
+(define (generate-fresh-names logic-variable-bound)
+  (map underscore-symbol (range 1 logic-variable-bound)))
 
 (define (generate-query-vars n)
   (for/list ([_ (in-range n)]) (gensym)))
@@ -152,17 +152,26 @@
       (namespace-require 'hosted-minikanren))
     ns))
 
-(define (run-in-namespace ns query-vars fresh-names clauses)
-  (match (eval `(run* ,query-vars
-                      (fresh ,fresh-names
-                             ,@clauses))
-               ns)
-    [(list result _ ...)
-     result]
-    [result
-     (error 'run-in-namespace
-            "expected a non-empty result list, got ~e"
-            result)]))
+(define minikanren-namespace
+  (delay (prepare-minikanren-namespace)))
+
+(define minikanren-eval-semaphore
+  (make-semaphore 1))
+
+(define (run-in-namespace query-vars fresh-names clauses)
+  (call-with-semaphore
+   minikanren-eval-semaphore
+   (lambda ()
+     (match (eval `(run* ,query-vars
+                         (fresh ,fresh-names
+                                ,@clauses))
+                  (force minikanren-namespace))
+       [(list result _ ...)
+        result]
+       [result
+        (error 'run-in-namespace
+               "expected a non-empty result list, got ~e"
+               result)]))))
 
 (define (map/pair f p)
   (match p
@@ -175,20 +184,18 @@
     [(pair? result) (map/pair mk->json result)]
     [else (mk->json result)]))
 
-(define (reify-state sub dis c n)
+(define (reify-state sub dis logic-variable-bound n)
   (cond
     [(zero? n) '()]
     [else
-     (let* ([fresh-names (generate-fresh-names c)]
+     (let* ([fresh-names (generate-fresh-names logic-variable-bound)]
             [query-vars (generate-query-vars n)]
             [unify-clauses (map (lambda (p) (make-unify-clause query-vars n p))
                                 (sub->reify sub))]
             [diseq-clauses (map (lambda (p) (make-diseq-clause query-vars n p))
                                 (dis->reify dis))]
             [clauses (append unify-clauses diseq-clauses)]
-            [ns (prepare-minikanren-namespace)]
-            [raw-result (run-in-namespace ns
-                                          query-vars
+            [raw-result (run-in-namespace query-vars
                                           fresh-names
                                           (if (null? clauses)
                                               (list '(== 1 1))
@@ -267,9 +274,9 @@
     [_ (hasheq 'name "Goal"
                'renderRole "goal")]))
 
-(define (state->answer-node σ num-query-variables)
+(define (state->answer-node σ introductions num-query-variables)
   (match σ
-    [`(state ,sub ,dis ,c ,trail ,tag)
+    [`(state ,sub ,dis ,trail ,tag)
      (hasheq 'name "Answer"
              'renderRole "answer-node"
              'nodeColor "green"
@@ -279,7 +286,7 @@
              'trail (trail->visible-json trail)
              'reified (reify-state sub
                                    dis
-                                   (state-c-bound c)
+                                   (introduction-bound introductions)
                                    num-query-variables))]
     [_ (hasheq 'name "Answer"
                'renderRole "answer-node"

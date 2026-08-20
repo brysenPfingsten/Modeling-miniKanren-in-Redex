@@ -5,7 +5,7 @@ import { termToString } from '../utils/strings.js';
 import { addColors } from '../utils/treeSetup.js'
 import { goalIdFromTreeNodeData } from '../utils/source_mapping.js';
 
-const TreeCanvas = forwardRef(({ onNodeClick, selectedGoalId, selectedStateId }, ref) => {
+const TreeCanvas = forwardRef(({ onNodeClick, selectedGoalId }, ref) => {
     const svgRef = useRef();
     const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, content: "" });
 

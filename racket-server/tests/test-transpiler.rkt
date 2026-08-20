@@ -2,10 +2,10 @@
 (require rackunit
          rackunit/text-ui
          redex/reduction-semantics
-         (prefix-in canonical:
-                    "../src/transpiler/ir/canonical-lang.rkt")
+         (prefix-in production:
+                    "../src/search-lattice/languages/search-relcall-lang.rkt")
          (prefix-in wf:
-                    "../src/transpiler/ir/canonical-wf.rkt")
+                    "../src/search-lattice/wf/search-relcall-wf.rkt")
          "../src/sexpr-read.rkt"
          "../src/transpiler.rkt")
 
@@ -25,8 +25,8 @@
 
 (define (query-goal-of cfg)
   (match cfg
-    [`(,_ ((∃ ,_ ,goal ,_) ,_)) goal]
-    [_ (error 'query-goal-of "unexpected canonical cfg shape: ~e" cfg)]))
+    [`(,_ (More (Work (Owners) (∃ ,_ ,goal ,_) ,_))) goal]
+    [_ (error 'query-goal-of "unexpected production cfg shape: ~e" cfg)]))
 
 (define (relation-goal-of cfg rel-name)
   (match cfg
@@ -42,10 +42,10 @@
            [_ #f])))
      (or maybe-goal
          (error 'relation-goal-of
-                "relation ~e not present in canonical cfg ~e"
+                "relation ~e not present in production cfg ~e"
                 rel-name
                 cfg))]
-    [_ (error 'relation-goal-of "unexpected canonical cfg shape: ~e" cfg)]))
+    [_ (error 'relation-goal-of "unexpected production cfg shape: ~e" cfg)]))
 
 (define (goal-top-delay? goal)
   (match goal
@@ -152,7 +152,7 @@
     (define PROG '((run* (q) (== 1 1) (== 2 2) (== 3 3))))
     (define-values (cfg _) (parse-prog/canonical PROG))
     (define goal (query-goal-of cfg))
-    (check-true (redex-match? canonical:canonical-lang g (term ,goal)))
+    (check-true (redex-match? production:search-relcall-lang g (term ,goal)))
     (check-true
      (match goal
        [`((,_ ∧ ,_ ,_) ∧ ,_ ,_) #t]
@@ -168,7 +168,7 @@
                       [(same q 'fish)]))))
     (define-values (cfg _) (parse-prog/canonical PROG))
     (define goal (query-goal-of cfg))
-    (check-true (redex-match? canonical:canonical-lang g (term ,goal)))
+    (check-true (redex-match? production:search-relcall-lang g (term ,goal)))
     (check-true
      (match goal
        [`((,_ ∨ (,_ ∨ ,_ ,_) ,_) ∨ ,_ ,_) #t]
@@ -315,8 +315,8 @@
   (test-case "direct micro source accepts binary conj/disj, Zzz, and disequality"
     (define-values (cfg html)
       (parse-src/canonical micro-source #:source-mode "micro"))
-    (check-true (redex-match? canonical:canonical-lang config cfg))
-    (check-true (wf:wf-config/target? "canonical/config" cfg))
+    (check-true (redex-match? production:search-relcall-lang config cfg))
+    (check-true (judgment-holds (wf:wf-config/search-relcall? ,cfg)))
     (check-true (string? html)))
 
   (test-case "direct micro source rejects source-level delay spelling"
@@ -363,7 +363,7 @@
         #:source-mode "micro")))))
 
 (define-test-suite MICRO-RENDERING
-  (test-case "rendered micro source round-trips mini lowering for all compile profiles"
+  (test-case "rendered micro source round-trips mini compilation for all compile profiles"
     (for* ([conj-assoc (in-list '("left" "right"))]
            [disj-assoc (in-list '("left" "right"))]
            [delay-placement (in-list '("relbody" "relcall" "disj"))])
@@ -381,15 +381,15 @@
         (parse-src/canonical rendered #:source-mode "micro"))
       (check-equal? (strip-labels expected-cfg)
                     (strip-labels rendered-cfg)
-                    (format "rendered micro should round-trip canonical cfg modulo labels for ~e"
+                    (format "rendered micro should round-trip the production config modulo labels for ~e"
                             profile)))))
 
 (define-test-suite DISEQUALITY-TRANSLATION
-  (test-case "mini source translates disequality to canonical != goal"
+  (test-case "mini source translates disequality to production != goal"
     (define-values (cfg _html)
       (parse-src/canonical "(run* (q) (=/= q 'cat))"))
     (define goal (query-goal-of cfg))
-    (check-true (redex-match? canonical:canonical-lang g (term ,goal)))
+    (check-true (redex-match? production:search-relcall-lang g (term ,goal)))
     (check-true
      (match goal
        [`(,_ != ,_ ,_) #t]
@@ -399,29 +399,31 @@
     (define-values (cfg _html)
       (parse-src/canonical "(run* (q) (=/= q 'cat))" #:source-mode "micro"))
     (define goal (query-goal-of cfg))
-    (check-true (redex-match? canonical:canonical-lang g (term ,goal)))
+    (check-true (redex-match? production:search-relcall-lang g (term ,goal)))
     (check-true
      (match goal
        [`(,_ != ,_ ,_) #t]
        [_ #f]))))
 
-(define-test-suite CANONICAL-TRANSLATION
+(define-test-suite PRODUCTION-TRANSLATION
   (test-case
-   "run*-only canonical translation is canonical/config and wf"
+   "run*-only canonicalizing compilation produces a W/F config and is wf"
    (define-values (cfg html)
      (parse-src/canonical "(run* (q) (== 'a 'a))"))
-   (check-true (redex-match? canonical:canonical-lang config cfg))
-   (check-true (wf:wf-config/target? "canonical/config" cfg))
+   (check-match cfg `(,_ (More (Work (Owners) ,_ ,_))))
+   (check-true (redex-match? production:search-relcall-lang config cfg))
+   (check-true (judgment-holds (wf:wf-config/search-relcall? ,cfg)))
    (check-true (string? html)))
 
   (test-case
-   "defrel+run* canonical translation is canonical/config and wf"
+   "defrel+run* canonicalizing compilation produces a W/F config and is wf"
    (define-values (cfg html)
      (parse-src/canonical
       "(defrel (same x y) (== x y))
 (run* (q) (same q 'cat))"))
-   (check-true (redex-match? canonical:canonical-lang config cfg))
-   (check-true (wf:wf-config/target? "canonical/config" cfg))
+   (check-match cfg `(,_ (More (Work (Owners) ,_ ,_))))
+   (check-true (redex-match? production:search-relcall-lang config cfg))
+   (check-true (judgment-holds (wf:wf-config/search-relcall? ,cfg)))
    (check-true (string? html)))
 
   (test-case
@@ -430,8 +432,8 @@
      (parse-src/canonical
       "(defrel (same x y) (== x y))
 (run* (q) (same q))"))
-   (check-true (redex-match? canonical:canonical-lang config cfg))
-   (check-false (wf:wf-config/target? "canonical/config" cfg)))
+   (check-true (redex-match? production:search-relcall-lang config cfg))
+   (check-false (judgment-holds (wf:wf-config/search-relcall? ,cfg))))
 
   )
 
@@ -444,7 +446,7 @@
   MICRO-SOURCE
   MICRO-RENDERING
   DISEQUALITY-TRANSLATION
-  CANONICAL-TRANSLATION)
+  PRODUCTION-TRANSLATION)
 
 (module+ test
   (run-tests TRANSPILER))

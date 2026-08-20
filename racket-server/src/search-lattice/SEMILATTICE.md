@@ -1,638 +1,262 @@
-# L0-L3 Semilattice And Context Overlay
+# Decorated search lattice
 
-This note separates two different structures:
+The decorated lattice is the production modular family. Its primary source is
+one factored source assembled from core and two additive feature extensions.
+Search is the literal union of delay and disjunction. DFS, flip, and rail are
+scheduler fibers rather than additional feature nodes; rail alone extends the
+carrier with its right-active execution state.
 
-- the runtime language semilattice
-- the context/decomposition overlay used by the reducers
-
-Those are related, but they are not the same thing.
-
-## Runtime Lattice
+## Additive feature diamond
 
 ```mermaid
-graph TD
-  coreNode["L0 core"]
-  delayNode["L1 delay"]
-  disjNode["L2 disj"]
-  disjEarlyNode["L2 disj early"]
-  disjLateNode["L2 disj late"]
-  searchNode["L3 search"]
-  searchEarlyNode["L3 search early"]
-  searchLateNode["L3 search late"]
+flowchart TD
+  CORE["core"]
+  DELAY["core + delay"]
+  DISJ["core + disjunction"]
+  SEARCH["search = delay union disjunction"]
+  RELCALL["delay + relcall overlay"]
+  SEARCHCALL["search union relcall"]
+  DFSFLIP["DFS / flip fibers"]
+  RAIL["rail fiber + DisjR closure"]
+  DFSFLIPCALL["DFS / flip with relcall"]
+  RAILCALL["rail + relcall"]
+  DISTRIBUTED["distributed presentation (common DisjR carrier)"]
 
-  coreNode --> delayNode
-  coreNode --> disjNode
-  delayNode --> searchNode
-  disjNode --> searchNode
-  disjNode --> disjEarlyNode
-  disjNode --> disjLateNode
-  searchNode --> searchEarlyNode
-  searchNode --> searchLateNode
-  disjEarlyNode --> searchEarlyNode
-  disjLateNode --> searchLateNode
+  CORE --> DELAY
+  CORE --> DISJ
+  DELAY --> SEARCH
+  DISJ --> SEARCH
+  DELAY -. "relcall overlay" .-> RELCALL
+  SEARCH --> SEARCHCALL
+  RELCALL --> SEARCHCALL
+  SEARCH --> DFSFLIP
+  SEARCH --> RAIL
+  SEARCHCALL --> DFSFLIPCALL
+  SEARCHCALL --> RAILCALL
+  RAIL --> RAILCALL
+  RELCALL --> RAILCALL
+  SEARCH -. "isolated presentation" .-> DISTRIBUTED
 ```
 
-Main meet/join claims:
+Delay and disjunction are additive feature extensions of core. Search is their
+literal language and reduction-relation union, so it contributes no new
+constructor or rule. Named-rule inventory tests verify exactly one inherited
+copy of core behavior plus the delay and disjunction deltas.
 
-- `glb(delay, disj) = core`
-- `lub(delay, disj) = search`
-- `lub(delay, disj-early) = search-early`
-- `lub(delay, disj-late) = search-late`
+Relcall is an overlay rooted in the delayed language. It adds relation goals,
+`Γ`, configurations `(Γ F)`, and call expansion. `search-relcall` is the union
+of that independently delayed-rooted overlay with search. `rail-relcall` is the
+union of relcall and the rail fiber.
 
-`rail`, `relcall`, and strategy layers are follow-on extensions. They are not part
-of this primary L0-L3 lattice.
+The production modules follow the same immediate-predecessor structure.
+`search-red` combines assembled `disj-red` with the delay deltas, thereby
+inheriting core exactly once. `rail-red` lifts that assembled `search-red` and
+adds only `rail-delta-red` (the right-active closure and scheduler transitions).
+`rail-relcall-red` likewise lifts assembled `search-relcall-red` and adds the
+same rail delta under `Γ`; it does not reconstruct lower feature relations.
 
-## No-Freshening Core Model
+## Stratified carrier
 
-Before layering variable-scope bookkeeping back in, the lower lattice has one
-clean shared runtime story:
+`W` is unfinished work. `F` is the complete frontier and the root category.
+Core contributes:
 
 ```text
-L0/core
-tail0 ::= answer
-        | empty
-        | (g σ)
-        | (tail0 × g)
+A ::= Answer(owners, σ)
 
-L1/delay extends L0
-cfg1  ::= tail1
-        | Deferred cfg1
+S ::= Returned(owners, σ)
 
-tail1 ::= tail0
-        | delay(work)
+W ::= Work(owners, g, σ)
+    | Returned(owners, σ)
+    | Dead(owners)
+    | Conj(owners, W, g)
 
-L2 neutral disj extends L0
-cfg2  ::= tail2
-        | answer + cfg2
-
-tail2 ::= tail0
-        | (tail2 <-+ tail2)
-
-answer ::= answer
-
-L3/search = join(L1, L2 neutral disj)
-cfg3  ::= tail3
-        | Deferred cfg3
-        | answer + cfg3
-
-tail3 ::= tail0
-        | delay(work)
-        | (tail3 <-+ tail3)
+F ::= More(W)
+    | Done(owners)
+    | Last(owners, A)
 ```
 
-At this level:
-
-- `Deferred` is committed delay shell
-- `+` is committed answer shell
-- the remaining `tail` is the one active-or-final tail under that shell
-
-The key point is that `L2 neutral disj` extends `L0`, not `L1`. The `L3`
-search layer is the runtime join of delay and neutral disjunction.
-
-## No-Freshening Context Model
-
-Ignoring freshening, the core local path already belongs to `L0`:
-
-```text
-Local ::= hole
-        | (Local × g)
-```
-
-This is the path to the currently active local core work.
-
-For late hoist, the active path needs to follow both conjunction and leftward
-disjunction:
-
-```text
-Late ::= hole
-       | (Late × g)
-       | (Late <-+ tail)
-```
-
-After the freshening layer is restored, the shared context grammar carries both
-the smaller left-branch helper and the larger late-strength helper. Early and
-late then diverge in their reducers, not by using separate context languages.
-
-For early/eager hoist, we intentionally keep the same underlying runtime grammar
-and make the policy difference live in the contexts and reduction relation, not
-in an early-specific runtime constructor.
-
-## Scope Overlay
-
-Once the no-freshening story is fixed, scope is best viewed as a lifting layer
-over that bare skeleton, not as a second semantic redesign.
-
-The runtime split is:
-
-```text
-terminal-search ::= answer
-                  | empty
-
-runnable-root ::= (g σ)
-                | (search × g)
-
-search ::= terminal-search
-         | runnable-root
-         | delay(runnable-search)
-         | (search <-+ search)
-         | ScopedTree(c, search)
-
-runnable-search ::= runnable-root
-                  | ScopedTree(c, runnable-search)
-
-cfg ::= search
-      | ScopedShell(c, cfg)
-      | Deferred cfg
-      | answers + cfg
-
-answers ::= answer
-           | ScopedTree(c, answers)
-```
-
-Operationally, a reduction focuses on the same no-freshening skeleton as
-before. The only extra question is what to do with the maximal immediate scope
-prefix attached to the focused subterm.
-
-There are only three cases:
-
-1. Preserve
-   - ordinary local work keeps the same `ScopedTree*` prefix
-   - example:
-     `ScopedTree*(g σ) -> ScopedTree*(...)`
-
-2. Carry
-   - L0 conjunction handoff moves the innermost `ScopedTree*` prefix from a
-     resolved left result onto the right-hand continuation
-   - example:
-     `(ScopedTree*(⊤ σ) × g) -> ScopedTree*(g σ)`
-
-3. Reclassify
-   - crossing from unfinished tree into committed shell converts the
-     enclosing frontier prefix into `ScopedShell*`
-   - examples:
-     - final tail:
-       `ScopedTree* atom -> ScopedShell* atom`
-     - delay commit:
-       `ScopedTree*(delay work) -> ScopedShell*(Deferred work)`
-     - disjunction promotion:
-       outer frontier scope shellifies, but the answers payload stays
-       `ScopedTree* answer` on the left of `+`
-
-This is why two freshening roles are enough:
-
-- `ScopedTree` marks scope attached to tree-side payloads, including
-  answers payloads on the left of `+`
-- `ScopedShell` marks scope attached to the enclosing shell/frontier
-  structure
-
-The important correction is that every recursive search child position is
-itself a full `search` position. So freshened tree prefixes can reappear at
-each subtree boundary, not just at the root of the whole search.
-
-For example, a shape like
-
-```text
-ScopedTree(c0,
-  (ScopedTree(c1,
-     (ScopedTree(c2, (a σ)) <-+ (b σ)))
-   × h))
-```
-
-is exactly the intended kind of nested scoped search:
-
-- `c0` scopes the whole conjunction subtree
-- `c1` scopes the left conjunct subtree
-- `c2` scopes the left branch inside the disjunction
-
-So the right mental model is not "one prefix on the whole tree". It is
-"every search node may be preceded by a finite `ScopedTree*` prefix".
-
-We do not need a third freshening role for `answers`. The constructor
-`answers` already carries the "committed answer payload" distinction.
-
-### Representative Lifted Traces
-
-L0 scoped conjunction handoff:
-
-```text
-(ScopedTree(c1, ⊤σ) × g)
--> ScopedTree(c1, gσ)
-```
-
-L1 delay commitment:
-
-```text
-ScopedTree(c1, delay(work))
--> ScopedShell(c1, Deferred(work))
-```
-
-L2 answer promotion:
-
-```text
-ScopedTree(c1, ⊤σ) <-+ right
--> ScopedTree(c1, ⊤σ) + right
-```
-
-The policy split does not change those prefix actions. Early and late differ
-only in where they focus inside the unfinished tail, not in how
-`ScopedTree*` and `ScopedShell*` move once the focal redex is chosen.
-
-### Scoped Early Versus Late Witnesses
-
-Early/eager hoist on an exposed boundary preserves the left branch's
-`ScopedTree*` prefix but hoists immediately:
-
-```text
-((ScopedTree(c1, (a σ)) <-+ (b σ)) × h)
--> ((ScopedTree(c1, (a σ)) × h) <-+ ((b σ) × h))
-```
-
-Late hoist keeps descending into the left branch under that same exposed
-boundary, still preserving the left branch's `ScopedTree*` prefix:
-
-```text
-((ScopedTree(c1, ((a1 ∧ a2) σ)) <-+ (b σ)) × h)
--> ((ScopedTree(c1, ((a1 σ) × a2)) <-+ (b σ)) × h)
-```
-
-Then, once the left branch resolves, late uses the same L0 carry action as
-before:
-
-```text
-((ScopedTree(c1, ⊤σ1) <-+ (b σ)) × h)
--> (ScopedTree(c1, hσ1) <-+ ((b σ) × h))
-```
-
-So the scoped late-only witness is:
-
-```text
-((ScopedTree(c1, ((a1 σ) × a2)) <-+ (b σ)) × h)
-```
-
-Late may reach that shape. Early may not, because early must hoist as soon as the
-outer `((alpha <-+ beta) × gamma)` boundary is exposed.
-
-### Full Scoped Source-To-Runtime Traces
-
-Take one scoped source program:
-
-```text
-((fresh(x, a1 ∧ a2) ∨ b) ∧ h) σ0
-```
-
-The common prefix of the early and late traces is:
-
-```text
-((fresh(x, a1 ∧ a2) ∨ b) ∧ h) σ0
--> (((fresh(x, a1 ∧ a2) ∨ b) σ0) × h)
--> (((fresh(x, a1 ∧ a2) σ0) <-+ (b σ0)) × h)
--> ((ScopedTree(c1, ((a1 ∧ a2) σ1)) <-+ (b σ0)) × h)
-```
-
-Here `c1` is the scope bundle introduced by `fresh`, and `σ1` is the state
-after substitution.
-
-Early diverges immediately at the exposed branch/conjunction boundary:
-
-```text
-((ScopedTree(c1, ((a1 ∧ a2) σ1)) <-+ (b σ0)) × h)
--> ((ScopedTree(c1, ((a1 ∧ a2) σ1)) × h) <-+ ((b σ0) × h))
--> ((ScopedTree(c1, ((a1 σ1) × a2)) × h) <-+ ((b σ0) × h))
-```
-
-So early hoists first, and only then continues local work under the preserved
-`ScopedTree(c1, ...)` prefix.
-
-Late diverges by descending into the left branch before hoisting:
-
-```text
-((ScopedTree(c1, ((a1 ∧ a2) σ1)) <-+ (b σ0)) × h)
--> ((ScopedTree(c1, ((a1 σ1) × a2)) <-+ (b σ0)) × h)
-```
-
-If the left branch continues to success, late eventually reuses the same L0
-carry rule under that preserved scope prefix:
-
-```text
-((ScopedTree(c1, (⊤σ2)) <-+ (b σ0)) × h)
--> (ScopedTree(c1, hσ2) <-+ ((b σ0) × h))
-```
-
-So the policy split is:
-
-- early changes the tree shape first, then keeps stepping under the same tree
-  prefix
-- late keeps the tree shape longer, steps under the same tree prefix, and
-  only later continues the surrounding conjunction
-
-## Context Overlay
-
-```mermaid
-graph TD
-  qfresh["FreshCtx (pure tree-fresh prefix)"]
-  qshell_delay["ShellCtx(delay)"]
-  qshell_disj["ShellCtx(disj)"]
-  qshell_search["ShellCtx(search)"]
-
-  klocal["LocalCtx (L0 local work path)"]
-  kbranch["BranchCtx (shared L2 left-branch path)"]
-  klate["LateCtx (late-hoist extension)"]
-  kbranch_rail["BranchCtx in rail (adds +-> descent)"]
-  klate_rail["LateCtx in rail (inherits widened BranchCtx)"]
-
-  qfresh --> qshell_delay
-  qfresh --> qshell_disj
-  qshell_delay --> qshell_search
-  qshell_disj --> qshell_search
-
-  klocal --> kbranch
-  kbranch --> klate
-  kbranch --> kbranch_rail
-  klate --> klate_rail
-```
-
-This is a reuse graph inside the shared context grammar, not a second
-semilattice.
-
-- machine criterion:
-  prefer the decomposition that still looks like a clean pre-image for
-  refocusing + fusion, so the runtime grammar stays broad and the scoped phase
-  story is expressed through `FreshCtx` rather than through per-node scoped
-  runtime families
-- `FreshCtx` is the pure `ScopedTree*` helper used for scoped handoff.
-- `FreshCtx` is also the locked Option D helper for phase-boundary heads only:
-  `(delay runnable-search)`, `(⊤ σ)`, and `(empty-tree)`.
-- empty fresh-frame note:
-  `ScopedTree ()` and `ScopedShell ()` are now real frames, not garbage to
-  prune. The scoped machine keeps source fresh-frame nesting even when the
-  intro list is empty, and erase-scope drops those frames without needing a
-  separate stuttering prune step.
-- `ShellCtx(delay)` is the committed shell path for `ScopedShell` and
-  `Deferred`.
-- `ShellCtx(disj)` is the committed shell path for `ScopedShell` and
-  `(answers + ...)`.
-- `ShellCtx(search)` is the union of those shell stories.
-- `LocalCtx` is the L0 local-work path: a pure `FreshCtx` bottom or one more
-  pending conjunction layer around a smaller `LocalCtx`.
-- `BranchCtx` is the shared L2 left-branch path through `<-+`; rail later
-  widens that same helper with `+->` instead of introducing a rail-only path
-  context.
-- `LateCtx` is the shared late-strength helper that keeps descending past the early
-  cut through `×`; early does not use that extra descent rule, but late does.
-  In rail, `LateCtx` inherits the widened `BranchCtx` base rather than gaining
-  a separate rail-specific helper.
-
-Witness for why `BranchCtx` and `LateCtx` both remain necessary:
-
-```text
-((((a ∧ b) σ) <-+ (d σ)) × h c)
-```
-
-- early stops here and hoists:
-  `((((a ∧ b) σ) × h c) <-+ ((d σ) × h c))`
-- late keeps descending into `((a ∧ b) σ)` first
-
-That is an operational distinction, not an intended observable-answer
-distinction.
-
-Reuse rule:
-
-- reuse an earlier helper in two directions only when the earlier layer does
-  not depend on the later meanings
-- once a helper acquires a new stopping or decomposition role, introduce that
-  helper at the first divergent layer instead of predeclaring it below
-
-## Node Inventory
-
-### L0 core
-
-| Aspect | Value |
+The established goal language includes fresh, conjunction, equality,
+disequality, success, and failure. An `owners` term has the explicit form
+`Owners(owner ...)`; the records are ordered outermost-to-innermost. Each
+`Owner(intro, tag)` stores one binder's ordered, duplicate-free introductions.
+The stack is structural provenance, not cumulative allocated-name support, a
+cache, a counter, or a second source of truth.
+
+Each additive feature extension owns only its constructors:
+
+| Additive feature extension | Additions |
 | --- | --- |
-| Runtime constructors added | `search`, `cfg`, `answer`, `empty-tree`, `(search × g c)`, `ScopedTree`, `ScopedShell`, core goals |
-| Helpers introduced or extended | `FreshCtx`, `ConjCtx`, `LocalCtx`, `ShellCtx` |
-| First reducer family using them | `core-red` |
+| delay | `suspend`, `PendingDelay(owners,W)`, `Forced(owners,F)` |
+| disjunction | `∨`, `DisjL(owners,W,W)`, `Emit(owners,A,F)` |
 
-Important L0 boundary:
+Search contributes no new constructor. The rail fiber owns
+`DisjR(owners,W,W)` and its right-active frame. The delayed-rooted relcall
+overlay owns relation goals, `Γ`, and `(Γ F)`. Committed answers remain in
+`Emit`/`Last`; they are not treated as disposable history.
 
-- `ScopedTree` marks tree-side payload scope, even when a answers answer
-  has already moved onto the left of `+`
-- `ScopedShell` marks enclosing committed shell/frontier scope
-- L0 owns only the final tree-to-shell lift for terminal tails
+## Compositional focus grammar
 
-### L1 delay
+The primary language derives focus from recursive context categories:
 
-| Aspect | Value |
+| Grammar | Role |
 | --- | --- |
-| Runtime constructors added | `suspend` goal, `delay`, `Deferred` |
-| Helpers introduced or extended | `ShellCtx(delay)` |
-| First reducer family using them | `delay-red` |
+| `WorkOwnerSlot` | the leading owner field of one work constructor |
+| `WorkPath` | zero or more active work-path constructors |
+| `SpineContext` | zero or more frontier-spine wrappers |
+| `WorkFocus` | a work path below `More`, under spine wrappers |
 
-Delay-specific shell commitment:
+Core contributes owner slots for `Work`, `Returned`, `Dead`, and `Conj`, and
+defines `WorkPath` recursively through `Conj`. Delay adds the `PendingDelay`
+owner slot and extends `SpineContext` directly through `Forced`. Disjunction
+adds the `DisjL` owner slot, extends `WorkPath` directly through the active
+`DisjL` child, and extends `SpineContext` directly through `Emit`. Rail adds the
+`DisjR` owner slot and extends `WorkPath` directly through the active right
+child. The fixed `Owners` wrapper lets empty and nonempty stacks use one
+production with one hole classification, so Redex gives each generated context
+one raw derivation.
 
-- `invoke-delay` is the layer-specific rule that can take a pure
-  `ScopedTree*` prefix around `delay` and commit it into `ScopedShell*`
-  around `Deferred`
+These grammars are indexed inductive structures: hole and result categories
+are implicit in their productions. No explicit W/F state tag, scheduler tag,
+or dynamic sort-compatibility check is used. If a rule overlap reappears when
+host ordering is removed, the grammatical factorization is unfinished.
 
-### L2 neutral disj
+## Owner transfer
 
-| Aspect | Value |
-| --- | --- |
-| Runtime constructors added | `∨` goal, `<-+`, `answers`, `+` |
-| Helpers introduced or extended | `ShellCtx(disj)`, `BranchCtx`, `LateCtx` |
-| First reducer family using them | `disj-base-red` |
+Every rule states where its input owner records go. Expanding conjunction keeps
+the source owners on `Conj` and starts the active child with an empty stack.
+When the child returns or fails, its owners append after the conjunction's
+owners. The empty stack is `(Owners)`. Finishing a returned or dead work item
+transfers that stack to `Last` or `Done`.
 
-Neutral disjunction commitment:
+Choice introduction keeps the source owners on the choice root and gives each
+new branch an empty stack. Pruning discards only the failed branch's owners and
+attaches the choice owners to the survivor. Commitment partitions choice-root
+owners, answer owners, and residual owners among `Emit`, `Answer`, and the
+residual frontier. Reassociation attaches an inner choice's owners separately
+to the settled and residual leaves; the factored conjunction-resumption rules
+put the outer conjunction and choice owners on the result choice and use
+empty-owner child `Conj` nodes.
 
-- answers keep `ScopedTree*` payloads on the left of `+`
-- disjunction frontier rules can still commit the enclosing frontier prefix
-  into shell at the point where an answer is reassociated, promoted, or erased
+Delay promotion likewise keeps the original delay owners restricted to its
+payload while placing the enclosing conjunction owners on the replacement
+`PendingDelay`. Scheduler extraction attaches delayed owners to the extracted
+payload without manufacturing or duplicating scope. Relcall expansion preserves
+the owners already on its `Work` node.
 
-### L2 early
+## Factored source
 
-| Aspect | Value |
-| --- | --- |
-| Runtime constructors added | none; this is a policy/context refinement of neutral disjunction |
-| Helpers introduced or extended | none; early uses the shared context grammar |
-| First reducer family using them | `disj-early-red` |
+Every primary step is a literal named Redex clause closed under the relevant
+focus grammar. Host code performs atomic kernel work such as unification and
+fresh-symbol choice; it does not dispatch among control rules.
 
-Early policy:
+The factored source continues down active work. Ordinary search attaches a
+settled left-active continuation through:
 
-- decomposition is `ShellCtx ∘ BranchCtx ∘ LocalCtx`
-- early stops at the branch/conjunction cut and hoists there
+```text
+resume-left-choice-success
+```
 
-### L2 late
+Core owns kernel, conjunction, fresh, and frontier-phase rules. Delay owns
+suspension and force behavior. Disjunction owns left-active choice rules. Rail
+owns `DisjR`, six rules that close the right-active carrier under stepping, and
+the two scheduling transitions `rail-enter-right` and `rail-return-left`.
 
-| Aspect | Value |
-| --- | --- |
-| Runtime constructors added | none; this is a policy/context refinement of early |
-| Helpers introduced or extended | none; late uses the shared context grammar |
-| First reducer family using them | `disj-late-red` |
+## Isolated distributed presentation
 
-Late policy:
+`racket-server/src/search-lattice/experiments/distributed/` retains eager
+distribution as an isolated, executable presentation experiment. It reuses the
+production feature carriers, retains its historical common `DisjR` carrier
+locally, adds the focus-indexed normalization grammar, and exposes separately
+named relations. It has a dedicated aggregate and tests demonstrating where it
+intentionally steps differently from the factored source.
 
-- decomposition is `ShellCtx ∘ LateCtx`
-- late descends past the early cut and continues or erases only once the left
-  branch resolves
+The experiment still needs raw rules regrouped under its `Early*` focus
+grammar. Its local `search-join-base-red.rkt`, and the raw production seam that
+it imports, are retained solely for that experiment. Production `search-red`
+does not import this seam, so it is neither a feature node nor an extra
+production composition layer.
 
-### L3 neutral search
+The distributed presentation also deliberately retains its historical common
+right-active carrier. Its distributed search relation owns `DisjR`, the five
+right-active closure clauses, and `distribute-right-choice`; distributed DFS
+and flip inherit that carrier, and distributed rail adds only the two scheduler
+transitions. This exception is contained inside the experiment and does not
+alter the production search, DFS, flip, or WF domains described above.
+The distributed rail relation mechanically re-closes inherited rules on the
+common distributed-search carrier; its rule-inventory delta over distributed
+search is only those two scheduling transitions.
 
-| Aspect | Value |
-| --- | --- |
-| Runtime constructors added | none; this is `delay ∪ disj` |
-| Helpers introduced or extended | `ShellCtx(search)` by language union |
-| First reducer family using them | `search-pre-red` |
+Production language/relation aggregators do not import that tree. The runtime
+does not expose a policy switch for it. Keeping the experiment preserves the
+counterexamples and normalization question without burdening the primary
+grammar with anticipatory categories.
 
-### L3 early
+## Scheduler fibers
 
-| Aspect | Value |
-| --- | --- |
-| Runtime constructors added | none; this is `delay ∪ disj-early` |
-| Helpers introduced or extended | inherited shared `BranchCtx` / `LateCtx` grammar |
-| First reducer family using them | `search-early-pre-red`, `search-early-red` |
+The public strategy surface contains only:
 
-### L3 late
+```text
+dfs | flip | rail
+```
 
-| Aspect | Value |
-| --- | --- |
-| Runtime constructors added | none; this is `delay ∪ disj-late` |
-| Helpers introduced or extended | inherited shared `BranchCtx` / `LateCtx` grammar |
-| First reducer family using them | `search-late-pre-red`, `search-late-red` |
+DFS preserves left-active order; flip changes the delayed turn discipline;
+rail uses `DisjL`/`DisjR` plus its right-active closure and two scheduling
+rules. DFS and flip use `search-lang`, `search-relcall-lang`, `search-wf`, and
+`search-relcall-wf`, all of which exclude `DisjR`. Rail uses the corresponding
+`rail-lang`, `rail-relcall-lang`, `rail-wf`, and `rail-relcall-wf` extensions.
 
-## Reading The Reducers
+## WF metatheory and observations
 
-The intended nested-subcontext style is:
+Each feature module instantiates a shared WF schema whose direct Redex
+judgments validate states, goals, substitutions, disequalities, trails,
+continuations, and owner stacks. WF threads visible introductions as an
+inherited metatheoretic parameter. Reading an owner stack extends visibility
+outermost to innermost, rejects duplicate or reused names, and checks the owned
+payload under the extended visibility. The carrier stores no complete scope
+set, cache, counter, or WF summary.
 
-- outer committed shell
-- branch/policy path
-- inner local work
+Owner records and introduced names, answers, force evidence, and frontier
+shape are independent structural observations; the enclosing `Owners`
+constructor contributes no occurrence of its own. Allocation-event traces are
+observed from named steps, rather than reconstructed from a cached state field.
+These observations are tested alongside WF preservation rather than used to
+define it.
 
-Concretely:
+Edge tests compare source and target grammar, WF judgments, and complete raw
+named-successor/proof multisets, with positive source coverage. Trace,
+terminal, and observation checks remain in the semantic owner that states each
+additional claim. Identity syntax alone is not treated as a
+conservative-extension proof. These source-level edge laws establish
+embedding, conservativity, and provenance; they are not naturality tests.
+Naturality requires a derivation transformation at multiple stages and a
+commuting square.
 
-- core: `ShellCtx ∘ LocalCtx`, where `ShellCtx` is only `ScopedShell*`
-- delay: `ShellCtx(delay) ∘ LocalCtx`
-- disj-early: the hoist rule is exposed at `ShellCtx(disj) ∘ BranchCtx`, while local
-  work stays under the same shared grammar
-- disj-late: `ShellCtx(disj) ∘ LateCtx`
-- search early/late: the same pattern lifted through the `delay/disj` join
+## Mirrored semantic test topology
 
-Within L0 itself, `LocalCtx` is:
+`racket-server/tests/search-lattice/` mirrors the architecture through node,
+edge, join, grammar, scheduler-fiber, overlay, law, and distributed-presentation
+suites. Its single `all.rkt` aggregate is imported by
+the headless production runner. See
+[`../../tests/search-lattice/README.md`](../../tests/search-lattice/README.md)
+for the exact responsibilities and theorem boundaries.
 
-- a pure `FreshCtx` bottom, or
-- one more pending conjunction layer around a smaller `LocalCtx`
+## Compiler and observations
 
-The important semantic boundary is:
+`parse-prog/canonical` is a canonicalizing compiler whose output is already a
+production `(Γ F)` configuration rooted at `More(Work(...))`. There is no
+mixed-work runtime IR or separate lowering module.
 
-- L0 shellification is final-tail only
-- delay and disjunction own their own tree-prefix-to-shell commitment rules
-- shell commitment never happens below active branch/work constructors by a
-  generic catch-all shell rule
+The operational picture preserves fresh ownership, answer order, choice
+activity, and force evidence. It permits an unchanged visible tree only for
+the finite phase-neutral label set documented in `PICTURE-DESIGN-NOTES.md`.
 
-## Policy Decision In The No-Freshening Model
+Fresh allocation is a whole-frontier step. The rule names that frontier
+`F_support`; logical-variable occurrences throughout it derive the
+allocated-name support. Redex chooses binder names sequentially against that
+frontier, records one `Owner` per binder, and therefore remains single-valued
+while seeing completed answers, sibling branches, and allocated-but-unused live
+variables.
 
-For the no-freshening design, the current decision is:
-
-- keep one shared search-tree runtime grammar for early and late
-- keep one shared context grammar for early and late
-- keep the policy difference in the reduction layer
-- use incremental eager hoist for early
-- use late hoist for late
-
-This means:
-
-- early does not get its own runtime-only pending-hoist constructor
-- early does not get its own context-language split either
-- some search-tree shapes are grammatical in the shared runtime language but
-  unreachable under the early policy
-- that is intentional; the policy difference is a reachability fact, not a
-  syntax fact
-
-Rejected alternative:
-
-- reifying the disj/conj boundary as an explicit `HoistPending`-style runtime
-  constructor
-- this was rejected because it would add machinery to both policies and make
-  the shared lattice less additive
-
-The early invariant is:
-
-- once an exposed `((alpha <-+ beta) × gamma)` appears on the active path, the
-  next early step must be the hoist
-- early may not make progress inside `alpha` first
-
-The late invariant is:
-
-- late may keep descending on the active left path through both `<-+` and `×`
-- only once the left branch resolves does late continue or erase at that
-  boundary
-
-So weak/incremental eager hoist is not vacuous. It rules out the family of
-late-only states where a visible hoist boundary is exposed and the left branch
-has already taken a step under that boundary before hoisting.
-
-Concrete witness:
-
-- from `(((a ∧ b) ∨ d) ∧ h) σ`, late hoist may reach
-  `((((a σ) × b) <-+ (d σ)) × h)`
-- weak/incremental eager hoist forbids that shape, because it must hoist as
-  soon as `((((a ∧ b) σ) <-+ (d σ)) × h)` becomes exposed
-
-## Structural Summary Fold
-
-The active `wf-*` stack now has a parallel `wf-summary-*` family.
-
-That summary layer is the structural correctness fold for reachable
-configurations. Each summary has the shape:
-
-`(wf-summary answers bounced freshened-tree freshened-shell)`
-
-The judgment family does two jobs at once:
-
-- it proves the old well-formedness obligations
-- it returns the structural counts that the test/support layer used to compute
-  by separate host recursion
-
-The important invariants are enforced in the judgment, not in postprocessing:
-
-- wrapper-path scope agrees with each state's stored `c`
-- lvars in goals, substitutions, disequalities, and trails stay within the
-  ambient scope
-- `ScopedTree` and `ScopedShell` introductions are fresh relative to the
-  outer scope
-- `Deferred` changes only the bounced count; it does not alter scope accounting
-
-Operationally:
-
-- `ScopedTree` increments the tree-freshened count
-- `ScopedShell` increments the shell-freshened count
-- `⊤` and answers increment the answer count
-- `Deferred` increments the bounced count
-
-This gives one reusable judgmental source of truth for exact-scope properties,
-freshening accounting, and stepwise monotonicity checks.
-
-## Picture Denotation
-
-Visible tree construction now lives in `search-lattice/picture.rkt`.
-
-There are two denotations over the same machine/configuration states:
-
-- operational picture
-- extensional picture
-
-The operational picture is the current UI contract:
-
-- it preserves `Deferred`
-- it preserves the current visible branch/conjunction/delay structure
-- it renders both `ScopedTree` and `ScopedShell` as the same visible
-  `Freshened` wrapper, because the UI distinguishes scope extent but not the
-  internal tree-vs-shell constructor name
-
-The extensional picture erases administrative detail:
-
-- `Deferred` is identity
-- `ScopedTree` and `ScopedShell` collapse to the same visible scope
-  wrapper
-
-So the extensional picture forgets scheduler bookkeeping, while the operational
-picture keeps the renderer-facing administrative structure needed for stepping
-and debugging.
+This document states the production source semantics only. Q, continuation and
+stream interpretations, recursive or infinite observations, and a vertical
+derivation beyond this source calculus remain deferred.

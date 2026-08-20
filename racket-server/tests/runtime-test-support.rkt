@@ -9,19 +9,18 @@
 
 (define (final-frontier? f)
   (match f
-    ['(empty-tree) #t]
-    [`(⊤ ,_) #t]
-    [(or (list 'ScopedTree _ inner _)
-         (list 'ScopedShell _ inner _))
+    [(list 'Done (list 'Owners (list 'Owner _ _) ...)) #t]
+    [(list 'Last (list 'Owners (list 'Owner _ _) ...) _) #t]
+    [(list 'Forced (list 'Owners (list 'Owner _ _) ...) inner)
      (final-frontier? inner)]
-    [`(Deferred ,inner) (final-frontier? inner)]
-    [`(,_ + ,rest) (final-frontier? rest)]
+    [(list 'Emit (list 'Owners (list 'Owner _ _) ...) _ rest)
+     (final-frontier? rest)]
     [_ #f]))
 
 (define (final-config? cfg)
   (match cfg
-    [`(,_gamma ,f) (final-frontier? f)]
-    [_ #f]))
+    [`(,(? list?) ,f) (final-frontier? f)]
+    [f (final-frontier? f)]))
 
 (define (tagged-successor-name succ)
   (match succ
