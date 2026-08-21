@@ -17,9 +17,10 @@
 
 (check-redundancy #t)
 
-;; E stores cumulative support.  The incoming environment must therefore be
-;; an exact prefix of the stored Support; the stored value, not a second
-;; append, is passed to the carrier payload.
+;; Prototype E repeats cumulative support at configuration-carrier positions.
+;; The incoming support must therefore be an exact prefix of the stored
+;; Support; the stored value, not a second append, is passed to the carrier
+;; payload.  This is not the selected state-local E invariant.
 (define-judgment-form
   core-e-lang
   #:contract (wf-support/e? support intro intro)

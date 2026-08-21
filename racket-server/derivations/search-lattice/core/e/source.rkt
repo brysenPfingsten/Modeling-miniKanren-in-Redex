@@ -95,10 +95,10 @@
         (Done support)
         "finish-failure"]))
 
-;; E localizes freshness at the focused carrier.  Its Support is cumulative,
-;; so on translated well-formed S frontiers it is exactly the live support
-;; that S reconstructs by scanning the whole frontier.  The S->E bridge states
-;; and checks that premise explicitly; this rule does not retain S's scan.
+;; Prototype E localizes freshness at the focused configuration carrier.  Its
+;; Support is cumulative there, and the S->E bridge checks its agreement with
+;; the current S allocation policy on the stated well-formed core domain.  This
+;; rule does not retain S's scan or select the eventual state-local E policy.
 (define allocate/base/e
   (reduction-relation
    core-e-lang

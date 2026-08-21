@@ -8,9 +8,10 @@
 
 (check-redundancy #t)
 
-;; E forgets binder boundaries and provenance tags.  Each Support is the
-;; cumulative environment visible at that carrier position, including the
-;; erased Owners stored at that position in S.
+;; This prototype E forgets binder boundaries and provenance tags.  It replaces
+;; S-side Owner positions with a cumulative Support at each corresponding
+;; configuration-carrier position.  This support-decorated-node grammar is not
+;; the selected state-local E representation.
 (define-extended-language core-e-lang
   core-lang
   [support (Support u_!_ ...)]

@@ -1,6 +1,7 @@
 #lang racket
 
 (require "./framework/decomposition-instance.rkt"
+         "./framework/stage-generators.rkt"
          "./core/s/decomposition.rkt"
          "./core/s/source-spec.rkt"
          "./core/s/refocused.rkt"
@@ -14,10 +15,13 @@
          "./core/e/source.rkt"
          "./core/e/wf.rkt"
          "./core/e/decomposition.rkt"
-         "./core/s-to-e.rkt")
+         "./core/s-to-e.rkt"
+         "./generated/core/s/column.rkt"
+         "./generated/core/e/column.rkt")
 
 (provide
  (all-from-out "./framework/decomposition-instance.rkt")
+ (all-from-out "./framework/stage-generators.rkt")
  (all-from-out "./core/s/decomposition.rkt")
  (all-from-out "./core/s/source-spec.rkt")
  (all-from-out "./core/s/refocused.rkt")
@@ -31,4 +35,6 @@
  (all-from-out "./core/e/source.rkt")
  (all-from-out "./core/e/wf.rkt")
  (all-from-out "./core/e/decomposition.rkt")
- (all-from-out "./core/s-to-e.rkt"))
+ (all-from-out "./core/s-to-e.rkt")
+ (all-from-out "./generated/core/s/column.rkt")
+ (all-from-out "./generated/core/e/column.rkt"))

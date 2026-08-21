@@ -45,7 +45,9 @@
 ;; One combined grammar lets the vertical map be stated as Redex
 ;; metafunctions without making either source column depend on the other.
 ;; The S-prefixed categories are the current Owners carrier and its D/C
-;; shells; the unprefixed categories are the cumulative-Support E column.
+;; shells; the unprefixed categories are the support-decorated-node prototype
+;; E column.  This bridge stops at R/D and does not select the future
+;; state-local E representation.
 (define-extended-language core-se-lang
   core-e-decomposition-lang
 
@@ -105,9 +107,9 @@
     (Support u ...)
     (erase-owners (Owners owner_rest ...)))])
 
-;; E is not merely S with tags deleted: every Support is the cumulative scope
-;; visible at that carrier position.  The -at maps therefore thread the
-;; incoming scope through nested carriers.
+;; Prototype E is not merely S with tags deleted: every Support is cumulative
+;; at that carrier position.  The -at maps therefore thread the incoming
+;; support through nested carriers.
 (define-metafunction core-se-lang
   Q-SE/A-at : SA support -> A
   [(Q-SE/A-at (Answer owners σ) support_in)
@@ -517,9 +519,10 @@
   (check-true (source-square/raw?/s->e allocation-source))
   (check-true (contract-square/raw?/s->e allocation-decomposition))
 
-  ;; This malformed state mentions an unowned u:0.  S's whole-frontier scan
-  ;; sees it while E's cumulative Support correctly does not.  The differing
-  ;; successors are a counterexample outside the stated square premise.
+  ;; This malformed state mentions an unowned u:0.  The current S scan sees it
+  ;; while prototype E's cumulative Support does not.  The differing successors
+  ;; are a counterexample outside the stated square premise, not a choice of
+  ;; eventual allocation policy.
   (define ill-formed-allocation-source
     (term
      (More

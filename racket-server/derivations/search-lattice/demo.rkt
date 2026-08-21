@@ -9,7 +9,9 @@
          (prefix-in big: "./core/s/fixed-point.rkt")
          (prefix-in big-spec: "./core/s/fixed-point-spec.rkt")
          (prefix-in e: "./core/e/decomposition.rkt")
-         (prefix-in q: "./core/s-to-e.rkt"))
+         (prefix-in q: "./core/s-to-e.rkt")
+         (prefix-in generated-s: "./generated/core/s/column.rkt")
+         (prefix-in generated-e: "./generated/core/e/column.rkt"))
 
 (provide demo-source/s
          compression-witness
@@ -18,9 +20,10 @@
 (define sigma
   (term (state () () () (label "state"))))
 
-;; The gap at u:1 makes the allocator boundary visible: S derives the live
-;; support from the separated owner-bearing context, while E reads the same
-;; cumulative support from its focused Work node.  Both choose u:1.
+;; The gap at u:1 makes the current prototype boundary visible: S derives
+;; support from the separated owner-bearing context, while support-decorated
+;; prototype E reads it from the focused Work node.  Both currently choose
+;; u:1; this witness does not select the eventual world-local allocation policy.
 (define demo-source/s
   (term
    (More
@@ -68,6 +71,58 @@
 (define decomposition/e
   (first
    (judgment-holds (e:decompose/e ,source/e D) D)))
+
+;; The generated columns are separate artifacts.  They consume their own
+;; one-time semantic descriptors; they do not import the handwritten stages
+;; above.  Keeping both views exposes generated/reference agreement for S and
+;; R/D agreement for prototype E; later E stages remain row-local artifacts.
+(define generated-decomposition/s
+  (first
+   (judgment-holds
+    (generated-s:generated-decompose/s ,demo-source/s D)
+    D)))
+
+(define generated-refocused/s
+  (term
+   (generated-s:generated-D->Z/s ,generated-decomposition/s)))
+
+(define generated-machine/s
+  (term
+   (generated-s:generated-encode-ZM/s ,generated-refocused/s)))
+
+(define generated-compressed/s
+  (term
+   (generated-s:generated-encode-MB/s ,generated-machine/s)))
+
+(define generated-big/s
+  (first
+   (judgment-holds
+    (generated-s:generated-big-evaluate/direct/s ,demo-source/s Big)
+    Big)))
+
+(define generated-decomposition/e
+  (first
+   (judgment-holds
+    (generated-e:decompose/generated-e ,source/e D)
+    D)))
+
+(define generated-refocused/e
+  (term
+   (generated-e:D->Z/generated-e ,generated-decomposition/e)))
+
+(define generated-machine/e
+  (term
+   (generated-e:encode-ZM/generated-e ,generated-refocused/e)))
+
+(define generated-compressed/e
+  (term
+   (generated-e:encode-MB/generated-e ,generated-machine/e)))
+
+(define generated-big/e
+  (first
+   (judgment-holds
+    (generated-e:big-evaluate/direct/generated-e ,source/e Big)
+    Big)))
 
 (define next/s
   (first
@@ -145,6 +200,16 @@
    (list 'Big/S big/s)
    (list 'R/E source/e)
    (list 'D/E decomposition/e)
+   (list 'generated-D/S generated-decomposition/s)
+   (list 'generated-Z/S generated-refocused/s)
+   (list 'generated-M/S generated-machine/s)
+   (list 'generated-B/S generated-compressed/s)
+   (list 'generated-Big/S generated-big/s)
+   (list 'generated-D/E generated-decomposition/e)
+   (list 'generated-Z/E generated-refocused/e)
+   (list 'generated-M/E generated-machine/e)
+   (list 'generated-B/E generated-compressed/e)
+   (list 'generated-Big/E generated-big/e)
    (list 'next-D/S next/s)
    (list 'next-D/E next/e)
    (list 'next-M/S next-m/s)
@@ -171,6 +236,16 @@
                   Big/S
                   R/E
                   D/E
+                  generated-D/S
+                  generated-Z/S
+                  generated-M/S
+                  generated-B/S
+                  generated-Big/S
+                  generated-D/E
+                  generated-Z/E
+                  generated-M/E
+                  generated-B/E
+                  generated-Big/E
                   next-D/S
                   next-D/E
                   next-M/S
@@ -185,6 +260,12 @@
   (check-equal? (first compression-witness)
                 '(transition-span succeed finish-success))
   (check-equal? (second big-certificate/s) big/s)
+  (check-equal? generated-decomposition/s decomposition/s)
+  (check-equal? generated-refocused/s refocused/s)
+  (check-equal? generated-machine/s machine/s)
+  (check-equal? generated-compressed/s compressed/s)
+  (check-equal? generated-big/s big/s)
+  (check-equal? generated-decomposition/e decomposition/e)
   (check-equal? (term (big-spec:flatten-BTrace/s
                        ,(first big-certificate/s)))
                 '(allocate-fresh
