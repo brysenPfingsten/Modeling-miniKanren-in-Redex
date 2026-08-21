@@ -32,6 +32,10 @@ retains tagged `Owners` provenance and uses its presently implemented
 structural allocation-support policy. That implementation is not evidence
 that world-local allocation has been selected for the production lattice.
 
+The selected post-prototype decisions are normative in
+[`ARCHITECTURE-CONTRACT.md`](ARCHITECTURE-CONTRACT.md). This README describes
+the executable prototype retained as an oracle and recovery point.
+
 The generated artifact currently named E is a support-decorated-node
 prototype. It erases S-side Owner groupings and tags and replaces their carrier
 positions with cumulative `Support` positions on `Work`, `Conj`, `Returned`,
@@ -345,9 +349,10 @@ state-local E.
 It also does not implement `N`. Current S prototype allocation is based on live
 frontier support and may reuse a low logical name after pruning removes its last
 occurrence. A monotone counter therefore cannot preserve literal name traces.
-Before adding `N`, the project must choose and state a canonical renaming or
-alpha-correspondence theorem, including sparse names and trace-side allocation
-transition observations. That is a semantic decision, not another
+The architecture contract now fixes support-order canonicalization and
+per-world alpha-aware comparison, including sparse names and trace-side
+allocation transition observations. This prototype does not implement that
+decision; it remains semantic input to the next source oracles rather than an
 administrative form for the generator to guess.
 
 This checkpoint claims neither a full cube nor functoriality or a universal
