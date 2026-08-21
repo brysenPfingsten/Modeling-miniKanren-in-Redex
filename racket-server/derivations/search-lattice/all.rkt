@@ -1,0 +1,34 @@
+#lang racket
+
+(require "./framework/decomposition-instance.rkt"
+         "./core/s/decomposition.rkt"
+         "./core/s/source-spec.rkt"
+         "./core/s/refocused.rkt"
+         "./core/s/machine.rkt"
+         "./core/s/machine-spec.rkt"
+         "./core/s/compressed.rkt"
+         "./core/s/compression-spec.rkt"
+         "./core/s/fixed-point.rkt"
+         "./core/s/fixed-point-spec.rkt"
+         "./core/e/language.rkt"
+         "./core/e/source.rkt"
+         "./core/e/wf.rkt"
+         "./core/e/decomposition.rkt"
+         "./core/s-to-e.rkt")
+
+(provide
+ (all-from-out "./framework/decomposition-instance.rkt")
+ (all-from-out "./core/s/decomposition.rkt")
+ (all-from-out "./core/s/source-spec.rkt")
+ (all-from-out "./core/s/refocused.rkt")
+ (all-from-out "./core/s/machine.rkt")
+ (all-from-out "./core/s/machine-spec.rkt")
+ (all-from-out "./core/s/compressed.rkt")
+ (all-from-out "./core/s/compression-spec.rkt")
+ (all-from-out "./core/s/fixed-point.rkt")
+ (all-from-out "./core/s/fixed-point-spec.rkt")
+ (all-from-out "./core/e/language.rkt")
+ (all-from-out "./core/e/source.rkt")
+ (all-from-out "./core/e/wf.rkt")
+ (all-from-out "./core/e/decomposition.rkt")
+ (all-from-out "./core/s-to-e.rkt"))
