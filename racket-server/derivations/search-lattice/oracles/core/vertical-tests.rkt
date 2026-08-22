@@ -171,22 +171,34 @@
         (label "fresh"))
      ,sigma-empty))))
 
+(define failing-trace-source
+  (term
+   (More
+    (Work
+     (Owners)
+     (∃ (x:failed)
+        ((fail (label "left-failure"))
+         ∧
+         (x:failed =? x:failed (label "unreached-right"))
+         (label "failing-conjunction"))
+        (label "fresh-fail"))
+     ,sigma-empty))))
+
 (define-test-suite CORE-R-VERTICAL-TESTS
   (test-case
    "Q_SE, Q_EN, and direct Q_SN close every core source rule"
    (for ([representative (in-list rule-representatives)])
      (match-define (list expected-name source) representative)
      (define e-source (Q-SE/F source))
-     (define support (S-world-support source))
      (define n-source (Q-SN/F source))
 
      (check-true (wf-s? source) (format "S WF for ~a" expected-name))
      (check-true (wf-e? e-source) (format "E WF for ~a" expected-name))
      (check-true (wf-n? n-source) (format "N WF for ~a" expected-name))
-     (check-equal? (Q-EN/F e-source support) n-source)
+     (check-equal? (Q-EN/F e-source) n-source)
      (check-true (Q-SN-composition? source))
      (check-true (Q-SE-step-square/raw? source))
-     (check-true (Q-EN-step-square/raw? e-source support))
+     (check-true (Q-EN-step-square/raw? e-source))
      (check-true (Q-SN-step-square/raw? source))
 
      (match-define (list s-name s-target)
@@ -201,7 +213,7 @@
      (check-equal? (Q-SE/F s-target) e-target)
      (check-equal? (Q-SN/F s-target) n-target)
      (check-equal?
-      (Q-EN/F e-target (S-world-support s-target))
+      (Q-EN/F e-target)
       n-target)
      (check-true (wf-s? s-target))
      (check-true (wf-e? e-target))
@@ -266,20 +278,46 @@
    (check-equal? (Q-EN/F e-target) n-target))
 
   (test-case
-   "the transient dead continuation uses theorem-side addressing only"
+   "failed conjunctions expose stored supply without theorem-side history"
    (define dead-s
      (second (assoc 'conj-fail rule-representatives)))
    (define dead-e (Q-SE/F dead-s))
-   (define support (S-world-support dead-s))
-   (check-equal? support '(u:0 u:1))
-   (check-exn exn:fail? (lambda () (Q-EN/F dead-e)))
-   (check-exn exn:fail? (lambda () (Q-EN/F dead-e '(u:0 u:0))))
-   (check-exn exn:fail? (lambda () (Q-EN/F dead-e '(u:1))))
-   (check-equal? (Q-EN/F dead-e support) (Q-SN/F dead-s))
-   (check-true (Q-EN-step-square/raw? dead-e support))
-   ;; No Support, next, Owner, or Fresh syntax was added to either carrier.
-   (check-false (member 'Support (flatten dead-e)))
+   (check-equal? (S-world-support dead-s) '(u:0 u:1))
+   (check-match
+    dead-e
+    `(More
+      (Conj
+       (Dead (Support u:0 u:1))
+       (u:0 =? u:0 (label "inert-continuation")))))
+   (check-equal? (Q-EN/F dead-e) (Q-SN/F dead-s))
+   (check-true (Q-EN-step-square/raw? dead-e))
    (check-false (member 'Owner (flatten dead-e))))
+
+  (test-case
+   "sparse failed support addresses a pending goal and rejects absent atoms"
+   (define sparse-dead
+     (term
+      (More
+       (Conj
+        (Dead (Support u:7 u:2))
+        (u:2 =? u:7 (label "pending"))))))
+   (check-true (wf-e? sparse-dead))
+   (check-equal?
+    (Q-EN/F sparse-dead)
+    (term
+     (More
+      (Conj
+       (Dead 2)
+       (1 =? 0 (label "pending"))))))
+   (check-true (wf-n? (Q-EN/F sparse-dead)))
+   (define absent-atom
+     (term
+      (More
+       (Conj
+        (Dead (Support u:7 u:2))
+        (u:9 =? u:7 (label "absent"))))))
+   (check-false (wf-e? absent-atom))
+   (check-exn exn:fail? (lambda () (Q-EN/F absent-atom))))
 
   (test-case
    "copied sibling worlds reuse one post-prefix allocation independently"
@@ -310,11 +348,10 @@
                   disequality-success
                   finish-success)])
      (define e-source (Q-SE/F s-source))
-     (define support (S-world-support s-source))
      (define n-source (Q-SN/F s-source))
      (check-true (Q-SN-composition? s-source))
      (check-true (Q-SE-step-square/raw? s-source))
-     (check-true (Q-EN-step-square/raw? e-source support))
+     (check-true (Q-EN-step-square/raw? e-source))
      (check-true (Q-SN-step-square/raw? s-source))
      (match expected-labels
        ['()
@@ -329,7 +366,46 @@
         (match-define (list actual-label s-target)
           (only-successor core-s-oracle-red s-source))
         (check-equal? actual-label expected-label)
-        (trace s-target remaining)]))))
+        (trace s-target remaining)])))
+
+  (test-case
+   "a complete failing trace preserves supply and labels in all three rows"
+   (define final-s
+     (let trace ([s-source failing-trace-source]
+                 [expected-labels
+                  '(allocate-fresh
+                    expand-conjunction
+                    fail
+                    conj-fail
+                    finish-failure)])
+       (define e-source (Q-SE/F s-source))
+       (define n-source (Q-SN/F s-source))
+       (check-true (wf-s? s-source))
+       (check-true (wf-e? e-source))
+       (check-true (wf-n? n-source))
+       (check-true (Q-SN-composition? s-source))
+       (check-true (Q-SE-step-square/raw? s-source))
+       (check-true (Q-EN-step-square/raw? e-source))
+       (check-true (Q-SN-step-square/raw? s-source))
+       (match expected-labels
+         ['() s-source]
+         [(cons expected-label remaining)
+          (match-define (list actual-label s-target)
+            (only-successor core-s-oracle-red s-source))
+          (check-equal? actual-label expected-label)
+          (trace s-target remaining)])))
+   (check-equal?
+    final-s
+    (term
+     (Done
+      (Owners
+       (Owner (u:0) (label "fresh-fail"))))))
+   (check-equal?
+    (Q-SE/F final-s)
+    (term (Done (Support u:0))))
+   (check-equal?
+    (Q-SN/F final-s)
+    (term (Done 1)))))
 
 (module+ test
   (run-tests CORE-R-VERTICAL-TESTS))

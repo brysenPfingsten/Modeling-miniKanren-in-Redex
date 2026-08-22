@@ -49,7 +49,22 @@
     (regexp-match?
      #rx"generated/|decomposition|refocused|machine|compressed|fixed-point"
      text))
-   (check-false (regexp-match? #rx"AllocateEvent|parameterize" text))))
+   (check-false (regexp-match? #rx"AllocateEvent|parameterize" text)))
+
+  (test-case
+   "failed supply is intrinsic and obsolete history recovery stays removed"
+   (define vertical-text
+     (file->string (build-path oracle-root "vertical.rkt")))
+   (check-false
+    (regexp-match?
+     #rx"support-witness|resolve-E-support|predecessor-derived|supportless"
+     vertical-text))
+   (for ([representation (in-list '("e" "n"))])
+     (define wf-text (source-text representation "wf.rkt"))
+     (check-false
+      (regexp-match? #rx"wf-unreachable|dead-left" wf-text)
+      (format "obsolete failed-continuation escape in ~a WF"
+              representation)))))
 
 (module+ test
   (run-tests CORE-ORACLE-DEPENDENCY-TESTS))

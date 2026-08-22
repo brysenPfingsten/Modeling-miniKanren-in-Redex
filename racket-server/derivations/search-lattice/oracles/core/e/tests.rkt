@@ -59,7 +59,7 @@
    (list
     'fail
     (term (More (Work (fail (label "no")) ,u0-state)))
-    (term (More (Dead))))
+    (term (More (Dead (Support u:0)))))
 
    (list
     'conj-return
@@ -79,9 +79,9 @@
     (term
      (More
       (Conj
-       (Dead)
+       (Dead (Support u:9))
        (u:9 =? (nat 9) (label "unreachable")))))
-    (term (More (Dead))))
+    (term (More (Dead (Support u:9)))))
 
    (list
     'unify-success
@@ -112,7 +112,7 @@
         ((u:0 (nat 0)))
         ()
         (label "state")))))
-    (term (More (Dead))))
+    (term (More (Dead (Support u:0)))))
 
    (list
     'unify-fail
@@ -120,8 +120,8 @@
      (More
       (Work
        ((nat 0) =? (nat 1) (label "unify-fail"))
-       ,empty-state)))
-    (term (More (Dead))))
+       ,u0-state)))
+    (term (More (Dead (Support u:0)))))
 
    (list
     'disequality-success
@@ -146,8 +146,8 @@
      (More
       (Work
        ((nat 0) != (nat 0) (label "disequality-fail"))
-       ,empty-state)))
-    (term (More (Dead))))
+       ,u0-state)))
+    (term (More (Dead (Support u:0)))))
 
    (list
     'finish-success
@@ -156,8 +156,8 @@
 
    (list
     'finish-failure
-    (term (More (Dead)))
-    (term (Done)))
+    (term (More (Dead (Support u:0))))
+    (term (Done (Support u:0))))
 
    (list
     'allocate-fresh
@@ -294,6 +294,51 @@
      ((nat 0) != (nat 1) (label "apart"))
      ,empty-state))))
 
+(define empty-binder-failure-source
+  (term
+   (More
+    (Work
+     (∃ () (fail (label "body-fail")) (label "empty-fresh"))
+     ,u0-state))))
+
+(define one-fresh-failure-source
+  (term
+   (More
+    (Work
+     (∃ (x:unused)
+        (fail (label "body-fail"))
+        (label "one-fresh"))
+     ,empty-state))))
+
+(define multi-fresh-failure-source
+  (term
+   (More
+    (Work
+     (∃ (x:a x:b x:unused)
+        (fail (label "body-fail"))
+        (label "multi-fresh"))
+     (state
+      (Support u:7 u:2)
+      ()
+      ()
+      ()
+      (label "state"))))))
+
+(define nested-failure-source
+  (term
+   (More
+    (Work
+     (∃ (x:used x:unused)
+        (((fail (label "fail-left"))
+          ∧
+          (x:used =? (nat 0) (label "inner-right"))
+          (label "inner-conjunction"))
+         ∧
+         (x:unused != (nat 1) (label "outer-right"))
+         (label "outer-conjunction"))
+        (label "fresh"))
+     ,empty-state))))
+
 (define CORE-E-ORACLE-TESTS
   (test-suite
    "independent state-local core E oracle"
@@ -315,7 +360,16 @@
       core-e-oracle-lang
       F
       (term (Last (Answer ,u0-state)))))
-    (check-true (redex-match? core-e-oracle-lang F (term (Done))))
+    (check-true
+     (redex-match?
+      core-e-oracle-lang
+      F
+      (term (More (Dead (Support u:7 u:2))))))
+    (check-true
+     (redex-match?
+      core-e-oracle-lang
+      F
+      (term (Done (Support u:7 u:2)))))
     (check-false
      (redex-match?
       core-e-oracle-lang
@@ -326,11 +380,8 @@
          (Support u:0)
          (succeed (label "prototype-shape"))
          ,empty-state)))))
-    (check-false
-     (redex-match?
-      core-e-oracle-lang
-      F
-      (term (More (Dead (Support u:0)))))))
+    (check-false (redex-match? core-e-oracle-lang F (term (More (Dead)))))
+    (check-false (redex-match? core-e-oracle-lang F (term (Done)))))
 
    (test-case
     "exact thirteen-rule inventory"
@@ -493,7 +544,7 @@
     (check-equal? (step-once/e terminal) '()))
 
    (test-case
-    "disequality and failure reach their ownerless terminals"
+    "disequality and direct failure reach their supply-carrying terminals"
     (define-values (disequality-labels disequality-terminal)
       (trace/e finite-disequality-source))
     (check-equal?
@@ -515,34 +566,163 @@
        (term
         (More
          (Work (fail (label "fail")) ,empty-state)))))
+    (check-equal?
+     (raw-successors/e
+      (term (More (Work (fail (label "fail")) ,empty-state))))
+     (list (list 'fail (term (More (Dead (Support)))))))
     (check-equal? failure-labels '(fail finish-failure))
-    (check-equal? failure-terminal (term (Done))))
+    (check-equal? failure-terminal (term (Done (Support))))
+    (check-true (judgment-holds (wf-core-oracle/e? ,failure-terminal))))
 
    (test-case
-    "reachable dead conjunction is WF but carries no reconstructible support"
-    (define dead-conjunction
+    "fresh followed by failure retains empty, singleton, multiple, and unused allocations"
+    (for ([witness
+           (in-list
+            (list
+             (list
+              'empty-binder
+              empty-binder-failure-source
+              '(allocate-fresh fail finish-failure)
+              (term (Done (Support u:0))))
+             (list
+              'one-variable
+              one-fresh-failure-source
+              '(allocate-fresh fail finish-failure)
+              (term (Done (Support u:0))))
+             (list
+              'multiple-with-unused
+              multi-fresh-failure-source
+              '(allocate-fresh fail finish-failure)
+              (term (Done (Support u:7 u:2 u:0 u:1 u:3))))))])
+      (match-define (list description source expected-labels expected-terminal)
+        witness)
+      (define-values (labels terminal) (trace/e source))
+      (check-equal? labels expected-labels (format "labels: ~a" description))
+      (check-equal?
+       terminal
+       expected-terminal
+       (format "terminal support: ~a" description))
+      (check-true
+       (judgment-holds (wf-core-oracle/e? ,terminal))
+       (format "terminal WF: ~a" description))))
+
+   (test-case
+    "sparse failed support remains ordered and is exposed without predecessor history"
+    (define sparse-support (term (Support u:7 u:2)))
+    (define sparse-dead (term (More (Dead ,sparse-support))))
+    (define sparse-done (term (Done ,sparse-support)))
+    (check-equal?
+     (raw-successors/e
+      (term
+       (More
+        (Work
+         (fail (label "sparse-fail"))
+         (state ,sparse-support () () () (label "state"))))))
+     (list (list 'fail sparse-dead)))
+    (check-equal?
+     (judgment-holds
+      (live-support-oracle/e? (Dead ,sparse-support) support)
+      support)
+     (list sparse-support))
+    (check-equal?
+     (raw-successors/e sparse-dead)
+     (list (list 'finish-failure sparse-done)))
+    (check-true (judgment-holds (wf-core-oracle/e? ,sparse-dead)))
+    (check-true (judgment-holds (wf-core-oracle/e? ,sparse-done))))
+
+   (test-case
+    "dead conjunction checks its pending goal against stored support"
+    (define supported-conjunction
       (term
        (More
         (Conj
-         (Dead)
-         (u:91 =? (nat 91) (label "unreachable"))))))
-    (check-true (judgment-holds (wf-core-oracle/e? ,dead-conjunction)))
-    (check-equal?
-     (raw-successors/e dead-conjunction)
-     (list (list 'conj-fail (term (More (Dead))))))
+         (Dead (Support u:7 u:2))
+         (u:2 =? (nat 91) (label "pending"))))))
+    (define unsupported-conjunction
+      (term
+       (More
+        (Conj
+         (Dead (Support u:7 u:2))
+         (u:9 =? (nat 91) (label "pending"))))))
+    (check-true (judgment-holds (wf-core-oracle/e? ,supported-conjunction)))
+    (check-false (judgment-holds (wf-core-oracle/e? ,unsupported-conjunction)))
     (check-equal?
      (judgment-holds
       (live-support-oracle/e?
        (Conj
-        (Dead)
-        (u:91 =? (nat 91) (label "unreachable")))
+        (Dead (Support u:7 u:2))
+        (u:2 =? (nat 91) (label "pending")))
        support)
       support)
-     '())
+     (list (term (Support u:7 u:2))))
+    (check-equal?
+     (raw-successors/e supported-conjunction)
+     (list
+      (list
+       'conj-fail
+       (term (More (Dead (Support u:7 u:2))))))))
+
+   (test-case
+    "nested conjunction failure propagates one support through every phase"
+    (define-values (labels terminal) (trace/e nested-failure-source))
+    (check-equal?
+     labels
+     '(allocate-fresh
+       expand-conjunction
+       expand-conjunction
+       fail
+       conj-fail
+       conj-fail
+       finish-failure))
+    (check-equal? terminal (term (Done (Support u:0 u:1))))
+    (check-true (judgment-holds (wf-core-oracle/e? ,terminal)))
+    (match-define
+      (list 'allocate-fresh after-allocation)
+      (only-named-step/e nested-failure-source))
+    (match-define
+      (list 'expand-conjunction after-outer-expansion)
+      (only-named-step/e after-allocation))
+    (match-define
+      (list 'expand-conjunction after-inner-expansion)
+      (only-named-step/e after-outer-expansion))
+    (match-define
+      (list 'fail after-fail)
+      (only-named-step/e after-inner-expansion))
+    (check-equal?
+     after-fail
+     (term
+      (More
+       (Conj
+        (Conj
+         (Dead (Support u:0 u:1))
+         (u:0 =? (nat 0) (label "inner-right")))
+        (u:1 != (nat 1) (label "outer-right"))))))
+    (match-define
+      (list 'conj-fail after-inner-failure)
+      (only-named-step/e after-fail))
+    (check-equal?
+     after-inner-failure
+     (term
+      (More
+       (Conj
+        (Dead (Support u:0 u:1))
+        (u:1 != (nat 1) (label "outer-right"))))))
+    (check-equal?
+     (only-named-step/e after-inner-failure)
+     (list 'conj-fail (term (More (Dead (Support u:0 u:1)))))))
+
+   (test-case
+    "Dead and Done reject duplicate support"
     (check-false
-     (judgment-holds
-      (wf-core-oracle/e?
-       (More (Conj (Dead) (x:free =? (nat 0) (label "free"))))))))))
+     (redex-match?
+      core-e-oracle-lang
+      F
+      (term (More (Dead (Support u:0 u:0))))))
+    (check-false
+     (redex-match?
+      core-e-oracle-lang
+      F
+      (term (Done (Support u:0 u:0))))))))
 
 (module+ test
   (run-tests CORE-E-ORACLE-TESTS))

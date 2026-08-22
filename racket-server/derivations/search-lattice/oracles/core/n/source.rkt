@@ -32,14 +32,16 @@
    [--> (Work (succeed tag) σ)
         (Returned σ)
         "succeed"]
-   [--> (Work (fail tag) σ)
-        (Dead)
+   [--> (Work
+         (fail tag)
+         (state next sub dis trail tag_1))
+        (Dead next)
         "fail"]
    [--> (Conj (Returned σ) g)
         (Work g σ)
         "conj-return"]
-   [--> (Conj (Dead) g)
-        (Dead)
+   [--> (Conj (Dead next) g)
+        (Dead next)
         "conj-fail"]
    [--> (Work
          (t_1 =? t_2 tag)
@@ -56,14 +58,14 @@
    [--> (Work
          (t_1 =? t_2 tag)
          (state next sub dis ((t_3 =? t_4 tag_1) ...) tag_2))
-        (Dead)
+        (Dead next)
         (where sub_1 (unify/n (walk/n t_1 sub) (walk/n t_2 sub) sub))
         (where #t (invalid?/n sub_1 dis))
         "unify-violates-disequality"]
    [--> (Work
          (t_1 =? t_2 tag)
          (state next sub dis trail tag_2))
-        (Dead)
+        (Dead next)
         (where #f (unify/n (walk/n t_1 sub) (walk/n t_2 sub) sub))
         "unify-fail"]
    [--> (Work
@@ -76,7 +78,7 @@
    [--> (Work
          (t_1 != t_2 tag)
          (state next sub dis trail tag_2))
-        (Dead)
+        (Dead next)
         (where dis_1 ((t_1 t_2) ,@(term dis)))
         (where #t (invalid?/n sub dis_1))
         "disequality-fail"]))
@@ -88,8 +90,8 @@
    [--> (More (Returned σ))
         (Last (Answer σ))
         "finish-success"]
-   [--> (More (Dead))
-        (Done)
+   [--> (More (Dead next))
+        (Done next)
         "finish-failure"]))
 
 (define allocate/raw/n

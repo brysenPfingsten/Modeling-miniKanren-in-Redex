@@ -12,12 +12,9 @@
          wf-trail-oracle/n?
          wf-state-oracle/n?
          wf-g-oracle/n?
-         wf-unreachable-t-oracle/n?
-         wf-unreachable-g-oracle/n?
          wf-A-oracle/n?
          wf-S-oracle/n?
          live-next-oracle/n?
-         dead-left-oracle/n?
          wf-W-oracle/n?
          wf-F-oracle/n?
          wf-core-oracle/n?)
@@ -182,66 +179,6 @@
     (x_bound ...)
     next)])
 
-;; A failed left conjunct has discarded its state exactly as the frozen
-;; carrier contract requires.  Its continuation cannot run, so these
-;; judgments retain lexical closure while deliberately inventing no next.
-(define-judgment-form
-  core-n-oracle-lang
-  #:contract (wf-unreachable-t-oracle/n? t (x ...))
-  #:mode (wf-unreachable-t-oracle/n? I I)
-
-  [---------------------------------------------------- "unreachable runtime level/n"
-   (wf-unreachable-t-oracle/n? lv (x_bound ...))]
-
-  [---------------------------------------------------- "unreachable primitive/n"
-   (wf-unreachable-t-oracle/n? pt (x_bound ...))]
-
-  [(wf-unreachable-t-oracle/n? t_1 (x_bound ...))
-   (wf-unreachable-t-oracle/n? t_2 (x_bound ...))
-   ---------------------------------------------------- "unreachable pair/n"
-   (wf-unreachable-t-oracle/n? (t_1 : t_2) (x_bound ...))]
-
-  [---------------------------------------------------- "unreachable bound lexical variable/n"
-   (wf-unreachable-t-oracle/n? x (x_1 ... x x_2 ...))])
-
-(define-judgment-form
-  core-n-oracle-lang
-  #:contract (wf-unreachable-g-oracle/n? g (x ...))
-  #:mode (wf-unreachable-g-oracle/n? I I)
-
-  [---------------------------------------------------- "unreachable succeed/n"
-   (wf-unreachable-g-oracle/n? (succeed tag) (x_bound ...))]
-
-  [---------------------------------------------------- "unreachable fail/n"
-   (wf-unreachable-g-oracle/n? (fail tag) (x_bound ...))]
-
-  [(wf-unreachable-t-oracle/n? t_1 (x_bound ...))
-   (wf-unreachable-t-oracle/n? t_2 (x_bound ...))
-   ---------------------------------------------------- "unreachable unification/n"
-   (wf-unreachable-g-oracle/n?
-    (t_1 =? t_2 tag)
-    (x_bound ...))]
-
-  [(wf-unreachable-t-oracle/n? t_1 (x_bound ...))
-   (wf-unreachable-t-oracle/n? t_2 (x_bound ...))
-   ---------------------------------------------------- "unreachable disequality/n"
-   (wf-unreachable-g-oracle/n?
-    (t_1 != t_2 tag)
-    (x_bound ...))]
-
-  [(wf-unreachable-g-oracle/n? g (x_fresh ... x_bound ...))
-   ---------------------------------------------------- "unreachable fresh/n"
-   (wf-unreachable-g-oracle/n?
-    (∃ (x_fresh ...) g tag)
-    (x_bound ...))]
-
-  [(wf-unreachable-g-oracle/n? g_1 (x_bound ...))
-   (wf-unreachable-g-oracle/n? g_2 (x_bound ...))
-   ---------------------------------------------------- "unreachable conjunction/n"
-   (wf-unreachable-g-oracle/n?
-    (g_1 ∧ g_2 tag)
-    (x_bound ...))])
-
 (define-judgment-form
   core-n-oracle-lang
   #:contract (wf-A-oracle/n? A)
@@ -273,22 +210,12 @@
     (Returned (state next sub dis trail tag))
     next)]
 
+  [---------------------------------------------------- "failure exposes retained next/n"
+   (live-next-oracle/n? (Dead next) next)]
+
   [(live-next-oracle/n? W next)
-   ---------------------------------------------------- "next through conjunction/n"
+   ---------------------------------------------------- "next through active path/n"
    (live-next-oracle/n? (Conj W g) next)])
-
-(define-judgment-form
-  core-n-oracle-lang
-  #:contract (dead-left-oracle/n? W)
-  #:mode (dead-left-oracle/n? I)
-
-  [---------------------------------------------------- "dead leaf/n"
-   (dead-left-oracle/n? (Dead))]
-
-  [(dead-left-oracle/n? W)
-   (wf-unreachable-g-oracle/n? g ())
-   ---------------------------------------------------- "dead conjunction path/n"
-   (dead-left-oracle/n? (Conj W g))])
 
 (define-judgment-form
   core-n-oracle-lang
@@ -305,19 +232,13 @@
    ---------------------------------------------------- "returned work/n"
    (wf-W-oracle/n? (Returned σ))]
 
-  [---------------------------------------------------- "dead work/n"
-   (wf-W-oracle/n? (Dead))]
+  [---------------------------------------------------- "dead work retains next/n"
+   (wf-W-oracle/n? (Dead next))]
 
   [(wf-W-oracle/n? W)
    (live-next-oracle/n? W next)
    (wf-g-oracle/n? g () next)
-   ---------------------------------------------------- "live conjunction/n"
-   (wf-W-oracle/n? (Conj W g))]
-
-  [(wf-W-oracle/n? W)
-   (dead-left-oracle/n? W)
-   (wf-unreachable-g-oracle/n? g ())
-   ---------------------------------------------------- "unreachable dead conjunction/n"
+   ---------------------------------------------------- "conjunction under exposed next/n"
    (wf-W-oracle/n? (Conj W g))])
 
 (define-judgment-form
@@ -333,8 +254,8 @@
    ---------------------------------------------------- "last answer/n"
    (wf-F-oracle/n? (Last A))]
 
-  [---------------------------------------------------- "done/n"
-   (wf-F-oracle/n? (Done))])
+  [---------------------------------------------------- "done retains next/n"
+   (wf-F-oracle/n? (Done next))])
 
 (define-judgment-form
   core-n-oracle-lang

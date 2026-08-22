@@ -7,8 +7,8 @@ well-formedness judgments:
 
 ```text
 R[S]  world-local Owner introductions
-R[E]  ordered named support in logical states
-R[N]  numeric logic variables plus state-local next
+R[E]  ordered named support in live states and failed summaries
+R[N]  numeric logic variables plus phase-sensitive next
 ```
 
 None of these source relations is emitted from the stage generator, imported
@@ -31,7 +31,8 @@ E has no Owner or repeated Support carrier slots. Its logical state is:
 
 Fresh appends the first missing canonical `u` atoms to that ordered support.
 Conjunction threads the Returned state; two independently copied worlds evolve
-their supports independently.
+their supports independently. Failure retains only `(Dead Support)`, and root
+failure produces `(Done Support)`; neither form retains a complete state.
 
 N has bare naturals as runtime logic variables, distinct from object-language
 `(nat number)` data. Its logical state is:
@@ -42,7 +43,14 @@ N has bare naturals as runtime logic variables, distinct from object-language
 
 A `k`-binder fresh at `next = n` allocates `n` through `n+k-1` and advances to
 `n+k`. Empty fresh therefore retains the counter while still taking the named
-`allocate-fresh` transition.
+`allocate-fresh` transition. Failure retains only `(Dead next)`, and terminal
+failure produces `(Done next)`.
+
+S analogously retains its existing `(Dead owners)` and `(Done owners)` forms.
+In all three rows the failure summary is branch-local, ignored by standard
+answer observations, and never combined with a sibling supply. It is not a
+Fresh wrapper, allocation event, full failed state, or cache on `Conj` or its
+suspended goal.
 
 All three fresh contractions substitute only the current lexical binders,
 simultaneously and in binder order. Nested binders shadow equal lexical names;
@@ -63,21 +71,18 @@ other lexical variables and already allocated runtime variables remain intact.
 The one-step square checks compare complete named successor multisets and exact
 rule labels for all thirteen core rules.
 
-There is one explicit proof-domain wrinkle, not a carrier change. A failed
-left conjunct reaches `(Conj (Dead) g)` before `conj-fail`; E has intentionally
-discarded the only logical state, although the inert `g` may still contain
-named runtime atoms. On that short supportless administrative corridor,
-`Q-EN/F` is indexed by the ordered address witness obtained from the preceding
-state/world ancestry. State-bearing E configurations determine that witness
-themselves. The witness exists only in the correspondence relation: it is not
-Support, Owner, Fresh, or `next` syntax added back to E or N.
+`Q-SE/F` preserves the Owner path in E `Dead`/`Done` Support summaries.
+`Q-EN/F` addresses those stored supports directly, and direct `Q-SN/F` maps
+the same Owner path to its numeric length. Thus failed conjunctions and
+terminal failure translate solely from the current configuration, with no
+external addressing witness or history.
 
 The current executable claims are scoped to well-formed reachable core
-configurations paired with that witness when necessary. They include every
-rule, sparse/noncanonical E support, sibling-local reuse, exact label order,
-WF preservation, direct `Q_SN = Q_EN o Q_SE`, and a finite successful trace.
-These checks are evidence, not a universal Redex proof and not a feature-level
-naturality claim.
+configurations. They include every rule, sparse/noncanonical E support,
+sibling-local reuse, exact label order, WF preservation, direct
+`Q_SN = Q_EN o Q_SE`, and finite successful and failing traces. These checks
+are evidence, not a universal Redex proof and not a feature-level naturality
+claim.
 
 ## Focused gate
 

@@ -57,10 +57,10 @@
   [S (Returned σ)]
   [W (Work g σ)
      (Returned σ)
-     (Dead)
+     (Dead next)
      (Conj W g)]
   [F (Last A)
-     (Done)
+     (Done next)
      (More W)]
 
   [WorkPath hole

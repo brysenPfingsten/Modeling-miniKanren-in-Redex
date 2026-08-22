@@ -36,16 +36,19 @@ The selected post-prototype decisions are normative in
 [`ARCHITECTURE-CONTRACT.md`](ARCHITECTURE-CONTRACT.md). This README describes
 the executable prototype retained as an oracle and recovery point.
 
-Checkpoint 2 separately states the selected world-local S, state-local E, and
-numeric N source oracles under [`oracles/core/`](oracles/core/README.md), with
-direct vertical maps at R. Those sources do not replace or derive from the
-prototype columns described below.
+Checkpoint 2 separately states the selected world-local S, phase-sensitive E,
+and numeric N source oracles under
+[`oracles/core/`](oracles/core/README.md), with direct vertical maps at R.
+Live/successful E and N supply resides in logical state; failure retains only
+the narrow Support/next summary in `Dead` and `Done`. Those sources do not
+replace or derive from the prototype columns described below.
 
 The generated artifact currently named E is a support-decorated-node
 prototype. It erases S-side Owner groupings and tags and replaces their carrier
 positions with cumulative `Support` positions on `Work`, `Conj`, `Returned`,
-`Dead`, `Answer`, `Last`, and `Done`. It is not the selected state-local E in
-which allocated-name support appears only inside logical states.
+`Dead`, `Answer`, `Last`, and `Done`. It is not the selected E, in which
+allocated-name support appears in live/successful logical state and only the
+narrow failure summary appears in `Dead` and `Done`.
 
 Here `g` means generated and `ref` means handwritten reference. The generated
 and reference artifacts are separate modules. Each generated row's descriptor
@@ -349,7 +352,7 @@ In the current support-decorated-node prototype, local `Support` agrees with the
 current S policy on the stated well-formed core domain. Branching features such
 as disjunction and search expose names retained outside the active path. This is
 a limitation of the prototype, not a reason to treat it as the selected
-state-local E.
+phase-sensitive E.
 
 It also does not implement `N`. Current S prototype allocation is based on live
 frontier support and may reuse a low logical name after pruning removes its last

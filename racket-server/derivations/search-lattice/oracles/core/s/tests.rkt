@@ -235,9 +235,22 @@
             results)]))
 
 (define (advance/s source expected-name)
-  (define-values (actual-name target) (only-named-step source))
+  (check-true (wf-core/s? source)
+              (format "source WF before ~a" expected-name))
+  (define raw-results (raw-successors/s source))
+  (check-equal? (length raw-results)
+                1
+                (format "raw multiplicity for ~a" expected-name))
+  (match-define (list (list actual-name target)) raw-results)
   (check-equal? actual-name expected-name)
+  (check-true (wf-core/s? target)
+              (format "target WF after ~a" expected-name))
   target)
+
+(define (advance*/s source expected-names)
+  (for/fold ([frontier source])
+            ([expected-name (in-list expected-names)])
+    (advance/s frontier expected-name)))
 
 (define nested-shadow-source
   (term
@@ -322,6 +335,140 @@
      (∃ (x:right)
         (x:right != u:0 (label "right-body"))
         (label "right-intro"))
+     ,sigma-empty))))
+
+(define empty-failure-owners
+  (term
+   (Owners
+    (Owner () (label "empty-failure-intro")))))
+
+(define empty-failure-source
+  (term
+   (More
+    (Work
+     (Owners)
+     (∃ ()
+        (fail (label "after-empty-fresh"))
+        (label "empty-failure-intro"))
+     ,sigma-empty))))
+
+(define unused-failure-owners
+  (term
+   (Owners
+    (Owner (u:0) (label "unused-failure-intro")))))
+
+(define unused-failure-source
+  (term
+   (More
+    (Work
+     (Owners)
+     (∃ (x:unused)
+        ((succeed (label "before-unused-failure"))
+         ∧
+         (fail (label "after-unused-fresh"))
+         (label "unused-failure-conjunction"))
+        (label "unused-failure-intro"))
+     ,sigma-empty))))
+
+(define singleton-failure-owners
+  (term
+   (Owners
+    (Owner (u:0) (label "singleton-failure-intro")))))
+
+(define singleton-failure-source
+  (term
+   (More
+    (Work
+     (Owners)
+     (∃ (x:single)
+        (x:single =? (x:single : empty)
+                  (label "singleton-occurs-failure"))
+        (label "singleton-failure-intro"))
+     ,sigma-empty))))
+
+(define multi-failure-owners
+  (term
+   (Owners
+    (Owner (u:0 u:1) (label "multi-failure-intro")))))
+
+(define multi-failure-source
+  (term
+   (More
+    (Work
+     (Owners)
+     (∃ (x:left x:right)
+        (x:right =? (x:left : x:right)
+                 (label "multi-occurs-failure"))
+        (label "multi-failure-intro"))
+     ,sigma-empty))))
+
+(define FAILURE-ALLOCATION-CASES
+  (list
+   (list "empty binder"
+         empty-failure-source
+         '(allocate-fresh fail finish-failure)
+         empty-failure-owners
+         '())
+   (list "unused binder"
+         unused-failure-source
+         '(allocate-fresh
+           expand-conjunction
+           succeed
+           conj-return
+           fail
+           finish-failure)
+         unused-failure-owners
+         '(u:0))
+   (list "used singleton binder"
+         singleton-failure-source
+         '(allocate-fresh unify-fail finish-failure)
+         singleton-failure-owners
+         '(u:0))
+   (list "used multi-variable binder"
+         multi-failure-source
+         '(allocate-fresh unify-fail finish-failure)
+         multi-failure-owners
+         '(u:0 u:1))))
+
+(define nested-singleton-owners
+  (term
+   (Owners
+    (Owner (u:1) (label "nested-singleton-intro")))))
+
+(define nested-multi-owners
+  (term
+   (Owners
+    (Owner (u:2 u:3) (label "nested-multi-intro")))))
+
+(define nested-inner-failure-owners
+  (term
+   (Owners
+    (Owner (u:1) (label "nested-singleton-intro"))
+    (Owner (u:2 u:3) (label "nested-multi-intro")))))
+
+(define nested-final-failure-owners
+  (term
+   (Owners
+    (Owner (u:0) (label "intro-u0"))
+    (Owner (u:1) (label "nested-singleton-intro"))
+    (Owner (u:2 u:3) (label "nested-multi-intro")))))
+
+(define nested-conjunction-failure-source
+  (term
+   (More
+    (Work
+     ,owners-u0
+     ((∃ (x:single)
+         ((∃ (x:left x:right)
+             (fail (label "nested-failure"))
+             (label "nested-multi-intro"))
+          ∧
+          (succeed (label "unreachable-inner-right"))
+          (label "inner-conjunction"))
+         (label "nested-singleton-intro"))
+      ∧
+      (succeed (label "unreachable-outer-right"))
+      (label "outer-conjunction"))
      ,sigma-empty))))
 
 (define-test-suite CORE-S-ORACLE-TESTS
@@ -432,6 +579,73 @@
    (check-equal? (world-path-support/s after-right-allocation)
                  '(u:0 u:1))
    (check-true (wf-core/s? after-right-allocation)))
+
+  (test-case
+   "empty, unused, singleton, and multi allocations survive later failure"
+   (for ([failure-case (in-list FAILURE-ALLOCATION-CASES)])
+     (match-define
+       (list description source labels expected-owners expected-support)
+       failure-case)
+     (define terminal (advance*/s source labels))
+     (check-equal? terminal
+                   (term (Done ,expected-owners))
+                   (format "terminal Owners for ~a" description))
+     (check-equal? (world-path-support/s terminal)
+                   expected-support
+                   (format "terminal support for ~a" description))
+     (check-equal? (raw-successors/s terminal)
+                   '()
+                   (format "terminality for ~a" description))))
+
+  (test-case
+   "nested conjunction failure accumulates Owner groups in path order"
+   (define after-outer-expand
+     (advance/s nested-conjunction-failure-source 'expand-conjunction))
+   (define after-singleton-allocation
+     (advance/s after-outer-expand 'allocate-fresh))
+   (define after-inner-expand
+     (advance/s after-singleton-allocation 'expand-conjunction))
+   (define after-multi-allocation
+     (advance/s after-inner-expand 'allocate-fresh))
+   (check-equal? (world-path-support/s after-multi-allocation)
+                 '(u:0 u:1 u:2 u:3))
+   (define after-fail
+     (advance/s after-multi-allocation 'fail))
+   (check-equal?
+    after-fail
+    (term
+     (More
+      (Conj
+       ,owners-u0
+       (Conj
+        ,nested-singleton-owners
+        (Dead ,nested-multi-owners)
+        (succeed (label "unreachable-inner-right")))
+       (succeed (label "unreachable-outer-right"))))))
+   (define after-inner-conj-fail
+     (advance/s after-fail 'conj-fail))
+   (check-equal?
+    after-inner-conj-fail
+    (term
+     (More
+      (Conj
+       ,owners-u0
+       (Dead ,nested-inner-failure-owners)
+       (succeed (label "unreachable-outer-right"))))))
+   (define after-outer-conj-fail
+     (advance/s after-inner-conj-fail 'conj-fail))
+   (check-equal?
+    after-outer-conj-fail
+    (term (More (Dead ,nested-final-failure-owners))))
+   (check-equal? (world-path-support/s after-outer-conj-fail)
+                 '(u:0 u:1 u:2 u:3))
+   (define terminal
+     (advance/s after-outer-conj-fail 'finish-failure))
+   (check-equal? terminal
+                 (term (Done ,nested-final-failure-owners)))
+   (check-equal? (world-path-support/s terminal)
+                 '(u:0 u:1 u:2 u:3))
+   (check-equal? (raw-successors/s terminal) '()))
 
   (test-case
    "incomparable sibling worlds independently reuse a post-prefix atom"

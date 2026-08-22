@@ -101,7 +101,7 @@ values across incomparable worlds.
 This is a world-local design decision. It supersedes, rather than endorses, the
 prototype's whole-live-frontier allocation policy.
 
-### E: world-local support in logical states
+### E: world-local support with a failure summary
 
 E uses allocated `u` identities as its runtime logic-variable domain. Each
 logical state contains ordered, duplicate-free, cumulative allocated-name
@@ -115,23 +115,27 @@ The normative schematic state shape is:
 The state tag remains semantic metadata; it is not Owner allocation
 provenance.
 
-`Support` is not repeated on `Work`, `Conj`, `Returned`, `Dead`, `Answer`,
-`Last`, `Done`, or feature wrappers. Those constructors carry or expose a
-logical state only when their semantics needs one; they do not imitate S's
-provenance positions.
+While a world is live or successfully returned, its `Support` is carried by
+its logical state. When that world fails, only the ordered Support summary
+survives. The complete failed state is not retained.
 
 The ownerless core configuration templates are exactly:
 
 ```text
 Answer   ::= (Answer state)
 Settled  ::= (Returned state)
-Work     ::= (Work goal state) | (Returned state) | (Dead) | (Conj Work goal)
-Frontier ::= (Last Answer) | (Done) | (More Work)
+Work     ::= (Work goal state)
+           | (Returned state)
+           | (Dead Support)
+           | (Conj Work goal)
+Frontier ::= (Last Answer) | (Done Support) | (More Work)
 ```
 
-Feature wrappers likewise have no repeated Support slot. `Dead` and `Done`
-intentionally discard the failed world's state; no later transition in that
-world can allocate from it.
+`Support` is not repeated on `Work`, `Conj`, `Returned`, `Answer`, `Last`,
+feature wrappers, or the suspended second goal of a conjunction. `Dead` and
+`Done` narrowly own the failed world's Support summary so structural
+representation maps do not need external history. They retain no
+substitution, disequalities, trail, state tag, or complete logical state.
 
 The state discipline is:
 
@@ -145,7 +149,7 @@ The state discipline is:
 An allocation in one alternative therefore does not reserve that atom in an
 incomparable sibling.
 
-### N: numeric variables and a state-local next level
+### N: numeric variables with a phase-sensitive next level
 
 N uses natural numbers as runtime logic-variable identities. Each logical
 state carries a natural `next` allocation level alongside the substitution,
@@ -156,9 +160,12 @@ syntactically distinct from these runtime variable identities.
 (state next substitution disequalities trail state-tag)
 ```
 
-N uses the same ownerless core configuration templates as E, with this N state
-in each state-bearing position. Its feature wrappers carry no counter field of
-their own.
+N uses the same ownerless live and successful configuration templates as E,
+with this N state in each state-bearing position. A failed world instead has
+`(Dead next)`, and terminal failure has `(Done next)`. These forms retain no
+substitution, disequalities, trail, state tag, or complete logical state.
+`Conj`, its suspended second goal, and feature wrappers carry no counter field
+of their own.
 
 A `k`-variable fresh at level `n` allocates, in binder order,
 `n, ..., n + k - 1` and produces level `n + k`. In particular, `fresh ()`
@@ -172,6 +179,24 @@ The state discipline is:
   finish.
 
 Independent sibling worlds may therefore allocate the same numeric levels.
+
+Across all three representations, allocation supply is phase-sensitive:
+
+- live and successfully returned worlds expose supply through Owner
+  provenance in S or through the logical state in E and N;
+- failed worlds retain only `(Dead owners)`, `(Dead Support)`, or
+  `(Dead next)`;
+- terminal failure retains the same summary in `Done`;
+- a dead branch's summary remains branch-local and is discarded with that
+  branch; it is never unioned, appended, maximized, or otherwise combined
+  with a sibling supply; and
+- standard answer/search observations ignore failure summaries unless a
+  theorem explicitly observes allocation history, while exact structural
+  representation correspondences preserve them.
+
+This is not a restored Fresh wrapper, an `AllocateEvent`, a full failed state,
+or a cache repeated throughout the configuration carrier. It is the narrow
+summary owned by the failed phase.
 
 ## Fresh contraction boundary
 
@@ -224,6 +249,10 @@ appends the visible Owner introductions in order. At each logical state it
 stores the accumulated support in the E state, then erases persistent Owner
 decorations from the surrounding configuration carrier.
 
+For `(Dead owners)` and `(Done owners)`, it appends every Owner introduction
+visible on that world path and stores the resulting ordered Support directly
+in the corresponding E failure form.
+
 At a branch, the incoming accumulator is copied and each possible world is
 translated independently. Introductions exclusive to one sibling never enter
 another sibling's support. A shared prefix is translated consistently in every
@@ -240,6 +269,11 @@ use per-world alpha-renaming, with the common outer prefix held fixed.
 support `(u_0, ..., u_(n-1))`, it maps `u_i` to numeric runtime variable `i`,
 renames the goal, substitution keys and values, disequalities, trail, and
 answers coherently, and sets `next` to `n`.
+
+The Support stored in `Dead` or `Done` is addressed in the same way and maps
+directly to the corresponding N form carrying `next = n`. In particular,
+`Q_EN` remains an ordinary structural function on failed conjunctions; it does
+not receive predecessor history or a ghost support argument.
 
 Sparse or noncanonical E atoms are admitted when the support is ordered,
 duplicate-free, and covers every runtime variable visible in that world. They
@@ -261,8 +295,8 @@ satisfy it are outside `Q_EN`.
 ### `Q_SN`
 
 The direct `Q_SN` traversal accumulates ordered S introductions and assigns
-their canonical numeric addresses. On its stated domain it must agree exactly
-with composition:
+their canonical numeric addresses, including the Owner summaries stored in
+`Dead` and `Done`. On its stated domain it must agree exactly with composition:
 
 ```text
 Q_SN = Q_EN o Q_SE

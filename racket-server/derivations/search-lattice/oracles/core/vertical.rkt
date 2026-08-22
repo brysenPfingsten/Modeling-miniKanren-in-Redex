@@ -19,10 +19,9 @@
          Q-SN-composition?)
 
 ;; These are direct structural maps between the three independently stated
-;; source languages.  The ordered list supplied to Q-EN/F is theorem-side
-;; addressing evidence, not an E or N configuration field.  It is needed only
-;; while an E configuration is in a supportless administrative state such as
-;; (Conj (Dead) g).  A state-bearing E term determines the same list itself.
+;; source languages.  Every possible-world phase exposes its allocation
+;; supply: live/successful E worlds through state, failed E worlds through the
+;; narrow Support summary in Dead/Done, and N worlds analogously through next.
 
 (define (u-symbol? datum)
   (and (symbol? datum)
@@ -63,71 +62,50 @@
 (define (support-from-E-state state)
   (match state
     [`(state (Support ,support ...) ,_sub ,_dis ,_trail ,_tag)
-     support]
+     (validate-E-support 'support-from-E-state support)]
     [_
      (error 'support-from-E-state "expected an E state, received ~e" state)]))
+
+(define (validate-E-support who support)
+  (unless (and (andmap u-symbol? support)
+               (duplicate-free? support))
+    (error who "ill-formed E support: ~e" support))
+  support)
+
+(define (support-from-E-summary summary)
+  (match summary
+    [`(Support ,support ...)
+     (validate-E-support 'support-from-E-summary support)]
+    [_
+     (error 'support-from-E-summary
+            "expected an E Support summary, received ~e"
+            summary)]))
 
 (define (E-work-live-support work)
   (match work
     [`(Work ,_goal ,state) (support-from-E-state state)]
     [`(Returned ,state) (support-from-E-state state)]
-    [`(Dead) #f]
+    [`(Dead ,support) (support-from-E-summary support)]
     [`(Conj ,inner ,_goal) (E-work-live-support inner)]
     [_
      (error 'E-work-live-support "expected E work, received ~e" work)]))
 
-;; #f means that the carrier has no logical state.  The empty list means that
-;; it has a logical state whose allocated-name support is empty.
 (define (E-live-support frontier)
   (match frontier
     [`(More ,work) (E-work-live-support work)]
     [`(Last (Answer ,state)) (support-from-E-state state)]
-    [`(Done) #f]
+    [`(Done ,support) (support-from-E-summary support)]
     [_
      (error 'E-live-support "expected an E frontier, received ~e" frontier)]))
 
 (define (duplicate-free? values)
   (= (length values) (length (remove-duplicates values))))
 
-(define (runtime-atoms-in datum [atoms '()])
-  (match datum
-    [(? u-symbol? u)
-     (if (member u atoms) atoms (cons u atoms))]
-    [(cons first rest)
-     (runtime-atoms-in first (runtime-atoms-in rest atoms))]
-    [_ atoms]))
-
-(define (resolve-E-support frontier support-witness)
-  (define live-support (E-live-support frontier))
-  (cond
-    [live-support
-     (unless (duplicate-free? live-support)
-       (error 'Q-EN/F "E support contains a duplicate: ~e" live-support))
-     (when (and support-witness
-                (not (equal? support-witness live-support)))
-       (error 'Q-EN/F
-              "address witness ~e disagrees with live E support ~e"
-              support-witness
-              live-support))
-     live-support]
-    [support-witness
-     (unless (and (andmap u-symbol? support-witness)
-                  (duplicate-free? support-witness))
-       (error 'Q-EN/F "ill-formed address witness: ~e" support-witness))
-     support-witness]
-    [(null? (runtime-atoms-in frontier)) '()]
-    [else
-     (error 'Q-EN/F
-            (string-append
-             "supportless E carrier contains a named runtime atom; "
-             "supply its predecessor-derived address witness: ~e")
-            frontier)]))
-
 (define (address-atom atom support)
   (match (index-of support atom)
     [#f
      (error 'Q-EN/F
-            "runtime atom ~e is absent from support/address witness ~e"
+            "runtime atom ~e is absent from stored world support ~e"
             atom
             support)]
     [index index]))
@@ -206,7 +184,9 @@
     [`(Returned ,owners ,state)
      (define support-here (extend-with-owners owners support))
      `(Returned ,(S-state->E state support-here))]
-    [`(Dead ,_owners) `(Dead)]
+    [`(Dead ,owners)
+     (define support-here (extend-with-owners owners support))
+     `(Dead (Support ,@support-here))]
     [`(Conj ,owners ,inner ,goal)
      (define support-here (extend-with-owners owners support))
      `(Conj ,(S-work->E inner support-here) ,goal)]
@@ -216,7 +196,8 @@
 (define (Q-SE/F frontier)
   (match frontier
     [`(More ,work) `(More ,(S-work->E work))]
-    [`(Done ,_owners) `(Done)]
+    [`(Done ,owners)
+     `(Done (Support ,@(extend-with-owners owners)))]
     [`(Last ,owners ,answer)
      (define support-here (extend-with-owners owners))
      `(Last ,(S-answer->E answer support-here))]
@@ -247,17 +228,29 @@
     [`(Work ,goal ,state)
      `(Work ,(address-goal goal support) ,(E-state->N state support))]
     [`(Returned ,state) `(Returned ,(E-state->N state support))]
-    [`(Dead) `(Dead)]
+    [`(Dead (Support ,dead-support ...))
+     (unless (equal? dead-support support)
+       (error 'Q-EN/F
+              "Dead support ~e disagrees with world support ~e"
+              dead-support
+              support))
+     `(Dead ,(length support))]
     [`(Conj ,inner ,goal)
      `(Conj ,(E-work->N inner support) ,(address-goal goal support))]
     [_
      (error 'Q-EN/F "expected E work, received ~e" work)]))
 
-(define (Q-EN/F frontier [support-witness #f])
-  (define support (resolve-E-support frontier support-witness))
+(define (Q-EN/F frontier)
+  (define support (E-live-support frontier))
   (match frontier
     [`(More ,work) `(More ,(E-work->N work support))]
-    [`(Done) `(Done)]
+    [`(Done (Support ,done-support ...))
+     (unless (equal? done-support support)
+       (error 'Q-EN/F
+              "Done support ~e disagrees with world support ~e"
+              done-support
+              support))
+     `(Done ,(length support))]
     [`(Last ,answer) `(Last ,(E-answer->N answer support))]
     [_
      (error 'Q-EN/F "expected an E frontier, received ~e" frontier)]))
@@ -281,7 +274,7 @@
     [`(Work ,_owners ,goal ,state)
      `(Work ,(address-goal goal support) ,(S-state->N state support))]
     [`(Returned ,_owners ,state) `(Returned ,(S-state->N state support))]
-    [`(Dead ,_owners) `(Dead)]
+    [`(Dead ,_owners) `(Dead ,(length support))]
     [`(Conj ,_owners ,inner ,goal)
      `(Conj ,(S-work->N inner support) ,(address-goal goal support))]
     [_
@@ -293,7 +286,7 @@
   (define support (S-world-support frontier))
   (match frontier
     [`(More ,work) `(More ,(S-work->N work support))]
-    [`(Done ,_owners) `(Done)]
+    [`(Done ,_owners) `(Done ,(length support))]
     [`(Last ,_owners ,answer) `(Last ,(S-answer->N answer support))]
     [_
      (error 'Q-SN/F "expected an S frontier, received ~e" frontier)]))
@@ -325,26 +318,20 @@
   (equal? (canonical-multiset transported)
           (canonical-multiset direct)))
 
-(define (Q-EN-step-square-sides source [support-witness #f])
-  (define source-support (resolve-E-support source support-witness))
+(define (Q-EN-step-square-sides source)
   (list
    (for/list ([successor
                (in-list (named-successors e:core-e-oracle-red source))])
      (match successor
        [(list name target)
-        (define target-support (E-live-support target))
-        (list name
-              (Q-EN/F target
-                      (if target-support
-                          target-support
-                          source-support)))]))
+        (list name (Q-EN/F target))]))
    (named-successors
     n:core-n-oracle-red
-    (Q-EN/F source source-support))))
+    (Q-EN/F source))))
 
-(define (Q-EN-step-square/raw? source [support-witness #f])
+(define (Q-EN-step-square/raw? source)
   (match-define (list transported direct)
-    (Q-EN-step-square-sides source support-witness))
+    (Q-EN-step-square-sides source))
   (equal? (canonical-multiset transported)
           (canonical-multiset direct)))
 
@@ -364,4 +351,4 @@
 
 (define (Q-SN-composition? source)
   (equal? (Q-SN/F source)
-          (Q-EN/F (Q-SE/F source) (S-world-support source))))
+          (Q-EN/F (Q-SE/F source))))

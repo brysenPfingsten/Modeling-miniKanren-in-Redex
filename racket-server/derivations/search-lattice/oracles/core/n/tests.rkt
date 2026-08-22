@@ -53,11 +53,11 @@
    (list
     'succeed
     (term (More (Work (succeed (label "yes")) ,STATE-1)))
-    (term (More (Returned ,STATE-1))))
+   (term (More (Returned ,STATE-1))))
    (list
     'fail
     (term (More (Work (fail (label "no")) ,STATE-1)))
-    (term (More (Dead))))
+    (term (More (Dead 1))))
    (list
     'conj-return
     (term
@@ -74,8 +74,8 @@
     'conj-fail
     (term
      (More
-      (Conj (Dead) (succeed (label "unreachable")))))
-    (term (More (Dead))))
+      (Conj (Dead 3) (succeed (label "unreachable")))))
+    (term (More (Dead 3))))
    (list
     'allocate-fresh
     (term
@@ -122,7 +122,7 @@
               ((0 (nat 7)))
               ()
               (label "disequality-state")))))
-    (term (More (Dead))))
+    (term (More (Dead 1))))
    (list
     'unify-fail
     (term
@@ -130,7 +130,7 @@
       (Work
        ((nat 0) =? (nat 1) (label "different-data"))
        ,STATE-0)))
-    (term (More (Dead))))
+    (term (More (Dead 0))))
    (list
     'disequality-success
     (term
@@ -153,15 +153,15 @@
       (Work
        ((nat 0) != (nat 0) (label "same-data"))
        ,STATE-0)))
-    (term (More (Dead))))
+    (term (More (Dead 0))))
    (list
     'finish-success
     (term (More (Returned ,STATE-1)))
     (term (Last (Answer ,STATE-1))))
    (list
     'finish-failure
-    (term (More (Dead)))
-    (term (Done)))))
+    (term (More (Dead 3)))
+    (term (Done 3)))))
 
 (define (wf? configuration)
   (judgment-holds (wf-core-oracle/n? ,configuration)))
@@ -258,6 +258,148 @@
     (check-equal? (term (allocate-interval/n 7 (x:a x:b x:c)))
                   '(7 8 9))
     (check-equal? (term (advance-next/n 7 (x:a x:b x:c))) 10))
+
+  (test-case "failure retains next after empty, singleton, multi, and unused fresh"
+    (define cases
+      (list
+       (list
+        'empty
+        (term
+         (More
+          (Work
+           (∃ () (fail (label "empty-fail")) (label "empty"))
+           ,STATE-3)))
+        '(allocate-fresh fail finish-failure)
+        (term (Done 3)))
+       (list
+        'singleton
+        (term
+         (More
+          (Work
+           (∃ (x:q)
+              ((x:q =? x:q (label "use-one"))
+               ∧
+               (fail (label "singleton-fail"))
+               (label "singleton-body"))
+              (label "singleton"))
+           ,STATE-3)))
+        '(allocate-fresh
+          expand-conjunction
+          unify-success
+          conj-return
+          fail
+          finish-failure)
+        (term (Done 4)))
+       (list
+        'multi
+        (term
+         (More
+          (Work
+           (∃ (x:a x:b)
+              ((x:a =? x:b (label "use-two"))
+               ∧
+               (fail (label "multi-fail"))
+               (label "multi-body"))
+              (label "multi"))
+           ,STATE-3)))
+        '(allocate-fresh
+          expand-conjunction
+          unify-success
+          conj-return
+          fail
+          finish-failure)
+        (term (Done 5)))
+       (list
+        'unused
+        (term
+         (More
+          (Work
+           (∃ (x:used x:unused)
+              ((x:used =? (nat 7) (label "use-first"))
+               ∧
+               (fail (label "unused-fail"))
+               (label "unused-body"))
+              (label "unused"))
+           ,STATE-3)))
+        '(allocate-fresh
+          expand-conjunction
+          unify-success
+          conj-return
+          fail
+          finish-failure)
+        (term (Done 5)))))
+    (for ([case (in-list cases)])
+      (match-define (list name source expected-labels expected-terminal) case)
+      (check-true (wf? source) (format "source WF for ~a fresh" name))
+      (define-values (labels terminal) (trace/n source))
+      (check-equal? labels expected-labels
+                    (format "labels for ~a fresh" name))
+      (check-equal? terminal expected-terminal
+                    (format "terminal next for ~a fresh" name))
+      (check-true (wf? terminal)
+                  (format "terminal WF for ~a fresh" name))))
+
+  (test-case "direct and nested failure preserve next through root Done"
+    (define direct-source
+      (term
+       (More
+        (Work (fail (label "direct")) ,STATE-0))))
+    (define-values (direct-labels direct-terminal) (trace/n direct-source))
+    (check-equal? direct-labels '(fail finish-failure))
+    (check-equal? direct-terminal (term (Done 0)))
+
+    (define nested-source
+      (term
+       (More
+        (Work
+         (∃ (x:a x:b)
+            (((fail (label "nested-fail"))
+              ∧
+              (x:b =? (nat 1) (label "inner-pending"))
+              (label "inner-and"))
+             ∧
+             (x:a != (nat 2) (label "outer-pending"))
+             (label "outer-and"))
+            (label "allocate-two"))
+         ,STATE-0))))
+    (define nested-dead
+      (term
+       (More
+        (Conj
+         (Conj
+          (Dead 2)
+          (1 =? (nat 1) (label "inner-pending")))
+         (0 != (nat 2) (label "outer-pending"))))))
+    (define inner-propagated
+      (term
+       (More
+        (Conj
+         (Dead 2)
+         (0 != (nat 2) (label "outer-pending"))))))
+    (define root-dead (term (More (Dead 2))))
+    (check-true (wf? nested-source))
+    (check-true (wf? nested-dead))
+    (check-equal?
+     (raw-successors/n nested-dead)
+     (list (list 'conj-fail inner-propagated)))
+    (check-equal?
+     (raw-successors/n inner-propagated)
+     (list (list 'conj-fail root-dead)))
+    (check-equal?
+     (raw-successors/n root-dead)
+     (list (list 'finish-failure (term (Done 2)))))
+    (define-values (nested-labels nested-terminal) (trace/n nested-source))
+    (check-equal?
+     nested-labels
+     '(allocate-fresh
+       expand-conjunction
+       expand-conjunction
+       fail
+       conj-fail
+       conj-fail
+       finish-failure))
+    (check-equal? nested-terminal (term (Done 2)))
+    (check-true (wf? nested-terminal)))
 
   (test-case "fresh substitution preserves mixed terms and lexical shadowing"
     (define source
@@ -369,8 +511,18 @@
     (define dead-continuation
       (term
        (Conj
-        (Dead)
-        (99 =? (nat 99) (label "unreachable")))))
+        (Dead 3)
+        (2 =? (nat 99) (label "allocated-pending")))))
+    (define nested-dead-continuation
+      (term
+       (Conj
+        ,dead-continuation
+        (1 != (nat 99) (label "nested-pending")))))
+    (define unallocated-dead-continuation
+      (term
+       (Conj
+        (Dead 3)
+        (3 =? (nat 99) (label "unallocated-pending")))))
     (check-true
      (wf?
       (term
@@ -395,17 +547,23 @@
                 ()
                 ((1 =? (nat 7) (label "bad")))
                 (label "bad-state")))))))
-    ;; Once Dead has discarded the state, the deferred goal is unreachable.
-    ;; Its lexical closure remains checkable, but there is no next against
-    ;; which to check or later position-map this level.
-    (check-true
-     (judgment-holds (dead-left-oracle/n? ,dead-continuation)))
     (check-equal?
      (judgment-holds
       (live-next-oracle/n? ,dead-continuation next)
       next)
-     '())
-    (check-true (wf? (term (More ,dead-continuation)))))
+     '(3))
+    (check-equal?
+     (judgment-holds
+      (live-next-oracle/n? ,nested-dead-continuation next)
+      next)
+     '(3))
+    (check-true (wf? (term (More ,dead-continuation))))
+    (check-true (wf? (term (More ,nested-dead-continuation))))
+    (check-false (wf? (term (More ,unallocated-dead-continuation))))
+    (check-true (wf? (term (More (Dead 0)))))
+    (check-true (wf? (term (Done 0))))
+    (check-false (redex-match? core-n-oracle-lang F (term (More (Dead -1)))))
+    (check-false (redex-match? core-n-oracle-lang F (term (Done -1)))))
 
   (test-case "success, failure, stores, and terminals all occur in finite runs"
     (define success-source
@@ -440,7 +598,7 @@
           ((nat 1) =? (nat 2) (label "fail"))
           ,STATE-0)))))
     (check-equal? failure-labels '(unify-fail finish-failure))
-    (check-equal? failure-terminal (term (Done)))
+    (check-equal? failure-terminal (term (Done 0)))
     (check-true (wf? failure-terminal))))
 
 (module+ test
