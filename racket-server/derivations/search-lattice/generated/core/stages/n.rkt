@@ -2,7 +2,6 @@
 
 (require redex/reduction-semantics
          "../../../framework/core-stage-schema.rkt"
-         "../../../framework/stage-generators.rkt"
          "../source/n.rkt"
          "./policy.rkt")
 
@@ -13,49 +12,31 @@
          core/stage/B/N
          core/stage/Big/N
          generated-core-stage-n-decomposition-lang
-         generated-stage-plug-D/n
          generated-stage-plug-C/n
          generated-stage-contract-label/n
          generated-stage-decompose/n
          generated-stage-contract/n
          generated-stage-decomposed-step/n
          generated-core-stage-n-refocused-lang
-         generated-stage-D->Z/n
-         generated-stage-Z->D/n
-         generated-stage-readback-Z/n
-         generated-stage-refocus/spec/n
+         generated-stage-refocus-phase/n
          generated-stage-refocus-work/direct/n
          generated-stage-refocus/direct/n
-         generated-stage-refocused-step/spec/n
          generated-stage-refocused-step/direct/n
          generated-core-stage-n-machine-lang
-         generated-stage-encode-ZM/n
-         generated-stage-decode-MZ/n
-         generated-stage-D->M/n
-         generated-stage-M->D/n
-         generated-stage-readback-M/n
+         generated-stage-machineize/n
          generated-stage-machine-refocus-work/direct/n
          generated-stage-machine-refocus/direct/n
          generated-stage-machine-step/direct/n
-         generated-stage-ZM-corresponds/n
-         generated-stage-machine-step/spec/n
-         generated-stage-ZM-step-square/n
          generated-core-stage-n-compressed-lang
-         generated-stage-encode-MB/n
-         generated-stage-decode-BM/n
-         generated-stage-readback-B/n
+         generated-stage-compress/n
          generated-stage-transition-span-labels/n
          generated-stage-produce-settled/direct/n
          generated-stage-produce-dead/direct/n
          generated-stage-advance-settled/direct/n
          generated-stage-advance-dead/direct/n
          generated-stage-compressed-step/direct/n
-         generated-stage-MB-corresponds/n
          generated-stage-replay-transition-span/M/n
-         generated-stage-compressed-step/spec/n
-         generated-stage-MB-step-square/n
          generated-core-stage-n-big-lang
-         generated-stage-readback-Big/n
          generated-stage-big-dispatch/direct/n
          generated-stage-big-run/direct/n
          generated-stage-big-settled/direct/n
@@ -72,13 +53,36 @@
          generated-stage-B-Big-closure-square/n
          generated-stage-B-Big-root-square/n)
 
+(module+ diagnostics
+  (provide generated-stage-plug-D/n
+           generated-stage-D->Z/n
+           generated-stage-Z->D/n
+           generated-stage-readback-Z/n
+           generated-stage-refocus/spec/n
+           generated-stage-refocused-step/spec/n
+           generated-stage-encode-ZM/n
+           generated-stage-decode-MZ/n
+           generated-stage-D->M/n
+           generated-stage-M->D/n
+           generated-stage-readback-M/n
+           generated-stage-ZM-corresponds/n
+           generated-stage-machine-step/spec/n
+           generated-stage-ZM-step-square/n
+           generated-stage-encode-MB/n
+           generated-stage-decode-BM/n
+           generated-stage-readback-B/n
+           generated-stage-MB-corresponds/n
+           generated-stage-compressed-step/spec/n
+           generated-stage-MB-step-square/n
+           generated-stage-readback-Big/n))
+
 (check-redundancy #t)
 
 (define-generated-core-stage-instance
   #:source-interface generated-core-n-source
   #:instance core/stage/R/N)
 
-(define-decomposition-stage core/stage/D/N
+(define-selected-decomposition-stage core/stage/D/N
   #:from core/stage/R/N
   #:language generated-core-stage-n-decomposition-lang
   #:plug-D generated-stage-plug-D/n
@@ -88,9 +92,10 @@
   #:contract generated-stage-contract/n
   #:step generated-stage-decomposed-step/n)
 
-(define-refocused-stage core/stage/Z/N
+(define-selected-refocused-stage core/stage/Z/N
   #:from core/stage/D/N
   #:language generated-core-stage-n-refocused-lang
+  #:refocus-phase generated-stage-refocus-phase/n
   #:D->Z generated-stage-D->Z/n
   #:Z->D generated-stage-Z->D/n
   #:readback generated-stage-readback-Z/n
@@ -100,9 +105,10 @@
   #:step-spec generated-stage-refocused-step/spec/n
   #:step-direct generated-stage-refocused-step/direct/n)
 
-(define-machine-isomorphism-stage core/stage/M/N
+(define-selected-machine-isomorphism-stage core/stage/M/N
   #:from core/stage/Z/N
   #:language generated-core-stage-n-machine-lang
+  #:machineize generated-stage-machineize/n
   #:encode-ZM generated-stage-encode-ZM/n
   #:decode-MZ generated-stage-decode-MZ/n
   #:D->M generated-stage-D->M/n
@@ -115,10 +121,11 @@
   #:step-spec generated-stage-machine-step/spec/n
   #:square generated-stage-ZM-step-square/n)
 
-(define-compressed-stage core/stage/B/N
+(define-selected-compressed-stage core/stage/B/N
   #:from core/stage/M/N
   #:policy generated-core-compression-policy
   #:language generated-core-stage-n-compressed-lang
+  #:compress generated-stage-compress/n
   #:encode-MB generated-stage-encode-MB/n
   #:decode-BM generated-stage-decode-BM/n
   #:readback generated-stage-readback-B/n
@@ -133,7 +140,7 @@
   #:step-spec generated-stage-compressed-step/spec/n
   #:square generated-stage-MB-step-square/n)
 
-(define-fixed-point-stage core/stage/Big/N
+(define-selected-fixed-point-stage core/stage/Big/N
   #:from core/stage/B/N
   #:language generated-core-stage-n-big-lang
   #:readback generated-stage-readback-Big/n

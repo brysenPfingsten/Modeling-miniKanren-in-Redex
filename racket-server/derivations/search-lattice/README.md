@@ -25,9 +25,10 @@ Here a diamond means a static Redex artifact plus bounded executable
 correspondence evidence on the stated well-formed core corpus. It does not mean
 a universal simulation, a full feature cube, or a general naturality theorem.
 The direct `Q_SN` map at every stage is checked against `Q_EN ∘ Q_SE`.
-Direct D/Z/M/B maps are also checked against independently expressed
-codec-transported maps; Big has no codec and is compared by structural final
-mapping, readback, and its retained finite `BTrace` certificate.
+The primary vertical evidence is the five stage-transformation squares for
+each of `Q_SE`, `Q_EN`, and direct `Q_SN`. Codec and readback comparisons live
+in a separate test-only diagnostics suite. They neither construct a matrix
+coordinate nor serve as the sole oracle for a representation map.
 
 The retained prototype remains:
 
@@ -86,21 +87,23 @@ compared with the direct oracle maps and their one-step squares; direct
 checks, not universal simulation or naturality theorems.
 
 Checkpoint 4 carries those same selected sources through D, Z ≅ M, B, and
-Big. The source schema publishes an expansion-time interface whose 13-rule IR
-is rendered both as R and as the input to the retained horizontal transformer.
-The public selected path is expressed in complete carrier and phase views; it
-does not use `#:environment` as a representation abstraction. One private
-lowering slot supplies the backend's canonical failure summary (`Owners`,
-`Support`, or `next`) for B/Big. No source equation is restated in an S/E/N
-stage module.
+Big. The source schema publishes an expansion-time interface containing its
+13-rule IR and complete variable, live-state, returned, failure-summary,
+terminal, and payload/context views. The selected renderer consumes those
+views directly to emit every horizontal coordinate and its phase-specific
+representation maps. It does not lower through the retained
+`#:environment` interface, construct a synthetic `Env`, or adapt the selected
+views back into the prototype renderer. No source equation is restated in an
+S/E/N stage module.
 
 Each selected row checks the 13 independent source witnesses, source and stage
-grammar/WF, unique raw decomposition, plug/readback, direct/spec raw proof
-counts, exact rule labels, Z/M codecs, conservative B replay/spans, and finite
-Big closure/unfold. The vertical harness checks direct structural Q maps,
-transport equality, operational squares, raw multiplicity, exact labels and
-spans, readback/answers, sparse ordered support, failure summaries, and direct
-S-to-N composition. The observation of allocation is the existing
+grammar/WF, unique raw decomposition, direct/spec raw proof counts, exact rule
+labels, conservative B replay/spans, and finite Big closure/unfold. The primary
+vertical harness checks the direct structural Q maps, all five
+stage-transformation squares, direct operational squares, raw multiplicity,
+exact labels and spans, sparse ordered support, failure summaries, and direct
+S-to-N composition. A separate secondary harness owns plug, codec, and
+readback diagnostics. The observation of allocation is the existing
 `allocate-fresh` label (a singleton B span and an entry in flattened `BTrace`),
 not a runtime `AllocateEvent`. Big claims are restricted to finite derivations:
 there is no fuel, truncation, totalization, or claim that divergence produces a
@@ -121,10 +124,10 @@ judgments. S's production/reference column and prototype E's direct R/D oracles
 are independently written, so the correspondence checks are not tautological.
 
 `Z -> M` is intentionally displayed as an isomorphism. The two carriers have
-the same four control cases; the M macro emits the constructor codec and
-specializes the same retained-context transition program under the M names. It
-does not maintain a second handwritten refocuser or perform an additional
-semantic transformation.
+the same four control cases, and the structural codec remains useful as a
+diagnostic. Nevertheless, the M transformer visibly emits an M-local direct
+refocuser and transition system from the shared rule/control IR. Direct M does
+not decode to Z or D, even though M adds no new semantic transformation.
 
 The current direct S allocator computes support from the separated redex and
 `WorkFocus`; plugging and scanning the whole frontier remains only its
@@ -206,13 +209,16 @@ renamed-import hygiene for the descriptor macro API.
 
 ### Selected complete core stage matrix
 
-`framework/core-stage-schema.rkt` is the one selected-source bridge into the
-horizontal transformer. A generated source optionally exports a static source
-interface containing the concrete language, full carrier views, focus-Q hooks,
-and the single core rule IR with its lexical dependencies. The bridge lowers
-that interface at expansion time to the checkpointed stage descriptor. The
-source modules themselves remain source-only and do not import the horizontal
-generator or `redex/parameter`.
+`framework/core-stage-schema.rkt` is the public selected-source bridge to
+`framework/core-stage-renderers.rkt`. A generated source exports a static
+source interface containing the concrete language, the single core rule IR
+with its lexical dependencies, and complete views of runtime variables, live
+states, returned values, failure summaries, terminals, focused payloads,
+contexts, roots, frames, and redex partitions. The selected renderer consumes
+those views directly. It does not import or invoke
+`framework/stage-generators.rkt`, expose `#:environment`, or materialize a fake
+environment to satisfy the prototype renderer. The source modules themselves
+remain source-only and do not import either stage renderer.
 
 `generated/core/stages/s.rkt`, `e.rkt`, and `n.rkt` each visibly instantiate
 the bridge and the five transformations D, Z, M, B, and Big. They share one
@@ -220,16 +226,50 @@ representation-neutral compression policy. The emitted artifacts are ordinary
 statically named Redex languages, metafunctions, judgments, and relations; no
 runtime row selector or host semantic dispatcher is involved.
 
+The selected public transformation forms are named
+`define-selected-decomposition-stage`, `define-selected-refocused-stage`,
+`define-selected-machine-isomorphism-stage`,
+`define-selected-compressed-stage`, and `define-selected-fixed-point-stage`.
+The distinct names allow the selected and retained prototype APIs to coexist
+without aliases or accidental lowering between them.
+
 Stage carriers split focused work from its `WorkFocus`, so a payload-only Q
 map would lose S's outer Owner prefix. The selected strategies therefore also
-export a joint focused-work/focus structural view. `framework/core-stage-q.rkt`
-uses that view to emit direct D/Z/M/B maps. In particular, `BDead` is mapped
-together with its focus, so S's local dead Owners and its enclosing frame
-Owners become the one cumulative E Support/N level before rebuilding the
-target. Separate transport functions use plug/decompose or the public codecs
-only as comparators; the direct maps do not call them. `Q_Big` maps only the
-structural `BigFinal` result, while exact rule observations remain in the
-specification's `BTrace`.
+export joint focused-work/focus, root-focus, failure-summary/focus, and terminal
+views. Each selected stage transformer owns the direct representation map for
+the phase it creates: D emits `Q_D`, Z emits `Q_Z`, M emits `Q_M`, B emits
+`Q_B`, and Big emits `Q_Big`. In particular, `BDead` is mapped together with
+its focus, so S's local dead Owners and its enclosing frame Owners become the
+one cumulative E Support/N level before rebuilding the target. No later map is
+implemented by decoding to an earlier stage, applying an earlier Q, and
+re-encoding.
+
+For each representation edge, the primary obligations are the literal
+stage-transformation laws:
+
+```text
+Q_D   o decompose_S  = decompose_E  o Q_R
+Q_Z   o refocus_S    = refocus_E    o Q_D
+Q_M   o machineize_S = machineize_E o Q_Z
+Q_B   o compress_S   = compress_E   o Q_M
+Q_Big o big_S        = big_E        o Q_B
+```
+
+The same generated forms instantiate these laws for S→E, E→N, and the
+independently direct S→N edge. Direct S→N maps do not call the adjacent
+maps; their agreement with `Q_EN ∘ Q_SE` is a separate composition check.
+The primary suite compares complete raw proof-output multisets and retains
+exact transition labels and B spans on the bounded corpus. Inverse codecs,
+stage readbacks, and codec-derived spec/square helpers are retained only in
+row-local `diagnostics` submodules and the secondary transport-diagnostics
+suite. They are not public selected maps, implementation routes, or sole
+oracles.
+
+The selected renderer uses `redex/parameter` where a generated Redex
+declaration depends on another stage-local judgment, metafunction, or relation
+that must later widen with a language extension. This is lexical dependency
+lifting for ordinary statically named artifacts; it is not dynamic
+`parameterize`, a representation selector, or a host semantic dispatcher.
 
 ### Retained horizontal-stage prototype
 
@@ -254,10 +294,13 @@ Redex premises. A separate compression policy classifies settled/dead
 producers, their legal followers, singleton rules, the retained transition
 observation (currently exact rule labels), and the maximum span.
 
-The existing backend `#:environment` field is retained for prototype
-compatibility. The selected bridge uses its one private occurrence solely as
-the canonical failure-summary nonterminal needed by B/Big; it is not the
-representation strategy, and selected row modules never mention it.
+This generator, including its `#:environment` field, is retained solely as the
+frozen prototype/oracle and recovery point. No selected public module exposes
+or invokes that field, and no selected adapter feeds it a representation view.
+Only genuinely representation-neutral ideas have been extracted into the
+selected renderer: Redex declaration emission, stage-shell rendering,
+dependency lifting, the rule inventory, compression policy, and fixed-point
+scaffolding.
 
 `define-derivation-delta` currently merges an augmentation into its base
 descriptor before any stage is generated. The foreign fixture therefore shows
@@ -355,13 +398,15 @@ The core/S input program states `succeed` once:
 ```
 
 From that one equation, D emits a `DecWork` to labelled `ContractWork`
-contraction. Z contracts in D and directly refocuses the returned value. M is
-the codec-renamed Z transition. The compression policy marks `succeed` as a
-settled producer, so B fuses it with the context-selected `conj-return` or
-`finish-success` and retains both labels in `transition-span`. Big turns the
-same target control into the recursive premise of its direct `big-dispatch`
-equation. The corresponding tests compare each emitted artifact with the
-handwritten reference and production relation using raw Redex derivations.
+contraction. Z contracts in D and directly refocuses the returned value. M
+emits the corresponding transition again in its own carrier and through its
+own direct, phase-local refocuser; the Z/M codec is only a diagnostic. The
+compression policy marks `succeed` as a settled producer, so B fuses it with
+the context-selected `conj-return` or `finish-success` and retains both labels
+in `transition-span`. Big turns the same target control into the recursive
+premise of its direct `big-dispatch` equation. The corresponding tests compare
+each emitted artifact with the handwritten reference and production relation
+using raw Redex derivations.
 
 Compression remains deliberately bounded: allocation, conjunction expansion,
 and already-settled structural transitions occupy singleton spans; a result
@@ -369,14 +414,24 @@ producer may fuse with exactly one legal follower. Empty and three-label spans
 are outside the B grammar. A golden finite trace checks that flattening the B
 certificates reproduces the exact M label trace.
 
-The framework-only fixture uses unrelated `Pulse`, `Crash`, `Echo`, `Box`,
-`Top`, and `Shell` syntax, and deliberately renames the carrier categories to
-`Task`, `World`, `Result`, `TaskFocus`, and `WorldSpine`. Its base descriptor
-premerged with one Box augmentation generates the entire D/Z/M/B/Big column.
-This tests declaration propagation, not a separately compiled stage extension.
-A deliberately duplicated evidence judgment also proves that two raw proofs
-with the same result remain two proofs through D, direct/spec B, and
-direct/spec Big.
+The basic framework-only fixture uses unrelated syntax and deliberately
+renames the carrier categories to `Task`, `World`, `Result`, `TaskFocus`, and
+`WorldSpine`. It checks full-view consumption, empty frame partitions, and the
+complete selected stage shells without importing the prototype renderer.
+
+A separate foreign StageExtension fixture generates the base R/D/Z/M/B/Big
+artifacts first, then applies a Query/Box augmentation from another module.
+The feature owns its syntax and rules; inherited `Echo` and its duplicated
+evidence are not copied. Exact-language dependency extensions keep both raw
+proofs through D, native Z and M, direct B, and Big. Its B checks distinguish
+legal base fusion under `Wrap` from the feature boundary under `Box`: the base
+producer and feature follower remain two singleton spans, while a fixture-only
+inert `Seal` frame proves that the guarded fallback cannot invent progress.
+Five bounded embedding squares compare the separately staged artifacts, and a
+separate handwritten premerged observation oracle checks the chosen success
+and failure witnesses. This is explicit foreign post-generation evidence, not
+automatic `Delta -> StageExtension` generation, a real search feature, a
+universal staging theorem, or functoriality.
 
 The S-to-E prototype bridge is independent and context-threaded. Its executable
 vertical correspondence currently stops at R and D: it checks source,
@@ -399,17 +454,27 @@ checks only. The generated E column does not import S, the bridge, or `Owners`.
   maps with the independent oracles and bounded production-S corpus.
 - `generated/core/source/dependency-tests.rkt` enforces the one-schema,
   representation-neutral, source-only dependency boundary.
-- `framework/core-stage-schema.rkt` lowers an exported selected-source
-  interface into the retained horizontal transformer; its two-module fixture
-  checks that private semantic and Q-hook bindings survive the boundary.
-- `framework/core-stage-q.rkt` emits the direct structural and separate
-  codec-transported D/Z/M/B/Big representation maps.
+- `framework/core-stage-schema.rkt` connects an exported selected-source view
+  to the view-native selected renderer; its two-module fixture checks that
+  private semantic and Q-hook bindings survive the boundary.
+- `framework/core-stage-renderers.rkt` emits the selected D/Z/M/B/Big shells,
+  native direct transition systems, phase-owned representation maps, and their
+  primary transformation squares without invoking the retained
+  `#:environment` backend.
+- `framework/core-stage-extension-base-fixture.rkt`,
+  `core-stage-extension-query-fixture.rkt`, and
+  `core-stage-extension-applied-fixture.rkt` form the explicit foreign
+  post-generation extension; `core-stage-extension-tests.rkt` checks its five
+  bounded embedding laws, dependency lifting, conservative spans, and finite
+  Big observations against the independent bounded oracle.
 - `generated/core/stages/s.rkt`, `e.rkt`, and `n.rkt` are the three selected
   complete horizontal columns. `policy.rkt` is their one shared compression
   policy and `corpus.rkt` is their keyed independent witness corpus.
 - `generated/core/stages/horizontal-tests.rkt` checks every selected row
-  through Big, including raw derivation counts; `vertical-tests.rkt` checks the
-  three representation edges at every stage.
+  through Big, including raw derivation counts;
+  `vertical-transformation-tests.rkt` checks the five primary laws and direct
+  operational squares, while `vertical-transport-diagnostics-tests.rkt` owns
+  the secondary codec/readback comparisons.
 - `generated/core/stages/dependency-tests.rkt` enforces the one-interface,
   five-visible-stage, no-restated-equation boundary.
 - `framework/stage-generators.rkt` is the parametric transformation program.
@@ -470,6 +535,7 @@ Then run the demo and focused gates:
 racket racket-server/derivations/search-lattice/demo.rkt
 raco test racket-server/derivations/search-lattice/framework/core-source-schema-tests.rkt
 raco test racket-server/derivations/search-lattice/framework/core-stage-schema-tests.rkt
+raco test racket-server/derivations/search-lattice/framework/core-stage-extension-tests.rkt
 raco test racket-server/derivations/search-lattice/framework/stage-generators-tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/source/tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/stages/tests.rkt
@@ -497,6 +563,7 @@ raco test \
   racket-server/derivations/search-lattice/core/s-to-e.rkt \
   racket-server/derivations/search-lattice/framework/core-source-schema-tests.rkt \
   racket-server/derivations/search-lattice/framework/core-stage-schema-tests.rkt \
+  racket-server/derivations/search-lattice/framework/core-stage-extension-tests.rkt \
   racket-server/derivations/search-lattice/framework/stage-generators-tests.rkt \
   racket-server/derivations/search-lattice/generated/core/source/tests.rkt \
   racket-server/derivations/search-lattice/generated/core/stages/tests.rkt \
@@ -512,9 +579,11 @@ core, but no production module imports this directory.
 
 This seed does not yet instantiate separately staged real feature
 augmentations, scheduler fibers, relation calls, or the distributed
-presentation. The foreign Box delta demonstrates that a premerged augmentation
-declaration propagates mechanically; it is not a separate stage extension or a
-delay/disjunction result.
+presentation. The explicit foreign Query/Box fixture does apply a separately
+compiled StageExtension to already-generated base coordinates and checks
+bounded embedding laws. It does not generate that extension automatically from
+a source delta, implement delay or disjunction, establish a real feature face,
+or prove functoriality.
 The retained prototype coordinates stop at core/S and the
 support-decorated-node core/E. The selected path separately completes the
 core/S, core/E, and core/N rows through R, D, Z ≅ M, B, and Big.
@@ -528,10 +597,10 @@ phase-sensitive E.
 The retained prototype does not implement `N`. The selected matrix does: E's
 ordered support is positionally mapped to N levels and N allocation uses its
 state-local next counter. Sparse E names, failure summaries, and allocation
-observations are checked through every core stage, including direct versus
-transported maps and direct S-to-N composition. The legacy prototype allocation
-behavior remains recovery evidence, not an administrative form for the
-selected generator to guess.
+observations are checked through every core stage, including the five direct
+stage-transformation laws, secondary transport diagnostics, and direct S-to-N
+composition. The legacy prototype allocation behavior remains recovery
+evidence, not an administrative form for the selected generator to guess.
 
 This checkpoint claims neither a full cube nor functoriality or a universal
 naturality theorem. It distinguishes instantiated row-local artifacts from

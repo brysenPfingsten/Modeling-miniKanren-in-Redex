@@ -306,6 +306,34 @@ Alpha-aware comparison is used only where explicitly stated; it is not a
 license to ignore inconsistent substitution, trail, answer, or trace
 renaming.
 
+### Stage-local representation maps
+
+The selected stage renderer consumes the representation strategies' complete
+variable, live-state, returned, failure-summary, terminal, and payload/context
+views directly. It does not lower those views through the retained
+`#:environment` generator, expose that interface from a selected public
+module, or materialize a synthetic environment for the prototype renderer.
+
+Each stage transformer owns and directly emits the representation map for the
+phase it creates. For a representative S-to-E edge, the primary obligations
+are:
+
+```text
+Q_D   o decompose_S  = decompose_E  o Q_R
+Q_Z   o refocus_S    = refocus_E    o Q_D
+Q_M   o machineize_S = machineize_E o Q_Z
+Q_B   o compress_S   = compress_E   o Q_M
+Q_Big o big_S        = big_E        o Q_B
+```
+
+The corresponding laws apply to every selected representation edge, including
+an independently direct S-to-N map. No later Q map is implemented by decoding
+to an earlier stage, applying an earlier Q, and re-encoding. Codecs and
+readback may remain as test-only secondary diagnostics after the direct map
+exists; they neither construct coordinates nor serve as the sole oracle.
+`Z ~= M` remains the intentional carrier isomorphism, but M still has a
+visibly generated native direct transition system.
+
 ## Feature and stage composition
 
 The source hierarchy is built from separately owned augmentations:
@@ -390,6 +418,14 @@ derivation subtree.
 - A representation strategy supplies complete variable, state, and constructor
   views. A feature schema does not mention concrete Owner, Support, or counter
   syntax unless it owns allocation.
+- Selected stage renderers consume those views directly; no selected public
+  module exposes or invokes `#:environment`, and no adapter creates a fake
+  environment for the retained prototype renderer.
+- Each phase-specific representation map is emitted directly by its owning
+  stage transformer. Codec and readback paths are secondary diagnostics only.
+- If a renderer needs a concrete Owner, Support, counter, or row-local next
+  case, the representation-view contract must be extended instead of adding a
+  coordinate-specific exception.
 - A separately staged augmentation must operate on the staged base interface;
   premerging the source descriptor again does not satisfy the staging law.
 - Inherited Redex rules and dependencies are lifted over extended languages,

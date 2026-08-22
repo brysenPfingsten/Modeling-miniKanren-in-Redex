@@ -6,6 +6,7 @@
          "../framework/stage-generators-tests.rkt"
          "../framework/core-source-schema-tests.rkt"
          "../framework/core-stage-schema-tests.rkt"
+         "../framework/core-stage-extension-tests.rkt"
          "../generated/core/s/column-tests.rkt"
          "../generated/core/e/column-tests.rkt"
          "../generated/core/source/tests.rkt"
@@ -22,6 +23,7 @@
   STAGE-GENERATOR-SMOKE
   CORE-SOURCE-SCHEMA-TESTS
   CORE-STAGE-SCHEMA-TESTS
+  CORE-STAGE-EXTENSION-TESTS
   GENERATED-CORE-S-COLUMN
   GENERATED-CORE-E-COLUMN
   GENERATED-CORE-SOURCES

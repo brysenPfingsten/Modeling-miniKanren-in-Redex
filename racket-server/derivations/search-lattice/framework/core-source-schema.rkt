@@ -30,14 +30,20 @@
   ;; would reintroduce the registry/introspection architecture this framework
   ;; is designed to avoid.
   (struct source-interface-binding
-    (instance-template language q-export q-rebuild focus-export focus-rebuild)
+    (selected-view
+     language
+     q-export q-rebuild
+     focus-export focus-rebuild
+     root-focus-export root-focus-rebuild
+     failure-focus-export failure-focus-rebuild
+     terminal-export terminal-rebuild)
     #:property prop:procedure
     (lambda (self use-stx)
       (syntax-parse use-stx
-        [(_ #:lower-with lower:id #:instance instance:id)
-         (syntax-parse (source-interface-binding-instance-template self)
+        [(_ #:instantiate-with renderer:id #:instance instance:id)
+         (syntax-parse (source-interface-binding-selected-view self)
            [(_template-name:id _placeholder:id . tail)
-            #`(lower instance . tail)])]
+            #`(renderer instance . tail)])]
         [(_ #:visit visitor:id argument ...)
          #`(visitor
             #:language #,(source-interface-binding-language self)
@@ -45,6 +51,18 @@
             #:Q-rebuild #,(source-interface-binding-q-rebuild self)
             #:Q-focus-export #,(source-interface-binding-focus-export self)
             #:Q-focus-rebuild #,(source-interface-binding-focus-rebuild self)
+            #:Q-root-focus-export
+            #,(source-interface-binding-root-focus-export self)
+            #:Q-root-focus-rebuild
+            #,(source-interface-binding-root-focus-rebuild self)
+            #:Q-failure-focus-export
+            #,(source-interface-binding-failure-focus-export self)
+            #:Q-failure-focus-rebuild
+            #,(source-interface-binding-failure-focus-rebuild self)
+            #:Q-terminal-export
+            #,(source-interface-binding-terminal-export self)
+            #:Q-terminal-rebuild
+            #,(source-interface-binding-terminal-rebuild self)
             argument ...)]
         [_
          (raise-syntax-error
@@ -80,7 +98,12 @@
      root)
     #:transparent)
   (struct q-info
-    (definitions export rebuild focus-export focus-rebuild)
+    (definitions
+     export rebuild
+     focus-export focus-rebuild
+     root-focus-export root-focus-rebuild
+     failure-focus-export failure-focus-rebuild
+     terminal-export terminal-rebuild)
     #:transparent)
 
   (struct supply-info
@@ -254,7 +277,13 @@
             #:export q-export:id
             #:rebuild q-rebuild:id
             #:focus-export q-focus-export:id
-            #:focus-rebuild q-focus-rebuild:id]])
+            #:focus-rebuild q-focus-rebuild:id
+            #:root-focus-export q-root-focus-export:id
+            #:root-focus-rebuild q-root-focus-rebuild:id
+            #:failure-focus-export q-failure-focus-export:id
+            #:failure-focus-rebuild q-failure-focus-rebuild:id
+            #:terminal-export q-terminal-export:id
+            #:terminal-rebuild q-terminal-rebuild:id]])
        (validate-generated-hook #'walk-hook
                                 'generated-structural
                                 declaration)
@@ -342,7 +371,13 @@
                  #'q-export
                  #'q-rebuild
                  #'q-focus-export
-                 #'q-focus-rebuild))
+                 #'q-focus-rebuild
+                 #'q-root-focus-export
+                 #'q-root-focus-rebuild
+                 #'q-failure-focus-export
+                 #'q-failure-focus-rebuild
+                 #'q-terminal-export
+                 #'q-terminal-rebuild))
         declaration)]))
 
   (define (lookup-strategy identifier)
@@ -454,7 +489,7 @@
 
   ;; The rule IR records semantic control, not a particular presentation of
   ;; that control.  R renders a focused redex/contractum while D and later
-  ;; stages consume the control form retained by define-derivation-instance.
+  ;; stages consume the control form retained by the selected source view.
   (define (control->source-term control site root-focus)
     (match-define (core-control kind arguments) control)
     (match* (kind arguments)
@@ -464,11 +499,11 @@
            payload)]
       [('pop-settled (list frame payload _context))
        #`(in-hole #,frame #,payload)]
-      [('pop-dead (list frame _environment raw _context))
+      [('pop-failed (list frame _summary raw _context))
        #`(in-hole #,frame #,raw)]
       [('root-settled (list payload _spine))
        #`(in-hole #,root-focus #,payload)]
-      [('root-dead (list _environment raw _spine))
+      [('root-failed (list _summary raw _spine))
        #`(in-hole #,root-focus #,raw)]
       [(_ _)
        (error 'control->source-term
@@ -485,7 +520,7 @@
       [('push (list frame payload _context))
        #`(in-hole #,frame #,payload)]
       [('settled (list payload _context)) payload]
-      [('dead (list _environment raw _context)) raw]
+      [('failed (list _summary raw _context)) raw]
       [('final (list payload _spine)) payload]
       [(_ _)
        (error 'control->target-term
@@ -643,6 +678,18 @@
       (q-info-focus-export (supply-info-q supply)))
     (define q-focus-rebuild
       (q-info-focus-rebuild (supply-info-q supply)))
+    (define q-root-focus-export
+      (q-info-root-focus-export (supply-info-q supply)))
+    (define q-root-focus-rebuild
+      (q-info-root-focus-rebuild (supply-info-q supply)))
+    (define q-failure-focus-export
+      (q-info-failure-focus-export (supply-info-q supply)))
+    (define q-failure-focus-rebuild
+      (q-info-failure-focus-rebuild (supply-info-q supply)))
+    (define q-terminal-export
+      (q-info-terminal-export (supply-info-q supply)))
+    (define q-terminal-rebuild
+      (q-info-terminal-rebuild (supply-info-q supply)))
     (define hook-replacements
       (list
        (cons 'WALK-HOOK walk-id)
@@ -664,6 +711,18 @@
        (cons 'Q-REBUILD-HOOK (public-hook q-rebuild))
        (cons 'Q-FOCUS-EXPORT-HOOK (public-hook q-focus-export))
        (cons 'Q-FOCUS-REBUILD-HOOK (public-hook q-focus-rebuild))
+       (cons 'Q-ROOT-FOCUS-EXPORT-HOOK
+             (public-hook q-root-focus-export))
+       (cons 'Q-ROOT-FOCUS-REBUILD-HOOK
+             (public-hook q-root-focus-rebuild))
+       (cons 'Q-FAILURE-FOCUS-EXPORT-HOOK
+             (public-hook q-failure-focus-export))
+       (cons 'Q-FAILURE-FOCUS-REBUILD-HOOK
+             (public-hook q-failure-focus-rebuild))
+       (cons 'Q-TERMINAL-EXPORT-HOOK
+             (public-hook q-terminal-export))
+       (cons 'Q-TERMINAL-REBUILD-HOOK
+             (public-hook q-terminal-rebuild))
        (cons (syntax-e (variable-info-addressing-hook variable))
              (public-hook (variable-info-addressing-hook variable)))
        (cons (syntax-e (supply-info-live-supply-hook supply))
@@ -679,7 +738,19 @@
        (cons (syntax-e q-export) (public-hook q-export))
        (cons (syntax-e q-rebuild) (public-hook q-rebuild))
        (cons (syntax-e q-focus-export) (public-hook q-focus-export))
-       (cons (syntax-e q-focus-rebuild) (public-hook q-focus-rebuild))))
+       (cons (syntax-e q-focus-rebuild) (public-hook q-focus-rebuild))
+       (cons (syntax-e q-root-focus-export)
+             (public-hook q-root-focus-export))
+       (cons (syntax-e q-root-focus-rebuild)
+             (public-hook q-root-focus-rebuild))
+       (cons (syntax-e q-failure-focus-export)
+             (public-hook q-failure-focus-export))
+       (cons (syntax-e q-failure-focus-rebuild)
+             (public-hook q-failure-focus-rebuild))
+       (cons (syntax-e q-terminal-export)
+             (public-hook q-terminal-export))
+       (cons (syntax-e q-terminal-rebuild)
+             (public-hook q-terminal-rebuild))))
 
     (define variable-definitions
       (instantiate-definitions
@@ -866,7 +937,7 @@
         allocation-target)])
 
     ;; This is the one 13-equation compile-time IR.  Both the source relation
-    ;; below and the retained stage descriptor are projections of this list.
+    ;; below and the retained selected-stage view are projections of this list.
     (define semantic-rules
       (list
        (core-rule-ir
@@ -885,7 +956,7 @@
         'fail
         'work
         (control 'run failure-source work-focus-v)
-        (control 'dead supply-v failure-target work-focus-v)
+        (control 'failed supply-v failure-target work-focus-v)
         '())
        (core-rule-ir
         'conj-return
@@ -899,12 +970,12 @@
        (core-rule-ir
         'conj-fail
         'work
-        (control 'pop-dead
+        (control 'pop-failed
                  conj-failure-frame
                  supply-inner
                  (dead supply-inner)
                  work-focus-v)
-        (control 'dead join-failure conj-failure-target work-focus-v)
+        (control 'failed join-failure conj-failure-target work-focus-v)
         '())
        (core-rule-ir
         'unify-success
@@ -922,7 +993,7 @@
         'unify-violates-disequality
         'work
         (control 'run unify-general-source work-focus-v)
-        (control 'dead supply-v failure-target work-focus-v)
+        (control 'failed supply-v failure-target work-focus-v)
         (list
          #`(where #,sub-1
                   (#,unify-id
@@ -934,7 +1005,7 @@
         'unify-fail
         'work
         (control 'run unify-general-source work-focus-v)
-        (control 'dead supply-v failure-target work-focus-v)
+        (control 'failed supply-v failure-target work-focus-v)
         (list
          #`(where #f
                   (#,unify-id
@@ -954,7 +1025,7 @@
         'disequality-fail
         'work
         (control 'run disequality-source work-focus-v)
-        (control 'dead supply-v failure-target work-focus-v)
+        (control 'failed supply-v failure-target work-focus-v)
         (list
          #`(where #,dis-1
                   ((#,t-1 #,t-2) ,@(term #,dis-v)))
@@ -968,7 +1039,7 @@
        (core-rule-ir
         'finish-failure
         'frontier
-        (control 'root-dead supply-v (dead supply-v) root-spine)
+        (control 'root-failed supply-v (dead supply-v) root-spine)
         (control 'final finish-failure-target root-spine)
         '())
        (core-rule-ir
@@ -1032,30 +1103,37 @@
          (control->target-term (core-rule-ir-to rule) 'frontier))))
     (define open-work-productions
       (list (conj supply-v (slot 'OpenW) g-v)))
-    (define stage-instance-template
-      #`(define-derivation-instance SOURCE-INSTANCE
+    (define selected-stage-view
+      #`(define-selected-core-instance SOURCE-INSTANCE
           #:source-language #,language-id
-          #:work #,(slot 'W)
-          #:frontier #,(slot 'F)
-          #:settled #,(slot 'S)
-          #:work-focus #,(slot 'WorkFocus)
-          #:spine-context #,(slot 'SpineContext)
-          ;; The unchanged prototype API still calls this slot an
-          ;; environment.  In the selected bridge it is only the canonical
-          ;; failure-summary carrier, never a selected-strategy declaration.
-          #:environment #,supply-v
-          #:run-productions (#,@run-productions)
-          #:nonallocation-run-productions
-          (#,@nonallocation-run-productions)
-          #:dead-view [#,supply-v #,(dead supply-v)]
-          #:root-focus #,root-focus
-          #:root-spine #,root-spine
-          #:frames (#,@frames)
-          #:work-redexes (#,@work-redexes)
-          #:frontier-redexes (#,@frontier-redexes)
-          #:allocation-redexes (#,@allocation-redexes)
-          #:terminals (#,@terminals)
-          #:open-work-productions (#,@open-work-productions)
+          #:variable-view
+          [#:runtime-variable #,rv-v]
+          #:live-state-view
+          [#:state #,state/current
+           #:work #,(slot 'W)
+           #:run-productions (#,@run-productions)
+           #:nonallocation-run-productions
+           (#,@nonallocation-run-productions)]
+          #:returned-view
+          [#:carrier #,(slot 'S)
+           #:materialized #,(returned supply-v sigma-v)]
+          #:failure-summary-view
+          [#:carrier #,supply-v
+           #:materialized #,(dead supply-v)]
+          #:terminal-view
+          [#:frontier #,(slot 'F)
+           #:success #,finish-success-target
+           #:failure #,finish-failure-target]
+          #:payload/context-view
+          [#:work-focus #,(slot 'WorkFocus)
+           #:spine-context #,(slot 'SpineContext)
+           #:root-focus #,root-focus
+           #:root-spine #,root-spine
+           #:frames (#,@frames)
+           #:work-redexes (#,@work-redexes)
+           #:frontier-redexes (#,@frontier-redexes)
+           #:allocation-redexes (#,@allocation-redexes)
+           #:open-work-productions (#,@open-work-productions)]
           #:rules (#,@stage-rules)))
 
     (define wf-state-pattern
@@ -1372,12 +1450,18 @@
                (list
                 #`(define-syntax #,source-interface-id
                     (source-interface-binding
-                     (quote-syntax #,stage-instance-template)
+                     (quote-syntax #,selected-stage-view)
                      (quote-syntax #,language-id)
                      (quote-syntax #,(public-hook q-export))
                      (quote-syntax #,(public-hook q-rebuild))
                      (quote-syntax #,(public-hook q-focus-export))
-                     (quote-syntax #,(public-hook q-focus-rebuild)))))
+                     (quote-syntax #,(public-hook q-focus-rebuild))
+                     (quote-syntax #,(public-hook q-root-focus-export))
+                     (quote-syntax #,(public-hook q-root-focus-rebuild))
+                     (quote-syntax #,(public-hook q-failure-focus-export))
+                     (quote-syntax #,(public-hook q-failure-focus-rebuild))
+                     (quote-syntax #,(public-hook q-terminal-export))
+                     (quote-syntax #,(public-hook q-terminal-rebuild)))))
                '())
         (define-language #,language-id
           [d (x_!_ (... ...))]

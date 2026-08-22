@@ -16,6 +16,12 @@
          q-rebuild/generated/e
          q-focus-export/generated/e
          q-focus-rebuild/generated/e
+         q-root-focus-export/generated/e
+         q-root-focus-rebuild/generated/e
+         q-failure-focus-export/generated/e
+         q-failure-focus-rebuild/generated/e
+         q-terminal-export/generated/e
+         q-terminal-rebuild/generated/e
          generated-core-e-source)
 
 (check-redundancy #t)
@@ -322,11 +328,78 @@
          [_
           (error 'q-focus-rebuild/generated/e
                  "expected a neutral focused pair, received ~e"
-                 neutral)])))
+                 neutral)]))
+     (define (q-root-focus-export/generated/e frontier spine)
+       (unless (equal? spine (term hole))
+         (error 'q-root-focus-export/generated/e
+                "expected the E root spine, received ~e"
+                spine))
+       (match frontier
+         [`(More ,work)
+          `(q-root-focused ,(work->q/generated/e work))]
+         [other
+          (error 'q-root-focus-export/generated/e
+                 "expected an E root frontier, received ~e"
+                 other)]))
+     (define (q-root-focus-rebuild/generated/e neutral)
+       (match neutral
+         [`(q-root-focused ,q-work)
+          (list `(More ,(q-work->e/generated/e q-work)) (term hole))]
+         [other
+          (error 'q-root-focus-rebuild/generated/e
+                 "expected a neutral root focus, received ~e"
+                 other)]))
+     (define (q-failure-focus-export/generated/e summary focus)
+       (match focus
+         [`(More ,path)
+          `(q-failure-focused
+            #f
+            ,(support-list/generated/e summary)
+            (q-work-focus ,(focus-path->q/generated/e path)))]
+         [other
+          (error 'q-failure-focus-export/generated/e
+                 "expected an E WorkFocus, received ~e"
+                 other)]))
+     (define (q-failure-focus-rebuild/generated/e neutral)
+       (match neutral
+         [`(q-failure-focused ,_provenance ,support (q-work-focus ,q-path))
+          (list
+           `(Support ,@support)
+           `(More ,(q-focus-path->e/generated/e q-path)))]
+         [other
+          (error 'q-failure-focus-rebuild/generated/e
+                 "expected a neutral failure focus, received ~e"
+                 other)]))
+     (define (q-terminal-export/generated/e terminal)
+       (match terminal
+         [`(Done ,support)
+          `(q-done #f ,(support-list/generated/e support))]
+         [`(Last (Answer ,state))
+          `(q-last #f (q-answer #f ,(state->q/generated/e state)))]
+         [other
+          (error 'q-terminal-export/generated/e
+                 "expected an E terminal, received ~e"
+                 other)]))
+     (define (q-terminal-rebuild/generated/e neutral)
+       (match neutral
+         [`(q-done ,_provenance ,support)
+          `(Done (Support ,@support))]
+         [`(q-last ,_provenance (q-answer ,_answer-provenance ,q-state))
+          `(Last (Answer ,(q-state->e/generated/e q-state)))]
+         [other
+          (error 'q-terminal-rebuild/generated/e
+                 "expected a neutral terminal, received ~e"
+                 other)])))
     #:export q-export/generated/e
     #:rebuild q-rebuild/generated/e
     #:focus-export q-focus-export/generated/e
-    #:focus-rebuild q-focus-rebuild/generated/e]])
+    #:focus-rebuild q-focus-rebuild/generated/e
+    #:root-focus-export q-root-focus-export/generated/e
+    #:root-focus-rebuild q-root-focus-rebuild/generated/e
+    #:failure-focus-export q-failure-focus-export/generated/e
+    #:failure-focus-rebuild q-failure-focus-rebuild/generated/e
+    #:terminal-export q-terminal-export/generated/e
+    #:terminal-rebuild q-terminal-rebuild/generated/e]])
 
 (define-generated-core-source
   #:strategy core-e-representation-strategy

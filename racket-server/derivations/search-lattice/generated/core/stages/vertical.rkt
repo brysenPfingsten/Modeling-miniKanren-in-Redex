@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../../../framework/core-stage-q.rkt"
+(require "../../../framework/core-stage-schema.rkt"
          (prefix-in source: "../source/vertical.rkt")
          (prefix-in s: "./s.rkt")
          (prefix-in e: "./e.rkt")
@@ -12,115 +12,192 @@
              [source:Q-SN/generated Q-SN/R/stages]
              [source:Q-SN-composition/generated?
               Q-SN/R-composition/stages?])
- Q-SE/C/stages
  Q-SE/D/stages
- Q-SE/D/transport/stages
  Q-SE/Z/stages
- Q-SE/Z/transport/stages
  Q-SE/M/stages
- Q-SE/M/transport/stages
  Q-SE/B/stages
- Q-SE/B/transport/stages
  Q-SE/Big/stages
- Q-EN/C/stages
  Q-EN/D/stages
- Q-EN/D/transport/stages
  Q-EN/Z/stages
- Q-EN/Z/transport/stages
  Q-EN/M/stages
- Q-EN/M/transport/stages
  Q-EN/B/stages
- Q-EN/B/transport/stages
  Q-EN/Big/stages
- Q-SN/C/stages
  Q-SN/D/stages
- Q-SN/D/transport/stages
  Q-SN/Z/stages
- Q-SN/Z/transport/stages
  Q-SN/M/stages
- Q-SN/M/transport/stages
  Q-SN/B/stages
- Q-SN/B/transport/stages
  Q-SN/Big/stages
- Q-SN/C-composition/stages?
+ Q-SE/decompose-commutes/stages?
+ Q-SE/refocus-commutes/stages?
+ Q-SE/machineize-commutes/stages?
+ Q-SE/compress-commutes/stages?
+ Q-SE/big-commutes/stages?
+ Q-EN/decompose-commutes/stages?
+ Q-EN/refocus-commutes/stages?
+ Q-EN/machineize-commutes/stages?
+ Q-EN/compress-commutes/stages?
+ Q-EN/big-commutes/stages?
+ Q-SN/decompose-commutes/stages?
+ Q-SN/refocus-commutes/stages?
+ Q-SN/machineize-commutes/stages?
+ Q-SN/compress-commutes/stages?
+ Q-SN/big-commutes/stages?
  Q-SN/D-composition/stages?
  Q-SN/Z-composition/stages?
  Q-SN/M-composition/stages?
  Q-SN/B-composition/stages?
  Q-SN/Big-composition/stages?)
 
-;; Each invocation emits direct structural maps.  The `/transport` functions
-;; are deliberately separate comparators built from the public stage codecs;
-;; the direct maps never call those codecs or decompose a readback.
-(define-core-stage-Q-maps
+;; Every map below is emitted by the transformer that owns its target phase.
+;; The source layer supplies joint representation views for ordinary focused
+;; payloads, root payloads, failure summaries, and terminals.  No phase map is
+;; implemented by decoding to an earlier coordinate.
+
+(define-decomposition-representation-map
+  #:source s:core/stage/D/S
+  #:target e:core/stage/D/E
   #:Q-R source:Q-SE/generated
   #:Q-focus source:Q-SE/focus/generated
-  #:Q-C Q-SE/C/stages
+  #:Q-root-focus source:Q-SE/root-focus/generated
+  #:Q-terminal source:Q-SE/terminal/generated
   #:Q-D Q-SE/D/stages
-  #:Q-D/transport Q-SE/D/transport/stages
-  #:Q-Z Q-SE/Z/stages
-  #:Q-Z/transport Q-SE/Z/transport/stages
-  #:Q-M Q-SE/M/stages
-  #:Q-M/transport Q-SE/M/transport/stages
-  #:Q-B Q-SE/B/stages
-  #:Q-B/transport Q-SE/B/transport/stages
-  #:Q-Big Q-SE/Big/stages
-  #:source-plug-D s:generated-stage-plug-D/s
-  #:target-decompose e:generated-stage-decompose/e
-  #:source-Z->D s:generated-stage-Z->D/s
-  #:target-D->Z e:generated-stage-D->Z/e
-  #:source-decode-MZ s:generated-stage-decode-MZ/s
-  #:target-encode-ZM e:generated-stage-encode-ZM/e
-  #:source-decode-BM s:generated-stage-decode-BM/s
-  #:target-encode-MB e:generated-stage-encode-MB/e)
+  #:commutes Q-SE/decompose-commutes/stages?)
 
-(define-core-stage-Q-maps
+(define-refocused-representation-map
+  #:source s:core/stage/Z/S
+  #:target e:core/stage/Z/E
+  #:Q-D Q-SE/D/stages
+  #:Q-focus source:Q-SE/focus/generated
+  #:Q-root-focus source:Q-SE/root-focus/generated
+  #:Q-terminal source:Q-SE/terminal/generated
+  #:Q-Z Q-SE/Z/stages
+  #:commutes Q-SE/refocus-commutes/stages?)
+
+(define-machine-representation-map
+  #:source s:core/stage/M/S
+  #:target e:core/stage/M/E
+  #:Q-Z Q-SE/Z/stages
+  #:Q-focus source:Q-SE/focus/generated
+  #:Q-root-focus source:Q-SE/root-focus/generated
+  #:Q-terminal source:Q-SE/terminal/generated
+  #:Q-M Q-SE/M/stages
+  #:commutes Q-SE/machineize-commutes/stages?)
+
+(define-compressed-representation-map
+  #:source s:core/stage/B/S
+  #:target e:core/stage/B/E
+  #:Q-M Q-SE/M/stages
+  #:Q-focus source:Q-SE/focus/generated
+  #:Q-failure-focus source:Q-SE/failure-focus/generated
+  #:Q-terminal source:Q-SE/terminal/generated
+  #:Q-B Q-SE/B/stages
+  #:commutes Q-SE/compress-commutes/stages?)
+
+(define-fixed-point-representation-map
+  #:source s:core/stage/Big/S
+  #:target e:core/stage/Big/E
+  #:Q-B Q-SE/B/stages
+  #:Q-terminal source:Q-SE/terminal/generated
+  #:Q-Big Q-SE/Big/stages
+  #:commutes Q-SE/big-commutes/stages?)
+
+(define-decomposition-representation-map
+  #:source e:core/stage/D/E
+  #:target n:core/stage/D/N
   #:Q-R source:Q-EN/generated
   #:Q-focus source:Q-EN/focus/generated
-  #:Q-C Q-EN/C/stages
+  #:Q-root-focus source:Q-EN/root-focus/generated
+  #:Q-terminal source:Q-EN/terminal/generated
   #:Q-D Q-EN/D/stages
-  #:Q-D/transport Q-EN/D/transport/stages
-  #:Q-Z Q-EN/Z/stages
-  #:Q-Z/transport Q-EN/Z/transport/stages
-  #:Q-M Q-EN/M/stages
-  #:Q-M/transport Q-EN/M/transport/stages
-  #:Q-B Q-EN/B/stages
-  #:Q-B/transport Q-EN/B/transport/stages
-  #:Q-Big Q-EN/Big/stages
-  #:source-plug-D e:generated-stage-plug-D/e
-  #:target-decompose n:generated-stage-decompose/n
-  #:source-Z->D e:generated-stage-Z->D/e
-  #:target-D->Z n:generated-stage-D->Z/n
-  #:source-decode-MZ e:generated-stage-decode-MZ/e
-  #:target-encode-ZM n:generated-stage-encode-ZM/n
-  #:source-decode-BM e:generated-stage-decode-BM/e
-  #:target-encode-MB n:generated-stage-encode-MB/n)
+  #:commutes Q-EN/decompose-commutes/stages?)
 
-(define-core-stage-Q-maps
+(define-refocused-representation-map
+  #:source e:core/stage/Z/E
+  #:target n:core/stage/Z/N
+  #:Q-D Q-EN/D/stages
+  #:Q-focus source:Q-EN/focus/generated
+  #:Q-root-focus source:Q-EN/root-focus/generated
+  #:Q-terminal source:Q-EN/terminal/generated
+  #:Q-Z Q-EN/Z/stages
+  #:commutes Q-EN/refocus-commutes/stages?)
+
+(define-machine-representation-map
+  #:source e:core/stage/M/E
+  #:target n:core/stage/M/N
+  #:Q-Z Q-EN/Z/stages
+  #:Q-focus source:Q-EN/focus/generated
+  #:Q-root-focus source:Q-EN/root-focus/generated
+  #:Q-terminal source:Q-EN/terminal/generated
+  #:Q-M Q-EN/M/stages
+  #:commutes Q-EN/machineize-commutes/stages?)
+
+(define-compressed-representation-map
+  #:source e:core/stage/B/E
+  #:target n:core/stage/B/N
+  #:Q-M Q-EN/M/stages
+  #:Q-focus source:Q-EN/focus/generated
+  #:Q-failure-focus source:Q-EN/failure-focus/generated
+  #:Q-terminal source:Q-EN/terminal/generated
+  #:Q-B Q-EN/B/stages
+  #:commutes Q-EN/compress-commutes/stages?)
+
+(define-fixed-point-representation-map
+  #:source e:core/stage/Big/E
+  #:target n:core/stage/Big/N
+  #:Q-B Q-EN/B/stages
+  #:Q-terminal source:Q-EN/terminal/generated
+  #:Q-Big Q-EN/Big/stages
+  #:commutes Q-EN/big-commutes/stages?)
+
+;; Direct S-to-N maps consume only S and N views/stages.  They do not call or
+;; import either adjacent stage map; composition is checked separately below.
+(define-decomposition-representation-map
+  #:source s:core/stage/D/S
+  #:target n:core/stage/D/N
   #:Q-R source:Q-SN/generated
   #:Q-focus source:Q-SN/focus/generated
-  #:Q-C Q-SN/C/stages
+  #:Q-root-focus source:Q-SN/root-focus/generated
+  #:Q-terminal source:Q-SN/terminal/generated
   #:Q-D Q-SN/D/stages
-  #:Q-D/transport Q-SN/D/transport/stages
-  #:Q-Z Q-SN/Z/stages
-  #:Q-Z/transport Q-SN/Z/transport/stages
-  #:Q-M Q-SN/M/stages
-  #:Q-M/transport Q-SN/M/transport/stages
-  #:Q-B Q-SN/B/stages
-  #:Q-B/transport Q-SN/B/transport/stages
-  #:Q-Big Q-SN/Big/stages
-  #:source-plug-D s:generated-stage-plug-D/s
-  #:target-decompose n:generated-stage-decompose/n
-  #:source-Z->D s:generated-stage-Z->D/s
-  #:target-D->Z n:generated-stage-D->Z/n
-  #:source-decode-MZ s:generated-stage-decode-MZ/s
-  #:target-encode-ZM n:generated-stage-encode-ZM/n
-  #:source-decode-BM s:generated-stage-decode-BM/s
-  #:target-encode-MB n:generated-stage-encode-MB/n)
+  #:commutes Q-SN/decompose-commutes/stages?)
 
-(define (Q-SN/C-composition/stages? contractum)
-  (equal? (Q-SN/C/stages contractum)
-          (Q-EN/C/stages (Q-SE/C/stages contractum))))
+(define-refocused-representation-map
+  #:source s:core/stage/Z/S
+  #:target n:core/stage/Z/N
+  #:Q-D Q-SN/D/stages
+  #:Q-focus source:Q-SN/focus/generated
+  #:Q-root-focus source:Q-SN/root-focus/generated
+  #:Q-terminal source:Q-SN/terminal/generated
+  #:Q-Z Q-SN/Z/stages
+  #:commutes Q-SN/refocus-commutes/stages?)
+
+(define-machine-representation-map
+  #:source s:core/stage/M/S
+  #:target n:core/stage/M/N
+  #:Q-Z Q-SN/Z/stages
+  #:Q-focus source:Q-SN/focus/generated
+  #:Q-root-focus source:Q-SN/root-focus/generated
+  #:Q-terminal source:Q-SN/terminal/generated
+  #:Q-M Q-SN/M/stages
+  #:commutes Q-SN/machineize-commutes/stages?)
+
+(define-compressed-representation-map
+  #:source s:core/stage/B/S
+  #:target n:core/stage/B/N
+  #:Q-M Q-SN/M/stages
+  #:Q-focus source:Q-SN/focus/generated
+  #:Q-failure-focus source:Q-SN/failure-focus/generated
+  #:Q-terminal source:Q-SN/terminal/generated
+  #:Q-B Q-SN/B/stages
+  #:commutes Q-SN/compress-commutes/stages?)
+
+(define-fixed-point-representation-map
+  #:source s:core/stage/Big/S
+  #:target n:core/stage/Big/N
+  #:Q-B Q-SN/B/stages
+  #:Q-terminal source:Q-SN/terminal/generated
+  #:Q-Big Q-SN/Big/stages
+  #:commutes Q-SN/big-commutes/stages?)
 
 (define (Q-SN/D-composition/stages? decomposition)
   (equal? (Q-SN/D/stages decomposition)

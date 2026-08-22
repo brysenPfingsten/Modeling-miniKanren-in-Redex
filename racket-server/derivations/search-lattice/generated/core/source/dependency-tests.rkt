@@ -8,6 +8,8 @@
 
 (define-runtime-path source-root ".")
 (define-runtime-path framework-file "../../../framework/core-source-schema.rkt")
+(define-runtime-path stage-framework-file
+  "../../../framework/core-stage-schema.rkt")
 (define-runtime-path s-file "./s.rkt")
 (define-runtime-path e-file "./e.rkt")
 (define-runtime-path n-file "./n.rkt")
@@ -17,6 +19,8 @@
 (define row-files (list s-file e-file n-file))
 (define implementation-files
   (list framework-file s-file e-file n-file vertical-file))
+(define selected-interface-files
+  (cons stage-framework-file implementation-files))
 
 (define CORE-RULE-LABELS
   '(allocate-fresh
@@ -83,15 +87,23 @@
       (check-false (regexp-match? #px"[(]parameterize(?=[[:space:]])"
                                   contents))
       (check-false (regexp-match? #rx"AllocateEvent" contents)))
-    ;; The selected strategy declarations never use the prototype's repeated
-    ;; environment abstraction.  The framework has one compatibility slot in
-    ;; the compile-time bridge to the unchanged horizontal stage API, where it
-    ;; denotes only the canonical failure summary.
-    (for ([path (in-list (append row-files (list vertical-file)))])
-      (check-false (regexp-match? #rx"#:environment" (file->string path))))
-    (check-equal?
-     (match-count #rx"#:environment" (file->string framework-file))
-     1))
+    ;; The selected interface consumes explicit variable, live-state,
+    ;; returned, failure-summary, terminal, and payload/context views.  Neither
+    ;; its public rows nor either side of its bridge may lower those views back
+    ;; into the frozen prototype descriptor.
+    (for ([path (in-list selected-interface-files)])
+      (define contents (file->string path))
+      (for ([forbidden
+             (in-list
+              '("#:environment"
+                "#:lower-with"
+                "define-derivation-instance"
+                "stage-generators.rkt"))])
+        (check-false
+         (regexp-match? (regexp (regexp-quote forbidden)) contents)
+         (format "selected interface contains prototype lowering ~a in ~a"
+                 forbidden
+                 path)))))
 
   (test-case "the core schema is representation-neutral and owns no stage renderer"
     (define contents (file->string framework-file))
@@ -99,11 +111,11 @@
            (in-list
             '("stage-generators.rkt"
               "decomposition-instance.rkt"
-              "define-decomposition-stage"
-              "define-refocused-stage"
-              "define-machine-isomorphism-stage"
-              "define-compressed-stage"
-              "define-fixed-point-stage"
+              "define-selected-decomposition-stage"
+              "define-selected-refocused-stage"
+              "define-selected-machine-isomorphism-stage"
+              "define-selected-compressed-stage"
+              "define-selected-fixed-point-stage"
               "(Owner "
               "(Owners"
               "(Support"
@@ -131,7 +143,7 @@
           contents)
          (format "row ~a restates semantic rule ~a" path label))))
     ;; CP4 stores each semantic equation once in a representation-neutral IR;
-    ;; R and the horizontal descriptor are now two renderers of that same IR.
+    ;; R and the explicit selected stage view are two renderers of that IR.
     (define framework-contents (file->string framework-file))
     (for ([label (in-list CORE-RULE-LABELS)])
       (check-equal?
@@ -141,6 +153,8 @@
         framework-contents)
        1))
     (check-true (regexp-match? #rx"[(]define semantic-rules"
+                               framework-contents))
+    (check-true (regexp-match? #rx"[(]define selected-stage-view"
                                framework-contents))
     (check-true (regexp-match? #rx"#,@work-R-rules"
                                framework-contents))
@@ -243,29 +257,71 @@
     (check-false (regexp-match? #rx"#,q-se-id" direct-map))
     (check-false (regexp-match? #rx"#,q-en-id" direct-map)))
 
-  (test-case "focused Q hooks are explicit and direct Q_SN bypasses E"
+  (test-case "phase Q hooks are explicit and every direct Q_SN bypasses E"
     (for ([path (in-list row-files)])
       (define contents (file->string path))
-      (check-true (regexp-match? #rx"#:focus-export" contents))
-      (check-true (regexp-match? #rx"#:focus-rebuild" contents)))
+      (for ([hook
+             (in-list
+              '("#:focus-export"
+                "#:focus-rebuild"
+                "#:root-focus-export"
+                "#:root-focus-rebuild"
+                "#:failure-focus-export"
+                "#:failure-focus-rebuild"
+                "#:terminal-export"
+                "#:terminal-rebuild"))])
+        (check-true
+         (regexp-match? (regexp (regexp-quote hook)) contents))))
     (define vertical-contents (file->string vertical-file))
-    (define direct-focus-map
-      (source-slice
-       vertical-file
-       "(define (Q-SN/focus/generated focused focus)"
-       "(define (Q-SN/focus-composition/generated? focused focus)"))
-    (check-true
-     (regexp-match? #rx"q-focus-export/generated/s" direct-focus-map))
-    (check-true
-     (regexp-match? #rx"q-focus-rebuild/generated/n" direct-focus-map))
-    (check-false (regexp-match? #rx"Q-SE/focus" direct-focus-map))
-    (check-false (regexp-match? #rx"Q-EN/focus" direct-focus-map))
+    (for ([entry
+           (in-list
+            (list
+             (list "focus" "focused focus" "q-focus")
+             (list "root-focus" "frontier spine" "q-root-focus")
+             (list "failure-focus" "summary focus" "q-failure-focus")
+             (list "terminal" "terminal" "q-terminal")))])
+      (match-define (list phase arguments hook-prefix) entry)
+      (define direct-map
+        (source-slice
+         vertical-file
+         (format "(define (Q-SN/~a/generated ~a)" phase arguments)
+         (format "(define (Q-SN/~a-composition/generated? ~a)"
+                 phase
+                 arguments)))
+      (check-true
+       (regexp-match?
+        (regexp (regexp-quote (string-append hook-prefix "-export/generated/s")))
+        direct-map))
+      (check-true
+       (regexp-match?
+        (regexp (regexp-quote (string-append hook-prefix "-rebuild/generated/n")))
+        direct-map))
+      (check-false
+       (regexp-match?
+        (regexp (regexp-quote (string-append "Q-SE/" phase)))
+        direct-map))
+      (check-false
+       (regexp-match?
+        (regexp (regexp-quote (string-append "Q-EN/" phase)))
+        direct-map)))
     (for ([name
            (in-list
             '(Q-SE/focus/generated
               Q-EN/focus/generated
               Q-SN/focus/generated
-              Q-SN/focus-composition/generated?))])
+              Q-SN/focus-composition/generated?
+              Q-SE/root-focus/generated
+              Q-EN/root-focus/generated
+              Q-SN/root-focus/generated
+              Q-SN/root-focus-composition/generated?
+              Q-SE/failure-focus/generated
+              Q-EN/failure-focus/generated
+              Q-SN/failure-focus/generated
+              Q-SN/failure-focus-composition/generated?
+              Q-SE/terminal/generated
+              Q-EN/terminal/generated
+              Q-SN/terminal/generated
+              Q-SN/terminal-composition/generated?))])
       (check-true
        (regexp-match?
         (regexp (regexp-quote (symbol->string name)))

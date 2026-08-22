@@ -117,11 +117,29 @@
        `(q-focused ,focused ,focus))
      (define (focus-rebuild/smoke neutral)
        (match neutral
-         [`(q-focused ,focused ,focus) (list focused focus)])))
+         [`(q-focused ,focused ,focus) (list focused focus)]))
+     (define (root-focus-export/smoke frontier spine)
+       `(q-root-focused ,frontier ,spine))
+     (define (root-focus-rebuild/smoke neutral)
+       (match neutral
+         [`(q-root-focused ,frontier ,spine) (list frontier spine)]))
+     (define (failure-focus-export/smoke summary focus)
+       `(q-failure-focused ,summary ,focus))
+     (define (failure-focus-rebuild/smoke neutral)
+       (match neutral
+         [`(q-failure-focused ,summary ,focus) (list summary focus)]))
+     (define (terminal-export/smoke terminal) terminal)
+     (define (terminal-rebuild/smoke neutral) neutral))
     #:export export/smoke
     #:rebuild rebuild/smoke
     #:focus-export focus-export/smoke
-    #:focus-rebuild focus-rebuild/smoke]])
+    #:focus-rebuild focus-rebuild/smoke
+    #:root-focus-export root-focus-export/smoke
+    #:root-focus-rebuild root-focus-rebuild/smoke
+    #:failure-focus-export failure-focus-export/smoke
+    #:failure-focus-rebuild failure-focus-rebuild/smoke
+    #:terminal-export terminal-export/smoke
+    #:terminal-rebuild terminal-rebuild/smoke]])
 
 (define-generated-core-source
   #:strategy smoke-strategy
@@ -211,9 +229,15 @@
        #:q-map
        [#:definitions ()
         #:export rejected-export
-        #:rebuild rejected-rebuild
-        #:focus-export rejected-focus-export
-        #:focus-rebuild rejected-focus-rebuild]]))
+       #:rebuild rejected-rebuild
+       #:focus-export rejected-focus-export
+        #:focus-rebuild rejected-focus-rebuild
+        #:root-focus-export rejected-root-focus-export
+        #:root-focus-rebuild rejected-root-focus-rebuild
+        #:failure-focus-export rejected-failure-focus-export
+        #:failure-focus-rebuild rejected-failure-focus-rebuild
+        #:terminal-export rejected-terminal-export
+        #:terminal-rebuild rejected-terminal-rebuild]]))
 
 (define-test-suite CORE-SOURCE-SCHEMA-TESTS
   (test-case "a foreign strategy emits a complete static source artifact"

@@ -16,6 +16,12 @@
          q-rebuild/generated/n
          q-focus-export/generated/n
          q-focus-rebuild/generated/n
+         q-root-focus-export/generated/n
+         q-root-focus-rebuild/generated/n
+         q-failure-focus-export/generated/n
+         q-failure-focus-rebuild/generated/n
+         q-terminal-export/generated/n
+         q-terminal-rebuild/generated/n
          generated-core-n-source)
 
 (check-redundancy #t)
@@ -413,11 +419,85 @@
          [_
           (error 'q-focus-rebuild/generated/n
                  "expected a neutral focused pair, received ~e"
-                 neutral)])))
+                 neutral)]))
+     (define (q-root-focus-export/generated/n frontier spine)
+       (unless (equal? spine (term hole))
+         (error 'q-root-focus-export/generated/n
+                "expected the N root spine, received ~e"
+                spine))
+       (match frontier
+         [`(More ,work)
+          `(q-root-focused ,(work->q/generated/n work))]
+         [other
+          (error 'q-root-focus-export/generated/n
+                 "expected an N root frontier, received ~e"
+                 other)]))
+     (define (q-root-focus-rebuild/generated/n neutral)
+       (match neutral
+         [`(q-root-focused ,q-work)
+          (define support (q-work-support/generated/n q-work))
+          (list
+           `(More ,(q-work->n/generated/n q-work support))
+           (term hole))]
+         [other
+          (error 'q-root-focus-rebuild/generated/n
+                 "expected a neutral root focus, received ~e"
+                 other)]))
+     (define (q-failure-focus-export/generated/n summary focus)
+       (match focus
+         [`(More ,path)
+          `(q-failure-focused
+            #f
+            ,(build-list summary values)
+            (q-work-focus ,(focus-path->q/generated/n path)))]
+         [other
+          (error 'q-failure-focus-export/generated/n
+                 "expected an N WorkFocus, received ~e"
+                 other)]))
+     (define (q-failure-focus-rebuild/generated/n neutral)
+       (match neutral
+         [`(q-failure-focused ,_provenance ,support (q-work-focus ,q-path))
+          (validate-q-support/generated/n support)
+          (list
+           (length support)
+           `(More
+             ,(q-focus-path->n/generated/n q-path support)))]
+         [other
+          (error 'q-failure-focus-rebuild/generated/n
+                 "expected a neutral failure focus, received ~e"
+                 other)]))
+     (define (q-terminal-export/generated/n terminal)
+       (match terminal
+         [`(Done ,next)
+          `(q-done #f ,(build-list next values))]
+         [`(Last (Answer ,state))
+          `(q-last #f (q-answer #f ,(state->q/generated/n state)))]
+         [other
+          (error 'q-terminal-export/generated/n
+                 "expected an N terminal, received ~e"
+                 other)]))
+     (define (q-terminal-rebuild/generated/n neutral)
+       (match neutral
+         [`(q-done ,_provenance ,support)
+          (validate-q-support/generated/n support)
+          `(Done ,(length support))]
+         [`(q-last ,_provenance (q-answer ,_answer-provenance ,q-state))
+          (define support (q-state-support/generated/n q-state))
+          `(Last (Answer ,(q-state->n/generated/n q-state support)))]
+         [other
+          (error 'q-terminal-rebuild/generated/n
+                 "expected a neutral terminal, received ~e"
+                 other)])))
     #:export q-export/generated/n
     #:rebuild q-rebuild/generated/n
     #:focus-export q-focus-export/generated/n
-    #:focus-rebuild q-focus-rebuild/generated/n]])
+    #:focus-rebuild q-focus-rebuild/generated/n
+    #:root-focus-export q-root-focus-export/generated/n
+    #:root-focus-rebuild q-root-focus-rebuild/generated/n
+    #:failure-focus-export q-failure-focus-export/generated/n
+    #:failure-focus-rebuild q-failure-focus-rebuild/generated/n
+    #:terminal-export q-terminal-export/generated/n
+    #:terminal-rebuild q-terminal-rebuild/generated/n]])
 
 (define-generated-core-source
   #:strategy core-n-representation-strategy

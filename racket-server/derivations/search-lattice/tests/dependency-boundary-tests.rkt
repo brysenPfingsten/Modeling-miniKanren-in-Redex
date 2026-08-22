@@ -13,6 +13,12 @@
   "../framework/decomposition-instance.rkt")
 (define-runtime-path stage-framework-file
   "../framework/stage-generators.rkt")
+(define-runtime-path selected-stage-renderer-file
+  "../framework/core-stage-renderers.rkt")
+(define-runtime-path selected-stage-extension-base-fixture-file
+  "../framework/core-stage-extension-base-fixture.rkt")
+(define-runtime-path selected-stage-extension-query-fixture-file
+  "../framework/core-stage-extension-query-fixture.rkt")
 (define-runtime-path stage-framework-test-file
   "../framework/stage-generators-tests.rkt")
 (define-runtime-path stage-parameter-base-fixture-file
@@ -333,7 +339,7 @@
       (check-false
        (regexp-match? (regexp (regexp-quote forbidden)) stage-renderers))))
 
-  (test-case "redex/parameter imports are confined to the lifting framework and fixtures"
+  (test-case "redex/parameter imports are confined to lifting frameworks and fixtures"
     (define implementation-files
       (for/list ([path (in-list (racket-files seed-root))]
                  #:unless (equal? (simplify-path path)
@@ -345,6 +351,9 @@
      (files-containing implementation-files #rx"redex/parameter"))
      (sorted-path-strings
       (list stage-framework-file
+            selected-stage-renderer-file
+            selected-stage-extension-base-fixture-file
+            selected-stage-extension-query-fixture-file
             stage-framework-test-file
             stage-parameter-base-fixture-file
             stage-parameter-derived-fixture-file))))

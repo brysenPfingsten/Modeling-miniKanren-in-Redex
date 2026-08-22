@@ -4,14 +4,16 @@
          rackunit/text-ui
          "./dependency-tests.rkt"
          "./horizontal-tests.rkt"
-         "./vertical-tests.rkt")
+         "./vertical-transformation-tests.rkt"
+         "./vertical-transport-diagnostics-tests.rkt")
 
 (provide GENERATED-CORE-STAGES)
 
 (define/provide-test-suite GENERATED-CORE-STAGES
   GENERATED-CORE-STAGE-DEPENDENCIES
   GENERATED-CORE-STAGES-HORIZONTAL
-  GENERATED-CORE-STAGES-VERTICAL)
+  GENERATED-CORE-STAGES-VERTICAL-TRANSFORMATIONS
+  GENERATED-CORE-STAGES-VERTICAL-TRANSPORT-DIAGNOSTICS)
 
 (module+ test
   (run-tests GENERATED-CORE-STAGES))

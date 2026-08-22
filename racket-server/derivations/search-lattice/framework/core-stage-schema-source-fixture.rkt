@@ -121,11 +121,29 @@
        `(q-focused ,focused ,focus))
      (define (q-focus-rebuild/private-fixture neutral)
        (match neutral
-         [`(q-focused ,focused ,focus) (list focused focus)])))
+         [`(q-focused ,focused ,focus) (list focused focus)]))
+     (define (q-root-focus-export/private-fixture frontier spine)
+       `(q-root-focused ,frontier ,spine))
+     (define (q-root-focus-rebuild/private-fixture neutral)
+       (match neutral
+         [`(q-root-focused ,frontier ,spine) (list frontier spine)]))
+     (define (q-failure-focus-export/private-fixture summary focus)
+       `(q-failure-focused ,summary ,focus))
+     (define (q-failure-focus-rebuild/private-fixture neutral)
+       (match neutral
+         [`(q-failure-focused ,summary ,focus) (list summary focus)]))
+     (define (q-terminal-export/private-fixture terminal) terminal)
+     (define (q-terminal-rebuild/private-fixture neutral) neutral))
     #:export q-export/private-fixture
     #:rebuild q-rebuild/private-fixture
     #:focus-export q-focus-export/private-fixture
-    #:focus-rebuild q-focus-rebuild/private-fixture]])
+    #:focus-rebuild q-focus-rebuild/private-fixture
+    #:root-focus-export q-root-focus-export/private-fixture
+    #:root-focus-rebuild q-root-focus-rebuild/private-fixture
+    #:failure-focus-export q-failure-focus-export/private-fixture
+    #:failure-focus-rebuild q-failure-focus-rebuild/private-fixture
+    #:terminal-export q-terminal-export/private-fixture
+    #:terminal-rebuild q-terminal-rebuild/private-fixture]])
 
 (define-generated-core-source
   #:strategy foreign-core-strategy

@@ -942,7 +942,108 @@
                    (plug-focused (list s-focused s-focus))))
     (check-equal? (plug-focused expected-n)
                   (gq:Q-SN/generated
-                   (plug-focused (list s-focused s-focus)))))
+                   (plug-focused (list s-focused s-focus))))
+
+    ;; B carries the summary without a materialized Dead node.  The dedicated
+    ;; failure-focus view must produce the same possible-world translation
+    ;; directly, including every enclosing Owner prefix.
+    (match-define `(Dead ,s-summary) s-focused)
+    (define expected-failure-e
+      (list
+       (term (Support u:7 u:2 u:9))
+       (second expected-e)))
+    (define expected-failure-n
+      (list 3 (second expected-n)))
+    (check-equal?
+     (gq:Q-SE/failure-focus/generated s-summary s-focus)
+     expected-failure-e)
+    (check-equal?
+     (gq:Q-SN/failure-focus/generated s-summary s-focus)
+     expected-failure-n)
+    (check-equal?
+     (apply gq:Q-EN/failure-focus/generated expected-failure-e)
+     expected-failure-n)
+    (check-true
+     (gq:Q-SN/failure-focus-composition/generated? s-summary s-focus))
+    (check-equal?
+     (gs:q-failure-focus-rebuild/generated/s
+      (gs:q-failure-focus-export/generated/s s-summary s-focus))
+     (list s-summary s-focus))
+    (check-equal?
+     (ge:q-failure-focus-rebuild/generated/e
+      (apply ge:q-failure-focus-export/generated/e expected-failure-e))
+     expected-failure-e)
+    (check-equal?
+     (gn:q-failure-focus-rebuild/generated/n
+      (apply gn:q-failure-focus-export/generated/n expected-failure-n))
+     expected-failure-n))
+
+  (test-case "root-focus Q rebuilds each row's own Redex root spine"
+    (define s-roots
+      (list
+       (term (More (Returned ,OWNERS-U0 ,SIGMA-EMPTY)))
+       (term (More (Dead ,OWNERS-U0)))))
+    (for ([s-root (in-list s-roots)])
+      (define e-root (oq:Q-SE/F s-root))
+      (define n-root (oq:Q-SN/F s-root))
+      (define s-root-focus (list s-root (term hole)))
+      (define e-root-focus (list e-root (term hole)))
+      (define n-root-focus (list n-root (term hole)))
+      (check-equal?
+       (apply gq:Q-SE/root-focus/generated s-root-focus)
+       e-root-focus)
+      (check-equal?
+       (apply gq:Q-SN/root-focus/generated s-root-focus)
+       n-root-focus)
+      (check-equal?
+       (apply gq:Q-EN/root-focus/generated e-root-focus)
+       n-root-focus)
+      (check-true
+       (apply gq:Q-SN/root-focus-composition/generated? s-root-focus))
+      (check-equal?
+       (gs:q-root-focus-rebuild/generated/s
+        (apply gs:q-root-focus-export/generated/s s-root-focus))
+       s-root-focus)
+      (check-equal?
+       (ge:q-root-focus-rebuild/generated/e
+        (apply ge:q-root-focus-export/generated/e e-root-focus))
+       e-root-focus)
+      (check-equal?
+       (gn:q-root-focus-rebuild/generated/n
+        (apply gn:q-root-focus-export/generated/n n-root-focus))
+       n-root-focus)))
+
+  (test-case "terminal Q uses direct success and failure views"
+    (define s-terminals
+      (list
+       (term (Last ,OWNERS-EMPTY (Answer ,OWNERS-U0 ,SIGMA-EMPTY)))
+       (term (Done ,OWNERS-U0))))
+    (for ([s-terminal (in-list s-terminals)])
+      (define e-terminal (oq:Q-SE/F s-terminal))
+      (define n-terminal (oq:Q-SN/F s-terminal))
+      (check-equal?
+       (gq:Q-SE/terminal/generated s-terminal)
+       e-terminal)
+      (check-equal?
+       (gq:Q-SN/terminal/generated s-terminal)
+       n-terminal)
+      (check-equal?
+       (gq:Q-EN/terminal/generated e-terminal)
+       n-terminal)
+      (check-true
+       (gq:Q-SN/terminal-composition/generated? s-terminal))
+      (check-equal?
+       (gs:q-terminal-rebuild/generated/s
+        (gs:q-terminal-export/generated/s s-terminal))
+       s-terminal)
+      (check-equal?
+       (ge:q-terminal-rebuild/generated/e
+        (ge:q-terminal-export/generated/e e-terminal))
+       e-terminal)
+      (check-equal?
+       (gn:q-terminal-rebuild/generated/n
+        (gn:q-terminal-export/generated/n n-terminal))
+       n-terminal)))
 
   (test-case "row Q hooks round-trip their own complete carrier views"
     (for ([representative (in-list RULE-SOURCES/S)])

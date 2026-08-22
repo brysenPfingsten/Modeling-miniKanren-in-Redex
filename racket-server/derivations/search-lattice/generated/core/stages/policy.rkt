@@ -1,13 +1,13 @@
 #lang racket
 
-(require "../../../framework/stage-generators.rkt")
+(require "../../../framework/core-stage-schema.rkt")
 
 (provide generated-core-compression-policy)
 
 ;; Compression is representation-neutral.  A producer may fuse with its one
 ;; structural follower; allocation and all other structural transitions are
 ;; retained as singleton observations.
-(define-compression-policy generated-core-compression-policy
+(define-selected-compression-policy generated-core-compression-policy
   #:settled-producers
   (succeed
    unify-success
