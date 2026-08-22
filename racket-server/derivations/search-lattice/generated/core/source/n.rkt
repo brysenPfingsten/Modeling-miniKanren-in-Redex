@@ -13,7 +13,10 @@
          failure-summary/generated/n
          address/generated/n
          q-export/generated/n
-         q-rebuild/generated/n)
+         q-rebuild/generated/n
+         q-focus-export/generated/n
+         q-focus-rebuild/generated/n
+         generated-core-n-source)
 
 (check-redundancy #t)
 
@@ -364,13 +367,62 @@
          [_
           (error 'q-rebuild/generated/n
                  "expected neutral core frontier, received ~e"
+                 neutral)]))
+     (define (focus-path->q/generated/n path)
+       (match path
+         [(? (lambda (datum) (equal? datum (term hole))))
+          'q-focus-hole]
+         [`(Conj ,inner ,goal)
+          `(q-focus-conj
+            #f
+            ,(focus-path->q/generated/n inner)
+            ,goal)]
+         [_
+          (error 'q-focus-export/generated/n
+                 "expected an N WorkPath, received ~e"
+                 path)]))
+     (define (q-focus-export/generated/n focused focus)
+       (match focus
+         [`(More ,path)
+          `(q-focused
+            ,(work->q/generated/n focused)
+            (q-work-focus ,(focus-path->q/generated/n path)))]
+         [_
+          (error 'q-focus-export/generated/n
+                 "expected an N WorkFocus, received ~e"
+                 focus)]))
+     (define (q-focus-path->n/generated/n q-path support)
+       (match q-path
+         ['q-focus-hole (term hole)]
+         [`(q-focus-conj ,_ ,q-inner ,goal)
+          `(Conj
+            ,(q-focus-path->n/generated/n q-inner support)
+            ,(address-goal/generated/n goal support))]
+         [_
+          (error 'q-focus-rebuild/generated/n
+                 "expected a neutral WorkPath, received ~e"
+                 q-path)]))
+     (define (q-focus-rebuild/generated/n neutral)
+       (match neutral
+         [`(q-focused ,q-work (q-work-focus ,q-path))
+          (define support (q-work-support/generated/n q-work))
+          (list
+           (q-work->n/generated/n q-work support)
+           `(More
+             ,(q-focus-path->n/generated/n q-path support)))]
+         [_
+          (error 'q-focus-rebuild/generated/n
+                 "expected a neutral focused pair, received ~e"
                  neutral)])))
     #:export q-export/generated/n
-    #:rebuild q-rebuild/generated/n]])
+    #:rebuild q-rebuild/generated/n
+    #:focus-export q-focus-export/generated/n
+    #:focus-rebuild q-focus-rebuild/generated/n]])
 
 (define-generated-core-source
   #:strategy core-n-representation-strategy
   #:language generated-core-n-lang
   #:relation generated-core-n-red
   #:raw-successors raw-successors/generated/n
-  #:branch-copy branch-copy/generated/n)
+  #:branch-copy branch-copy/generated/n
+  #:source-interface generated-core-n-source)

@@ -24,6 +24,39 @@
        "a core representation strategy is valid only after #:strategy"
        use-stx)))
 
+  ;; A generated source publishes the exact compile-time description consumed
+  ;; by horizontal staging.  The binding is deliberately active only through
+  ;; the two private protocol messages below; treating it as a runtime value
+  ;; would reintroduce the registry/introspection architecture this framework
+  ;; is designed to avoid.
+  (struct source-interface-binding
+    (instance-template language q-export q-rebuild focus-export focus-rebuild)
+    #:property prop:procedure
+    (lambda (self use-stx)
+      (syntax-parse use-stx
+        [(_ #:lower-with lower:id #:instance instance:id)
+         (syntax-parse (source-interface-binding-instance-template self)
+           [(_template-name:id _placeholder:id . tail)
+            #`(lower instance . tail)])]
+        [(_ #:visit visitor:id argument ...)
+         #`(visitor
+            #:language #,(source-interface-binding-language self)
+            #:Q-export #,(source-interface-binding-q-export self)
+            #:Q-rebuild #,(source-interface-binding-q-rebuild self)
+            #:Q-focus-export #,(source-interface-binding-focus-export self)
+            #:Q-focus-rebuild #,(source-interface-binding-focus-rebuild self)
+            argument ...)]
+        [_
+         (raise-syntax-error
+          #f
+          (string-append
+           "a core source interface is valid only after #:source-interface "
+           "or through the framework visitor protocol")
+          use-stx)])))
+
+  (struct core-control (kind arguments) #:transparent)
+  (struct core-rule-ir (label site from to premises) #:transparent)
+
   (struct variable-info
     (runtime-production
      productions
@@ -46,7 +79,9 @@
      terminal-prefix-premises
      root)
     #:transparent)
-  (struct q-info (definitions export rebuild) #:transparent)
+  (struct q-info
+    (definitions export rebuild focus-export focus-rebuild)
+    #:transparent)
 
   (struct supply-info
     (productions
@@ -217,7 +252,9 @@
            #:q-map
            [#:definitions (q-definition ...)
             #:export q-export:id
-            #:rebuild q-rebuild:id]])
+            #:rebuild q-rebuild:id
+            #:focus-export q-focus-export:id
+            #:focus-rebuild q-focus-rebuild:id]])
        (validate-generated-hook #'walk-hook
                                 'generated-structural
                                 declaration)
@@ -301,7 +338,11 @@
           (syntax->list #'(conjunction-goal-supply-premise ...))
           (syntax->list #'(terminal-prefix-premise ...))
           #'wf-root)
-         (q-info q-definitions #'q-export #'q-rebuild))
+         (q-info q-definitions
+                 #'q-export
+                 #'q-rebuild
+                 #'q-focus-export
+                 #'q-focus-rebuild))
         declaration)]))
 
   (define (lookup-strategy identifier)
@@ -408,12 +449,85 @@
        (list (cons 'W work-value))))
     (values state answer returned work dead conj last done more))
 
+  (define (control kind . arguments)
+    (core-control kind arguments))
+
+  ;; The rule IR records semantic control, not a particular presentation of
+  ;; that control.  R renders a focused redex/contractum while D and later
+  ;; stages consume the control form retained by define-derivation-instance.
+  (define (control->source-term control site root-focus)
+    (match-define (core-control kind arguments) control)
+    (match* (kind arguments)
+      [('run (list payload context))
+       (if (eq? site 'allocation)
+           #`(in-hole #,context #,payload)
+           payload)]
+      [('pop-settled (list frame payload _context))
+       #`(in-hole #,frame #,payload)]
+      [('pop-dead (list frame _environment raw _context))
+       #`(in-hole #,frame #,raw)]
+      [('root-settled (list payload _spine))
+       #`(in-hole #,root-focus #,payload)]
+      [('root-dead (list _environment raw _spine))
+       #`(in-hole #,root-focus #,raw)]
+      [(_ _)
+       (error 'control->source-term
+              "unsupported source control ~e"
+              control)]))
+
+  (define (control->target-term control site)
+    (match-define (core-control kind arguments) control)
+    (match* (kind arguments)
+      [('run (list payload context))
+       (if (eq? site 'allocation)
+           #`(in-hole #,context #,payload)
+           payload)]
+      [('push (list frame payload _context))
+       #`(in-hole #,frame #,payload)]
+      [('settled (list payload _context)) payload]
+      [('dead (list _environment raw _context)) raw]
+      [('final (list payload _spine)) payload]
+      [(_ _)
+       (error 'control->target-term
+              "unsupported target control ~e"
+              control)]))
+
+  (define (control->stage-syntax control)
+    (match-define (core-control kind arguments) control)
+    (define head (make-id (car arguments) kind))
+    #`(#,head #,@arguments))
+
+  (define (render-R-rule rule root-focus)
+    (define label (core-rule-ir-label rule))
+    (define site (core-rule-ir-site rule))
+    (define source
+      (control->source-term (core-rule-ir-from rule) site root-focus))
+    (define target (control->target-term (core-rule-ir-to rule) site))
+    (define premises (core-rule-ir-premises rule))
+    #`[--> #,source
+          #,target
+          #,@premises
+          #,(symbol->string label)])
+
+  (define (render-stage-rule rule context)
+    (define label (make-id context (core-rule-ir-label rule)))
+    (define site (make-id context (core-rule-ir-site rule)))
+    (define from (control->stage-syntax (core-rule-ir-from rule)))
+    (define to (control->stage-syntax (core-rule-ir-to rule)))
+    (define premises (core-rule-ir-premises rule))
+    #`[#,label
+       #:site #,site
+       #:from #,from
+       #:to #,to
+       #:premises (#,@premises)])
+
   (define (render-source-instance strategy
                                   use-stx
                                   language-id
                                   relation-id
                                   raw-successors-id
-                                  branch-copy-id)
+                                  branch-copy-id
+                                  source-interface-id)
     (define variable (strategy-info-variable strategy))
     (define supply (strategy-info-supply strategy))
 
@@ -525,6 +639,10 @@
       (q-info-export (supply-info-q supply)))
     (define q-rebuild
       (q-info-rebuild (supply-info-q supply)))
+    (define q-focus-export
+      (q-info-focus-export (supply-info-q supply)))
+    (define q-focus-rebuild
+      (q-info-focus-rebuild (supply-info-q supply)))
     (define hook-replacements
       (list
        (cons 'WALK-HOOK walk-id)
@@ -544,6 +662,8 @@
              (public-hook (supply-info-failure-summary-hook supply)))
        (cons 'Q-EXPORT-HOOK (public-hook q-export))
        (cons 'Q-REBUILD-HOOK (public-hook q-rebuild))
+       (cons 'Q-FOCUS-EXPORT-HOOK (public-hook q-focus-export))
+       (cons 'Q-FOCUS-REBUILD-HOOK (public-hook q-focus-rebuild))
        (cons (syntax-e (variable-info-addressing-hook variable))
              (public-hook (variable-info-addressing-hook variable)))
        (cons (syntax-e (supply-info-live-supply-hook supply))
@@ -557,7 +677,9 @@
              acyclic-substitution-hook)
        (cons (syntax-e wf-root) (public-hook wf-root))
        (cons (syntax-e q-export) (public-hook q-export))
-       (cons (syntax-e q-rebuild) (public-hook q-rebuild))))
+       (cons (syntax-e q-rebuild) (public-hook q-rebuild))
+       (cons (syntax-e q-focus-export) (public-hook q-focus-export))
+       (cons (syntax-e q-focus-rebuild) (public-hook q-focus-rebuild))))
 
     (define variable-definitions
       (instantiate-definitions
@@ -625,8 +747,6 @@
       (work conjunction-focus-supply g-1 expanded-source-state))
     (define expanded-source
       (work supply-v #`(#,g-1 ∧ #,g-2 #,tag-v) expanded-source-state))
-    (define expanded-target
-      (conj supply-v expanded-target-work g-2))
 
     (define success-state
       (state supply-v sub-v dis-v trail-v state-tag))
@@ -640,15 +760,9 @@
 
     (define returned-inner-state
       (state supply-inner sub-v dis-v trail-v state-tag))
-    (define conj-return-source
-      (conj supply-outer
-            (returned supply-inner returned-inner-state)
-            g-v))
     (define conj-return-target
       (work join-return g-v returned-inner-state))
 
-    (define conj-failure-source
-      (conj supply-outer (dead supply-inner) g-v))
     (define conj-failure-target (dead join-failure))
 
     (define unify-source-state
@@ -691,12 +805,9 @@
     (define disequality-target
       (returned supply-v disequality-target-state))
 
-    (define finish-success-source
-      (more (returned supply-v success-state)))
     (define finish-success-target
       (last supply-v
             (answer terminal-answer-supply success-state)))
-    (define finish-failure-source (more (dead supply-v)))
     (define finish-failure-target (done supply-v))
 
     (define allocation-source
@@ -716,6 +827,236 @@
          premise
          (cons (cons 'subst-goal-hook subst-goal-id)
                hook-replacements))))
+
+    (define hole-v (slot 'hole))
+    (define work-focus-v (slot 'WorkFocus))
+    (define root-spine hole-v)
+    (define root-focus (more hole-v))
+    (define expand-frame
+      (conj supply-v hole-v g-2))
+    (define conj-return-frame
+      (conj supply-outer hole-v g-v))
+    (define returned-inner
+      (returned supply-inner returned-inner-state))
+    (define conj-failure-frame
+      (conj supply-outer hole-v g-v))
+    (define allocation-payload #f)
+    (define allocation-context #f)
+    (syntax-parse allocation-source
+      [((~datum in-hole) context payload)
+       (set! allocation-context #'context)
+       (set! allocation-payload #'payload)]
+      [_
+       (raise-syntax-error
+        #f
+        "allocation source must expose (in-hole WorkFocus payload)"
+        (strategy-info-declaration strategy)
+        allocation-source)])
+    (define allocation-target-payload #f)
+    (define allocation-target-context #f)
+    (syntax-parse allocation-target
+      [((~datum in-hole) context payload)
+       (set! allocation-target-context #'context)
+       (set! allocation-target-payload #'payload)]
+      [_
+       (raise-syntax-error
+        #f
+        "allocation target must expose (in-hole WorkFocus payload)"
+        (strategy-info-declaration strategy)
+        allocation-target)])
+
+    ;; This is the one 13-equation compile-time IR.  Both the source relation
+    ;; below and the retained stage descriptor are projections of this list.
+    (define semantic-rules
+      (list
+       (core-rule-ir
+        'expand-conjunction
+        'work
+        (control 'run expanded-source work-focus-v)
+        (control 'push expand-frame expanded-target-work work-focus-v)
+        '())
+       (core-rule-ir
+        'succeed
+        'work
+        (control 'run success-source work-focus-v)
+        (control 'settled success-target work-focus-v)
+        '())
+       (core-rule-ir
+        'fail
+        'work
+        (control 'run failure-source work-focus-v)
+        (control 'dead supply-v failure-target work-focus-v)
+        '())
+       (core-rule-ir
+        'conj-return
+        'work
+        (control 'pop-settled
+                 conj-return-frame
+                 returned-inner
+                 work-focus-v)
+        (control 'run conj-return-target work-focus-v)
+        '())
+       (core-rule-ir
+        'conj-fail
+        'work
+        (control 'pop-dead
+                 conj-failure-frame
+                 supply-inner
+                 (dead supply-inner)
+                 work-focus-v)
+        (control 'dead join-failure conj-failure-target work-focus-v)
+        '())
+       (core-rule-ir
+        'unify-success
+        'work
+        (control 'run unify-source work-focus-v)
+        (control 'settled unify-target work-focus-v)
+        (list
+         #`(where #,sub-1
+                  (#,unify-id
+                   (#,walk-id #,t-1 #,sub-v)
+                   (#,walk-id #,t-2 #,sub-v)
+                   #,sub-v))
+         #`(where #f (#,invalid-id #,sub-1 #,dis-v))))
+       (core-rule-ir
+        'unify-violates-disequality
+        'work
+        (control 'run unify-general-source work-focus-v)
+        (control 'dead supply-v failure-target work-focus-v)
+        (list
+         #`(where #,sub-1
+                  (#,unify-id
+                   (#,walk-id #,t-1 #,sub-v)
+                   (#,walk-id #,t-2 #,sub-v)
+                   #,sub-v))
+         #`(where #t (#,invalid-id #,sub-1 #,dis-v))))
+       (core-rule-ir
+        'unify-fail
+        'work
+        (control 'run unify-general-source work-focus-v)
+        (control 'dead supply-v failure-target work-focus-v)
+        (list
+         #`(where #f
+                  (#,unify-id
+                   (#,walk-id #,t-1 #,sub-v)
+                   (#,walk-id #,t-2 #,sub-v)
+                   #,sub-v))))
+       (core-rule-ir
+        'disequality-success
+        'work
+        (control 'run disequality-source work-focus-v)
+        (control 'settled disequality-target work-focus-v)
+        (list
+         #`(where #,dis-1
+                  ((#,t-1 #,t-2) ,@(term #,dis-v)))
+         #`(where #f (#,invalid-id #,sub-v #,dis-1))))
+       (core-rule-ir
+        'disequality-fail
+        'work
+        (control 'run disequality-source work-focus-v)
+        (control 'dead supply-v failure-target work-focus-v)
+        (list
+         #`(where #,dis-1
+                  ((#,t-1 #,t-2) ,@(term #,dis-v)))
+         #`(where #t (#,invalid-id #,sub-v #,dis-1))))
+       (core-rule-ir
+        'finish-success
+        'frontier
+        (control 'root-settled (returned supply-v success-state) root-spine)
+        (control 'final finish-success-target root-spine)
+        '())
+       (core-rule-ir
+        'finish-failure
+        'frontier
+        (control 'root-dead supply-v (dead supply-v) root-spine)
+        (control 'final finish-failure-target root-spine)
+        '())
+       (core-rule-ir
+        'allocate-fresh
+        'allocation
+        (control 'run allocation-payload allocation-context)
+        (control 'run allocation-target-payload allocation-target-context)
+        allocation-premises)))
+
+    (define (rules-at site)
+      (filter (lambda (rule) (eq? (core-rule-ir-site rule) site))
+              semantic-rules))
+    (define work-R-rules
+      (map (lambda (rule) (render-R-rule rule root-focus))
+           (rules-at 'work)))
+    (define frontier-R-rules
+      (map (lambda (rule) (render-R-rule rule root-focus))
+           (rules-at 'frontier)))
+    (define allocation-R-rules
+      (map (lambda (rule) (render-R-rule rule root-focus))
+           (rules-at 'allocation)))
+    (define stage-rules
+      (map (lambda (rule) (render-stage-rule rule use-stx))
+           semantic-rules))
+
+    (define (syntax-deduplicate forms)
+      (reverse
+       (for/fold ([kept '()]) ([form (in-list forms)])
+         (if (for/or ([prior (in-list kept)])
+               (equal? (syntax->datum prior) (syntax->datum form)))
+             kept
+             (cons form kept)))))
+    (define run-productions
+      (list (work supply-v g-v sigma-v)))
+    (define nonallocation-run-productions
+      (list (work supply-v (slot 'eq) sigma-v)
+            (work supply-v #`(#,t-1 != #,t-2 #,tag-v) sigma-v)
+            (work supply-v #`(succeed #,tag-v) sigma-v)
+            (work supply-v #`(fail #,tag-v) sigma-v)
+            (work supply-v #`(#,g-1 ∧ #,g-2 #,tag-v) sigma-v)))
+    (define frames
+      (list (conj supply-v hole-v g-v)))
+    (define work-redexes
+      (syntax-deduplicate
+       (for/list ([rule (in-list (rules-at 'work))])
+         (control->source-term
+          (core-rule-ir-from rule)
+          'work
+          root-focus))))
+    (define frontier-redexes
+      (syntax-deduplicate
+       (for/list ([rule (in-list (rules-at 'frontier))])
+         (control->source-term
+          (core-rule-ir-from rule)
+          'frontier
+          root-focus))))
+    (define allocation-redexes (list allocation-payload))
+    (define terminals
+      (syntax-deduplicate
+       (for/list ([rule (in-list (rules-at 'frontier))])
+         (control->target-term (core-rule-ir-to rule) 'frontier))))
+    (define open-work-productions
+      (list (conj supply-v (slot 'OpenW) g-v)))
+    (define stage-instance-template
+      #`(define-derivation-instance SOURCE-INSTANCE
+          #:source-language #,language-id
+          #:work #,(slot 'W)
+          #:frontier #,(slot 'F)
+          #:settled #,(slot 'S)
+          #:work-focus #,(slot 'WorkFocus)
+          #:spine-context #,(slot 'SpineContext)
+          ;; The unchanged prototype API still calls this slot an
+          ;; environment.  In the selected bridge it is only the canonical
+          ;; failure-summary carrier, never a selected-strategy declaration.
+          #:environment #,supply-v
+          #:run-productions (#,@run-productions)
+          #:nonallocation-run-productions
+          (#,@nonallocation-run-productions)
+          #:dead-view [#,supply-v #,(dead supply-v)]
+          #:root-focus #,root-focus
+          #:root-spine #,root-spine
+          #:frames (#,@frames)
+          #:work-redexes (#,@work-redexes)
+          #:frontier-redexes (#,@frontier-redexes)
+          #:allocation-redexes (#,@allocation-redexes)
+          #:terminals (#,@terminals)
+          #:open-work-productions (#,@open-work-productions)
+          #:rules (#,@stage-rules)))
 
     (define wf-state-pattern
       (state supply-local sub-v dis-v trail-v state-tag))
@@ -1027,6 +1368,17 @@
          (cons symbol (slot symbol)))))
 
     #`(begin
+        #,@(if source-interface-id
+               (list
+                #`(define-syntax #,source-interface-id
+                    (source-interface-binding
+                     (quote-syntax #,stage-instance-template)
+                     (quote-syntax #,language-id)
+                     (quote-syntax #,(public-hook q-export))
+                     (quote-syntax #,(public-hook q-rebuild))
+                     (quote-syntax #,(public-hook q-focus-export))
+                     (quote-syntax #,(public-hook q-focus-rebuild)))))
+               '())
         (define-language #,language-id
           [d (x_!_ (... ...))]
           [eq (t =? t tag)]
@@ -1194,85 +1546,24 @@
         #,@q-definitions
         #,wf-structural-definitions
 
-        ;; These ten clauses are the single representation-neutral core work
-        ;; schema.  A strategy supplies only carrier and operation views.
+        ;; R is one renderer of the shared 13-equation compile-time IR.
         (define #,work-raw-id
           (reduction-relation
            #,language-id
            #:domain any
-           [--> #,expanded-source
-                #,expanded-target
-                "expand-conjunction"]
-           [--> #,success-source
-                #,success-target
-                "succeed"]
-           [--> #,failure-source
-                #,failure-target
-                "fail"]
-           [--> #,conj-return-source
-                #,conj-return-target
-                "conj-return"]
-           [--> #,conj-failure-source
-                #,conj-failure-target
-                "conj-fail"]
-           [--> #,unify-source
-                #,unify-target
-                (where #,sub-1
-                       (#,unify-id
-                        (#,walk-id #,t-1 #,sub-v)
-                        (#,walk-id #,t-2 #,sub-v)
-                        #,sub-v))
-                (where #f (#,invalid-id #,sub-1 #,dis-v))
-                "unify-success"]
-           [--> #,unify-general-source
-                #,failure-target
-                (where #,sub-1
-                       (#,unify-id
-                        (#,walk-id #,t-1 #,sub-v)
-                        (#,walk-id #,t-2 #,sub-v)
-                        #,sub-v))
-                (where #t (#,invalid-id #,sub-1 #,dis-v))
-                "unify-violates-disequality"]
-           [--> #,unify-general-source
-                #,failure-target
-                (where #f
-                       (#,unify-id
-                        (#,walk-id #,t-1 #,sub-v)
-                        (#,walk-id #,t-2 #,sub-v)
-                        #,sub-v))
-                "unify-fail"]
-           [--> #,disequality-source
-                #,disequality-target
-                (where #,dis-1
-                       ((#,t-1 #,t-2) ,@(term #,dis-v)))
-                (where #f (#,invalid-id #,sub-v #,dis-1))
-                "disequality-success"]
-           [--> #,disequality-source
-                #,failure-target
-                (where #,dis-1
-                       ((#,t-1 #,t-2) ,@(term #,dis-v)))
-                (where #t (#,invalid-id #,sub-v #,dis-1))
-                "disequality-fail"]))
+           #,@work-R-rules))
 
         (define #,frontier-raw-id
           (reduction-relation
            #,language-id
            #:domain any
-           [--> #,finish-success-source
-                #,finish-success-target
-                "finish-success"]
-           [--> #,finish-failure-source
-                #,finish-failure-target
-                "finish-failure"]))
+           #,@frontier-R-rules))
 
         (define #,allocation-raw-id
           (reduction-relation
            #,language-id
            #:domain F
-           [--> #,allocation-source
-                #,allocation-target
-                #,@allocation-premises
-                "allocate-fresh"]))
+           #,@allocation-R-rules))
 
         (define #,work-base-id
           (context-closure #,work-raw-id #,language-id WorkFocus))
@@ -1362,14 +1653,19 @@
         #:language language-id:id
         #:relation relation-id:id
         #:raw-successors raw-successors-id:id
-        #:branch-copy branch-copy-id:id)
+        #:branch-copy branch-copy-id:id
+        (~optional
+         (~seq #:source-interface source-interface-id:id)
+         #:defaults ([source-interface-id #'#f])))
      (render-source-instance
       (lookup-strategy #'strategy-id)
       stx
       #'language-id
       #'relation-id
       #'raw-successors-id
-      #'branch-copy-id)]))
+      #'branch-copy-id
+      (and (syntax-e #'source-interface-id)
+           #'source-interface-id))]))
 
 (define-syntax (define-generated-core-representation-maps stx)
   (syntax-parse stx

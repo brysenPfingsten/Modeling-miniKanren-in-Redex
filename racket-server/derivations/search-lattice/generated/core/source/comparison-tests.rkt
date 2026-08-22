@@ -331,6 +331,10 @@
     (match-define (list name target) proof)
     (list name (q target))))
 
+(define (plug-focused pair)
+  (match-define (list focused focus) pair)
+  (term (in-hole ,focus ,focused)))
+
 (define (check-generated-squares s-source)
   (define e-source (gq:Q-SE/generated s-source))
   (define n-source (gq:Q-SN/generated s-source))
@@ -755,6 +759,190 @@
     (check-false (wf/generated/e? absent-e))
     (check-exn exn:fail? (lambda () (gq:Q-EN/generated absent-e)))
     (check-exn exn:fail? (lambda () (oq:Q-EN/F absent-e))))
+
+  (test-case "focused Q hooks retain context provenance and round-trip"
+    (define s-focused
+      (term
+       (Work
+        (Owners (Owner () (label "focused-empty-owner")))
+        (u:9 =? u:2 (label "focused-goal"))
+        (state
+         ((u:9 u:7))
+         ()
+         ((u:9 =? u:7 (label "trail")))
+         (label "focused-state")))))
+    (define s-focus
+      (term
+       (More
+        (Conj
+         (Owners (Owner (u:7) (label "outer-owner")))
+         (Conj
+          (Owners
+           (Owner () (label "empty-owner"))
+           (Owner (u:2 u:9) (label "inner-owner")))
+          hole
+          (u:9 != u:7 (label "inner-deferred")))
+         (u:7 =? (nat 0) (label "outer-deferred"))))))
+    (define expected-e
+      (list
+       (term
+        (Work
+         (u:9 =? u:2 (label "focused-goal"))
+         (state
+          (Support u:7 u:2 u:9)
+          ((u:9 u:7))
+          ()
+          ((u:9 =? u:7 (label "trail")))
+          (label "focused-state"))))
+       (term
+        (More
+         (Conj
+          (Conj hole (u:9 != u:7 (label "inner-deferred")))
+          (u:7 =? (nat 0) (label "outer-deferred")))))))
+    (define expected-n
+      (list
+       (term
+        (Work
+         (2 =? 1 (label "focused-goal"))
+         (state
+          3
+          ((2 0))
+          ()
+          ((2 =? 0 (label "trail")))
+          (label "focused-state"))))
+       (term
+        (More
+         (Conj
+          (Conj hole (2 != 0 (label "inner-deferred")))
+          (0 =? (nat 0) (label "outer-deferred")))))))
+    (define actual-e (gq:Q-SE/focus/generated s-focused s-focus))
+    (define actual-n (gq:Q-SN/focus/generated s-focused s-focus))
+    (check-equal? actual-e expected-e)
+    (check-equal? actual-n expected-n)
+    (check-equal?
+     (apply gq:Q-EN/focus/generated actual-e)
+     expected-n)
+    (check-true
+     (gq:Q-SN/focus-composition/generated? s-focused s-focus))
+    (check-equal?
+     (gs:q-focus-rebuild/generated/s
+      (gs:q-focus-export/generated/s s-focused s-focus))
+     (list s-focused s-focus))
+    (check-equal?
+     (ge:q-focus-rebuild/generated/e
+      (apply ge:q-focus-export/generated/e expected-e))
+     expected-e)
+    (check-equal?
+     (gn:q-focus-rebuild/generated/n
+      (apply gn:q-focus-export/generated/n expected-n))
+     expected-n)
+    ;; The focused views are the separated form of the unchanged CP3 whole-F
+    ;; maps; plugging either side gives exactly the old output.
+    (define s-frontier (plug-focused (list s-focused s-focus)))
+    (check-equal? (plug-focused actual-e)
+                  (gq:Q-SE/generated s-frontier))
+    (check-equal? (plug-focused actual-n)
+                  (gq:Q-SN/generated s-frontier))
+    (check-true (wf/generated/s? s-frontier))
+    (check-true (wf/generated/e? (plug-focused actual-e)))
+    (check-true (wf/generated/n? (plug-focused actual-n))))
+
+  (test-case "focused sparse E support addresses every deferred goal"
+    (define e-focused
+      (term
+       (Work
+        (u:2 =? u:7 (label "focused"))
+        (state
+         (Support u:7 u:2)
+         ((u:2 u:7))
+         ()
+         ()
+         (label "sparse-state")))))
+    (define e-focus
+      (term
+       (More
+        (Conj
+         (Conj hole (u:7 != u:2 (label "inner-deferred")))
+         (u:2 =? u:7 (label "outer-deferred"))))))
+    (define expected-n
+      (list
+       (term
+        (Work
+         (1 =? 0 (label "focused"))
+         (state
+          2
+          ((1 0))
+          ()
+          ()
+          (label "sparse-state"))))
+       (term
+        (More
+         (Conj
+          (Conj hole (0 != 1 (label "inner-deferred")))
+          (1 =? 0 (label "outer-deferred")))))))
+    (check-equal?
+     (gq:Q-EN/focus/generated e-focused e-focus)
+     expected-n)
+    (check-equal?
+     (plug-focused expected-n)
+     (gq:Q-EN/generated
+      (plug-focused (list e-focused e-focus))))
+    (define absent-focus
+      (term
+       (More
+        (Conj hole (u:9 =? u:7 (label "absent-deferred"))))))
+    (check-exn
+     exn:fail?
+     (lambda ()
+       (gq:Q-EN/focus/generated e-focused absent-focus))))
+
+  (test-case "focused failure retains only the mapped world summary"
+    (define s-focused
+      (term
+       (Dead
+        (Owners
+         (Owner () (label "empty-failed-owner"))
+         (Owner (u:9) (label "failed-owner"))))))
+    (define s-focus
+      (term
+       (More
+        (Conj
+         (Owners (Owner (u:7 u:2) (label "outer-owner")))
+         hole
+         (u:7 != u:2 (label "deferred-after-failure"))))))
+    (define expected-e
+      (list
+       (term (Dead (Support u:7 u:2 u:9)))
+       (term
+        (More
+         (Conj hole (u:7 != u:2 (label "deferred-after-failure")))))))
+    (define expected-n
+      (list
+       (term (Dead 3))
+       (term
+        (More
+         (Conj hole (0 != 1 (label "deferred-after-failure")))))))
+    (check-equal?
+     (gq:Q-SE/focus/generated s-focused s-focus)
+     expected-e)
+    (check-equal?
+     (gq:Q-SN/focus/generated s-focused s-focus)
+     expected-n)
+    (check-equal?
+     (apply gq:Q-EN/focus/generated expected-e)
+     expected-n)
+    (check-true
+     (gq:Q-SN/focus-composition/generated? s-focused s-focus))
+    (check-equal?
+     (gs:q-focus-rebuild/generated/s
+      (gs:q-focus-export/generated/s s-focused s-focus))
+     (list s-focused s-focus))
+    (check-equal? (plug-focused expected-e)
+                  (gq:Q-SE/generated
+                   (plug-focused (list s-focused s-focus))))
+    (check-equal? (plug-focused expected-n)
+                  (gq:Q-SN/generated
+                   (plug-focused (list s-focused s-focus)))))
 
   (test-case "row Q hooks round-trip their own complete carrier views"
     (for ([representative (in-list RULE-SOURCES/S)])

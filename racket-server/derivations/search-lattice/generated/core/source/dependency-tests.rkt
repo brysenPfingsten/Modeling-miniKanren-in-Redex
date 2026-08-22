@@ -82,10 +82,18 @@
                       contents))
       (check-false (regexp-match? #px"[(]parameterize(?=[[:space:]])"
                                   contents))
-      (check-false (regexp-match? #rx"#:environment" contents))
-      (check-false (regexp-match? #rx"AllocateEvent" contents))))
+      (check-false (regexp-match? #rx"AllocateEvent" contents)))
+    ;; The selected strategy declarations never use the prototype's repeated
+    ;; environment abstraction.  The framework has one compatibility slot in
+    ;; the compile-time bridge to the unchanged horizontal stage API, where it
+    ;; denotes only the canonical failure summary.
+    (for ([path (in-list (append row-files (list vertical-file)))])
+      (check-false (regexp-match? #rx"#:environment" (file->string path))))
+    (check-equal?
+     (match-count #rx"#:environment" (file->string framework-file))
+     1))
 
-  (test-case "the strategy framework is source-only and representation-neutral"
+  (test-case "the core schema is representation-neutral and owns no stage renderer"
     (define contents (file->string framework-file))
     (for ([forbidden
            (in-list
@@ -122,49 +130,22 @@
            (format "\"~a\"" (regexp-quote (symbol->string label))))
           contents)
          (format "row ~a restates semantic rule ~a" path label))))
-    (define work-schema
-      (source-slice
-       framework-file
-       ";; These ten clauses are the single representation-neutral core work"
-       "(define #,frontier-raw-id"))
-    (define frontier-schema
-      (source-slice
-       framework-file
-       "(define #,frontier-raw-id"
-       "(define #,allocation-raw-id"))
-    (define allocation-schema
-      (source-slice
-       framework-file
-       "(define #,allocation-raw-id"
-       "(define #,work-base-id"))
-    (for ([label
-           (in-list
-            '(expand-conjunction
-              succeed
-              fail
-              conj-return
-              conj-fail
-              unify-success
-              unify-violates-disequality
-              unify-fail
-              disequality-success
-              disequality-fail))])
+    ;; CP4 stores each semantic equation once in a representation-neutral IR;
+    ;; R and the horizontal descriptor are now two renderers of that same IR.
+    (define framework-contents (file->string framework-file))
+    (for ([label (in-list CORE-RULE-LABELS)])
       (check-equal?
        (match-count
         (regexp
          (format "\"~a\"" (regexp-quote (symbol->string label))))
-        work-schema)
+        framework-contents)
        1))
-    (for ([label (in-list '(finish-success finish-failure))])
-      (check-equal?
-       (match-count
-        (regexp
-         (format "\"~a\"" (regexp-quote (symbol->string label))))
-        frontier-schema)
-       1))
-    (check-equal? (match-count #rx"\"allocate-fresh\""
-                               allocation-schema)
-                  1))
+    (check-true (regexp-match? #rx"[(]define semantic-rules"
+                               framework-contents))
+    (check-true (regexp-match? #rx"#,@work-R-rules"
+                               framework-contents))
+    (check-true (regexp-match? #rx"#,@stage-rules"
+                               framework-contents)))
 
   (test-case "candidate modules visibly instantiate one static source row"
     (for ([triple
@@ -173,18 +154,23 @@
                         "core-s-representation-strategy"
                         "generated-core-s-lang"
                         "generated-core-s-red"
-                        "wf-core/generated/s?")
+                        "wf-core/generated/s?"
+                        "generated-core-s-source")
                   (list e-file
                         "core-e-representation-strategy"
                         "generated-core-e-lang"
                         "generated-core-e-red"
-                        "wf-core/generated/e?")
+                        "wf-core/generated/e?"
+                        "generated-core-e-source")
                   (list n-file
                         "core-n-representation-strategy"
                         "generated-core-n-lang"
                         "generated-core-n-red"
-                        "wf-core/generated/n?")))])
-      (match-define (list path strategy language relation wf-root) triple)
+                        "wf-core/generated/n?"
+                        "generated-core-n-source")))])
+      (match-define
+        (list path strategy language relation wf-root source-interface)
+        triple)
       (define contents (file->string path))
       (check-equal?
        (match-count #px"[(]define-core-representation-strategy\\s"
@@ -193,7 +179,13 @@
       (check-equal?
        (match-count #px"[(]define-generated-core-source\\s" contents)
        1)
-      (for ([binding (in-list (list strategy language relation wf-root))])
+      (for ([binding
+             (in-list
+              (list strategy
+                    language
+                    relation
+                    wf-root
+                    source-interface))])
         (check-true
          (regexp-match? (regexp (regexp-quote binding)) contents)))))
 
@@ -250,6 +242,34 @@
                                direct-map))
     (check-false (regexp-match? #rx"#,q-se-id" direct-map))
     (check-false (regexp-match? #rx"#,q-en-id" direct-map)))
+
+  (test-case "focused Q hooks are explicit and direct Q_SN bypasses E"
+    (for ([path (in-list row-files)])
+      (define contents (file->string path))
+      (check-true (regexp-match? #rx"#:focus-export" contents))
+      (check-true (regexp-match? #rx"#:focus-rebuild" contents)))
+    (define vertical-contents (file->string vertical-file))
+    (define direct-focus-map
+      (source-slice
+       vertical-file
+       "(define (Q-SN/focus/generated focused focus)"
+       "(define (Q-SN/focus-composition/generated? focused focus)"))
+    (check-true
+     (regexp-match? #rx"q-focus-export/generated/s" direct-focus-map))
+    (check-true
+     (regexp-match? #rx"q-focus-rebuild/generated/n" direct-focus-map))
+    (check-false (regexp-match? #rx"Q-SE/focus" direct-focus-map))
+    (check-false (regexp-match? #rx"Q-EN/focus" direct-focus-map))
+    (for ([name
+           (in-list
+            '(Q-SE/focus/generated
+              Q-EN/focus/generated
+              Q-SN/focus/generated
+              Q-SN/focus-composition/generated?))])
+      (check-true
+       (regexp-match?
+        (regexp (regexp-quote (symbol->string name)))
+        vertical-contents))))
 
   (test-case "only the comparison module imports candidates and oracles"
     (define comparison-contents (file->string comparison-file))

@@ -13,7 +13,10 @@
          failure-summary/generated/e
          address/generated/e
          q-export/generated/e
-         q-rebuild/generated/e)
+         q-rebuild/generated/e
+         q-focus-export/generated/e
+         q-focus-rebuild/generated/e
+         generated-core-e-source)
 
 (check-redundancy #t)
 
@@ -277,13 +280,58 @@
          [_
           (error 'q-rebuild/generated/e
                  "expected neutral core frontier, received ~e"
+                 neutral)]))
+     (define (focus-path->q/generated/e path)
+       (match path
+         [(? (lambda (datum) (equal? datum (term hole))))
+          'q-focus-hole]
+         [`(Conj ,inner ,goal)
+          `(q-focus-conj
+            #f
+            ,(focus-path->q/generated/e inner)
+            ,goal)]
+         [_
+          (error 'q-focus-export/generated/e
+                 "expected an E WorkPath, received ~e"
+                 path)]))
+     (define (q-focus-export/generated/e focused focus)
+       (match focus
+         [`(More ,path)
+          `(q-focused
+            ,(work->q/generated/e focused)
+            (q-work-focus ,(focus-path->q/generated/e path)))]
+         [_
+          (error 'q-focus-export/generated/e
+                 "expected an E WorkFocus, received ~e"
+                 focus)]))
+     (define (q-focus-path->e/generated/e q-path)
+       (match q-path
+         ['q-focus-hole (term hole)]
+         [`(q-focus-conj ,_ ,q-inner ,goal)
+          `(Conj ,(q-focus-path->e/generated/e q-inner) ,goal)]
+         [_
+          (error 'q-focus-rebuild/generated/e
+                 "expected a neutral WorkPath, received ~e"
+                 q-path)]))
+     (define (q-focus-rebuild/generated/e neutral)
+       (match neutral
+         [`(q-focused ,q-work (q-work-focus ,q-path))
+          (list
+           (q-work->e/generated/e q-work)
+           `(More ,(q-focus-path->e/generated/e q-path)))]
+         [_
+          (error 'q-focus-rebuild/generated/e
+                 "expected a neutral focused pair, received ~e"
                  neutral)])))
     #:export q-export/generated/e
-    #:rebuild q-rebuild/generated/e]])
+    #:rebuild q-rebuild/generated/e
+    #:focus-export q-focus-export/generated/e
+    #:focus-rebuild q-focus-rebuild/generated/e]])
 
 (define-generated-core-source
   #:strategy core-e-representation-strategy
   #:language generated-core-e-lang
   #:relation generated-core-e-red
   #:raw-successors raw-successors/generated/e
-  #:branch-copy branch-copy/generated/e)
+  #:branch-copy branch-copy/generated/e
+  #:source-interface generated-core-e-source)

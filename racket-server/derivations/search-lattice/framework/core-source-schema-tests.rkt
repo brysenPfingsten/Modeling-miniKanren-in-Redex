@@ -112,9 +112,16 @@
    [#:definitions
     ((define (address/smoke value) value)
      (define (export/smoke frontier) frontier)
-     (define (rebuild/smoke neutral) neutral))
+     (define (rebuild/smoke neutral) neutral)
+     (define (focus-export/smoke focused focus)
+       `(q-focused ,focused ,focus))
+     (define (focus-rebuild/smoke neutral)
+       (match neutral
+         [`(q-focused ,focused ,focus) (list focused focus)])))
     #:export export/smoke
-    #:rebuild rebuild/smoke]])
+    #:rebuild rebuild/smoke
+    #:focus-export focus-export/smoke
+    #:focus-rebuild focus-rebuild/smoke]])
 
 (define-generated-core-source
   #:strategy smoke-strategy
@@ -204,7 +211,9 @@
        #:q-map
        [#:definitions ()
         #:export rejected-export
-        #:rebuild rejected-rebuild]]))
+        #:rebuild rejected-rebuild
+        #:focus-export rejected-focus-export
+        #:focus-rebuild rejected-focus-rebuild]]))
 
 (define-test-suite CORE-SOURCE-SCHEMA-TESTS
   (test-case "a foreign strategy emits a complete static source artifact"

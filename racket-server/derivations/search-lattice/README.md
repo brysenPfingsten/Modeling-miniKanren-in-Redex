@@ -8,8 +8,28 @@ three-axis family `T[i,rho]`:
 - `rho` selects a representation;
 - `T` selects a derivation stage.
 
-The seed fixes `i = core` and now contains two complete row-local generated
-stage chains:
+The seed fixes `i = core`. It retains the original two-row stage-generator
+prototype as a recovery point and now also contains the selected complete core
+representation matrix:
+
+```text
+                     R      D      Z ≅ M      B      Big
+selected S           ◆      ◆        ◆        ◆       ◆
+selected E           ◆      ◆        ◆        ◆       ◆
+selected N           ◆      ◆        ◆        ◆       ◆
+                     │      │        │        │       │
+                     Q_R    Q_D      Q_Z/M      Q_B     Q_Big
+```
+
+Here a diamond means a static Redex artifact plus bounded executable
+correspondence evidence on the stated well-formed core corpus. It does not mean
+a universal simulation, a full feature cube, or a general naturality theorem.
+The direct `Q_SN` map at every stage is checked against `Q_EN ∘ Q_SE`.
+Direct D/Z/M/B maps are also checked against independently expressed
+codec-transported maps; Big has no codec and is compared by structural final
+mapping, readback, and its retained finite `BTrace` certificate.
+
+The retained prototype remains:
 
 ```text
 core/S descriptor -> Dg[S] -> Zg[S] ≅ Mg[S] -> Bg[S] -> Bigg[S]
@@ -25,16 +45,17 @@ core/E descriptor -> Dg[E] -> Zg[E] ≅ Mg[E] -> Bg[E] -> Bigg[E]
                  R[E] -> Dref[E]
 ```
 
-This is a truthful prototype checkpoint, not a selection of the eventual
-representation architecture. `R[S]` is the authoritative production core
-relation; the derivation never edits or redefines it. The current S prototype
-retains tagged `Owners` provenance and uses its presently implemented
-structural allocation-support policy. That implementation is not evidence
-that world-local allocation has been selected for the production lattice.
+The prototype is not a selection of the eventual representation architecture.
+`R[S]` is the authoritative production core relation; the derivation never
+edits or redefines it. The prototype S retains tagged `Owners` provenance and
+uses its presently implemented structural allocation-support policy. That
+implementation is not evidence that world-local allocation has been selected
+for the production lattice.
 
 The selected post-prototype decisions are normative in
 [`ARCHITECTURE-CONTRACT.md`](ARCHITECTURE-CONTRACT.md). This README describes
-the executable prototype retained as an oracle and recovery point.
+both the executable prototype retained as an oracle/recovery point and the
+selected core matrix built beside it.
 
 Checkpoint 2 separately states the selected world-local S, phase-sensitive E,
 and numeric N source oracles under
@@ -64,10 +85,26 @@ compared with the direct oracle maps and their one-step squares; direct
 `Qg_SN` does not call either adjacent map. These are executable finite-corpus
 checks, not universal simulation or naturality theorems.
 
-This new selected source path stops at R. It deliberately does not feed the
-selected carriers through the prototype `#:environment` stage API or generate
-D, Z, M, B, or Big yet; adapting the horizontal transformations to the full
-phase views is the next checkpoint.
+Checkpoint 4 carries those same selected sources through D, Z ≅ M, B, and
+Big. The source schema publishes an expansion-time interface whose 13-rule IR
+is rendered both as R and as the input to the retained horizontal transformer.
+The public selected path is expressed in complete carrier and phase views; it
+does not use `#:environment` as a representation abstraction. One private
+lowering slot supplies the backend's canonical failure summary (`Owners`,
+`Support`, or `next`) for B/Big. No source equation is restated in an S/E/N
+stage module.
+
+Each selected row checks the 13 independent source witnesses, source and stage
+grammar/WF, unique raw decomposition, plug/readback, direct/spec raw proof
+counts, exact rule labels, Z/M codecs, conservative B replay/spans, and finite
+Big closure/unfold. The vertical harness checks direct structural Q maps,
+transport equality, operational squares, raw multiplicity, exact labels and
+spans, readback/answers, sparse ordered support, failure summaries, and direct
+S-to-N composition. The observation of allocation is the existing
+`allocate-fresh` label (a singleton B span and an entry in flattened `BTrace`),
+not a runtime `AllocateEvent`. Big claims are restricted to finite derivations:
+there is no fuel, truncation, totalization, or claim that divergence produces a
+result.
 
 The generated artifact currently named E is a support-decorated-node
 prototype. It erases S-side Owner groupings and tags and replaces their carrier
@@ -167,6 +204,33 @@ direct `Qg_SN`. The public strategy descriptors are intended to be consumed by
 their exported names; this checkpoint does not claim arbitrary prefixed or
 renamed-import hygiene for the descriptor macro API.
 
+### Selected complete core stage matrix
+
+`framework/core-stage-schema.rkt` is the one selected-source bridge into the
+horizontal transformer. A generated source optionally exports a static source
+interface containing the concrete language, full carrier views, focus-Q hooks,
+and the single core rule IR with its lexical dependencies. The bridge lowers
+that interface at expansion time to the checkpointed stage descriptor. The
+source modules themselves remain source-only and do not import the horizontal
+generator or `redex/parameter`.
+
+`generated/core/stages/s.rkt`, `e.rkt`, and `n.rkt` each visibly instantiate
+the bridge and the five transformations D, Z, M, B, and Big. They share one
+representation-neutral compression policy. The emitted artifacts are ordinary
+statically named Redex languages, metafunctions, judgments, and relations; no
+runtime row selector or host semantic dispatcher is involved.
+
+Stage carriers split focused work from its `WorkFocus`, so a payload-only Q
+map would lose S's outer Owner prefix. The selected strategies therefore also
+export a joint focused-work/focus structural view. `framework/core-stage-q.rkt`
+uses that view to emit direct D/Z/M/B maps. In particular, `BDead` is mapped
+together with its focus, so S's local dead Owners and its enclosing frame
+Owners become the one cumulative E Support/N level before rebuilding the
+target. Separate transport functions use plug/decompose or the public codecs
+only as comparators; the direct maps do not call them. `Q_Big` maps only the
+structural `BigFinal` result, while exact rule observations remain in the
+specification's `BTrace`.
+
 ### Retained horizontal-stage prototype
 
 `framework/stage-generators.rkt` provides one compile-time form for the input
@@ -190,9 +254,10 @@ Redex premises. A separate compression policy classifies settled/dead
 producers, their legal followers, singleton rules, the retained transition
 observation (currently exact rule labels), and the maximum span.
 
-The existing `#:environment` field is provisional generator API vocabulary for
-the prototype's repeated constructor slot. It is not the intended abstraction
-for representation strategies, whose constructor positions may differ.
+The existing backend `#:environment` field is retained for prototype
+compatibility. The selected bridge uses its one private occurrence solely as
+the canonical failure-summary nonterminal needed by B/Big; it is not the
+representation strategy, and selected row modules never mention it.
 
 `define-derivation-delta` currently merges an augmentation into its base
 descriptor before any stage is generated. The foreign fixture therefore shows
@@ -248,8 +313,9 @@ ordinary Redex declarations:
   equations. Its direct language extends the source language and does not call
   D, Z, M, or B. A separate specification closes B while retaining `BTrace`.
 
-The two column modules visibly contain one instance, one policy, and five stage
-invocations, including the structural Z/M reification. They contain no
+The two retained prototype column modules visibly contain one instance, one
+policy, and five stage invocations, including the structural Z/M reification.
+They contain no
 handwritten Redex judgment bodies outside the instance declaration.
 
 Their source-level spines are deliberately unsurprising:
@@ -333,6 +399,19 @@ checks only. The generated E column does not import S, the bridge, or `Owners`.
   maps with the independent oracles and bounded production-S corpus.
 - `generated/core/source/dependency-tests.rkt` enforces the one-schema,
   representation-neutral, source-only dependency boundary.
+- `framework/core-stage-schema.rkt` lowers an exported selected-source
+  interface into the retained horizontal transformer; its two-module fixture
+  checks that private semantic and Q-hook bindings survive the boundary.
+- `framework/core-stage-q.rkt` emits the direct structural and separate
+  codec-transported D/Z/M/B/Big representation maps.
+- `generated/core/stages/s.rkt`, `e.rkt`, and `n.rkt` are the three selected
+  complete horizontal columns. `policy.rkt` is their one shared compression
+  policy and `corpus.rkt` is their keyed independent witness corpus.
+- `generated/core/stages/horizontal-tests.rkt` checks every selected row
+  through Big, including raw derivation counts; `vertical-tests.rkt` checks the
+  three representation edges at every stage.
+- `generated/core/stages/dependency-tests.rkt` enforces the one-interface,
+  five-visible-stage, no-restated-equation boundary.
 - `framework/stage-generators.rkt` is the parametric transformation program.
 - `framework/stage-generators-tests.rkt` is the foreign base-plus-delta
   instantiation and test harness, including the same-module lifting and
@@ -390,8 +469,10 @@ Then run the demo and focused gates:
 ```sh
 racket racket-server/derivations/search-lattice/demo.rkt
 raco test racket-server/derivations/search-lattice/framework/core-source-schema-tests.rkt
+raco test racket-server/derivations/search-lattice/framework/core-stage-schema-tests.rkt
 raco test racket-server/derivations/search-lattice/framework/stage-generators-tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/source/tests.rkt
+raco test racket-server/derivations/search-lattice/generated/core/stages/tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/s/column-tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/e/column-tests.rkt
 raco test racket-server/derivations/search-lattice/tests/all.rkt
@@ -415,8 +496,10 @@ raco test \
   racket-server/derivations/search-lattice/core/e/source.rkt \
   racket-server/derivations/search-lattice/core/s-to-e.rkt \
   racket-server/derivations/search-lattice/framework/core-source-schema-tests.rkt \
+  racket-server/derivations/search-lattice/framework/core-stage-schema-tests.rkt \
   racket-server/derivations/search-lattice/framework/stage-generators-tests.rkt \
   racket-server/derivations/search-lattice/generated/core/source/tests.rkt \
+  racket-server/derivations/search-lattice/generated/core/stages/tests.rkt \
   racket-server/derivations/search-lattice/generated/core/s/column-tests.rkt \
   racket-server/derivations/search-lattice/generated/core/e/column-tests.rkt \
   racket-server/derivations/search-lattice/tests/all.rkt
@@ -432,9 +515,9 @@ augmentations, scheduler fibers, relation calls, or the distributed
 presentation. The foreign Box delta demonstrates that a premerged augmentation
 declaration propagates mechanically; it is not a separate stage extension or a
 delay/disjunction result.
-The retained full horizontal prototype coordinates stop at core/S and core/E.
-The selected source generator now includes core/S, core/E, and core/N, but
-stops at R for all three representations.
+The retained prototype coordinates stop at core/S and the
+support-decorated-node core/E. The selected path separately completes the
+core/S, core/E, and core/N rows through R, D, Z ≅ M, B, and Big.
 
 In the current support-decorated-node prototype, local `Support` agrees with the
 current S policy on the stated well-formed core domain. Branching features such
@@ -442,12 +525,13 @@ as disjunction and search expose names retained outside the active path. This is
 a limitation of the prototype, not a reason to treat it as the selected
 phase-sensitive E.
 
-The retained stage prototype does not implement `N`. The selected source path
-does: E's ordered support is positionally mapped to N levels and N allocation
-uses its state-local next counter. Sparse E names and allocation observations
-are covered at R, while lifting those strategies through later stages remains
-open. The legacy prototype allocation behavior remains recovery evidence, not
-an administrative form for the selected generator to guess.
+The retained prototype does not implement `N`. The selected matrix does: E's
+ordered support is positionally mapped to N levels and N allocation uses its
+state-local next counter. Sparse E names, failure summaries, and allocation
+observations are checked through every core stage, including direct versus
+transported maps and direct S-to-N composition. The legacy prototype allocation
+behavior remains recovery evidence, not an administrative form for the
+selected generator to guess.
 
 This checkpoint claims neither a full cube nor functoriality or a universal
 naturality theorem. It distinguishes instantiated row-local artifacts from
