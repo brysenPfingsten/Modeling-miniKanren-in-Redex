@@ -36,6 +36,11 @@ The selected post-prototype decisions are normative in
 [`ARCHITECTURE-CONTRACT.md`](ARCHITECTURE-CONTRACT.md). This README describes
 the executable prototype retained as an oracle and recovery point.
 
+Checkpoint 2 separately states the selected world-local S, state-local E, and
+numeric N source oracles under [`oracles/core/`](oracles/core/README.md), with
+direct vertical maps at R. Those sources do not replace or derive from the
+prototype columns described below.
+
 The generated artifact currently named E is a support-decorated-node
 prototype. It erases S-side Owner groupings and tags and replaces their carrier
 positions with cumulative `Support` positions on `Work`, `Conj`, `Returned`,

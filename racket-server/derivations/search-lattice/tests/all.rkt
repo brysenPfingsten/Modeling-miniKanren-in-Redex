@@ -6,6 +6,7 @@
          "../framework/stage-generators-tests.rkt"
          "../generated/core/s/column-tests.rkt"
          "../generated/core/e/column-tests.rkt"
+         "../oracles/core/tests.rkt"
          "./core-matrix-tests.rkt"
          "./core-s-horizontal-tests.rkt"
          "./dependency-boundary-tests.rkt")
@@ -17,6 +18,7 @@
   STAGE-GENERATOR-SMOKE
   GENERATED-CORE-S-COLUMN
   GENERATED-CORE-E-COLUMN
+  CORE-SOURCE-ORACLE-TESTS
   CORE-MATRIX-SEED
   CORE-S-HORIZONTAL
   DEPENDENCY-BOUNDARY)
