@@ -43,6 +43,32 @@ Live/successful E and N supply resides in logical state; failure retains only
 the narrow Support/next summary in `Dead` and `Done`. Those sources do not
 replace or derive from the prototype columns described below.
 
+Checkpoint 3 extracts those selected representations as compile-time
+strategies and applies one representation-neutral core-source schema:
+
+```text
+S strategy ─┐
+E strategy ─┼─> shared 13-rule core schema ─> Rg[S], Rg[E], Rg[N]
+N strategy ─┘                                  │
+                                               ├─ Qg_SE
+                                               ├─ Qg_EN
+                                               └─ direct Qg_SN
+```
+
+The three generated source relations are ordinary, statically named Redex
+artifacts. Each is checked against its independently written Checkpoint 2
+oracle with exact named raw-proof multisets, WF judgments, and successful and
+failing traces. Generated S is also compared with production R[S] on the
+explicitly shared well-formed core corpus. The generated Q maps are separately
+compared with the direct oracle maps and their one-step squares; direct
+`Qg_SN` does not call either adjacent map. These are executable finite-corpus
+checks, not universal simulation or naturality theorems.
+
+This new selected source path stops at R. It deliberately does not feed the
+selected carriers through the prototype `#:environment` stage API or generate
+D, Z, M, B, or Big yet; adapting the horizontal transformations to the full
+phase views is the next checkpoint.
+
 The generated artifact currently named E is a support-decorated-node
 prototype. It erases S-side Owner groupings and tags and replaces their carrier
 positions with cumulative `Support` positions on `Work`, `Conj`, `Returned`,
@@ -98,6 +124,50 @@ In particular, this checkpoint introduces no `AllocateEvent` configuration
 constructor. Rule labels remain transition observations.
 
 ## The generator program
+
+### Selected core-source strategies
+
+`framework/core-source-schema.rkt` provides the source-level representation
+program:
+
+```racket
+define-core-representation-strategy
+define-generated-core-source
+define-generated-core-representation-maps
+```
+
+A strategy declares the runtime-variable representation separately from its
+supply/provenance representation. It supplies complete templates for state,
+work, returned, dead, conjunction, answer, last, done, and root carriers,
+rather than renaming a single environment slot. It also declares true empty
+supply, conjunction focus, branch copy, return/failure joins, terminal answer
+supply, allocation, addressing, variable operations, WF primitives, and
+structural Q export/rebuild hooks. The framework consumes all of those fields
+and emits a concrete branch-copy metafunction as part of each row.
+
+This phase distinction is essential. Representation S keeps local Owner groups
+on its path carriers and combines them while unwinding conjunction. E and N
+store cumulative Support/next in live logical state, project only that narrow
+summary into `Dead` and `Done`, and otherwise use ownerless carriers. No row
+recovers supply from predecessor history, attaches it to a deferred right
+goal, or merges sibling worlds.
+
+The shared schema contains the 13 core reduction clauses exactly once. It
+generates first-order variable operations, binder-local fresh substitution,
+the source relation, raw named-successor access, and common WF traversal as
+ordinary Redex definitions specialized by the strategy templates. The schema
+does not contain `Owner`, `Support`, counter syntax, a runtime representation
+dispatcher, grammar introspection, or `redex/parameter`. The latter remains a
+tool for lifting dependencies across feature-language extensions, not for
+selecting a representation.
+
+The generated vertical-map consumer uses the three strategies' neutral
+structural export/rebuild views to emit `Qg_SE`, `Qg_EN`, and an independently
+direct `Qg_SN`. The public strategy descriptors are intended to be consumed by
+their exported names; this checkpoint does not claim arbitrary prefixed or
+renamed-import hygiene for the descriptor macro API.
+
+### Retained horizontal-stage prototype
 
 `framework/stage-generators.rkt` provides one compile-time form for the input
 program and one for each arrow:
@@ -251,6 +321,18 @@ checks only. The generated E column does not import S, the bridge, or `Owners`.
 
 ## What to look at
 
+- `framework/core-source-schema.rkt` is the selected representation-strategy
+  and shared 13-rule source transformation.
+- `framework/core-source-schema-tests.rkt` is a foreign-carrier expansion
+  fixture covering carrier templates, distinct supply operations, all variable
+  outcomes, WF, allocation, and generated vertical maps.
+- `generated/core/source/s.rkt`, `e.rkt`, and `n.rkt` are the three selected
+  strategy declarations and visible source-generation invocations.
+- `generated/core/source/vertical.rkt` instantiates generated `Q_SE`, `Q_EN`,
+  and direct `Q_SN`; `comparison-tests.rkt` compares all generated sources and
+  maps with the independent oracles and bounded production-S corpus.
+- `generated/core/source/dependency-tests.rkt` enforces the one-schema,
+  representation-neutral, source-only dependency boundary.
 - `framework/stage-generators.rkt` is the parametric transformation program.
 - `framework/stage-generators-tests.rkt` is the foreign base-plus-delta
   instantiation and test harness, including the same-module lifting and
@@ -307,7 +389,9 @@ Then run the demo and focused gates:
 
 ```sh
 racket racket-server/derivations/search-lattice/demo.rkt
+raco test racket-server/derivations/search-lattice/framework/core-source-schema-tests.rkt
 raco test racket-server/derivations/search-lattice/framework/stage-generators-tests.rkt
+raco test racket-server/derivations/search-lattice/generated/core/source/tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/s/column-tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/e/column-tests.rkt
 raco test racket-server/derivations/search-lattice/tests/all.rkt
@@ -330,7 +414,9 @@ raco test \
   racket-server/derivations/search-lattice/core/e/language.rkt \
   racket-server/derivations/search-lattice/core/e/source.rkt \
   racket-server/derivations/search-lattice/core/s-to-e.rkt \
+  racket-server/derivations/search-lattice/framework/core-source-schema-tests.rkt \
   racket-server/derivations/search-lattice/framework/stage-generators-tests.rkt \
+  racket-server/derivations/search-lattice/generated/core/source/tests.rkt \
   racket-server/derivations/search-lattice/generated/core/s/column-tests.rkt \
   racket-server/derivations/search-lattice/generated/core/e/column-tests.rkt \
   racket-server/derivations/search-lattice/tests/all.rkt
@@ -346,7 +432,9 @@ augmentations, scheduler fibers, relation calls, or the distributed
 presentation. The foreign Box delta demonstrates that a premerged augmentation
 declaration propagates mechanically; it is not a separate stage extension or a
 delay/disjunction result.
-The generated production-shaped coordinates stop at core/S and core/E.
+The retained full horizontal prototype coordinates stop at core/S and core/E.
+The selected source generator now includes core/S, core/E, and core/N, but
+stops at R for all three representations.
 
 In the current support-decorated-node prototype, local `Support` agrees with the
 current S policy on the stated well-formed core domain. Branching features such
@@ -354,14 +442,12 @@ as disjunction and search expose names retained outside the active path. This is
 a limitation of the prototype, not a reason to treat it as the selected
 phase-sensitive E.
 
-It also does not implement `N`. Current S prototype allocation is based on live
-frontier support and may reuse a low logical name after pruning removes its last
-occurrence. A monotone counter therefore cannot preserve literal name traces.
-The architecture contract now fixes support-order canonicalization and
-per-world alpha-aware comparison, including sparse names and trace-side
-allocation transition observations. This prototype does not implement that
-decision; it remains semantic input to the next source oracles rather than an
-administrative form for the generator to guess.
+The retained stage prototype does not implement `N`. The selected source path
+does: E's ordered support is positionally mapped to N levels and N allocation
+uses its state-local next counter. Sparse E names and allocation observations
+are covered at R, while lifting those strategies through later stages remains
+open. The legacy prototype allocation behavior remains recovery evidence, not
+an administrative form for the selected generator to guess.
 
 This checkpoint claims neither a full cube nor functoriality or a universal
 naturality theorem. It distinguishes instantiated row-local artifacts from

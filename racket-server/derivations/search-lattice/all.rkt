@@ -2,6 +2,7 @@
 
 (require "./framework/decomposition-instance.rkt"
          "./framework/stage-generators.rkt"
+         "./framework/core-source-schema.rkt"
          "./core/s/decomposition.rkt"
          "./core/s/source-spec.rkt"
          "./core/s/refocused.rkt"
@@ -17,11 +18,13 @@
          "./core/e/decomposition.rkt"
          "./core/s-to-e.rkt"
          "./generated/core/s/column.rkt"
-         "./generated/core/e/column.rkt")
+         "./generated/core/e/column.rkt"
+         "./generated/core/source/all.rkt")
 
 (provide
  (all-from-out "./framework/decomposition-instance.rkt")
  (all-from-out "./framework/stage-generators.rkt")
+ (all-from-out "./framework/core-source-schema.rkt")
  (all-from-out "./core/s/decomposition.rkt")
  (all-from-out "./core/s/source-spec.rkt")
  (all-from-out "./core/s/refocused.rkt")
@@ -37,4 +40,5 @@
  (all-from-out "./core/e/decomposition.rkt")
  (all-from-out "./core/s-to-e.rkt")
  (all-from-out "./generated/core/s/column.rkt")
- (all-from-out "./generated/core/e/column.rkt"))
+ (all-from-out "./generated/core/e/column.rkt")
+ (all-from-out "./generated/core/source/all.rkt"))

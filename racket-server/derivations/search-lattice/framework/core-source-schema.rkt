@@ -1,0 +1,1390 @@
+#lang racket
+
+(require redex/reduction-semantics
+         (for-syntax racket/base
+                     racket/list
+                     racket/match
+                     racket/syntax
+                     syntax/parse))
+
+(provide define-core-representation-strategy
+         define-generated-core-source
+         define-generated-core-representation-maps)
+
+;; A representation strategy is syntax, not a runtime value.  Keeping the
+;; declaration at expansion time lets an instance emit ordinary, statically
+;; named Redex artifacts without a compiled-language registry or grammar
+;; introspection.
+(begin-for-syntax
+  (struct strategy-binding (declaration)
+    #:property prop:procedure
+    (lambda (_self use-stx)
+      (raise-syntax-error
+       #f
+       "a core representation strategy is valid only after #:strategy"
+       use-stx)))
+
+  (struct variable-info
+    (runtime-production
+     productions
+     definitions
+     allocation-source
+     allocation-target
+     allocation-premises
+     addressing-hook)
+    #:transparent)
+
+  (struct wf-info
+    (definitions
+     allocated-hook
+     valid-supply-hook
+     extend-supply-hook
+     acyclic-substitution-hook
+     state-supply-premises
+     frame-prefix-premises
+     conjunction-goal-supply-premises
+     terminal-prefix-premises
+     root)
+    #:transparent)
+  (struct q-info (definitions export rebuild) #:transparent)
+
+  (struct supply-info
+    (productions
+     state answer returned work dead conj last done more
+     empty-supply
+     conjunction-focus-supply
+     branch-copy-supply
+     join-return-supply
+     join-failure-supply
+     terminal-answer-supply
+     live-supply-hook
+     failure-summary-hook
+     definitions
+     wf
+     q)
+    #:transparent)
+
+  (struct strategy-info (variable supply declaration) #:transparent)
+
+  (define semantic-rule-labels
+    '("expand-conjunction"
+      "succeed"
+      "fail"
+      "conj-return"
+      "conj-fail"
+      "unify-success"
+      "unify-violates-disequality"
+      "unify-fail"
+      "disequality-success"
+      "disequality-fail"
+      "finish-success"
+      "finish-failure"
+      "allocate-fresh"))
+
+  (define forbidden-relation-heads
+    '(reduction-relation
+      extend-reduction-relation
+      union-reduction-relations
+      context-closure
+      -->
+      -->/fresh))
+
+  (define opaque-syntax-heads
+    '(quote quasiquote syntax quasisyntax))
+
+  (define (syntax-tree-contains? stx predicate)
+    (define (walk datum)
+      (cond
+        [(syntax? datum)
+         (define value (syntax-e datum))
+         (cond
+           [(and (pair? value)
+                 (identifier? (car value))
+                 (memq (syntax-e (car value)) opaque-syntax-heads))
+            #f]
+           [else (walk value)])]
+        [(pair? datum)
+         (or (walk (car datum)) (walk (cdr datum)))]
+        [else (predicate datum)]))
+    (walk stx))
+
+  (define (validate-spliced-definitions who definitions declaration)
+    (for ([definition (in-list definitions)])
+      (when
+          (syntax-tree-contains?
+           definition
+           (lambda (datum)
+             (or (and (string? datum)
+                      (member datum semantic-rule-labels))
+                 (and (symbol? datum)
+                      (memq datum forbidden-relation-heads)))))
+        (raise-syntax-error
+         #f
+         (format
+          "~a definitions may not contain source-relation forms or rule labels"
+          who)
+         declaration
+         definition))))
+
+  (define fixed-nonterminals
+    '(d eq g t pt x rv tag sigma sub dis maybe-sub trail
+        A S W F WorkPath SpineContext WorkFocus))
+
+  (define (production-name production)
+    (syntax-parse production
+      [(name:id _ ...+) (syntax-e #'name)]
+      [_
+       (raise-syntax-error
+        #f
+        "expected a nonterminal production [name rhs ...]"
+        production)]))
+
+  (define (validate-productions variable-productions
+                                supply-productions
+                                declaration)
+    (define names
+      (map production-name
+           (append variable-productions supply-productions)))
+    (unless (= (length names) (length (remove-duplicates names)))
+      (raise-syntax-error
+       #f
+       "strategy productions must have distinct nonterminal names"
+       declaration))
+    (for ([name (in-list names)])
+      (when (memq name fixed-nonterminals)
+        (raise-syntax-error
+         #f
+         (format "strategy production conflicts with fixed nonterminal ~a" name)
+         declaration))))
+
+  (define (validate-generated-hook actual expected declaration)
+    (unless (eq? (syntax-e actual) expected)
+      (raise-syntax-error
+       #f
+       (format "expected ~a" expected)
+       declaration
+       actual)))
+
+  (define (parse-strategy declaration)
+    (syntax-parse declaration
+      [(_ _name:id
+          #:variable
+          [#:runtime-variable-production runtime-production
+           #:productions (variable-production ...)
+           #:definitions (variable-definition ...)
+           #:walk-hook walk-hook:id
+           #:unify-hook unify-hook:id
+           #:invalid-hook invalid-hook:id
+           #:lexical-substitution-hook lexical-hook:id
+           #:allocation
+           [#:source allocation-source
+            #:target allocation-target
+            #:premises (allocation-premise ...)]
+           #:addressing-hook addressing-hook:id]
+          #:supply/provenance
+          [#:productions (supply-production ...)
+           #:carriers
+           [#:state state-template
+            #:answer answer-template
+            #:returned returned-template
+            #:work work-template
+            #:dead dead-template
+            #:conj conj-template
+            #:last last-template
+            #:done done-template
+            #:more more-template]
+           #:empty-supply empty-supply
+           #:conjunction-focus-supply conjunction-focus-supply
+           #:branch-copy-supply branch-copy-supply
+           #:join-return-supply join-return-supply
+           #:join-failure-supply join-failure-supply
+           #:terminal-answer-supply terminal-answer-supply
+           #:live-supply-hook live-supply-hook:id
+           #:failure-summary-hook failure-summary-hook:id
+           #:definitions (supply-definition ...)
+           #:well-formedness
+           [#:definitions (wf-definition ...)
+            #:allocated-hook allocated-hook:id
+            #:valid-supply-hook valid-supply-hook:id
+            #:extend-supply-hook extend-supply-hook:id
+            #:acyclic-substitution-hook acyclic-substitution-hook:id
+            #:state-supply-premises (state-supply-premise ...)
+            #:frame-prefix-premises (frame-prefix-premise ...)
+            #:conjunction-goal-supply-premises
+            (conjunction-goal-supply-premise ...)
+            #:terminal-prefix-premises (terminal-prefix-premise ...)
+            #:root wf-root:id]
+           #:q-map
+           [#:definitions (q-definition ...)
+            #:export q-export:id
+            #:rebuild q-rebuild:id]])
+       (validate-generated-hook #'walk-hook
+                                'generated-structural
+                                declaration)
+       (validate-generated-hook #'unify-hook
+                                'generated-first-order
+                                declaration)
+       (validate-generated-hook #'invalid-hook
+                                'generated-store-check
+                                declaration)
+       (validate-generated-hook #'lexical-hook
+                                'generated-binder-local
+                                declaration)
+       (define variable-productions
+         (syntax->list #'(variable-production ...)))
+       (define supply-productions
+         (syntax->list #'(supply-production ...)))
+       (validate-productions variable-productions
+                             supply-productions
+                             declaration)
+       (define variable-definitions
+         (syntax->list #'(variable-definition ...)))
+       (define supply-definitions
+         (syntax->list #'(supply-definition ...)))
+       (define wf-definitions
+         (syntax->list #'(wf-definition ...)))
+       (define q-definitions
+         (syntax->list #'(q-definition ...)))
+       (validate-spliced-definitions
+        'variable
+        variable-definitions
+        declaration)
+       (validate-spliced-definitions
+        'supply/provenance
+        supply-definitions
+        declaration)
+       (validate-spliced-definitions
+        'well-formedness
+        wf-definitions
+        declaration)
+       (validate-spliced-definitions
+        'q-map
+        q-definitions
+        declaration)
+       (strategy-info
+        (variable-info
+         #'runtime-production
+         variable-productions
+         variable-definitions
+         #'allocation-source
+         #'allocation-target
+         (syntax->list #'(allocation-premise ...))
+         #'addressing-hook)
+        (supply-info
+         supply-productions
+         #'state-template
+         #'answer-template
+         #'returned-template
+         #'work-template
+         #'dead-template
+         #'conj-template
+         #'last-template
+         #'done-template
+         #'more-template
+         #'empty-supply
+         #'conjunction-focus-supply
+         #'branch-copy-supply
+         #'join-return-supply
+         #'join-failure-supply
+         #'terminal-answer-supply
+         #'live-supply-hook
+         #'failure-summary-hook
+         supply-definitions
+         (wf-info
+          wf-definitions
+          #'allocated-hook
+          #'valid-supply-hook
+          #'extend-supply-hook
+          #'acyclic-substitution-hook
+          (syntax->list #'(state-supply-premise ...))
+          (syntax->list #'(frame-prefix-premise ...))
+          (syntax->list #'(conjunction-goal-supply-premise ...))
+          (syntax->list #'(terminal-prefix-premise ...))
+          #'wf-root)
+         (q-info q-definitions #'q-export #'q-rebuild))
+        declaration)]))
+
+  (define (lookup-strategy identifier)
+    (define value (syntax-local-value identifier (lambda () #f)))
+    (unless (strategy-binding? value)
+      (raise-syntax-error
+       #f
+       "expected a core representation strategy"
+       identifier))
+    (parse-strategy (strategy-binding-declaration value)))
+
+  ;; Replace only identifiers selected by a renderer.  Quoted Racket data and
+  ;; syntax literals are deliberately opaque, so the LANG placeholder and
+  ;; carrier slots cannot rewrite strings, symbols, or host data accidentally.
+  (define (instantiate-template template replacements)
+    (define replacement-table
+      (for/hash ([replacement (in-list replacements)])
+        (values (car replacement) (cdr replacement))))
+    (define (walk-tail datum)
+      (cond
+        [(pair? datum)
+         (cons (walk (car datum)) (walk-tail (cdr datum)))]
+        [(syntax? datum) (walk datum)]
+        [else datum]))
+    (define (walk stx)
+      (cond
+        [(identifier? stx)
+         (hash-ref replacement-table (syntax-e stx) (lambda () stx))]
+        [else
+         (define datum (syntax-e stx))
+         (cond
+           [(and (pair? datum)
+                 (identifier? (car datum))
+                 (memq (syntax-e (car datum)) opaque-syntax-heads))
+            stx]
+           [(pair? datum)
+            (datum->syntax
+             stx
+             (cons (walk (car datum)) (walk-tail (cdr datum)))
+             stx
+             stx)]
+           [else stx])]))
+    (walk template))
+
+  (define (instantiate-definitions definitions language replacements)
+    (for/list ([definition (in-list definitions)])
+      (instantiate-template
+       definition
+       (cons (cons 'LANG language) replacements))))
+
+  (define (make-id context symbol)
+    (datum->syntax context symbol context context))
+
+  (define (make-template-renderers strategy use-stx)
+    (define supply (strategy-info-supply strategy))
+    (define (render template replacements)
+      (instantiate-template template replacements))
+    (define (state supply-value sub-value dis-value trail-value tag-value)
+      (render
+       (supply-info-state supply)
+       (list (cons 'supply supply-value)
+             (cons 'sub sub-value)
+             (cons 'dis dis-value)
+             (cons 'trail trail-value)
+             (cons 'tag tag-value))))
+    (define (answer supply-value state-value)
+      (render
+       (supply-info-answer supply)
+       (list (cons 'supply supply-value)
+             (cons 'sigma state-value))))
+    (define (returned supply-value state-value)
+      (render
+       (supply-info-returned supply)
+       (list (cons 'supply supply-value)
+             (cons 'sigma state-value))))
+    (define (work supply-value goal-value state-value)
+      (render
+       (supply-info-work supply)
+       (list (cons 'supply supply-value)
+             (cons 'g goal-value)
+             (cons 'sigma state-value))))
+    (define (dead supply-value)
+      (render
+       (supply-info-dead supply)
+       (list (cons 'supply supply-value))))
+    (define (conj supply-value work-value goal-value)
+      (render
+       (supply-info-conj supply)
+       (list (cons 'supply supply-value)
+             (cons 'W work-value)
+             (cons 'g goal-value))))
+    (define (last supply-value answer-value)
+      (render
+       (supply-info-last supply)
+       (list (cons 'supply supply-value)
+             (cons 'A answer-value))))
+    (define (done supply-value)
+      (render
+       (supply-info-done supply)
+       (list (cons 'supply supply-value))))
+    (define (more work-value)
+      (render
+       (supply-info-more supply)
+       (list (cons 'W work-value))))
+    (values state answer returned work dead conj last done more))
+
+  (define (render-source-instance strategy
+                                  use-stx
+                                  language-id
+                                  relation-id
+                                  raw-successors-id
+                                  branch-copy-id)
+    (define variable (strategy-info-variable strategy))
+    (define supply (strategy-info-supply strategy))
+
+    (define-values (state answer returned work dead conj last done more)
+      (make-template-renderers strategy use-stx))
+
+    (define (slot symbol)
+      (make-id use-stx symbol))
+
+    (define supply-v (slot 'supply))
+    (define supply-in (slot 'supply_in))
+    (define supply-local (slot 'supply_local))
+    (define supply-out (slot 'supply_out))
+    (define supply-frame (slot 'supply_frame))
+    (define supply-goal (slot 'supply_goal))
+    (define supply-prefix (slot 'supply_prefix))
+    (define supply-outer (slot 'supply_outer))
+    (define supply-inner (slot 'supply_inner))
+    (define sigma-v (slot 'sigma))
+    (define sub-v (slot 'sub))
+    (define sub-1 (slot 'sub_1))
+    (define dis-v (slot 'dis))
+    (define dis-1 (slot 'dis_1))
+    (define trail-v (slot 'trail))
+    (define state-tag (slot 'tag_state))
+    (define tag-v (slot 'tag))
+    (define tag-1 (slot 'tag_1))
+    (define tag-2 (slot 'tag_2))
+    (define t-1 (slot 't_1))
+    (define t-2 (slot 't_2))
+    (define t-3 (slot 't_3))
+    (define t-4 (slot 't_4))
+    (define g-v (slot 'g))
+    (define g-1 (slot 'g_1))
+    (define g-2 (slot 'g_2))
+    (define W-v (slot 'W))
+    (define A-v (slot 'A))
+    (define rv-v (slot 'rv))
+    (define x-v (slot 'x))
+
+    (define state/current
+      (state supply-v sub-v dis-v trail-v state-tag))
+    (define work/current
+      (work supply-v g-v state/current))
+
+    (define grammar-conj
+      (conj (slot 'supply) (slot 'W) (slot 'g)))
+    (define grammar-more (more (slot 'W)))
+    (define path-conj
+      (conj (slot 'supply) (slot 'WorkPath) (slot 'g)))
+    (define focus-more (more (slot 'WorkPath)))
+
+    (define (public-hook declared-id)
+      (datum->syntax use-stx
+                     (syntax-e declared-id)
+                     use-stx
+                     use-stx))
+
+    (define work-raw-id (format-id relation-id "~a/work-raw" relation-id))
+    (define frontier-raw-id
+      (format-id relation-id "~a/frontier-raw" relation-id))
+    (define allocation-raw-id
+      (format-id relation-id "~a/allocation-raw" relation-id))
+    (define work-base-id (format-id relation-id "~a/work-base" relation-id))
+    (define frontier-base-id
+      (format-id relation-id "~a/frontier-base" relation-id))
+    (define walk-id (format-id relation-id "~a/walk" relation-id))
+    (define occurs-id (format-id relation-id "~a/occurs?" relation-id))
+    (define extend-id (format-id relation-id "~a/extend" relation-id))
+    (define unify-id (format-id relation-id "~a/unify" relation-id))
+    (define invalid-id (format-id relation-id "~a/invalid?" relation-id))
+    (define lexical-variable-id
+      (format-id relation-id "~a/lexical-variable?" relation-id))
+    (define subst-term-id
+      (format-id relation-id "~a/subst-term" relation-id))
+    (define drop-shadowed-id
+      (format-id relation-id "~a/drop-shadowed" relation-id))
+    (define subst-goal-id
+      (format-id relation-id "~a/subst-goal" relation-id))
+    (define wf-root-id
+      (public-hook (wf-info-root (supply-info-wf supply))))
+    (define live-supply-id
+      (public-hook (supply-info-live-supply-hook supply)))
+    (define failure-summary-id
+      (public-hook (supply-info-failure-summary-hook supply)))
+    (define wf-term-id (format-id wf-root-id "~a/term" wf-root-id))
+    (define wf-sub-id (format-id wf-root-id "~a/sub" wf-root-id))
+    (define wf-dis-id (format-id wf-root-id "~a/dis" wf-root-id))
+    (define wf-trail-id (format-id wf-root-id "~a/trail" wf-root-id))
+    (define wf-state-id (format-id wf-root-id "~a/state" wf-root-id))
+    (define wf-goal-id (format-id wf-root-id "~a/goal" wf-root-id))
+    (define wf-answer-id (format-id wf-root-id "~a/answer" wf-root-id))
+    (define wf-returned-id
+      (format-id wf-root-id "~a/returned" wf-root-id))
+    (define wf-work-id (format-id wf-root-id "~a/work" wf-root-id))
+    (define wf-frontier-id
+      (format-id wf-root-id "~a/frontier" wf-root-id))
+
+    (define wf (supply-info-wf supply))
+    (define wf-root (wf-info-root wf))
+    (define allocated-hook (public-hook (wf-info-allocated-hook wf)))
+    (define valid-supply-hook
+      (public-hook (wf-info-valid-supply-hook wf)))
+    (define extend-supply-hook
+      (public-hook (wf-info-extend-supply-hook wf)))
+    (define acyclic-substitution-hook
+      (public-hook (wf-info-acyclic-substitution-hook wf)))
+    (define q-export
+      (q-info-export (supply-info-q supply)))
+    (define q-rebuild
+      (q-info-rebuild (supply-info-q supply)))
+    (define hook-replacements
+      (list
+       (cons 'WALK-HOOK walk-id)
+       (cons 'UNIFY-HOOK unify-id)
+       (cons 'INVALID-HOOK invalid-id)
+       (cons 'SUBST-GOAL-HOOK subst-goal-id)
+       (cons 'WF-ROOT-HOOK (public-hook wf-root))
+       (cons 'ALLOCATED-HOOK allocated-hook)
+       (cons 'VALID-SUPPLY-HOOK valid-supply-hook)
+       (cons 'EXTEND-SUPPLY-HOOK extend-supply-hook)
+       (cons 'ACYCLIC-SUBSTITUTION-HOOK acyclic-substitution-hook)
+       (cons 'ADDRESSING-HOOK
+             (public-hook (variable-info-addressing-hook variable)))
+       (cons 'LIVE-SUPPLY-HOOK
+             (public-hook (supply-info-live-supply-hook supply)))
+       (cons 'FAILURE-SUMMARY-HOOK
+             (public-hook (supply-info-failure-summary-hook supply)))
+       (cons 'Q-EXPORT-HOOK (public-hook q-export))
+       (cons 'Q-REBUILD-HOOK (public-hook q-rebuild))
+       (cons (syntax-e (variable-info-addressing-hook variable))
+             (public-hook (variable-info-addressing-hook variable)))
+       (cons (syntax-e (supply-info-live-supply-hook supply))
+             (public-hook (supply-info-live-supply-hook supply)))
+       (cons (syntax-e (supply-info-failure-summary-hook supply))
+             (public-hook (supply-info-failure-summary-hook supply)))
+       (cons (syntax-e (wf-info-allocated-hook wf)) allocated-hook)
+       (cons (syntax-e (wf-info-valid-supply-hook wf)) valid-supply-hook)
+       (cons (syntax-e (wf-info-extend-supply-hook wf)) extend-supply-hook)
+       (cons (syntax-e (wf-info-acyclic-substitution-hook wf))
+             acyclic-substitution-hook)
+       (cons (syntax-e wf-root) (public-hook wf-root))
+       (cons (syntax-e q-export) (public-hook q-export))
+       (cons (syntax-e q-rebuild) (public-hook q-rebuild))))
+
+    (define variable-definitions
+      (instantiate-definitions
+       (variable-info-definitions variable)
+       language-id
+       hook-replacements))
+    (define supply-definitions
+      (instantiate-definitions
+       (supply-info-definitions supply)
+       language-id
+       hook-replacements))
+    (define wf-definitions
+      (instantiate-definitions
+       (wf-info-definitions (supply-info-wf supply))
+       language-id
+       hook-replacements))
+    (define q-definitions
+      (instantiate-definitions
+       (q-info-definitions (supply-info-q supply))
+       language-id
+       hook-replacements))
+    (define (instantiate-wf-premises premises)
+      (for/list ([premise (in-list premises)])
+        (instantiate-template premise hook-replacements)))
+    (define state-supply-premises
+      (instantiate-wf-premises (wf-info-state-supply-premises wf)))
+    (define frame-prefix-premises
+      (instantiate-wf-premises (wf-info-frame-prefix-premises wf)))
+    (define conjunction-goal-supply-premises
+      (instantiate-wf-premises
+       (wf-info-conjunction-goal-supply-premises wf)))
+    (define terminal-prefix-premises
+      (instantiate-wf-premises (wf-info-terminal-prefix-premises wf)))
+
+    (define join-return
+      (instantiate-template
+       (supply-info-join-return-supply supply)
+       (list (cons 'supply_outer supply-outer)
+             (cons 'supply_inner supply-inner))))
+    (define join-failure
+      (instantiate-template
+       (supply-info-join-failure-supply supply)
+       (list (cons 'supply_outer supply-outer)
+             (cons 'supply_inner supply-inner))))
+    (define terminal-answer-supply
+      (instantiate-template
+       (supply-info-terminal-answer-supply supply)
+       (list (cons 'supply supply-v))))
+    (define empty-supply
+      (instantiate-template
+       (supply-info-empty-supply supply)
+       (list (cons 'supply supply-v))))
+    (define branch-copy-supply
+      (instantiate-template
+       (supply-info-branch-copy-supply supply)
+       (list (cons 'supply supply-v))))
+    (define conjunction-focus-supply
+      (instantiate-template
+       (supply-info-conjunction-focus-supply supply)
+       (list (cons 'supply supply-v))))
+
+    (define expanded-source-state
+      (state supply-v sub-v dis-v trail-v tag-1))
+    (define expanded-target-work
+      (work conjunction-focus-supply g-1 expanded-source-state))
+    (define expanded-source
+      (work supply-v #`(#,g-1 ∧ #,g-2 #,tag-v) expanded-source-state))
+    (define expanded-target
+      (conj supply-v expanded-target-work g-2))
+
+    (define success-state
+      (state supply-v sub-v dis-v trail-v state-tag))
+    (define success-source
+      (work supply-v #`(succeed #,tag-v) success-state))
+    (define success-target (returned supply-v success-state))
+
+    (define failure-source
+      (work supply-v #`(fail #,tag-v) success-state))
+    (define failure-target (dead supply-v))
+
+    (define returned-inner-state
+      (state supply-inner sub-v dis-v trail-v state-tag))
+    (define conj-return-source
+      (conj supply-outer
+            (returned supply-inner returned-inner-state)
+            g-v))
+    (define conj-return-target
+      (work join-return g-v returned-inner-state))
+
+    (define conj-failure-source
+      (conj supply-outer (dead supply-inner) g-v))
+    (define conj-failure-target (dead join-failure))
+
+    (define unify-source-state
+      (state
+       supply-v
+       sub-v
+       dis-v
+       #`((#,t-3 =? #,t-4 #,tag-1) (... ...))
+       tag-2))
+    (define unify-goal #`(#,t-1 =? #,t-2 #,tag-v))
+    (define unify-source (work supply-v unify-goal unify-source-state))
+    (define unify-target-state
+      (state
+       supply-v
+       sub-1
+       dis-v
+       #`((#,t-3 =? #,t-4 #,tag-1) (... ...)
+          (#,t-1 =? #,t-2 #,tag-v))
+       tag-2))
+    (define unify-target
+      (returned supply-v unify-target-state))
+    (define unify-general-source
+      (work
+       supply-v
+       unify-goal
+       (state supply-v sub-v dis-v trail-v tag-2)))
+
+    (define disequality-goal #`(#,t-1 != #,t-2 #,tag-v))
+    (define disequality-source
+      (work
+       supply-v
+       disequality-goal
+       (state supply-v sub-v dis-v trail-v tag-2)))
+    (define disequality-target-state
+      (state supply-v
+             sub-v
+             dis-1
+             trail-v
+             tag-2))
+    (define disequality-target
+      (returned supply-v disequality-target-state))
+
+    (define finish-success-source
+      (more (returned supply-v success-state)))
+    (define finish-success-target
+      (last supply-v
+            (answer terminal-answer-supply success-state)))
+    (define finish-failure-source (more (dead supply-v)))
+    (define finish-failure-target (done supply-v))
+
+    (define allocation-source
+      (instantiate-template
+       (variable-info-allocation-source variable)
+       (cons (cons 'subst-goal-hook subst-goal-id)
+             hook-replacements)))
+    (define allocation-target
+      (instantiate-template
+       (variable-info-allocation-target variable)
+       (cons (cons 'subst-goal-hook subst-goal-id)
+             hook-replacements)))
+    (define allocation-premises
+      (for/list ([premise
+                  (in-list (variable-info-allocation-premises variable))])
+        (instantiate-template
+         premise
+         (cons (cons 'subst-goal-hook subst-goal-id)
+               hook-replacements))))
+
+    (define wf-state-pattern
+      (state supply-local sub-v dis-v trail-v state-tag))
+    (define wf-active-pattern
+      (work supply-local g-v wf-state-pattern))
+    (define wf-returned-pattern
+      (returned supply-local wf-state-pattern))
+    (define wf-dead-pattern (dead supply-local))
+    (define wf-conj-pattern
+      (conj supply-local W-v g-v))
+    (define wf-answer-pattern
+      (answer supply-local wf-state-pattern))
+    (define wf-more-pattern (more W-v))
+    (define wf-last-pattern
+      (last supply-local A-v))
+    (define wf-done-pattern (done supply-local))
+
+    (define wf-structural-definitions
+      (instantiate-template
+       #`(begin
+          ;; Strategies define the primitive supply judgments.  Traversal of
+          ;; terms, states, goals, work, and frontiers is shared here.
+          (define-judgment-form
+            #,language-id
+            #:contract (#,wf-term-id t (x (... ...)) supply)
+            #:mode (#,wf-term-id I I I)
+
+            [(#,allocated-hook rv supply)
+             ---------------------------------------- "allocated runtime variable"
+             (#,wf-term-id rv (x_bound (... ...)) supply)]
+
+            [---------------------------------------- "primitive term"
+             (#,wf-term-id pt (x_bound (... ...)) supply)]
+
+            [(#,wf-term-id t_1 (x_bound (... ...)) supply)
+             (#,wf-term-id t_2 (x_bound (... ...)) supply)
+             ---------------------------------------- "pair term"
+             (#,wf-term-id
+              (t_1 : t_2)
+              (x_bound (... ...))
+              supply)]
+
+            [---------------------------------------- "bound lexical variable"
+             (#,wf-term-id
+              x
+              (x_before (... ...) x x_after (... ...))
+              supply)])
+
+          (define-judgment-form
+            #,language-id
+            #:contract (#,wf-sub-id sub supply)
+            #:mode (#,wf-sub-id I I)
+            [(#,allocated-hook rv supply) (... ...)
+             (#,wf-term-id t () supply) (... ...)
+             (where #t (#,acyclic-substitution-hook ([rv t] (... ...))))
+             ---------------------------------------- "closed acyclic substitution"
+             (#,wf-sub-id ([rv t] (... ...)) supply)])
+
+          (define-judgment-form
+            #,language-id
+            #:contract (#,wf-dis-id dis supply)
+            #:mode (#,wf-dis-id I I)
+
+            [---------------------------------------- "empty disequality store"
+             (#,wf-dis-id () supply)]
+
+            [(#,wf-term-id t_1 () supply)
+             (#,wf-term-id t_2 () supply)
+             (#,wf-dis-id ((t_3 t_4) (... ...)) supply)
+             ---------------------------------------- "disequality store pair"
+             (#,wf-dis-id
+              ((t_1 t_2) (t_3 t_4) (... ...))
+              supply)])
+
+          (define-judgment-form
+            #,language-id
+            #:contract (#,wf-trail-id trail supply sub sub)
+            #:mode (#,wf-trail-id I I I I)
+
+            [---------------------------------------- "empty trail"
+             (#,wf-trail-id () supply sub sub)]
+
+            [(#,wf-term-id t_1 () supply)
+             (#,wf-term-id t_2 () supply)
+             (where sub_next
+                    (#,unify-id
+                     (#,walk-id t_1 sub_acc)
+                     (#,walk-id t_2 sub_acc)
+                     sub_acc))
+             (#,wf-trail-id
+              (eq_rest (... ...))
+              supply
+              sub_next
+              sub_final)
+             ---------------------------------------- "trail replay step"
+             (#,wf-trail-id
+              ((t_1 =? t_2 tag) eq_rest (... ...))
+              supply
+              sub_acc
+              sub_final)])
+
+          (define-judgment-form
+            #,language-id
+            #:contract (#,wf-state-id sigma supply)
+            #:mode (#,wf-state-id I I)
+            [#,@state-supply-premises
+             (#,valid-supply-hook supply_in)
+             (#,wf-sub-id sub supply_in)
+             (#,wf-dis-id dis supply_in)
+             (#,wf-trail-id trail supply_in () sub)
+             ---------------------------------------- "logical state"
+             (#,wf-state-id #,wf-state-pattern supply_in)])
+
+          (define-judgment-form
+            #,language-id
+            #:contract (#,wf-goal-id g (x (... ...)) supply)
+            #:mode (#,wf-goal-id I I I)
+
+            [---------------------------------------- "success goal"
+             (#,wf-goal-id
+              (succeed tag)
+              (x_bound (... ...))
+              supply)]
+
+            [---------------------------------------- "failure goal"
+             (#,wf-goal-id
+              (fail tag)
+              (x_bound (... ...))
+              supply)]
+
+            [(#,wf-term-id t_1 (x_bound (... ...)) supply)
+             (#,wf-term-id t_2 (x_bound (... ...)) supply)
+             ---------------------------------------- "unification goal"
+             (#,wf-goal-id
+              (t_1 =? t_2 tag)
+              (x_bound (... ...))
+              supply)]
+
+            [(#,wf-term-id t_1 (x_bound (... ...)) supply)
+             (#,wf-term-id t_2 (x_bound (... ...)) supply)
+             ---------------------------------------- "disequality goal"
+             (#,wf-goal-id
+              (t_1 != t_2 tag)
+              (x_bound (... ...))
+              supply)]
+
+            [(#,wf-goal-id
+              g
+              (x_fresh (... ...) x_bound (... ...))
+              supply)
+             ---------------------------------------- "fresh goal"
+             (#,wf-goal-id
+              (∃ (x_fresh (... ...)) g tag)
+              (x_bound (... ...))
+              supply)]
+
+            [(#,wf-goal-id g_1 (x_bound (... ...)) supply)
+             (#,wf-goal-id g_2 (x_bound (... ...)) supply)
+             ---------------------------------------- "conjunction goal"
+             (#,wf-goal-id
+              (g_1 ∧ g_2 tag)
+              (x_bound (... ...))
+              supply)])
+
+          (define-judgment-form
+            #,language-id
+            #:contract (#,live-supply-id W supply supply)
+            #:mode (#,live-supply-id I I O)
+
+            [(#,extend-supply-hook
+              supply_in
+              supply_local
+              supply_out)
+             ---------------------------------------- "work exposes supply"
+             (#,live-supply-id
+              #,wf-active-pattern
+              supply_in
+              supply_out)]
+
+            [(#,extend-supply-hook
+              supply_in
+              supply_local
+              supply_out)
+             ---------------------------------------- "return exposes supply"
+             (#,live-supply-id
+              #,wf-returned-pattern
+              supply_in
+              supply_out)]
+
+            [(#,extend-supply-hook
+              supply_in
+              supply_local
+              supply_out)
+             ---------------------------------------- "failure exposes supply"
+             (#,live-supply-id
+              #,wf-dead-pattern
+              supply_in
+              supply_out)]
+
+            [#,@frame-prefix-premises
+             (#,live-supply-id W supply_frame supply_out)
+             ---------------------------------------- "supply through conjunction"
+             (#,live-supply-id
+              #,wf-conj-pattern
+              supply_in
+              supply_out)])
+
+          (define-metafunction #,language-id
+            #,failure-summary-id : any -> supply
+            [(#,failure-summary-id #,wf-dead-pattern) supply_local]
+            [(#,failure-summary-id #,wf-done-pattern) supply_local])
+
+          (define-judgment-form
+            #,language-id
+            #:contract (#,wf-answer-id A supply)
+            #:mode (#,wf-answer-id I I)
+            [(#,extend-supply-hook
+              supply_in
+              supply_local
+              supply_out)
+             (#,wf-state-id #,wf-state-pattern supply_out)
+             ---------------------------------------- "answer"
+             (#,wf-answer-id #,wf-answer-pattern supply_in)])
+
+          (define-judgment-form
+            #,language-id
+            #:contract (#,wf-returned-id S supply)
+            #:mode (#,wf-returned-id I I)
+            [(#,extend-supply-hook
+              supply_in
+              supply_local
+              supply_out)
+             (#,wf-state-id #,wf-state-pattern supply_out)
+             ---------------------------------------- "returned"
+             (#,wf-returned-id #,wf-returned-pattern supply_in)])
+
+          (define-judgment-form
+            #,language-id
+            #:contract (#,wf-work-id W supply)
+            #:mode (#,wf-work-id I I)
+
+            [(#,extend-supply-hook
+              supply_in
+              supply_local
+              supply_out)
+             (#,wf-goal-id g () supply_out)
+             (#,wf-state-id #,wf-state-pattern supply_out)
+             ---------------------------------------- "active work"
+             (#,wf-work-id #,wf-active-pattern supply_in)]
+
+            [(#,wf-returned-id #,wf-returned-pattern supply_in)
+             ---------------------------------------- "returned work"
+             (#,wf-work-id #,wf-returned-pattern supply_in)]
+
+            [(#,extend-supply-hook
+              supply_in
+              supply_local
+              supply_out)
+             (#,valid-supply-hook supply_out)
+             ---------------------------------------- "dead work"
+             (#,wf-work-id #,wf-dead-pattern supply_in)]
+
+            [#,@frame-prefix-premises
+             (#,wf-work-id W supply_frame)
+             #,@conjunction-goal-supply-premises
+             (#,wf-goal-id g () supply_goal)
+             ---------------------------------------- "conjunction frame"
+             (#,wf-work-id #,wf-conj-pattern supply_in)])
+
+          (define-judgment-form
+            #,language-id
+            #:contract (#,wf-frontier-id F)
+            #:mode (#,wf-frontier-id I)
+
+            [(#,wf-work-id W #,empty-supply)
+             ---------------------------------------- "unfinished frontier"
+             (#,wf-frontier-id #,wf-more-pattern)]
+
+            [#,@terminal-prefix-premises
+             (#,wf-answer-id A supply_prefix)
+             ---------------------------------------- "successful terminal"
+             (#,wf-frontier-id #,wf-last-pattern)]
+
+            [(#,extend-supply-hook
+              #,empty-supply
+              supply_local
+              supply_out)
+             (#,valid-supply-hook supply_out)
+             ---------------------------------------- "failed terminal"
+             (#,wf-frontier-id #,wf-done-pattern)])
+
+          (define-judgment-form
+            #,language-id
+            #:contract (#,wf-root-id F)
+            #:mode (#,wf-root-id I)
+            [(#,wf-frontier-id F)
+             ---------------------------------------- "generated core root"
+             (#,wf-root-id F)]))
+       (for/list ([symbol
+                   (in-list
+                    '(F A S W
+                        sigma supply supply_in supply_local supply_out
+                        supply_frame supply_goal supply_prefix
+                        sub sub_next sub_acc sub_final
+                        dis trail eq_rest
+                        rv t t_1 t_2 t_3 t_4
+                        x x_bound x_before x_after x_fresh
+                        g g_1 g_2 tag))])
+         (cons symbol (slot symbol)))))
+
+    #`(begin
+        (define-language #,language-id
+          [d (x_!_ (... ...))]
+          [eq (t =? t tag)]
+          [g eq
+             (t != t tag)
+             (succeed tag)
+             (fail tag)
+             (∃ d g tag)
+             (g ∧ g tag)]
+          [t x rv pt (t : t)]
+          [pt (sym string)
+              (nat number)
+              boolean
+              (str string)
+              empty]
+          [x (variable-prefix x:)]
+          [rv #,(variable-info-runtime-production variable)]
+          [tag (label string)]
+          [sigma #,(supply-info-state supply)]
+          [sub ((rv_!_ t) (... ...))]
+          [dis ((t t) (... ...))]
+          [maybe-sub sub #f]
+          [trail (eq (... ...))]
+          #,@(variable-info-productions variable)
+          #,@(supply-info-productions supply)
+          [A #,(supply-info-answer supply)]
+          [S #,(supply-info-returned supply)]
+          [W #,(supply-info-work supply)
+             #,(supply-info-returned supply)
+             #,(supply-info-dead supply)
+             #,grammar-conj]
+          [F #,(supply-info-last supply)
+             #,(supply-info-done supply)
+             #,(supply-info-more supply)]
+          [WorkPath hole #,path-conj]
+          [SpineContext hole]
+          [WorkFocus (in-hole SpineContext #,focus-more)]
+          #:binding-forms
+          (∃ (x (... ...)) g #:refers-to (shadow x (... ...))))
+
+        ;; Feature schemas consume this ordinary static operation when a
+        ;; branch duplicates one possible world's allocation supply.
+        (define-metafunction #,language-id
+          #,branch-copy-id : supply -> supply
+          [(#,branch-copy-id #,supply-v) #,branch-copy-supply])
+
+        (define-metafunction #,language-id
+          #,walk-id : t sub -> t
+          [(#,walk-id
+            rv
+            (name sub (_ (... ...) [rv t] _ (... ...))))
+           (#,walk-id t sub)]
+          [(#,walk-id t _) t])
+
+        (define-relation #,language-id
+          #,occurs-id ⊆ rv × t × sub
+          [(#,occurs-id rv (t : _) sub)
+           (#,occurs-id rv (#,walk-id t sub) sub)]
+          [(#,occurs-id rv (_ : t) sub)
+           (#,occurs-id rv (#,walk-id t sub) sub)]
+          [(#,occurs-id rv_1 rv_1 sub)])
+
+        (define-metafunction #,language-id
+          #,extend-id : rv t sub -> maybe-sub
+          [(#,extend-id rv t sub) #f
+           (side-condition
+            (judgment-holds (#,occurs-id rv t sub)))]
+          [(#,extend-id rv t sub) ([rv t] ,@(term sub))
+           (side-condition
+            (not (judgment-holds (#,occurs-id rv t sub))))])
+
+        (define-metafunction #,language-id
+          #,unify-id : t t sub -> maybe-sub
+          [(#,unify-id rv_1 rv_1 sub) sub]
+          [(#,unify-id rv t sub) (#,extend-id rv t sub)]
+          [(#,unify-id t rv sub) (#,extend-id rv t sub)]
+          [(#,unify-id (t_1a : t_1b) (t_2a : t_2b) sub)
+           (#,unify-id
+            (#,walk-id t_1b sub_1)
+            (#,walk-id t_2b sub_1)
+            sub_1)
+           (where sub_1
+                  (#,unify-id
+                   (#,walk-id t_1a sub)
+                   (#,walk-id t_2a sub)
+                   sub))]
+          [(#,unify-id t_1 t_1 sub) sub]
+          [(#,unify-id _ _ _) #f])
+
+        (define-metafunction #,language-id
+          #,invalid-id : sub dis -> boolean
+          [(#,invalid-id sub ()) #f]
+          [(#,invalid-id
+            sub
+            ((t_1 t_2) (t_3 t_4) (... ...)))
+           #t
+           (where sub
+                  (#,unify-id
+                   (#,walk-id t_1 sub)
+                   (#,walk-id t_2 sub)
+                   sub))]
+          [(#,invalid-id
+            sub
+            ((t_1 t_2) (t_3 t_4) (... ...)))
+           (#,invalid-id sub ((t_3 t_4) (... ...)))])
+
+        (define (#,lexical-variable-id datum)
+          (and (symbol? datum)
+               (regexp-match? #rx"^x:" (symbol->string datum))))
+
+        (define (#,subst-term-id term substitutions)
+          (match term
+            [(? #,lexical-variable-id x)
+             (match (assoc x substitutions)
+               [(list _ replacement) replacement]
+               [#f x])]
+            [`(,left : ,right)
+             `(,(#,subst-term-id left substitutions)
+               :
+               ,(#,subst-term-id right substitutions))]
+            [_ term]))
+
+        (define (#,drop-shadowed-id binders substitutions)
+          (match substitutions
+            ['() '()]
+            [(cons (and binding (list x _)) rest)
+             (if (member x binders)
+                 (#,drop-shadowed-id binders rest)
+                 (cons binding
+                       (#,drop-shadowed-id binders rest)))]))
+
+        (define (#,subst-goal-id goal substitutions)
+          (match goal
+            [`(succeed ,goal-tag) `(succeed ,goal-tag)]
+            [`(fail ,goal-tag) `(fail ,goal-tag)]
+            [`(,left =? ,right ,goal-tag)
+             `(,(#,subst-term-id left substitutions)
+               =?
+               ,(#,subst-term-id right substitutions)
+               ,goal-tag)]
+            [`(,left != ,right ,goal-tag)
+             `(,(#,subst-term-id left substitutions)
+               !=
+               ,(#,subst-term-id right substitutions)
+               ,goal-tag)]
+            [`(,left ∧ ,right ,goal-tag)
+             `(,(#,subst-goal-id left substitutions)
+               ∧
+               ,(#,subst-goal-id right substitutions)
+               ,goal-tag)]
+            [`(∃ ,binders ,body ,goal-tag)
+             `(∃ ,binders
+                 ,(#,subst-goal-id
+                   body
+                   (#,drop-shadowed-id binders substitutions))
+                 ,goal-tag)]
+            [_
+             (error '#,subst-goal-id
+                    "unsupported generated core goal: ~e"
+                    goal)]))
+
+        #,@variable-definitions
+        #,@supply-definitions
+        #,@wf-definitions
+        #,@q-definitions
+        #,wf-structural-definitions
+
+        ;; These ten clauses are the single representation-neutral core work
+        ;; schema.  A strategy supplies only carrier and operation views.
+        (define #,work-raw-id
+          (reduction-relation
+           #,language-id
+           #:domain any
+           [--> #,expanded-source
+                #,expanded-target
+                "expand-conjunction"]
+           [--> #,success-source
+                #,success-target
+                "succeed"]
+           [--> #,failure-source
+                #,failure-target
+                "fail"]
+           [--> #,conj-return-source
+                #,conj-return-target
+                "conj-return"]
+           [--> #,conj-failure-source
+                #,conj-failure-target
+                "conj-fail"]
+           [--> #,unify-source
+                #,unify-target
+                (where #,sub-1
+                       (#,unify-id
+                        (#,walk-id #,t-1 #,sub-v)
+                        (#,walk-id #,t-2 #,sub-v)
+                        #,sub-v))
+                (where #f (#,invalid-id #,sub-1 #,dis-v))
+                "unify-success"]
+           [--> #,unify-general-source
+                #,failure-target
+                (where #,sub-1
+                       (#,unify-id
+                        (#,walk-id #,t-1 #,sub-v)
+                        (#,walk-id #,t-2 #,sub-v)
+                        #,sub-v))
+                (where #t (#,invalid-id #,sub-1 #,dis-v))
+                "unify-violates-disequality"]
+           [--> #,unify-general-source
+                #,failure-target
+                (where #f
+                       (#,unify-id
+                        (#,walk-id #,t-1 #,sub-v)
+                        (#,walk-id #,t-2 #,sub-v)
+                        #,sub-v))
+                "unify-fail"]
+           [--> #,disequality-source
+                #,disequality-target
+                (where #,dis-1
+                       ((#,t-1 #,t-2) ,@(term #,dis-v)))
+                (where #f (#,invalid-id #,sub-v #,dis-1))
+                "disequality-success"]
+           [--> #,disequality-source
+                #,failure-target
+                (where #,dis-1
+                       ((#,t-1 #,t-2) ,@(term #,dis-v)))
+                (where #t (#,invalid-id #,sub-v #,dis-1))
+                "disequality-fail"]))
+
+        (define #,frontier-raw-id
+          (reduction-relation
+           #,language-id
+           #:domain any
+           [--> #,finish-success-source
+                #,finish-success-target
+                "finish-success"]
+           [--> #,finish-failure-source
+                #,finish-failure-target
+                "finish-failure"]))
+
+        (define #,allocation-raw-id
+          (reduction-relation
+           #,language-id
+           #:domain F
+           [--> #,allocation-source
+                #,allocation-target
+                #,@allocation-premises
+                "allocate-fresh"]))
+
+        (define #,work-base-id
+          (context-closure #,work-raw-id #,language-id WorkFocus))
+
+        (define #,frontier-base-id
+          (context-closure
+           #,frontier-raw-id
+           #,language-id
+           SpineContext))
+
+        (define #,relation-id
+          (extend-reduction-relation
+           (union-reduction-relations
+            #,work-base-id
+            #,frontier-base-id
+            #,allocation-raw-id)
+           #,language-id
+           #:domain F))
+
+        (define (#,raw-successors-id frontier)
+          (for/list ([named-step
+                      (in-list
+                       (apply-reduction-relation/tag-with-names
+                        #,relation-id
+                        frontier))])
+            (match-define (list name target) named-step)
+            (list (string->symbol (~a name)) target)))))
+
+  (define (render-representation-maps s-strategy
+                                      e-strategy
+                                      n-strategy
+                                      q-se-id
+                                      q-en-id
+                                      q-sn-id
+                                      composition-id)
+    ;; A strategy and a map consumer may be expanded in separate macro turns.
+    ;; Recontextualizing the declared public hook name at the consumer site
+    ;; resolves the ordinary binding emitted by the source instance, without
+    ;; rewriting any hook body or quoted datum.
+    (define (consumer-hook declared-id)
+      (datum->syntax q-se-id
+                     (syntax-e declared-id)
+                     q-se-id
+                     q-se-id))
+    (define s-export
+      (consumer-hook
+       (q-info-export
+        (supply-info-q (strategy-info-supply s-strategy)))))
+    (define e-export
+      (consumer-hook
+       (q-info-export
+        (supply-info-q (strategy-info-supply e-strategy)))))
+    (define e-rebuild
+      (consumer-hook
+       (q-info-rebuild
+        (supply-info-q (strategy-info-supply e-strategy)))))
+    (define n-rebuild
+      (consumer-hook
+       (q-info-rebuild
+        (supply-info-q (strategy-info-supply n-strategy)))))
+    #`(begin
+        (define (#,q-se-id frontier)
+          (#,e-rebuild (#,s-export frontier)))
+
+        (define (#,q-en-id frontier)
+          (#,n-rebuild (#,e-export frontier)))
+
+        ;; The direct map deliberately consumes S's export.  It does not call
+        ;; either adjacent map or the middle representation's export hook.
+        (define (#,q-sn-id frontier)
+          (#,n-rebuild (#,s-export frontier)))
+
+        (define (#,composition-id frontier)
+          (equal? (#,q-sn-id frontier)
+                  (#,q-en-id (#,q-se-id frontier)))))))
+
+(define-syntax (define-core-representation-strategy stx)
+  (syntax-parse stx
+    [(_ name:id . _)
+     (parse-strategy stx)
+     #`(define-syntax name
+         (strategy-binding (quote-syntax #,stx)))]))
+
+(define-syntax (define-generated-core-source stx)
+  (syntax-parse stx
+    [(_ #:strategy strategy-id:id
+        #:language language-id:id
+        #:relation relation-id:id
+        #:raw-successors raw-successors-id:id
+        #:branch-copy branch-copy-id:id)
+     (render-source-instance
+      (lookup-strategy #'strategy-id)
+      stx
+      #'language-id
+      #'relation-id
+      #'raw-successors-id
+      #'branch-copy-id)]))
+
+(define-syntax (define-generated-core-representation-maps stx)
+  (syntax-parse stx
+    [(_ #:s-strategy s-strategy-id:id
+        #:e-strategy e-strategy-id:id
+        #:n-strategy n-strategy-id:id
+        #:Q-SE q-se-id:id
+        #:Q-EN q-en-id:id
+        #:Q-SN q-sn-id:id
+        #:composition composition-id:id)
+     (render-representation-maps
+      (lookup-strategy #'s-strategy-id)
+      (lookup-strategy #'e-strategy-id)
+      (lookup-strategy #'n-strategy-id)
+      #'q-se-id
+      #'q-en-id
+      #'q-sn-id
+      #'composition-id)]))
