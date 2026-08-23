@@ -146,3 +146,27 @@ frontend example corpus.
 
 Current pass counts belong in the checkpoint handoff, where they can be tied to
 an exact HEAD. This document intentionally does not preserve stale counts.
+
+## Lane E: search-lattice derivation checkpoints
+
+The research derivation subtree has a separate checked-in pre-commit runner:
+
+```sh
+scripts/run_search_lattice_checkpoint.sh
+```
+
+Run it from the repository root. Its default mode executes the sole canonical
+derivation aggregate once under a new compiled root, performs a compile-only
+sweep of every nonignored derivation `.rkt` module under that same root, and
+executes this directory's unchanged production search-lattice aggregate under
+a second new compiled root. It leaves `PLTUSERHOME` unchanged and verifies that
+testing did not alter tracked or staged contents.
+
+`--recursive` adds the deliberately redundant `raco test -x` registration
+audit under a third new compiled root. That slow lane is reserved for testing
+infrastructure or inventory changes, release/coherence checkpoints, scheduled
+CI, and suspected aggregate/direct discrepancies. Its repeated-invocation
+count is reported separately, never added to the canonical semantic count.
+
+The detailed checkpoint policy and suite registry are documented in
+[`../derivations/search-lattice/README.md`](../derivations/search-lattice/README.md).

@@ -522,6 +522,13 @@ checks only. The generated E column does not import S, the bridge, or `Owners`.
   proof counts, codecs/readback, complete finite traces, replay checks, the
   nine-label/six-span golden partition, every reachable B suffix, all four Big
   entries, and duplicate-binder rejection.
+- `tests/test-inventory.rkt` is the explicit semantic-suite registry and checks
+  that every intended test module is registered exactly once, every focused
+  wrapper is deliberately allowlisted, and no registered suite silently
+  disappears.
+- `tests/all.rkt` is the sole canonical derivation semantic aggregate. It
+  flattens the registered leaf suites so aggregate wrappers cannot cause a
+  second invocation of the same suite.
 
 From the repository root:
 
@@ -544,33 +551,66 @@ raco test racket-server/derivations/search-lattice/generated/core/e/column-tests
 raco test racket-server/derivations/search-lattice/tests/all.rkt
 ```
 
-For every local sanity check as well as the aggregate matrix gate:
+## Checkpoint testing
+
+The checked-in pre-commit gate is run from the repository root:
 
 ```sh
-raco test \
-  racket-server/derivations/search-lattice/all.rkt \
-  racket-server/derivations/search-lattice/demo.rkt \
-  racket-server/derivations/search-lattice/core/s/refocused.rkt \
-  racket-server/derivations/search-lattice/core/s/machine.rkt \
-  racket-server/derivations/search-lattice/core/s/machine-spec.rkt \
-  racket-server/derivations/search-lattice/core/s/compressed.rkt \
-  racket-server/derivations/search-lattice/core/s/compression-spec.rkt \
-  racket-server/derivations/search-lattice/core/s/private/support-kernel.rkt \
-  racket-server/derivations/search-lattice/core/s/fixed-point.rkt \
-  racket-server/derivations/search-lattice/core/s/fixed-point-spec.rkt \
-  racket-server/derivations/search-lattice/core/e/language.rkt \
-  racket-server/derivations/search-lattice/core/e/source.rkt \
-  racket-server/derivations/search-lattice/core/s-to-e.rkt \
-  racket-server/derivations/search-lattice/framework/core-source-schema-tests.rkt \
-  racket-server/derivations/search-lattice/framework/core-stage-schema-tests.rkt \
-  racket-server/derivations/search-lattice/framework/core-stage-extension-tests.rkt \
-  racket-server/derivations/search-lattice/framework/stage-generators-tests.rkt \
-  racket-server/derivations/search-lattice/generated/core/source/tests.rkt \
-  racket-server/derivations/search-lattice/generated/core/stages/tests.rkt \
-  racket-server/derivations/search-lattice/generated/core/s/column-tests.rkt \
-  racket-server/derivations/search-lattice/generated/core/e/column-tests.rkt \
-  racket-server/derivations/search-lattice/tests/all.rkt
+scripts/run_search_lattice_checkpoint.sh
 ```
+
+The default runner creates a fresh derivation compiled root, executes the
+canonical aggregate exactly once, and then compiles every nonignored derivation
+`.rkt` module under that same root without rerunning its `module+ test` body. It
+writes every compile target explicitly into the derivation root; dependency
+loading may use configured fallback artifacts, including installed or
+source-adjacent compiled caches, but the sweep never writes a fallback
+artifact. The runner creates a second fresh compiled root for the unchanged
+production aggregate,
+runs `git diff --check`, and verifies that testing did not change tracked or
+staged contents. It retains and reports both roots, the derivation and
+production test counts, the compile-sweep module count, and each lane's status
+and elapsed time. It does not override `PLTUSERHOME`.
+
+The explicit slow mode adds a redundant recursive registration audit under a
+third fresh compiled root:
+
+```sh
+scripts/run_search_lattice_checkpoint.sh --recursive
+```
+
+That mode runs `raco test -x racket-server/derivations/search-lattice` only
+after the default lanes. Its repeated leaf/aggregate invocation count is
+reported separately and must never be added to the canonical aggregate count.
+
+This literal recursive gate is required for the prototype checkpoint because it
+establishes the initial test-registration baseline. After Checkpoint 4T, use the
+canonical checkpoint runner described there; do not repeat this recursive
+discovery command at every semantic checkpoint.
+
+At every semantic checkpoint:
+
+- run the focused suites for the modules and transformations changed;
+- preserve raw `build-derivations` proofs and compare complete proof
+  multiplicities without deduplication;
+- run WF, label, trace, codec, replay, and correspondence obligations relevant
+  to the changed coordinate;
+- run the checked-in checkpoint runner in its default mode;
+- require one fresh-cache execution of the canonical derivation aggregate;
+- require a compile-only sweep of every nonignored derivation `.rkt` module;
+- require an independently fresh execution of the unchanged production
+  search-lattice aggregate;
+- run `git diff --check`;
+- inspect the exact staged path list;
+- document tested evidence separately from universal theorem claims;
+- commit only after the semantic status is truthful;
+- push and verify the exact remote hash.
+
+Do not use the number of times a suite was re-executed as additional evidence.
+Checkpoint handoffs report unique canonical test counts. Reserve the literal
+recursive command for test-registration or test-infrastructure changes, final
+release/coherence checkpoints, scheduled CI, or diagnosis of a suspected
+aggregate/direct discrepancy.
 
 The dependency direction is one-way: derived modules may import the production
 core, but no production module imports this directory.
