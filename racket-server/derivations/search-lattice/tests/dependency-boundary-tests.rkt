@@ -35,10 +35,6 @@
   "../framework/stage-generators-parameter-base-fixture.rkt")
 (define-runtime-path stage-parameter-derived-fixture-file
   "../framework/stage-generators-parameter-derived-fixture.rkt")
-(define-runtime-path generated-s-column
-  "../generated/core/s/column.rkt")
-(define-runtime-path generated-e-column
-  "../generated/core/e/column.rkt")
 (define-runtime-path e-source-file "../core/e/source.rkt")
 (define-runtime-path e-decomposition-file "../core/e/decomposition.rkt")
 (define-runtime-path s-decomposition-file "../core/s/decomposition.rkt")
@@ -47,6 +43,11 @@
 (define-runtime-path s-compressed-file "../core/s/compressed.rkt")
 (define-runtime-path s-fixed-point-file "../core/s/fixed-point.rkt")
 (define-runtime-path this-test-file "./dependency-boundary-tests.rkt")
+
+(define retired-generated-column-files
+  (for*/list ([row (in-list '("s" "e"))]
+              [filename (in-list '("column.rkt" "column-tests.rkt"))])
+    (build-path seed-root "generated" "core" row filename)))
 
 (define (racket-files root)
   (for/list ([path (in-directory root)]
@@ -150,30 +151,10 @@
            (format "[(]~a(?:[[:space:]]|[)])" constructor))
           contents)))))
 
-  (test-case "each generated coordinate states semantics and each arrow once"
-    (for ([path (in-list (list generated-s-column generated-e-column))])
-      (define contents (file->string path))
-      (check-equal?
-       (match-count #px"[(]define-derivation-instance\\s" contents)
-       1)
-      (check-equal? (match-count #px"#:site\\s" contents) 13)
-      (for ([form (in-list
-                   '(define-decomposition-stage
-                     define-refocused-stage
-                     define-machine-isomorphism-stage
-                     define-compressed-stage
-                     define-fixed-point-stage))])
-        (check-equal?
-         (match-count
-          (pregexp (format "[(]~a\\s" form))
-          contents)
-         1))
-      (check-equal?
-       (match-count #px"[(]define-compression-policy\\s" contents)
-       1)
-      (check-equal?
-       (match-count #rx"[(]define-judgment-form" contents)
-       0)))
+  (test-case "retired generated prototype columns remain absent"
+    (for ([path (in-list retired-generated-column-files)])
+      (check-false (file-exists? path)
+                   (format "retired prototype column returned at ~a" path))))
 
   (test-case "stage renderers do not assume the core carrier nonterminal names"
     (define contents (file->string stage-framework-file))
@@ -183,27 +164,6 @@
         (pregexp
          (format "(?<![A-Za-z0-9_-])~a(?![A-Za-z0-9_-])" name))
         contents))))
-
-  (test-case "generated coordinates do not import their semantic oracles"
-    (for ([path (in-list (list generated-s-column generated-e-column))])
-      (define contents (file->string path))
-      (for ([forbidden
-             (in-list
-              '("core-red.rkt"
-                "source-spec.rkt"
-                "core/s/decomposition.rkt"
-                "core/s/refocused.rkt"
-                "core/s/machine.rkt"
-                "core/s/compressed.rkt"
-                "core/s/fixed-point.rkt"
-                "s-to-e.rkt"
-                "Q-SE"
-                "redex/parameter"))])
-        (check-false
-         (regexp-match? (regexp (regexp-quote forbidden)) contents))))
-    (check-false
-     (regexp-match? #rx"Owners"
-                    (file->string generated-e-column))))
 
   (test-case "direct S paths do not call the plug-and-scan specifications"
     (define direct-contract

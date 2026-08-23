@@ -6,6 +6,11 @@ records bounded implementation evidence only where stated below; it does not
 promote executable fixtures into universal representation, staging, or
 commuting theorems.
 
+In this contract, "frozen prototype" denotes the retained
+`framework/stage-generators.rkt` implementation and its bounded test-only
+whole-instance oracle. The concrete legacy S/E column modules are historical;
+the README records their final runnable commit.
+
 The implementation order is part of the contract:
 
 ```text
@@ -359,7 +364,7 @@ Search grammar may be the union of delay and disjunction grammar, but genuine
 interaction rules and their WF obligations are owned by the search-join
 augmentation. No inherited core rule is duplicated there.
 
-The current whole-instance generator, which premerges a delta before staging,
+The frozen whole-instance generator, which premerges a delta before staging,
 is retained as an oracle. The intended separately staged construction must
 establish:
 

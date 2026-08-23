@@ -58,7 +58,13 @@
     (transition-span succeed finish-success)))
 
 (struct failure-case (name source labels terminal) #:transparent)
-(struct row-corpus (name rule-sources finite-source golden-terminal failures)
+(struct row-corpus
+  (name
+   rule-sources
+   finite-source
+   golden-terminal
+   failures
+   duplicate-binder-source)
   #:transparent)
 
 (define (row-source-ref corpus rule-name)
@@ -180,6 +186,15 @@
             ((u:1 (sym "dog")))
             ((u:0 =? (sym "cat") (label "bind-x")))
             ,TAG-STATE))))
+
+(define DUPLICATE-BINDER-SOURCE/S
+  `(More
+    (Work
+     (Owners)
+     (∃ (x:q x:q)
+        (succeed (label "duplicate-body"))
+        (label "duplicate"))
+     ,SIGMA/S)))
 
 (define FAILURE-LABELS/DEEP
   '(allocate-fresh
@@ -328,6 +343,14 @@
             ((u:0 =? (sym "cat") (label "bind-x")))
             ,TAG-STATE))))
 
+(define DUPLICATE-BINDER-SOURCE/E
+  `(More
+    (Work
+     (∃ (x:q x:q)
+        (succeed (label "duplicate-body"))
+        (label "duplicate"))
+     ,SIGMA/E)))
+
 (define FAILURES/E
   (list
    (failure-case
@@ -453,6 +476,14 @@
             ((0 =? (sym "cat") (label "bind-x")))
             ,TAG-STATE))))
 
+(define DUPLICATE-BINDER-SOURCE/N
+  `(More
+    (Work
+     (∃ (x:q x:q)
+        (succeed (label "duplicate-body"))
+        (label "duplicate"))
+     ,SIGMA/N)))
+
 (define FAILURES/N
   (list
    (failure-case
@@ -500,13 +531,31 @@
     '(Done 2))))
 
 (define CORE-CORPUS/S
-  (row-corpus 'S RULE-SOURCES/S FINITE-SOURCE/S GOLDEN-TERMINAL/S FAILURES/S))
+  (row-corpus
+   'S
+   RULE-SOURCES/S
+   FINITE-SOURCE/S
+   GOLDEN-TERMINAL/S
+   FAILURES/S
+   DUPLICATE-BINDER-SOURCE/S))
 
 (define CORE-CORPUS/E
-  (row-corpus 'E RULE-SOURCES/E FINITE-SOURCE/E GOLDEN-TERMINAL/E FAILURES/E))
+  (row-corpus
+   'E
+   RULE-SOURCES/E
+   FINITE-SOURCE/E
+   GOLDEN-TERMINAL/E
+   FAILURES/E
+   DUPLICATE-BINDER-SOURCE/E))
 
 (define CORE-CORPUS/N
-  (row-corpus 'N RULE-SOURCES/N FINITE-SOURCE/N GOLDEN-TERMINAL/N FAILURES/N))
+  (row-corpus
+   'N
+   RULE-SOURCES/N
+   FINITE-SOURCE/N
+   GOLDEN-TERMINAL/N
+   FAILURES/N
+   DUPLICATE-BINDER-SOURCE/N))
 
 ;; The ordered support is intentionally sparse as a set of named atoms.  N
 ;; addresses it positionally: u:0 maps to level 0 and u:2 maps to level 1.

@@ -18,8 +18,6 @@
          "./core/e/wf.rkt"
          "./core/e/decomposition.rkt"
          "./core/s-to-e.rkt"
-         "./generated/core/s/column.rkt"
-         "./generated/core/e/column.rkt"
          "./generated/core/source/all.rkt"
          "./generated/core/stages/all.rkt")
 
@@ -42,7 +40,5 @@
  (all-from-out "./core/e/wf.rkt")
  (all-from-out "./core/e/decomposition.rkt")
  (all-from-out "./core/s-to-e.rkt")
- (all-from-out "./generated/core/s/column.rkt")
- (all-from-out "./generated/core/e/column.rkt")
  (all-from-out "./generated/core/source/all.rkt")
  (all-from-out "./generated/core/stages/all.rkt"))

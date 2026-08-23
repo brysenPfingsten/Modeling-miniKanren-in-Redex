@@ -8,8 +8,7 @@ three-axis family `T[i,rho]`:
 - `rho` selects a representation;
 - `T` selects a derivation stage.
 
-The seed fixes `i = core`. It retains the original two-row stage-generator
-prototype as a recovery point and now also contains the selected complete core
+The seed fixes `i = core` and contains the selected complete core
 representation matrix:
 
 ```text
@@ -30,40 +29,33 @@ each of `Q_SE`, `Q_EN`, and direct `Q_SN`. Codec and readback comparisons live
 in a separate test-only diagnostics suite. They neither construct a matrix
 coordinate nor serve as the sole oracle for a representation map.
 
-The retained prototype remains:
+The concrete prototype columns formerly under `generated/core/s/` and
+`generated/core/e/` were retired after Checkpoint 5. Their last published,
+runnable state is commit
+`969d2f57346d40da6bc3581c877ce67abd27a171` (`Implement separately staged
+feature extensions`), where their focused suites pass 15/15 S tests and 17/17
+E tests. They remain historical evidence, not active matrix coordinates or
+canonical test suites. The retired S column retained tagged `Owners`
+provenance; the retired support-decorated-node E column repeated cumulative
+`Support` at carrier positions. Neither was the selected representation
+architecture.
 
-```text
-core/S descriptor -> Dg[S] -> Zg[S] ≅ Mg[S] -> Bg[S] -> Bigg[S]
-                       ║       ║        ║         ║
-                       ║ exact generated/reference correspondence
-                       ║       ║        ║         ║
-R[S] -> Dref[S] -> Zref[S] ≅ Mref[S] -> Bref[S] -> Bigref[S]
-
-core/E descriptor -> Dg[E] -> Zg[E] ≅ Mg[E] -> Bg[E] -> Bigg[E]
-                       ║
-                       ║ exact generated/reference correspondence
-                       ║
-                 R[E] -> Dref[E]
-```
-
-The prototype is not a selection of the eventual representation architecture.
-`R[S]` is the authoritative production core relation; the derivation never
-edits or redefines it. The prototype S retains tagged `Owners` provenance and
-uses its presently implemented structural allocation-support policy. That
-implementation is not evidence that world-local allocation has been selected
-for the production lattice.
+The whole-instance `framework/stage-generators.rkt` implementation remains
+frozen solely for the bounded test-only oracle used by the StageExtension
+fixtures. No selected public module imports that oracle, invokes
+`#:environment`, or lowers a representation view into the prototype interface.
 
 The selected post-prototype decisions are normative in
 [`ARCHITECTURE-CONTRACT.md`](ARCHITECTURE-CONTRACT.md). This README describes
-both the executable prototype retained as an oracle/recovery point and the
-selected core matrix built beside it.
+the selected core matrix and distinguishes it from the retained frozen
+generator and historical concrete columns.
 
 Checkpoint 2 separately states the selected world-local S, phase-sensitive E,
 and numeric N source oracles under
 [`oracles/core/`](oracles/core/README.md), with direct vertical maps at R.
 Live/successful E and N supply resides in logical state; failure retains only
-the narrow Support/next summary in `Dead` and `Done`. Those sources do not
-replace or derive from the prototype columns described below.
+the narrow Support/next summary in `Dead` and `Done`. Those sources were stated
+independently of the historical prototype columns.
 
 Checkpoint 3 extracts those selected representations as compile-time
 strategies and applies one representation-neutral core-source schema:
@@ -109,19 +101,9 @@ not a runtime `AllocateEvent`. Big claims are restricted to finite derivations:
 there is no fuel, truncation, totalization, or claim that divergence produces a
 result.
 
-The generated artifact currently named E is a support-decorated-node
-prototype. It erases S-side Owner groupings and tags and replaces their carrier
-positions with cumulative `Support` positions on `Work`, `Conj`, `Returned`,
-`Dead`, `Answer`, `Last`, and `Done`. It is not the selected E, in which
-allocated-name support appears in live/successful logical state and only the
-narrow failure summary appears in `Dead` and `Done`.
-
-Here `g` means generated and `ref` means handwritten reference. The generated
-and reference artifacts are separate modules. Each generated row's descriptor
-declares its 13 semantic equations once; five visible stage invocations
-generate ordinary, statically named Redex languages, metafunctions, and
-judgments. S's production/reference column and prototype E's direct R/D oracles
-are independently written, so the correspondence checks are not tautological.
+Here `g` means generated and `oracle` means independently written. The selected
+generated source and stage artifacts live in modules separate from their
+Checkpoint 2 oracles, so the bounded comparisons are not tautological.
 
 `Z -> M` is intentionally displayed as an isomorphism. The two carriers have
 the same four control cases, and the structural codec remains useful as a
@@ -129,13 +111,13 @@ diagnostic. Nevertheless, the M transformer visibly emits an M-local direct
 refocuser and transition system from the shared rule/control IR. Direct M does
 not decode to Z or D, even though M adds no new semantic transformation.
 
-The current direct S allocator computes support from the separated redex and
-`WorkFocus`; plugging and scanning the whole frontier remains only its
-executable specification. The prototype E allocator instead reads the
-cumulative `Support` on the focused `Work`. On the currently tested,
-well-formed translated S core frontiers those supports agree. This executable
-core correspondence does not select either policy for the eventual world-local
-representations and is not yet feature-generic.
+The retained handwritten S reference allocator computes support from the
+separated redex and `WorkFocus`; plugging and scanning the whole frontier
+remains only its executable specification. The retained handwritten
+support-decorated E reference instead reads cumulative `Support` from the
+focused `Work`. On the tested, well-formed translated S core frontiers those
+supports agree. This bounded historical correspondence does not select either
+policy for the world-local representations and is not feature-generic.
 
 ## Status and terminology
 
@@ -230,8 +212,8 @@ The selected public transformation forms are named
 `define-selected-decomposition-stage`, `define-selected-refocused-stage`,
 `define-selected-machine-isomorphism-stage`,
 `define-selected-compressed-stage`, and `define-selected-fixed-point-stage`.
-The distinct names allow the selected and retained prototype APIs to coexist
-without aliases or accidental lowering between them.
+The distinct names allow the selected and frozen whole-instance generator APIs
+to coexist without aliases or accidental lowering between them.
 
 Stage carriers split focused work from its `WorkFocus`, so a payload-only Q
 map would lose S's outer Owner prefix. The selected strategies therefore also
@@ -271,12 +253,12 @@ generated Redex declaration depends on another stage-local judgment,
 metafunction, or relation that must later widen with a language extension. It
 reconstructs every inherited extension at the exact descendant language, so a
 second staged delta does not freeze the first delta's dependency at the first
-language. The upstream package remains on the frozen prototype and its
+language. The upstream package remains on the frozen generator and its
 test-only whole-instance oracle. This is lexical dependency lifting for
 ordinary statically named artifacts; it is not dynamic `parameterize`, a
 representation selector, or a host semantic dispatcher.
 
-### Retained horizontal-stage prototype
+### Frozen whole-instance oracle generator
 
 `framework/stage-generators.rkt` provides one compile-time form for the input
 program and one for each arrow:
@@ -299,8 +281,8 @@ Redex premises. A separate compression policy classifies settled/dead
 producers, their legal followers, singleton rules, the retained transition
 observation (currently exact rule labels), and the maximum span.
 
-This generator, including its `#:environment` field, is retained solely as the
-frozen prototype/oracle and recovery point. No selected public module exposes
+This generator, including its `#:environment` field, is retained solely for
+the frozen test-only whole-instance oracle. No selected public module exposes
 or invokes that field, and no selected adapter feeds it a representation view.
 Only genuinely representation-neutral ideas have been extracted into the
 selected renderer: Redex declaration emission, stage-shell rendering,
@@ -363,64 +345,6 @@ ordinary Redex declarations:
   equations. Its direct language extends the source language and does not call
   D, Z, M, or B. A separate specification closes B while retaining `BTrace`.
 
-The two retained prototype column modules visibly contain one instance, one
-policy, and five stage invocations, including the structural Z/M reification.
-They contain no
-handwritten Redex judgment bodies outside the instance declaration.
-
-Their source-level spines are deliberately unsurprising:
-
-```racket
-(define-derivation-instance core/S ...)
-(define-decomposition-stage core/D/S #:from core/S ...)
-(define-refocused-stage core/Z/S #:from core/D/S ...)
-(define-machine-isomorphism-stage core/M/S #:from core/Z/S ...)
-(define-compression-policy core/compression/S ...)
-(define-compressed-stage
-  core/B/S #:from core/M/S #:policy core/compression/S ...)
-(define-fixed-point-stage core/Big/S #:from core/B/S ...)
-
-(define-derivation-instance generated-core/e ...)
-(define-decomposition-stage generated-core/D/e #:from generated-core/e ...)
-(define-refocused-stage generated-core/Z/e #:from generated-core/D/e ...)
-(define-machine-isomorphism-stage generated-core/M/e
-  #:from generated-core/Z/e ...)
-(define-compression-policy generated-core/compression/e ...)
-(define-compressed-stage generated-core/B/e
-  #:from generated-core/M/e #:policy generated-core/compression/e ...)
-(define-fixed-point-stage generated-core/Big/e
-  #:from generated-core/B/e ...)
-```
-
-### One rule through the stages
-
-The core/S input program states `succeed` once:
-
-```racket
-[succeed
- #:site work
- #:from (run (Work owners (succeed tag) σ) WorkFocus)
- #:to (settled (Returned owners σ) WorkFocus)
- #:premises ()]
-```
-
-From that one equation, D emits a `DecWork` to labelled `ContractWork`
-contraction. Z contracts in D and directly refocuses the returned value. M
-emits the corresponding transition again in its own carrier and through its
-own direct, phase-local refocuser; the Z/M codec is only a diagnostic. The
-compression policy marks `succeed` as a settled producer, so B fuses it with
-the context-selected `conj-return` or `finish-success` and retains both labels
-in `transition-span`. Big turns the same target control into the recursive
-premise of its direct `big-dispatch` equation. The corresponding tests compare
-each emitted artifact with the handwritten reference and production relation
-using raw Redex derivations.
-
-Compression remains deliberately bounded: allocation, conjunction expansion,
-and already-settled structural transitions occupy singleton spans; a result
-producer may fuse with exactly one legal follower. Empty and three-label spans
-are outside the B grammar. A golden finite trace checks that flattening the B
-certificates reproduces the exact M label trace.
-
 The basic framework-only fixture uses unrelated syntax and deliberately
 renames the carrier categories to `Task`, `World`, `Result`, `TaskFocus`, and
 `WorldSpine`. It checks full-view consumption, empty frame partitions, and the
@@ -443,13 +367,13 @@ universal staging theorem, or functoriality.
 Checkpoint 5 adds a second, still foreign and bounded fixture for the identity
 and composition laws. Its base row makes every executable compression label a
 singleton; two base-owned, always-false sentinel producer rules merely keep
-the frozen prototype's settled/dead producer classes grammatical and are
-checked to have no proofs. The identity StageExtension copies the complete row
-metadata exactly. Delta1 is the existing Query/Box StageExtension, and Delta2
-adds `Probe Input -> Query Input` against Delta1's actual result row. The
-selected route applies those extensions in sequence through D/Z/M/B/Big; the
-test-only oracle premerges Base+Query+Probe and sends the whole instance
-through the unchanged `stage-generators.rkt`.
+the frozen whole-instance generator's settled/dead producer classes
+grammatical and are checked to have no proofs. The identity StageExtension
+copies the complete row metadata exactly. Delta1 is the existing Query/Box
+StageExtension, and Delta2 adds `Probe Input -> Query Input` against Delta1's
+actual result row. The selected route applies those extensions in sequence
+through D/Z/M/B/Big; the test-only oracle premerges Base+Query+Probe and sends
+the whole instance through the unchanged `stage-generators.rkt`.
 
 The comparison retains the complete multiset of normalized top-level
 `build-derivations` judgment terms, including duplicates, full targets,
@@ -466,12 +390,10 @@ evidence for `Stage(identity) = identity` and for identity/composition on this
 two-delta corpus. It is not automatic `Delta -> StageExtension` synthesis, a
 universal functoriality theorem, or a real feature hierarchy.
 
-The S-to-E prototype bridge is independent and context-threaded. Its executable
-vertical correspondence currently stops at R and D: it checks source,
-decomposition, contraction, and D-step squares only on its stated well-formed
-domain. There are no Q maps or cross-row naturality results yet for Z, M, B, or
-Big. Those later generated E artifacts have row-local direct/spec and codec
-checks only. The generated E column does not import S, the bridge, or `Owners`.
+The retained handwritten `core/s-to-e.rkt` bridge is a historical R/D
+reference only. Its bounded correspondence stops at R and D. The selected
+generated matrix supplies phase-local representation maps through Big
+independently and does not import this bridge.
 
 ## What to look at
 
@@ -520,21 +442,14 @@ checks only. The generated E column does not import S, the bridge, or `Owners`.
   the secondary codec/readback comparisons.
 - `generated/core/stages/dependency-tests.rkt` enforces the one-interface,
   five-visible-stage, no-restated-equation boundary.
-- `framework/stage-generators.rkt` is the parametric transformation program.
+- `framework/stage-generators.rkt` is the frozen whole-instance oracle
+  generator.
 - `framework/stage-generators-tests.rkt` is the foreign base-plus-delta
   instantiation and test harness, including the same-module lifting and
   cross-module hygiene regressions.
 - `framework/stage-generators-parameter-base-fixture.rkt` and
   `framework/stage-generators-parameter-derived-fixture.rkt` are the real
   two-module base/feature split used by the hygiene regression.
-- `generated/core/s/column.rkt` is the one-time S semantic declaration followed
-  by the five visible stage invocations.
-- `generated/core/s/column-tests.rkt` compares generated S with both
-  production and every handwritten horizontal reference stage.
-- `generated/core/e/column.rkt` is the independent support-decorated-node
-  prototype instance followed by the same five stage invocations.
-- `generated/core/e/column-tests.rkt` compares generated E with independent
-  R[E] and handwritten D[E], then checks its generated horizontal stages.
 - `framework/decomposition-instance.rkt` is the earlier structural-shell macro
   retained for the handwritten reference column.
 - `core/s/decomposition.rkt` is the explicit S decomposition/contraction.
@@ -551,14 +466,13 @@ checks only. The generated E column does not import S, the bridge, or `Owners`.
 - `core/s/private/support-kernel.rkt` is the stage-independent runtime
   logic-variable occurrence and fresh-introduction kernel used by the current
   S allocation policy in D, B, and Big.
-- `core/e/` contains the independent prototype E language, WF, source, and
-  decomposition.
-- `core/s-to-e.rkt` contains the prototype `Q_R`, `Q_D`, context maps, and
-  executable R/D square checks.
-- `demo.rkt` prints one sparse-support witness through both handwritten and
-  generated S/E coordinates. It makes the common `u:1` allocation visible,
-  retains the handwritten B-to-Big trace certificate, and ends with a separate
-  two-label compression witness.
+- `core/e/` contains the retained handwritten support-decorated E reference
+  language, WF, source, and decomposition.
+- `core/s-to-e.rkt` contains the retained handwritten `Q_R`, `Q_D`, context
+  maps, and executable R/D square checks.
+- `demo.rkt` presents selected generated S/E matrix coordinates alongside the
+  retained handwritten S reference. It retains the handwritten B-to-Big trace
+  certificate and a separate two-label compression witness.
 - `tests/core-matrix-tests.rkt` owns the currently implemented R/D cross-cell
   proof-count and commuting obligations.
 - `tests/core-s-horizontal-tests.rkt` owns the 13-rule M/B/Big corpus, exact raw
@@ -590,8 +504,6 @@ raco test racket-server/derivations/search-lattice/framework/core-stage-functor-
 raco test racket-server/derivations/search-lattice/framework/stage-generators-tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/source/tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/stages/tests.rkt
-raco test racket-server/derivations/search-lattice/generated/core/s/column-tests.rkt
-raco test racket-server/derivations/search-lattice/generated/core/e/column-tests.rkt
 raco test racket-server/derivations/search-lattice/tests/all.rkt
 ```
 
@@ -671,23 +583,26 @@ StageExtension automatically from a source delta, implements delay or
 disjunction, establishes a real feature face or hierarchy, or proves a
 universal functoriality theorem. Checkpoint 5 stops at this fixture boundary;
 Checkpoint 6 work has not begun.
-The retained prototype coordinates stop at core/S and the
-support-decorated-node core/E. The selected path separately completes the
-core/S, core/E, and core/N rows through R, D, Z ≅ M, B, and Big.
 
-In the current support-decorated-node prototype, local `Support` agrees with the
-current S policy on the stated well-formed core domain. Branching features such
-as disjunction and search expose names retained outside the active path. This is
-a limitation of the prototype, not a reason to treat it as the selected
-phase-sensitive E.
+The retired historical prototype stopped at core/S and the
+support-decorated-node core/E; its last runnable state is the commit recorded
+above. The live selected path completes the core/S, core/E, and core/N rows
+through R, D, Z ≅ M, B, and Big.
 
-The retained prototype does not implement `N`. The selected matrix does: E's
+In the historical support-decorated-node prototype, local `Support` agreed with
+the then-current S policy on the stated well-formed core domain. Branching
+features such as disjunction and search expose names retained outside the
+active path. This was a limitation of the prototype, not a reason to treat it
+as the selected phase-sensitive E.
+
+The historical prototype did not implement `N`. The selected matrix does: E's
 ordered support is positionally mapped to N levels and N allocation uses its
 state-local next counter. Sparse E names, failure summaries, and allocation
 observations are checked through every core stage, including the five direct
 stage-transformation laws, secondary transport diagnostics, and direct S-to-N
-composition. The legacy prototype allocation behavior remains recovery
-evidence, not an administrative form for the selected generator to guess.
+composition. The legacy prototype allocation behavior is preserved in the
+historical commit; it is not an administrative form for the selected generator
+to guess.
 
 This checkpoint claims bounded fixture-level identity and composition evidence,
 not a full feature cube, general functoriality, or a universal naturality

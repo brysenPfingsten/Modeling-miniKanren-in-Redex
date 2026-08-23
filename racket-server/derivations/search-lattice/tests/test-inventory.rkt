@@ -10,8 +10,6 @@
          "../framework/core-stage-schema-tests.rkt"
          "../framework/core-stage-extension-tests.rkt"
          "../framework/core-stage-functor-tests.rkt"
-         "../generated/core/s/column-tests.rkt"
-         "../generated/core/e/column-tests.rkt"
          "../generated/core/source/comparison-tests.rkt"
          "../generated/core/source/dependency-tests.rkt"
          "../generated/core/stages/dependency-tests.rkt"
@@ -102,12 +100,6 @@
     "framework/core-stage-functor-tests.rkt"
     CORE-STAGE-FUNCTOR-TESTS)
    (register-test-suite
-    "generated/core/s/column-tests.rkt"
-    GENERATED-CORE-S-COLUMN)
-   (register-test-suite
-    "generated/core/e/column-tests.rkt"
-    GENERATED-CORE-E-COLUMN)
-   (register-test-suite
     "generated/core/source/comparison-tests.rkt"
     GENERATED-CORE-SOURCE-COMPARISONS)
    (register-test-suite
@@ -164,11 +156,11 @@
         "oracles/core/e/all.rkt"
         "oracles/core/n/all.rkt"))
 
-(define EXPECTED-CANONICAL-SUITE-COUNT 23)
-(define EXPECTED-SEMANTIC-TEST-MODULE-COUNT 25)
+(define EXPECTED-CANONICAL-SUITE-COUNT 21)
+(define EXPECTED-SEMANTIC-TEST-MODULE-COUNT 23)
 (define EXPECTED-FOCUSED-AGGREGATE-COUNT 6)
 (define EXPECTED-INTRINSIC-TEST-MODULE-COUNT 13)
-(define EXPECTED-TEST-SUBMODULE-COUNT 43)
+(define EXPECTED-TEST-SUBMODULE-COUNT 41)
 
 (define (registration-module-file registration)
   (build-path SEARCH-LATTICE-ROOT

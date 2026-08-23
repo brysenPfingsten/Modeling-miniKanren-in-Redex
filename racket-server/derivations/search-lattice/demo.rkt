@@ -8,10 +8,10 @@
          (prefix-in b: "./core/s/compressed.rkt")
          (prefix-in big: "./core/s/fixed-point.rkt")
          (prefix-in big-spec: "./core/s/fixed-point-spec.rkt")
-         (prefix-in e: "./core/e/decomposition.rkt")
-         (prefix-in q: "./core/s-to-e.rkt")
-         (prefix-in generated-s: "./generated/core/s/column.rkt")
-         (prefix-in generated-e: "./generated/core/e/column.rkt"))
+         (prefix-in selected-q: "./generated/core/source/vertical.rkt")
+         (prefix-in selected-s: "./generated/core/stages/s.rkt")
+         (prefix-in selected-e: "./generated/core/stages/e.rkt")
+         (prefix-in selected-stage-q: "./generated/core/stages/vertical.rkt"))
 
 (provide demo-source/s
          compression-witness
@@ -20,10 +20,9 @@
 (define sigma
   (term (state () () () (label "state"))))
 
-;; The gap at u:1 makes the current prototype boundary visible: S derives
-;; support from the separated owner-bearing context, while support-decorated
-;; prototype E reads it from the focused Work node.  Both currently choose
-;; u:1; this witness does not select the eventual world-local allocation policy.
+;; The gap at u:1 makes the selected representation boundary visible: S
+;; reconstructs support from the separated owner-bearing world path, while E
+;; carries the same ordered support in logical state.  Both allocate u:1.
 (define demo-source/s
   (term
    (More
@@ -65,63 +64,63 @@
      Big)
     (BTrace Big))))
 
-(define source/e
-  (term (q:Q-SE/F ,demo-source/s)))
+(define selected-source/e
+  (selected-q:Q-SE/generated demo-source/s))
 
-(define decomposition/e
-  (first
-   (judgment-holds (e:decompose/e ,source/e D) D)))
-
-;; The generated columns are separate artifacts.  They consume their own
-;; one-time semantic descriptors; they do not import the handwritten stages
-;; above.  Keeping both views exposes generated/reference agreement for S and
-;; R/D agreement for prototype E; later E stages remain row-local artifacts.
-(define generated-decomposition/s
+;; The selected columns consume the shared source interface and do not import
+;; the handwritten S reference stages above.  The S row is compared with that
+;; independent reference; the E row is reached only through the selected
+;; phase-local representation maps.
+(define selected-decomposition/s
   (first
    (judgment-holds
-    (generated-s:generated-decompose/s ,demo-source/s D)
+    (selected-s:generated-stage-decompose/s ,demo-source/s D)
     D)))
 
-(define generated-refocused/s
+(define selected-refocused/s
   (term
-   (generated-s:generated-D->Z/s ,generated-decomposition/s)))
+   (selected-s:generated-stage-refocus-phase/s
+    ,selected-decomposition/s)))
 
-(define generated-machine/s
+(define selected-machine/s
   (term
-   (generated-s:generated-encode-ZM/s ,generated-refocused/s)))
+   (selected-s:generated-stage-machineize/s ,selected-refocused/s)))
 
-(define generated-compressed/s
+(define selected-compressed/s
   (term
-   (generated-s:generated-encode-MB/s ,generated-machine/s)))
+   (selected-s:generated-stage-compress/s ,selected-machine/s)))
 
-(define generated-big/s
+(define selected-big/s
   (first
    (judgment-holds
-    (generated-s:generated-big-evaluate/direct/s ,demo-source/s Big)
+    (selected-s:generated-stage-big-evaluate/direct/s ,demo-source/s Big)
     Big)))
 
-(define generated-decomposition/e
+(define selected-decomposition/e
   (first
    (judgment-holds
-    (generated-e:decompose/generated-e ,source/e D)
+    (selected-e:generated-stage-decompose/e ,selected-source/e D)
     D)))
 
-(define generated-refocused/e
+(define selected-refocused/e
   (term
-   (generated-e:D->Z/generated-e ,generated-decomposition/e)))
+   (selected-e:generated-stage-refocus-phase/e
+    ,selected-decomposition/e)))
 
-(define generated-machine/e
+(define selected-machine/e
   (term
-   (generated-e:encode-ZM/generated-e ,generated-refocused/e)))
+   (selected-e:generated-stage-machineize/e ,selected-refocused/e)))
 
-(define generated-compressed/e
+(define selected-compressed/e
   (term
-   (generated-e:encode-MB/generated-e ,generated-machine/e)))
+   (selected-e:generated-stage-compress/e ,selected-machine/e)))
 
-(define generated-big/e
+(define selected-big/e
   (first
    (judgment-holds
-    (generated-e:big-evaluate/direct/generated-e ,source/e Big)
+    (selected-e:generated-stage-big-evaluate/direct/e
+     ,selected-source/e
+     Big)
     Big)))
 
 (define next/s
@@ -136,8 +135,8 @@
 (define next/e
   (first
    (judgment-holds
-    (e:decomposed-step/e
-     ,decomposition/e
+    (selected-e:generated-stage-decomposed-step/e
+     ,selected-decomposition/e
      RuleName
      D_next)
     (RuleName D_next))))
@@ -198,18 +197,17 @@
    (list 'M/S machine/s)
    (list 'B/S compressed/s)
    (list 'Big/S big/s)
-   (list 'R/E source/e)
-   (list 'D/E decomposition/e)
-   (list 'generated-D/S generated-decomposition/s)
-   (list 'generated-Z/S generated-refocused/s)
-   (list 'generated-M/S generated-machine/s)
-   (list 'generated-B/S generated-compressed/s)
-   (list 'generated-Big/S generated-big/s)
-   (list 'generated-D/E generated-decomposition/e)
-   (list 'generated-Z/E generated-refocused/e)
-   (list 'generated-M/E generated-machine/e)
-   (list 'generated-B/E generated-compressed/e)
-   (list 'generated-Big/E generated-big/e)
+   (list 'selected-R/E selected-source/e)
+   (list 'selected-D/S selected-decomposition/s)
+   (list 'selected-Z/S selected-refocused/s)
+   (list 'selected-M/S selected-machine/s)
+   (list 'selected-B/S selected-compressed/s)
+   (list 'selected-Big/S selected-big/s)
+   (list 'selected-D/E selected-decomposition/e)
+   (list 'selected-Z/E selected-refocused/e)
+   (list 'selected-M/E selected-machine/e)
+   (list 'selected-B/E selected-compressed/e)
+   (list 'selected-Big/E selected-big/e)
    (list 'next-D/S next/s)
    (list 'next-D/E next/e)
    (list 'next-M/S next-m/s)
@@ -234,18 +232,17 @@
                   M/S
                   B/S
                   Big/S
-                  R/E
-                  D/E
-                  generated-D/S
-                  generated-Z/S
-                  generated-M/S
-                  generated-B/S
-                  generated-Big/S
-                  generated-D/E
-                  generated-Z/E
-                  generated-M/E
-                  generated-B/E
-                  generated-Big/E
+                  selected-R/E
+                  selected-D/S
+                  selected-Z/S
+                  selected-M/S
+                  selected-B/S
+                  selected-Big/S
+                  selected-D/E
+                  selected-Z/E
+                  selected-M/E
+                  selected-B/E
+                  selected-Big/E
                   next-D/S
                   next-D/E
                   next-M/S
@@ -260,17 +257,26 @@
   (check-equal? (first compression-witness)
                 '(transition-span succeed finish-success))
   (check-equal? (second big-certificate/s) big/s)
-  (check-equal? generated-decomposition/s decomposition/s)
-  (check-equal? generated-refocused/s refocused/s)
-  (check-equal? generated-machine/s machine/s)
-  (check-equal? generated-compressed/s compressed/s)
-  (check-equal? generated-big/s big/s)
-  (check-equal? generated-decomposition/e decomposition/e)
+  (check-equal? selected-decomposition/s decomposition/s)
+  (check-equal? selected-refocused/s refocused/s)
+  (check-equal? selected-machine/s machine/s)
+  (check-equal? selected-compressed/s compressed/s)
+  (check-equal? selected-big/s big/s)
+  (check-equal? (selected-stage-q:Q-SE/D/stages
+                 selected-decomposition/s)
+                selected-decomposition/e)
+  (check-equal? (selected-stage-q:Q-SE/Z/stages selected-refocused/s)
+                selected-refocused/e)
+  (check-equal? (selected-stage-q:Q-SE/M/stages selected-machine/s)
+                selected-machine/e)
+  (check-equal? (selected-stage-q:Q-SE/B/stages selected-compressed/s)
+                selected-compressed/e)
+  (check-equal? (selected-stage-q:Q-SE/Big/stages selected-big/s)
+                selected-big/e)
   (check-equal? (term (big-spec:flatten-BTrace/s
                        ,(first big-certificate/s)))
                 '(allocate-fresh
                   unify-success
                   conj-return
                   disequality-success
-                  finish-success))
-  (check-true (q:source-square/raw?/s->e demo-source/s)))
+                  finish-success)))

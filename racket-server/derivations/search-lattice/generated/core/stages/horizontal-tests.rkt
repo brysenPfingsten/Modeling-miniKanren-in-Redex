@@ -32,12 +32,17 @@
    decompose
    plug-d
    contract
+   contracta
    d-step
+   refocus-phase
    d->z
    z->d
    readback-z
+   refocus-spec
+   refocus-direct
    z-step-spec
    z-step-direct
+   machineize
    encode-zm
    decode-mz
    d->m
@@ -46,6 +51,7 @@
    m-step-spec
    m-step-direct
    zm-square
+   compress
    encode-mb
    decode-bm
    readback-b
@@ -55,6 +61,10 @@
    replay
    mb-square
    readback-big
+   big-run
+   big-settled
+   big-dead
+   big-final
    big-direct
    big-spec
    flatten
@@ -84,18 +94,25 @@
    big-member?)
   #:transparent)
 
+(define (raw-single-output-results derivations)
+  (for/list ([derivation (in-list derivations)])
+    (last (derivation-term derivation))))
+
 (define-syntax-rule
   (define-stage-api
     api-id row-name corpus-id source-relation-id source-raw-id
     source-language-id wf-id
     d-language-id z-language-id m-language-id b-language-id big-language-id
     decompose-id plug-d-id plug-c-id contract-label-id contract-id d-step-id
-    d->z-id z->d-id readback-z-id z-step-spec-id z-step-direct-id
-    encode-zm-id decode-mz-id d->m-id m->d-id readback-m-id
+    refocus-phase-id d->z-id z->d-id readback-z-id
+    refocus-spec-id refocus-direct-id z-step-spec-id z-step-direct-id
+    machineize-id encode-zm-id decode-mz-id d->m-id m->d-id readback-m-id
     m-step-spec-id m-step-direct-id zm-square-id
-    encode-mb-id decode-bm-id readback-b-id span-labels-id
+    compress-id encode-mb-id decode-bm-id readback-b-id span-labels-id
     b-step-spec-id b-step-direct-id replay-id mb-square-id
-    readback-big-id big-direct-id big-spec-id flatten-id promote-id close-id
+    readback-big-id
+    big-run-id big-settled-id big-dead-id big-final-id
+    big-direct-id big-spec-id flatten-id promote-id close-id
     unfold-id closure-id root-square-id)
   (define api-id
     (stage-api
@@ -116,12 +133,23 @@
          (list (term (contract-label-id ,contractum))
                (term (plug-c-id ,contractum)))))
      (lambda (decomposition)
+       (raw-single-output-results
+        (build-derivations (contract-id ,decomposition C))))
+     (lambda (decomposition)
        (judgment-holds
         (d-step-id ,decomposition RuleName D_next)
         (RuleName D_next)))
+     (lambda (decomposition)
+       (term (refocus-phase-id ,decomposition)))
      (lambda (decomposition) (term (d->z-id ,decomposition)))
      (lambda (refocused) (term (z->d-id ,refocused)))
      (lambda (refocused) (term (readback-z-id ,refocused)))
+     (lambda (contractum)
+       (raw-single-output-results
+        (build-derivations (refocus-spec-id ,contractum Z))))
+     (lambda (contractum)
+       (raw-single-output-results
+        (build-derivations (refocus-direct-id ,contractum Z))))
      (lambda (refocused)
        (judgment-holds
         (z-step-spec-id ,refocused RuleName Z_next)
@@ -130,6 +158,7 @@
        (judgment-holds
         (z-step-direct-id ,refocused RuleName Z_next)
         (RuleName Z_next)))
+     (lambda (refocused) (term (machineize-id ,refocused)))
      (lambda (refocused) (term (encode-zm-id ,refocused)))
      (lambda (machine) (term (decode-mz-id ,machine)))
      (lambda (decomposition) (term (d->m-id ,decomposition)))
@@ -147,6 +176,7 @@
        (judgment-holds
         (zm-square-id ,refocused RuleName Z_next M_0 M_1)
         (RuleName Z_next M_0 M_1)))
+     (lambda (machine) (term (compress-id ,machine)))
      (lambda (machine) (term (encode-mb-id ,machine)))
      (lambda (compressed) (term (decode-bm-id ,compressed)))
      (lambda (compressed) (term (readback-b-id ,compressed)))
@@ -173,6 +203,19 @@
          M_1)
         (TransitionSpan B_next M_0 M_1)))
      (lambda (big) (term (readback-big-id ,big)))
+     (lambda (work focus)
+       (raw-single-output-results
+        (build-derivations (big-run-id ,work ,focus Big))))
+     (lambda (settled focus)
+       (raw-single-output-results
+        (build-derivations (big-settled-id ,settled ,focus Big))))
+     (lambda (failure-summary focus)
+       (raw-single-output-results
+        (build-derivations
+         (big-dead-id ,failure-summary ,focus Big))))
+     (lambda (terminal)
+       (raw-single-output-results
+        (build-derivations (big-final-id ,terminal Big))))
      (lambda (source)
        (judgment-holds (big-direct-id ,source Big) Big))
      (lambda (source)
@@ -181,7 +224,8 @@
         (BTrace Big)))
      (lambda (trace) (term (flatten-id ,trace)))
      (lambda (compressed)
-       (judgment-holds (promote-id ,compressed Big) Big))
+       (raw-single-output-results
+        (build-derivations (promote-id ,compressed Big))))
      (lambda (compressed)
        (judgment-holds
         (close-id ,compressed BTrace T)
@@ -270,11 +314,15 @@
   stage-s:generated-stage-contract-label/s
   stage-s:generated-stage-contract/s
   stage-s:generated-stage-decomposed-step/s
+  stage-s:generated-stage-refocus-phase/s
   stage-s:generated-stage-D->Z/s
   stage-s:generated-stage-Z->D/s
   stage-s:generated-stage-readback-Z/s
+  stage-s:generated-stage-refocus/spec/s
+  stage-s:generated-stage-refocus/direct/s
   stage-s:generated-stage-refocused-step/spec/s
   stage-s:generated-stage-refocused-step/direct/s
+  stage-s:generated-stage-machineize/s
   stage-s:generated-stage-encode-ZM/s
   stage-s:generated-stage-decode-MZ/s
   stage-s:generated-stage-D->M/s
@@ -283,6 +331,7 @@
   stage-s:generated-stage-machine-step/spec/s
   stage-s:generated-stage-machine-step/direct/s
   stage-s:generated-stage-ZM-step-square/s
+  stage-s:generated-stage-compress/s
   stage-s:generated-stage-encode-MB/s
   stage-s:generated-stage-decode-BM/s
   stage-s:generated-stage-readback-B/s
@@ -292,6 +341,10 @@
   stage-s:generated-stage-replay-transition-span/M/s
   stage-s:generated-stage-MB-step-square/s
   stage-s:generated-stage-readback-Big/s
+  stage-s:generated-stage-big-run/direct/s
+  stage-s:generated-stage-big-settled/direct/s
+  stage-s:generated-stage-big-dead/direct/s
+  stage-s:generated-stage-big-final/direct/s
   stage-s:generated-stage-big-evaluate/direct/s
   stage-s:generated-stage-big-evaluate/spec/s
   stage-s:generated-stage-flatten-BTrace/s
@@ -316,11 +369,15 @@
   stage-e:generated-stage-contract-label/e
   stage-e:generated-stage-contract/e
   stage-e:generated-stage-decomposed-step/e
+  stage-e:generated-stage-refocus-phase/e
   stage-e:generated-stage-D->Z/e
   stage-e:generated-stage-Z->D/e
   stage-e:generated-stage-readback-Z/e
+  stage-e:generated-stage-refocus/spec/e
+  stage-e:generated-stage-refocus/direct/e
   stage-e:generated-stage-refocused-step/spec/e
   stage-e:generated-stage-refocused-step/direct/e
+  stage-e:generated-stage-machineize/e
   stage-e:generated-stage-encode-ZM/e
   stage-e:generated-stage-decode-MZ/e
   stage-e:generated-stage-D->M/e
@@ -329,6 +386,7 @@
   stage-e:generated-stage-machine-step/spec/e
   stage-e:generated-stage-machine-step/direct/e
   stage-e:generated-stage-ZM-step-square/e
+  stage-e:generated-stage-compress/e
   stage-e:generated-stage-encode-MB/e
   stage-e:generated-stage-decode-BM/e
   stage-e:generated-stage-readback-B/e
@@ -338,6 +396,10 @@
   stage-e:generated-stage-replay-transition-span/M/e
   stage-e:generated-stage-MB-step-square/e
   stage-e:generated-stage-readback-Big/e
+  stage-e:generated-stage-big-run/direct/e
+  stage-e:generated-stage-big-settled/direct/e
+  stage-e:generated-stage-big-dead/direct/e
+  stage-e:generated-stage-big-final/direct/e
   stage-e:generated-stage-big-evaluate/direct/e
   stage-e:generated-stage-big-evaluate/spec/e
   stage-e:generated-stage-flatten-BTrace/e
@@ -362,11 +424,15 @@
   stage-n:generated-stage-contract-label/n
   stage-n:generated-stage-contract/n
   stage-n:generated-stage-decomposed-step/n
+  stage-n:generated-stage-refocus-phase/n
   stage-n:generated-stage-D->Z/n
   stage-n:generated-stage-Z->D/n
   stage-n:generated-stage-readback-Z/n
+  stage-n:generated-stage-refocus/spec/n
+  stage-n:generated-stage-refocus/direct/n
   stage-n:generated-stage-refocused-step/spec/n
   stage-n:generated-stage-refocused-step/direct/n
+  stage-n:generated-stage-machineize/n
   stage-n:generated-stage-encode-ZM/n
   stage-n:generated-stage-decode-MZ/n
   stage-n:generated-stage-D->M/n
@@ -375,6 +441,7 @@
   stage-n:generated-stage-machine-step/spec/n
   stage-n:generated-stage-machine-step/direct/n
   stage-n:generated-stage-ZM-step-square/n
+  stage-n:generated-stage-compress/n
   stage-n:generated-stage-encode-MB/n
   stage-n:generated-stage-decode-BM/n
   stage-n:generated-stage-readback-B/n
@@ -384,6 +451,10 @@
   stage-n:generated-stage-replay-transition-span/M/n
   stage-n:generated-stage-MB-step-square/n
   stage-n:generated-stage-readback-Big/n
+  stage-n:generated-stage-big-run/direct/n
+  stage-n:generated-stage-big-settled/direct/n
+  stage-n:generated-stage-big-dead/direct/n
+  stage-n:generated-stage-big-final/direct/n
   stage-n:generated-stage-big-evaluate/direct/n
   stage-n:generated-stage-big-evaluate/spec/n
   stage-n:generated-stage-flatten-BTrace/n
@@ -421,6 +492,15 @@
 
 (define (source->b api source)
   ((stage-api-encode-mb api) (source->m api source)))
+
+(define (source->z/direct api source)
+  ((stage-api-refocus-phase api) (source->d api source)))
+
+(define (source->m/direct api source)
+  ((stage-api-machineize api) (source->z/direct api source)))
+
+(define (source->b/direct api source)
+  ((stage-api-compress api) (source->m/direct api source)))
 
 (define (source-trace raw source [fuel 32] [reversed-labels '()])
   (when (zero? fuel)
@@ -583,6 +663,104 @@
      (check-false ((stage-api-b-member? api) 'malformed-B))
      (check-false ((stage-api-big-member? api) 'malformed-Big)))
 
+   (test-case "duplicate binders inhabit no selected source or finite carrier"
+     (define duplicate-source
+       (row-corpus-duplicate-binder-source corpus))
+     (match-define `(More ,duplicate-work) duplicate-source)
+     (define root-work-focus '(More hole))
+     (define duplicate-d
+       `(DecAllocate ,duplicate-work ,root-work-focus))
+     (define duplicate-z
+       `(ZAllocate ,duplicate-work ,root-work-focus))
+     (define duplicate-m
+       `(MAllocate ,duplicate-work ,root-work-focus))
+     (define duplicate-b
+       `(BRun ,duplicate-work ,root-work-focus))
+
+     (check-false ((stage-api-source-member? api) duplicate-source))
+     (check-false ((stage-api-d-member? api) duplicate-d))
+     (check-false ((stage-api-z-member? api) duplicate-z))
+     (check-false ((stage-api-m-member? api) duplicate-m))
+     (check-false ((stage-api-b-member? api) duplicate-b))
+     (check-exn
+      #rx"judgment input values do not match its contract"
+      (lambda () ((stage-api-decompose api) duplicate-source)))
+     (check-exn
+      #rx"judgment input values do not match its contract"
+      (lambda () ((stage-api-decompose-count api) duplicate-source))))
+
+   (test-case "terminal inputs traverse every direct selected phase arrow"
+     (define terminals
+       (list
+        (row-corpus-golden-terminal corpus)
+        (failure-case-terminal
+         (first (row-corpus-failures corpus)))))
+
+     (for ([terminal (in-list terminals)])
+       (define decomposition `(Final ,terminal))
+       (define refocused `(ZFinal ,terminal))
+       (define machine `(MFinal ,terminal))
+       (define compressed `(BFinal ,terminal))
+       (define big `(BigFinal ,terminal))
+
+       (check-equal? ((stage-api-decompose api) terminal)
+                     (list decomposition))
+       (check-equal? ((stage-api-decompose-count api) terminal) 1)
+       (check-equal? ((stage-api-refocus-phase api) decomposition)
+                     refocused)
+       (check-equal? ((stage-api-machineize api) refocused) machine)
+       (check-equal? ((stage-api-compress api) machine) compressed)
+       (check-equal? ((stage-api-promote api) compressed) (list big))
+       (check-equal? ((stage-api-big-direct api) terminal) (list big))
+       (check-equal? ((stage-api-big-direct-count api) terminal) 1)
+
+       (check-equal? ((stage-api-d-step api) decomposition) '())
+       (check-equal? ((stage-api-d-step-count api) decomposition) 0)
+       (check-equal? ((stage-api-z-step-direct api) refocused) '())
+       (check-equal? ((stage-api-z-step-direct-count api) refocused) 0)
+       (check-equal? ((stage-api-m-step-direct api) machine) '())
+       (check-equal? ((stage-api-m-step-direct-count api) machine) 0)
+       (check-equal? ((stage-api-b-step-direct api) compressed) '())
+       (check-equal? ((stage-api-b-step-direct-count api) compressed) 0)
+
+       ;; These are secondary readback diagnostics over coordinates already
+       ;; constructed by the primary phase arrows above.
+       (check-equal? ((stage-api-plug-d api) decomposition) terminal)
+       (check-equal? ((stage-api-readback-z api) refocused) terminal)
+       (check-equal? ((stage-api-readback-m api) machine) terminal)
+       (check-equal? ((stage-api-readback-b api) compressed) terminal)
+       (check-equal? ((stage-api-readback-big api) big) terminal)))
+
+   (test-case "standalone direct refocus preserves every raw contract proof"
+     (for ([representative (in-list representatives)])
+       (match-define (list _expected-label source) representative)
+       (match-define (list (list _oracle-label expected-target))
+         (oracle-raw source))
+       (define decomposition (source->d api source))
+       (define contracta ((stage-api-contracta api) decomposition))
+       (check-equal? (length contracta) 1)
+       (check-equal? ((stage-api-contract-count api) decomposition)
+                     (length contracta))
+
+       (define contractum (only-result 'standalone-refocus contracta))
+       (define direct ((stage-api-refocus-direct api) contractum))
+       (define spec ((stage-api-refocus-spec api) contractum))
+       (define expected-refocused
+         (source->z/direct api expected-target))
+
+       ;; Both lists come directly from build-derivations.  Sorting preserves
+       ;; duplicate equal outputs instead of normalizing them to a set.
+       (check-equal? (canonical-proof-multiset direct)
+                     (canonical-proof-multiset spec))
+       (check-equal? (length direct) 1)
+       (check-equal? (length spec) 1)
+       (check-equal? direct (list expected-refocused))
+
+       ;; Readback is a secondary diagnostic, not the construction route for
+       ;; the expected selected coordinate.
+       (check-equal? (map (stage-api-readback-z api) direct)
+                     (list expected-target))))
+
    (test-case "Z direct/spec, Z-M isomorphism, and all squares cover 13 rules"
      (for ([representative (in-list representatives)])
        (match-define (list expected-label source) representative)
@@ -665,6 +843,44 @@
        (check-equal?
         ((stage-api-mb-square api) compressed)
         (list (list span compressed-next machine machine-next)))))
+
+   (test-case "all four direct Big entries preserve raw singleton proofs"
+     (define entry-sources
+       (list
+        (list 'run (row-source-ref corpus 'succeed))
+        (list 'settled (row-source-ref corpus 'finish-success))
+        (list 'dead (row-source-ref corpus 'finish-failure))
+        (list
+         'final
+         (failure-case-terminal
+          (first (row-corpus-failures corpus))))))
+
+     (for ([entry-source (in-list entry-sources)])
+       (match-define (list entry-kind source) entry-source)
+       (define compressed (source->b/direct api source))
+       (define entry-results
+         (match (list entry-kind compressed)
+           [(list 'run `(BRun ,work ,focus))
+            ((stage-api-big-run api) work focus)]
+           [(list 'settled `(BSettled ,settled ,focus))
+            ((stage-api-big-settled api) settled focus)]
+           [(list 'dead `(BDead ,failure-summary ,focus))
+            ((stage-api-big-dead api) failure-summary focus)]
+           [(list 'final `(BFinal ,terminal))
+            ((stage-api-big-final api) terminal)]
+           [unexpected
+            (error 'direct-Big-entry
+                   "entry kind and direct B coordinate disagree: ~e"
+                   unexpected)]))
+       (define promoted ((stage-api-promote api) compressed))
+       (define evaluated ((stage-api-big-direct api) source))
+
+       ;; Entry and promotion results are raw build-derivations outputs.
+       (check-equal? (length entry-results) 1)
+       (check-equal? (length promoted) 1)
+       (check-equal? ((stage-api-big-direct-count api) source) 1)
+       (check-equal? entry-results promoted)
+       (check-equal? entry-results evaluated)))
 
    (test-case "finite M/B/Big trace has exact labels, spans, and every suffix"
      (define source (row-corpus-finite-source corpus))
