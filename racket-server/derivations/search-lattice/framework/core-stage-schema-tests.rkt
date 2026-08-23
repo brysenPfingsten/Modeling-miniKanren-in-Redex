@@ -3,7 +3,9 @@
 (require rackunit
          rackunit/text-ui
          redex/reduction-semantics
+         (prefix-in selected-parameter: "./core-redex-parameter.rkt")
          "./core-stage-empty-frame-fixture.rkt"
+         "./core-stage-schema.rkt"
          "./core-stage-schema-consumer-fixture.rkt")
 
 (provide CORE-STAGE-SCHEMA-TESTS)
@@ -11,7 +13,189 @@
 (define EMPTY-STATE
   (term (box 0 () () () (label "state"))))
 
+;; This deliberately puts the only consumer rule at L0.  Reaching the L2-only
+;; dependency case requires both recursive base reconstruction and registration
+;; of the L2 dependency with every ancestor's exact-language table.
+(define-language selected-parameter-L0
+  [E 0]
+  [N natural])
+
+(selected-parameter:define-judgment-form* selected-parameter-L0
+  #:mode (selected-parameter-dependency0 I O)
+  #:contract (selected-parameter-dependency0 E N)
+  [----
+   (selected-parameter-dependency0 0 10)])
+
+(selected-parameter:define-judgment-form* selected-parameter-L0
+  #:parameters
+  ([current-dependency selected-parameter-dependency0])
+  #:mode (selected-parameter-consumer0 I O)
+  #:contract (selected-parameter-consumer0 E N)
+  [(current-dependency E N)
+   ----
+   (selected-parameter-consumer0 E N)])
+
+(define-extended-language selected-parameter-L1
+  selected-parameter-L0
+  [E .... 1])
+
+(selected-parameter:define-extended-judgment-form*
+ selected-parameter-dependency0
+ selected-parameter-L1
+ #:mode (selected-parameter-dependency1 I O)
+ [----
+  (selected-parameter-dependency1 1 11)])
+
+(selected-parameter:define-extended-judgment-form*
+ selected-parameter-consumer0
+ selected-parameter-L1
+ #:mode (selected-parameter-consumer1 I O)
+ #:parameters
+ ([current-dependency selected-parameter-dependency1]))
+
+(define-extended-language selected-parameter-L2
+  selected-parameter-L1
+  [E .... 2])
+
+(selected-parameter:define-extended-judgment-form*
+ selected-parameter-dependency1
+ selected-parameter-L2
+ #:mode (selected-parameter-dependency2 I O)
+ [----
+  (selected-parameter-dependency2 2 12)])
+
+(selected-parameter:define-extended-judgment-form*
+ selected-parameter-consumer1
+ selected-parameter-L2
+ #:mode (selected-parameter-consumer2 I O)
+ #:parameters
+ ([current-dependency selected-parameter-dependency2]))
+
+(define (adversarial-extension-syntax
+         D-forms Z-step-direct Z-D->Z
+         [Z-parameters #'()]
+         [Z-diagnostic-parameters #'()])
+  #`(let ()
+      (define-selected-stage-extension adversarial-extension
+        #:source-language output-source-language
+        #:feature-singletons ()
+        #:D
+        [#:parameters ()
+         #:artifacts
+         (D-artifacts
+          #:language primary-output
+          #:plug-D primary-output
+          #:plug-C primary-output
+          #:contract-label primary-output
+          #:decompose primary-output
+          #:contract primary-output
+          #:step primary-output)
+         #:forms #,D-forms]
+        #:Z
+        [#:parameters #,Z-parameters
+         #:artifacts
+         (Z-artifacts
+          #:language primary-output
+          #:refocus-phase primary-output
+          #:refocus-work-direct primary-output
+          #:refocus-direct primary-output
+          #:step-direct #,Z-step-direct)
+         #:forms ()
+         #:diagnostic-parameters #,Z-diagnostic-parameters
+         #:diagnostics
+         (Z-diagnostics
+          #:D->Z #,Z-D->Z
+          #:Z->D diagnostic-output
+          #:readback diagnostic-output
+          #:refocus-spec diagnostic-output
+          #:step-spec diagnostic-output)
+         #:diagnostic-forms ()]
+        #:M
+        [#:parameters ()
+         #:artifacts
+         (M-artifacts
+          #:language primary-output
+          #:machineize primary-output
+          #:refocus-work-direct primary-output
+          #:refocus-direct primary-output
+          #:step-direct primary-output)
+         #:forms ()
+         #:diagnostic-parameters ()
+         #:diagnostics
+         (M-diagnostics
+          #:encode-ZM diagnostic-output
+          #:decode-MZ diagnostic-output
+          #:D->M diagnostic-output
+          #:M->D diagnostic-output
+          #:readback diagnostic-output
+          #:corresponds diagnostic-output
+          #:step-spec diagnostic-output
+          #:square diagnostic-output)
+         #:diagnostic-forms ()]
+        #:B
+        [#:parameters ()
+         #:artifacts
+         (B-artifacts
+          #:language primary-output
+          #:compress primary-output
+          #:span-labels primary-output
+          #:produce-settled primary-output
+          #:produce-dead primary-output
+          #:advance-settled primary-output
+          #:advance-dead primary-output
+          #:base-singleton primary-output
+          #:step-direct primary-output)
+         #:forms ()
+         #:diagnostic-parameters ()
+         #:diagnostics
+         (B-diagnostics
+          #:encode-MB diagnostic-output
+          #:decode-BM diagnostic-output
+          #:readback diagnostic-output
+          #:corresponds diagnostic-output
+          #:replay diagnostic-output
+          #:step-spec diagnostic-output
+          #:square diagnostic-output)
+         #:diagnostic-forms ()]
+        #:Big
+        [#:parameters ()
+         #:artifacts
+         (Big-artifacts
+          #:language primary-output
+          #:dispatch-one primary-output
+          #:dispatch primary-output
+          #:run primary-output
+          #:settled primary-output
+          #:dead primary-output
+          #:final primary-output
+          #:evaluate primary-output)
+         #:forms ()
+         #:diagnostic-parameters ()
+         #:diagnostics
+         (Big-diagnostics
+          #:readback diagnostic-output
+          #:spec-language diagnostic-output
+          #:initialize diagnostic-output
+          #:close diagnostic-output
+          #:flatten diagnostic-output
+          #:promote diagnostic-output
+          #:evaluate-spec diagnostic-output
+          #:unfold-square diagnostic-output
+          #:closure-square diagnostic-output
+          #:root-square diagnostic-output)
+         #:diagnostic-forms ()])))
+
 (define-test-suite CORE-STAGE-SCHEMA-TESTS
+  (test-case "selected dependency lifting is transitive across three languages"
+    (check-equal?
+     (judgment-holds (selected-parameter-consumer2 2 N) N)
+     '(12))
+    (check-equal?
+     (length
+      (build-derivations
+       (selected-parameter-consumer2 2 N)))
+     1))
+
   (test-case "a foreign interface generates an ordinary D artifact"
     (check-true
      (redex-match?
@@ -209,7 +393,60 @@
      (judgment-holds
       (empty-frame-big-evaluate (root (tick 3)) Big)
       Big)
-     (list (term (BigFinal (halted 4)))))))
+     (list (term (BigFinal (halted 4))))))
+
+  (test-case "direct extension forms cannot consume output diagnostics"
+    (check-exn
+     #rx"direct stage forms cannot consume diagnostic artifacts"
+     (lambda ()
+       (expand
+        (adversarial-extension-syntax
+         #'((void forbidden-output-diagnostic))
+         #'primary-output
+         #'forbidden-output-diagnostic)))))
+
+  (test-case "direct extension forms cannot consume BASE diagnostic artifacts"
+    (check-exn
+     #rx"direct stage forms cannot consume diagnostic artifacts"
+     (lambda ()
+       (expand
+        (adversarial-extension-syntax
+         #'((void BASE-Z-READBACK))
+         #'primary-output
+         #'forbidden-output-diagnostic)))))
+
+  (test-case "direct extension forms cannot consume BASE diagnostic parameters"
+    (check-exn
+     #rx"direct stage forms cannot consume diagnostic artifacts"
+     (lambda ()
+       (expand
+        (adversarial-extension-syntax
+         #'((void BASE-Z-DIAGNOSTIC-PARAMETER-query-evidence))
+         #'primary-output
+         #'forbidden-output-diagnostic)))))
+
+  (test-case
+      "primary artifacts cannot alias diagnostic-only parameter defaults"
+    (check-exn
+     #rx"primary artifact and diagnostic-only parameter default identifiers must be disjoint"
+     (lambda ()
+       (expand
+        (adversarial-extension-syntax
+         #'()
+         #'diagnostic-parameter-output
+         #'forbidden-output-diagnostic
+         #'()
+         #'([diagnostic-dependency diagnostic-parameter-output]))))))
+
+  (test-case "primary and diagnostic output records are disjoint"
+    (check-exn
+     #rx"primary and diagnostic artifact identifiers must be disjoint"
+     (lambda ()
+       (expand
+        (adversarial-extension-syntax
+         #'()
+         #'forbidden-output-diagnostic
+         #'forbidden-output-diagnostic))))))
 
 (module+ test
   (run-tests CORE-STAGE-SCHEMA-TESTS))

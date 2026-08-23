@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         (prefix-in redex-parameter: redex/parameter)
+         (prefix-in redex-parameter: "./core-redex-parameter.rkt")
          (for-syntax racket/base
                      racket/list
                      racket/match
@@ -15,6 +15,7 @@
          define-selected-machine-isomorphism-stage
          define-selected-compressed-stage
          define-selected-fixed-point-stage
+         define-selected-staged-row
          define-selected-stage-extension
          apply-selected-stage-extension
          define-decomposition-representation-map
@@ -59,6 +60,21 @@
       (raise-syntax-error
        #f
        "a selected stage extension is valid only after #:extension"
+       use-stx)))
+
+  (struct selected-staged-row-binding
+    (source-language
+     D-artifacts Z-artifacts M-artifacts B-artifacts Big-artifacts
+     Z-diagnostics M-diagnostics B-diagnostics Big-diagnostics
+     D-parameters Z-parameters M-parameters B-parameters Big-parameters
+     Z-diagnostic-parameters M-diagnostic-parameters
+     B-diagnostic-parameters Big-diagnostic-parameters
+     feature-singletons compression-labels compression-boundaries)
+    #:property prop:procedure
+    (lambda (_self use-stx)
+      (raise-syntax-error
+       #f
+       "a selected staged row is valid only after #:base"
        use-stx)))
 
   (struct rule-info (label site from to premises source) #:transparent)
@@ -875,6 +891,666 @@
        identifier))
     (selected-stage-extension-binding-declaration value))
 
+  (define (lookup-selected-staged-row identifier)
+    (define value (syntax-local-value identifier (lambda () #f)))
+    (unless (selected-staged-row-binding? value)
+      (raise-syntax-error
+       #f
+       "expected a selected staged row"
+       identifier))
+    value)
+
+  ;; Primary records contain only artifacts that a later coordinate extension
+  ;; may consume to build its own direct system.  Codec/readback/specification
+  ;; artifacts live in a distinct diagnostics channel, so they cannot become
+  ;; coordinate constructors accidentally.
+  (define primary-artifact-fields
+    (hash
+     'D-artifacts
+     '(#:language #:plug-D #:plug-C #:contract-label
+       #:decompose #:contract #:step)
+     'Z-artifacts
+     '(#:language #:refocus-phase #:refocus-work-direct
+       #:refocus-direct #:step-direct)
+     'M-artifacts
+     '(#:language #:machineize #:refocus-work-direct
+       #:refocus-direct #:step-direct)
+     'B-artifacts
+     '(#:language #:compress #:span-labels #:produce-settled #:produce-dead
+       #:advance-settled #:advance-dead #:base-singleton #:step-direct)
+     'Big-artifacts
+     '(#:language #:dispatch-one #:dispatch #:run #:settled
+       #:dead #:final #:evaluate)))
+
+  (define diagnostic-artifact-fields
+    (hash
+     'Z-diagnostics
+     '(#:D->Z #:Z->D #:readback #:refocus-spec #:step-spec)
+     'M-diagnostics
+     '(#:encode-ZM #:decode-MZ #:D->M #:M->D #:readback
+       #:corresponds #:step-spec #:square)
+     'B-diagnostics
+     '(#:encode-MB #:decode-BM #:readback
+       #:corresponds #:replay #:step-spec #:square)
+     'Big-diagnostics
+     '(#:readback #:spec-language #:initialize #:close #:flatten
+       #:promote #:evaluate-spec #:unfold-square
+       #:closure-square #:root-square)))
+
+  (define (required-artifact-fields expected-kind)
+    (hash-ref
+     primary-artifact-fields
+     expected-kind
+     (lambda () (hash-ref diagnostic-artifact-fields expected-kind))))
+
+  (define (artifact-entries artifact expected-kind declaration)
+    (define parts (syntax->list artifact))
+    (unless (and parts (pair? parts) (identifier? (first parts)))
+      (raise-syntax-error
+       #f
+       "expected a staged-row artifact record"
+       declaration
+       artifact))
+    (define actual-kind (syntax-e (first parts)))
+    (unless (eq? actual-kind expected-kind)
+      (raise-syntax-error
+       #f
+       (format "expected a ~a record" expected-kind)
+       declaration
+       artifact))
+    (define fields (rest parts))
+    (unless (even? (length fields))
+      (raise-syntax-error
+       #f
+       "artifact fields must be keyword/identifier pairs"
+       declaration
+       artifact))
+    (define (fields->entries remaining [entries '()])
+      (match remaining
+        ['() (reverse entries)]
+        [(list* keyword-stx value rest-fields)
+         (define keyword (syntax-e keyword-stx))
+         (unless (and (keyword? keyword) (identifier? value))
+           (raise-syntax-error
+            #f
+            "artifact fields must be keyword/identifier pairs"
+            declaration
+            artifact))
+         (fields->entries
+          rest-fields
+          (cons (cons keyword value) entries))]))
+    (define entries (fields->entries fields))
+    (define keys (map car entries))
+    (when (check-duplicates keys)
+      (raise-syntax-error
+       #f
+       "artifact fields must be distinct"
+       declaration
+       artifact))
+    entries)
+
+  (define (parse-artifact-record artifact expected-kind declaration)
+    (define entries
+      (artifact-entries artifact expected-kind declaration))
+    (define keys (map car entries))
+    (define required (required-artifact-fields expected-kind))
+    (unless (and (= (length keys) (length required))
+                 (andmap (lambda (key) (member key keys)) required))
+      (raise-syntax-error
+       #f
+       (format "~a requires exactly these fields: ~a"
+               expected-kind
+               required)
+       declaration
+       artifact))
+    entries)
+
+  (define (project-artifact-record artifact input-kind output-kind declaration)
+    (define entries (artifact-entries artifact input-kind declaration))
+    (define required (required-artifact-fields output-kind))
+    (define projected
+      (for/list ([field (in-list required)])
+        (define entry (assq field entries))
+        (unless entry
+          (raise-syntax-error
+           #f
+           (format "~a is missing required field ~a" input-kind field)
+           declaration
+           artifact))
+        entry))
+    #`(#,(datum->syntax (first (syntax->list artifact)) output-kind)
+       #,@(append-map
+           (lambda (entry)
+             (list (datum->syntax artifact (car entry)) (cdr entry)))
+           projected)))
+
+  (define (artifact-field artifact kind field declaration)
+    (define entries (parse-artifact-record artifact kind declaration))
+    (cdr (assq field entries)))
+
+  (define (validate-row-artifacts D-artifacts Z-artifacts M-artifacts
+                                  B-artifacts Big-artifacts declaration)
+    (for ([artifact (in-list (list D-artifacts Z-artifacts M-artifacts
+                                   B-artifacts Big-artifacts))]
+          [kind (in-list '(D-artifacts Z-artifacts M-artifacts
+                          B-artifacts Big-artifacts))])
+      (parse-artifact-record artifact kind declaration)))
+
+  (define (validate-row-diagnostics Z-diagnostics M-diagnostics
+                                    B-diagnostics Big-diagnostics declaration)
+    (for ([artifact
+           (in-list (list Z-diagnostics M-diagnostics
+                          B-diagnostics Big-diagnostics))]
+          [kind
+           (in-list '(Z-diagnostics M-diagnostics
+                      B-diagnostics Big-diagnostics))])
+      (parse-artifact-record artifact kind declaration)))
+
+  (define (artifact-record-identifiers records declaration)
+    (append-map
+     (lambda (kind+artifact)
+       (match-define (list kind artifact) kind+artifact)
+       (map cdr (parse-artifact-record artifact kind declaration)))
+     records))
+
+  (define (validate-primary-diagnostic-artifacts-disjoint
+           primary-records diagnostic-records declaration)
+    (define primary-identifiers
+      (artifact-record-identifiers primary-records declaration))
+    (define diagnostic-identifiers
+      (artifact-record-identifiers diagnostic-records declaration))
+    (for* ([primary (in-list primary-identifiers)]
+           [diagnostic (in-list diagnostic-identifiers)])
+      (when (free-identifier=? primary diagnostic)
+        (raise-syntax-error
+         #f
+         "primary and diagnostic artifact identifiers must be disjoint"
+         declaration
+         diagnostic))))
+
+  ;; A parameter-default record is an ordered list of Redex parameter names
+  ;; and liftable defaults.  The defaults are part of the staged interface:
+  ;; a later extension must extend the exact binding installed by the prior
+  ;; coordinate, not rediscover a source-level approximation of it.
+  (define (parse-parameter-defaults parameters description declaration)
+    (define entries (syntax->list parameters))
+    (unless entries
+      (raise-syntax-error
+       #f
+       (format "~a must be a list of [parameter default] pairs" description)
+       declaration
+       parameters))
+    (define parsed
+      (for/list ([entry (in-list entries)])
+        (syntax-parse entry
+          [[parameter:id default:id]
+           (cons #'parameter #'default)]
+          [_
+           (raise-syntax-error
+            #f
+            (format "~a must contain only [parameter default] pairs"
+                    description)
+            declaration
+            entry)])))
+    (define duplicate
+      (check-duplicates (map (lambda (entry) (syntax-e (car entry))) parsed)))
+    (when duplicate
+      (raise-syntax-error
+       #f
+       (format "~a contains duplicate parameter ~a" description duplicate)
+       declaration
+       parameters))
+    parsed)
+
+  (define (parameter-placeholder-symbol phase parameter [diagnostic? #f])
+    (string->symbol
+     (format "BASE-~a~a-PARAMETER-~a"
+             phase
+             (if diagnostic? "-DIAGNOSTIC" "")
+             (syntax-e parameter))))
+
+  (define (parameter-replacements phase parameters
+                                  description declaration
+                                  [diagnostic? #f])
+    (for/list
+        ([entry
+          (in-list
+           (parse-parameter-defaults parameters description declaration))])
+      (cons
+       (parameter-placeholder-symbol phase (car entry) diagnostic?)
+       (cdr entry))))
+
+  (define (assert-parameter-defaults-equal
+           actual expected description declaration)
+    (define actual-entries
+      (parse-parameter-defaults actual description declaration))
+    (define expected-entries
+      (parse-parameter-defaults expected description declaration))
+    (unless (= (length actual-entries) (length expected-entries))
+      (raise-syntax-error
+       #f
+       (format "staged-row ~a parameter counts differ" description)
+       declaration
+       expected))
+    (for ([actual-entry (in-list actual-entries)]
+          [expected-entry (in-list expected-entries)])
+      (unless
+          (and
+           (eq? (syntax-e (car actual-entry))
+                (syntax-e (car expected-entry)))
+           (free-identifier=? (cdr actual-entry) (cdr expected-entry)))
+        (raise-syntax-error
+         #f
+         (format "staged-row ~a parameter defaults differ" description)
+         declaration
+         expected))))
+
+  (define diagnostic-placeholder-symbols
+    '(BASE-D->Z BASE-Z->D BASE-Z-READBACK BASE-Z-REFOCUS-SPEC
+      BASE-Z-STEP-SPEC
+      BASE-ENCODE-ZM BASE-DECODE-MZ BASE-D->M BASE-M->D
+      BASE-M-READBACK BASE-ZM-CORRESPONDS BASE-M-STEP-SPEC
+      BASE-ZM-SQUARE
+      BASE-ENCODE-MB BASE-DECODE-BM BASE-B-READBACK
+      BASE-MB-CORRESPONDS BASE-B-REPLAY BASE-B-STEP-SPEC
+      BASE-MB-SQUARE
+      BASE-BIG-READBACK BASE-BIG-SPEC-LANGUAGE
+      BASE-BIG-INITIALIZE BASE-BIG-CLOSE BASE-BIG-FLATTEN
+      BASE-PROMOTE BASE-BIG-EVALUATE-SPEC
+      BASE-BIG-UNFOLD-SQUARE BASE-BIG-CLOSURE-SQUARE
+      BASE-BIG-ROOT-SQUARE))
+
+  (define (find-forbidden-direct-identifier form diagnostic-identifiers)
+    (define (forbidden? identifier)
+      (define symbol (syntax-e identifier))
+      (or (memq symbol diagnostic-placeholder-symbols)
+          (and
+           (symbol? symbol)
+           (regexp-match?
+            #rx"^BASE-(Z|M|B|BIG)-DIAGNOSTIC-PARAMETER-"
+            (symbol->string symbol)))
+          (for/or ([diagnostic (in-list diagnostic-identifiers)])
+            (free-identifier=? identifier diagnostic))))
+    (define (walk-tail datum)
+      (cond
+        [(pair? datum)
+         (or (walk (car datum)) (walk-tail (cdr datum)))]
+        [(syntax? datum) (walk datum)]
+        [else #f]))
+    (define (walk stx)
+      (cond
+        [(identifier? stx) (and (forbidden? stx) stx)]
+        [else
+         (define datum (syntax-e stx))
+         (cond
+           [(and (pair? datum)
+                 (identifier? (car datum))
+                 (memq (syntax-e (car datum))
+                       selected-extension-opaque-heads))
+            #f]
+           [(pair? datum)
+            (or (walk (car datum)) (walk-tail (cdr datum)))]
+           [else #f])]))
+    (walk form))
+
+  (define (parameter-default-identifiers parameter-groups declaration)
+    (append-map
+     (lambda (description+parameters)
+       (match-define (list description parameters)
+         description+parameters)
+       (map cdr
+            (parse-parameter-defaults
+             parameters description declaration)))
+     parameter-groups))
+
+  (define (diagnostic-only-parameter-default-identifiers
+           direct-parameter-groups diagnostic-parameter-groups declaration)
+    (define direct-parameter-identifiers
+      (parameter-default-identifiers direct-parameter-groups declaration))
+    (filter
+     (lambda (diagnostic)
+       (not
+        (for/or ([direct (in-list direct-parameter-identifiers)])
+          (free-identifier=? diagnostic direct))))
+     (parameter-default-identifiers
+      diagnostic-parameter-groups declaration)))
+
+  (define (validate-primary-artifacts-diagnostic-parameters-disjoint
+           primary-records direct-parameter-groups
+           diagnostic-parameter-groups declaration)
+    (define primary-identifiers
+      (artifact-record-identifiers primary-records declaration))
+    (define diagnostic-only-identifiers
+      (diagnostic-only-parameter-default-identifiers
+       direct-parameter-groups diagnostic-parameter-groups declaration))
+    (for* ([primary (in-list primary-identifiers)]
+           [diagnostic (in-list diagnostic-only-identifiers)])
+      (when (free-identifier=? primary diagnostic)
+        (raise-syntax-error
+         #f
+         (string-append
+          "primary artifact and diagnostic-only parameter default "
+          "identifiers must be disjoint")
+         declaration
+         diagnostic))))
+
+  (define (validate-direct-forms
+           direct-form-groups diagnostics
+           direct-parameter-groups diagnostic-parameter-groups
+           declaration)
+    (define diagnostic-only-parameter-identifiers
+      (diagnostic-only-parameter-default-identifiers
+       direct-parameter-groups diagnostic-parameter-groups declaration))
+    (define diagnostic-identifiers
+      (append-map
+       (lambda (kind+artifact)
+         (match-define (list kind artifact) kind+artifact)
+         (map cdr (parse-artifact-record artifact kind declaration)))
+       diagnostics))
+    (define forbidden-identifiers
+      (append diagnostic-identifiers
+              diagnostic-only-parameter-identifiers))
+    (for* ([forms (in-list direct-form-groups)]
+           [form (in-list (syntax->list forms))])
+      (define forbidden
+        (find-forbidden-direct-identifier form forbidden-identifiers))
+      (when forbidden
+        (raise-syntax-error
+         #f
+         "direct stage forms cannot consume diagnostic artifacts"
+         declaration
+         forbidden))))
+
+  (define row-record-accessors
+    (list
+     (list 'D-artifacts selected-staged-row-binding-D-artifacts)
+     (list 'Z-artifacts selected-staged-row-binding-Z-artifacts)
+     (list 'M-artifacts selected-staged-row-binding-M-artifacts)
+     (list 'B-artifacts selected-staged-row-binding-B-artifacts)
+     (list 'Big-artifacts selected-staged-row-binding-Big-artifacts)
+     (list 'Z-diagnostics selected-staged-row-binding-Z-diagnostics)
+     (list 'M-diagnostics selected-staged-row-binding-M-diagnostics)
+     (list 'B-diagnostics selected-staged-row-binding-B-diagnostics)
+     (list 'Big-diagnostics selected-staged-row-binding-Big-diagnostics)))
+
+  (define row-parameter-accessors
+    (list
+     (list 'D-parameters selected-staged-row-binding-D-parameters)
+     (list 'Z-parameters selected-staged-row-binding-Z-parameters)
+     (list 'M-parameters selected-staged-row-binding-M-parameters)
+     (list 'B-parameters selected-staged-row-binding-B-parameters)
+     (list 'Big-parameters selected-staged-row-binding-Big-parameters)
+     (list 'Z-diagnostic-parameters
+           selected-staged-row-binding-Z-diagnostic-parameters)
+     (list 'M-diagnostic-parameters
+           selected-staged-row-binding-M-diagnostic-parameters)
+     (list 'B-diagnostic-parameters
+           selected-staged-row-binding-B-diagnostic-parameters)
+     (list 'Big-diagnostic-parameters
+           selected-staged-row-binding-Big-diagnostic-parameters)))
+
+  (define (assert-record-identifiers-equal
+           actual expected kind declaration)
+    (define actual-entries
+      (parse-artifact-record actual kind declaration))
+    (define expected-entries
+      (parse-artifact-record expected kind declaration))
+    (for ([field (in-list (required-artifact-fields kind))])
+      (unless
+          (free-identifier=?
+           (cdr (assq field actual-entries))
+           (cdr (assq field expected-entries)))
+        (raise-syntax-error
+         #f
+         (format "staged-row ~a field ~a differs" kind field)
+         declaration
+         expected))))
+
+  (define (assert-row-identifiers-equal actual expected declaration)
+    (unless
+        (free-identifier=?
+         (selected-staged-row-binding-source-language actual)
+         (selected-staged-row-binding-source-language expected))
+      (raise-syntax-error
+       #f
+       "staged-row effective source languages differ"
+       declaration))
+    (for ([kind+accessor (in-list row-record-accessors)])
+      (match-define (list kind accessor) kind+accessor)
+      (assert-record-identifiers-equal
+       (accessor actual) (accessor expected) kind declaration))
+    (for ([description+accessor (in-list row-parameter-accessors)])
+      (match-define (list description accessor) description+accessor)
+      (assert-parameter-defaults-equal
+       (accessor actual) (accessor expected) description declaration))
+    (for ([accessor
+           (in-list
+            (list selected-staged-row-binding-feature-singletons
+                  selected-staged-row-binding-compression-labels
+                  selected-staged-row-binding-compression-boundaries))]
+          [description
+           (in-list
+            '(feature-singletons compression-labels
+              compression-boundaries))])
+      (unless (equal? (accessor actual) (accessor expected))
+        (raise-syntax-error
+         #f
+         (format "staged-row ~a metadata differs" description)
+         declaration))))
+
+  (define (identifier-symbol-list identifiers description declaration)
+    (define list-value (syntax->list identifiers))
+    (unless (and list-value (andmap identifier? list-value))
+      (raise-syntax-error
+       #f
+       (format "~a must be an identifier list" description)
+       declaration
+       identifiers))
+    (map syntax-e list-value))
+
+  (define (identifier-symbol-batches batches declaration)
+    (define batch-list (syntax->list batches))
+    (unless batch-list
+      (raise-syntax-error
+       #f
+       "compression boundaries must be a list of identifier lists"
+       declaration
+       batches))
+    (for/list ([batch (in-list batch-list)])
+      (identifier-symbol-list batch 'compression-boundary declaration)))
+
+  (define (policy-labels policy)
+    (remove-duplicates
+     (map label-symbol
+          (append (policy-info-settled-producers policy)
+                  (policy-info-dead-producers policy)
+                  (policy-info-settled-followers policy)
+                  (policy-info-dead-followers policy)
+                  (policy-info-singletons policy)))))
+
+  (define (staged-row-definition name source-language
+                                 D-artifacts Z-artifacts M-artifacts
+                                 B-artifacts Big-artifacts
+                                 Z-diagnostics M-diagnostics
+                                 B-diagnostics Big-diagnostics
+                                 D-parameters Z-parameters M-parameters
+                                 B-parameters Big-parameters
+                                 Z-diagnostic-parameters
+                                 M-diagnostic-parameters
+                                 B-diagnostic-parameters
+                                 Big-diagnostic-parameters
+                                 feature-singletons compression-labels
+                                 compression-boundaries)
+    #`(define-syntax #,name
+        (selected-staged-row-binding
+         (quote-syntax #,source-language)
+         (quote-syntax #,D-artifacts)
+         (quote-syntax #,Z-artifacts)
+         (quote-syntax #,M-artifacts)
+         (quote-syntax #,B-artifacts)
+         (quote-syntax #,Big-artifacts)
+         (quote-syntax #,Z-diagnostics)
+         (quote-syntax #,M-diagnostics)
+         (quote-syntax #,B-diagnostics)
+         (quote-syntax #,Big-diagnostics)
+         (quote-syntax #,D-parameters)
+         (quote-syntax #,Z-parameters)
+         (quote-syntax #,M-parameters)
+         (quote-syntax #,B-parameters)
+         (quote-syntax #,Big-parameters)
+         (quote-syntax #,Z-diagnostic-parameters)
+         (quote-syntax #,M-diagnostic-parameters)
+         (quote-syntax #,B-diagnostic-parameters)
+         (quote-syntax #,Big-diagnostic-parameters)
+         '#,feature-singletons
+         '#,compression-labels
+         '#,compression-boundaries)))
+
+  (define (selected-row-replacements row)
+    (define declaration #f)
+    (define D (selected-staged-row-binding-D-artifacts row))
+    (define Z (selected-staged-row-binding-Z-artifacts row))
+    (define M (selected-staged-row-binding-M-artifacts row))
+    (define B (selected-staged-row-binding-B-artifacts row))
+    (define Big (selected-staged-row-binding-Big-artifacts row))
+    (define (field artifact kind keyword)
+      (artifact-field artifact kind keyword declaration))
+    (list
+     (cons 'BASE-SOURCE-LANGUAGE
+           (selected-staged-row-binding-source-language row))
+     (cons 'BASE-D-LANGUAGE (field D 'D-artifacts '#:language))
+     (cons 'BASE-D-PLUG (field D 'D-artifacts '#:plug-D))
+     (cons 'BASE-C-PLUG (field D 'D-artifacts '#:plug-C))
+     (cons 'BASE-CONTRACT-LABEL
+           (field D 'D-artifacts '#:contract-label))
+     (cons 'BASE-DECOMPOSE (field D 'D-artifacts '#:decompose))
+     (cons 'BASE-CONTRACT (field D 'D-artifacts '#:contract))
+     (cons 'BASE-D-STEP (field D 'D-artifacts '#:step))
+     (cons 'BASE-Z-LANGUAGE (field Z 'Z-artifacts '#:language))
+     (cons 'BASE-REFOCUS-PHASE
+           (field Z 'Z-artifacts '#:refocus-phase))
+     (cons 'BASE-Z-REFOCUS-WORK
+           (field Z 'Z-artifacts '#:refocus-work-direct))
+     (cons 'BASE-Z-REFOCUS (field Z 'Z-artifacts '#:refocus-direct))
+     (cons 'BASE-Z-STEP (field Z 'Z-artifacts '#:step-direct))
+     (cons 'BASE-M-LANGUAGE (field M 'M-artifacts '#:language))
+     (cons 'BASE-MACHINEIZE (field M 'M-artifacts '#:machineize))
+     (cons 'BASE-M-REFOCUS-WORK
+           (field M 'M-artifacts '#:refocus-work-direct))
+     (cons 'BASE-M-REFOCUS (field M 'M-artifacts '#:refocus-direct))
+     (cons 'BASE-M-STEP (field M 'M-artifacts '#:step-direct))
+     (cons 'BASE-B-LANGUAGE (field B 'B-artifacts '#:language))
+     (cons 'BASE-COMPRESS (field B 'B-artifacts '#:compress))
+     (cons 'BASE-SPAN-LABELS (field B 'B-artifacts '#:span-labels))
+     (cons 'BASE-B-PRODUCE-SETTLED
+           (field B 'B-artifacts '#:produce-settled))
+     (cons 'BASE-B-PRODUCE-DEAD
+           (field B 'B-artifacts '#:produce-dead))
+     (cons 'BASE-B-ADVANCE-SETTLED
+           (field B 'B-artifacts '#:advance-settled))
+     (cons 'BASE-B-ADVANCE-DEAD
+           (field B 'B-artifacts '#:advance-dead))
+     (cons 'BASE-B-SINGLETON (field B 'B-artifacts '#:base-singleton))
+     (cons 'BASE-B-STEP (field B 'B-artifacts '#:step-direct))
+     (cons 'BASE-BIG-LANGUAGE (field Big 'Big-artifacts '#:language))
+     (cons 'BASE-BIG-DISPATCH-ONE
+           (field Big 'Big-artifacts '#:dispatch-one))
+     (cons 'BASE-BIG-DISPATCH (field Big 'Big-artifacts '#:dispatch))
+     (cons 'BASE-BIG-RUN (field Big 'Big-artifacts '#:run))
+     (cons 'BASE-BIG-SETTLED (field Big 'Big-artifacts '#:settled))
+     (cons 'BASE-BIG-DEAD (field Big 'Big-artifacts '#:dead))
+     (cons 'BASE-BIG-FINAL (field Big 'Big-artifacts '#:final))
+     (cons 'BASE-BIG-EVALUATE (field Big 'Big-artifacts '#:evaluate))))
+
+  (define (selected-row-diagnostic-replacements row)
+    (define declaration #f)
+    (define Z (selected-staged-row-binding-Z-diagnostics row))
+    (define M (selected-staged-row-binding-M-diagnostics row))
+    (define B (selected-staged-row-binding-B-diagnostics row))
+    (define Big (selected-staged-row-binding-Big-diagnostics row))
+    (define (field artifact kind keyword)
+      (artifact-field artifact kind keyword declaration))
+    (list
+     (cons 'BASE-D->Z (field Z 'Z-diagnostics '#:D->Z))
+     (cons 'BASE-Z->D (field Z 'Z-diagnostics '#:Z->D))
+     (cons 'BASE-Z-READBACK (field Z 'Z-diagnostics '#:readback))
+     (cons 'BASE-Z-REFOCUS-SPEC
+           (field Z 'Z-diagnostics '#:refocus-spec))
+     (cons 'BASE-Z-STEP-SPEC (field Z 'Z-diagnostics '#:step-spec))
+     (cons 'BASE-ENCODE-ZM (field M 'M-diagnostics '#:encode-ZM))
+     (cons 'BASE-DECODE-MZ (field M 'M-diagnostics '#:decode-MZ))
+     (cons 'BASE-D->M (field M 'M-diagnostics '#:D->M))
+     (cons 'BASE-M->D (field M 'M-diagnostics '#:M->D))
+     (cons 'BASE-M-READBACK (field M 'M-diagnostics '#:readback))
+     (cons 'BASE-ZM-CORRESPONDS (field M 'M-diagnostics '#:corresponds))
+     (cons 'BASE-M-STEP-SPEC (field M 'M-diagnostics '#:step-spec))
+     (cons 'BASE-ZM-SQUARE (field M 'M-diagnostics '#:square))
+     (cons 'BASE-ENCODE-MB (field B 'B-diagnostics '#:encode-MB))
+     (cons 'BASE-DECODE-BM (field B 'B-diagnostics '#:decode-BM))
+     (cons 'BASE-B-READBACK (field B 'B-diagnostics '#:readback))
+     (cons 'BASE-MB-CORRESPONDS (field B 'B-diagnostics '#:corresponds))
+     (cons 'BASE-B-REPLAY (field B 'B-diagnostics '#:replay))
+     (cons 'BASE-B-STEP-SPEC (field B 'B-diagnostics '#:step-spec))
+     (cons 'BASE-MB-SQUARE (field B 'B-diagnostics '#:square))
+     (cons 'BASE-BIG-READBACK (field Big 'Big-diagnostics '#:readback))
+     (cons 'BASE-BIG-SPEC-LANGUAGE
+           (field Big 'Big-diagnostics '#:spec-language))
+     (cons 'BASE-BIG-INITIALIZE
+           (field Big 'Big-diagnostics '#:initialize))
+     (cons 'BASE-BIG-CLOSE (field Big 'Big-diagnostics '#:close))
+     (cons 'BASE-BIG-FLATTEN (field Big 'Big-diagnostics '#:flatten))
+     (cons 'BASE-PROMOTE (field Big 'Big-diagnostics '#:promote))
+     (cons 'BASE-BIG-EVALUATE-SPEC
+           (field Big 'Big-diagnostics '#:evaluate-spec))
+     (cons 'BASE-BIG-UNFOLD-SQUARE
+           (field Big 'Big-diagnostics '#:unfold-square))
+     (cons 'BASE-BIG-CLOSURE-SQUARE
+           (field Big 'Big-diagnostics '#:closure-square))
+     (cons 'BASE-BIG-ROOT-SQUARE
+           (field Big 'Big-diagnostics '#:root-square))))
+
+  (define (selected-row-parameter-replacements row)
+    (append
+     (parameter-replacements
+      'D
+      (selected-staged-row-binding-D-parameters row)
+      'D-parameters #f)
+     (parameter-replacements
+      'Z
+      (selected-staged-row-binding-Z-parameters row)
+      'Z-parameters #f)
+     (parameter-replacements
+      'M
+      (selected-staged-row-binding-M-parameters row)
+      'M-parameters #f)
+     (parameter-replacements
+      'B
+      (selected-staged-row-binding-B-parameters row)
+      'B-parameters #f)
+     (parameter-replacements
+      'BIG
+      (selected-staged-row-binding-Big-parameters row)
+      'Big-parameters #f)))
+
+  (define (selected-row-diagnostic-parameter-replacements row)
+    (append
+     (parameter-replacements
+      'Z
+      (selected-staged-row-binding-Z-diagnostic-parameters row)
+      'Z-diagnostic-parameters #f #t)
+     (parameter-replacements
+      'M
+      (selected-staged-row-binding-M-diagnostic-parameters row)
+      'M-diagnostic-parameters #f #t)
+     (parameter-replacements
+      'B
+      (selected-staged-row-binding-B-diagnostic-parameters row)
+      'B-diagnostic-parameters #f #t)
+     (parameter-replacements
+      'BIG
+      (selected-staged-row-binding-Big-diagnostic-parameters row)
+      'Big-diagnostic-parameters #f #t)))
+
   (define (stage-definition stage-id kind instance artifacts policy)
     #`(define-syntax #,stage-id
         (stage-binding
@@ -892,56 +1568,19 @@
      #`(define-syntax name
          (instance-binding (quote-syntax #,stx)))]))
 
-;; A StageExtension is a syntax-level collection of feature-owned extensions.
-;; It cannot be applied until all five base stage bindings already exist.  The
-;; feature forms refer to the documented BASE-* placeholders; application
-;; substitutes only those identifiers and otherwise preserves lexical scope.
-;; This composes with already-generated stage bindings.
-;;
-;; Redex parameter extensions are registered for one exact language.  A
-;; feature with a widened dependency therefore defines its rule text once as
-;; a reusable template and instantiates that template directly against the
-;; base dependency in each feature stage language before lifting the inherited
-;; stage artifact.  The lifted inherited rules then select the phase-local
-;; dependency automatically; no inherited semantic rule is repeated.
-;;
-;; Common: BASE-SOURCE-LANGUAGE
-;; D: BASE-D-LANGUAGE, BASE-D-PLUG, BASE-C-PLUG, BASE-CONTRACT-LABEL,
-;;    BASE-DECOMPOSE, BASE-CONTRACT, BASE-D-STEP
-;; Z: BASE-Z-LANGUAGE, BASE-REFOCUS-PHASE, BASE-Z-REFOCUS-WORK,
-;;    BASE-Z-REFOCUS, BASE-Z-STEP
-;; M: BASE-M-LANGUAGE, BASE-MACHINEIZE, BASE-M-REFOCUS-WORK,
-;;    BASE-M-REFOCUS, BASE-M-STEP
-;; B: BASE-B-LANGUAGE, BASE-COMPRESS, BASE-SPAN-LABELS,
-;;    BASE-B-PRODUCE-SETTLED, BASE-B-PRODUCE-DEAD,
-;;    BASE-B-ADVANCE-SETTLED, BASE-B-ADVANCE-DEAD,
-;;    BASE-B-SINGLETON, BASE-B-STEP
-;; Big: BASE-BIG-LANGUAGE, BASE-BIG-DISPATCH-ONE, BASE-BIG-DISPATCH,
-;;      BASE-BIG-SPEC-LANGUAGE, BASE-BIG-RUN,
-;;      BASE-BIG-SETTLED, BASE-BIG-DEAD, BASE-BIG-FINAL,
-;;      BASE-BIG-EVALUATE, BASE-PROMOTE
-(define-syntax (define-selected-stage-extension stx)
+;; A staged row is the complete compile-time interface consumed by a later
+;; StageExtension.  The original visible stage declarations are bundled once;
+;; every extension application publishes another row with an effective source
+;; language and the complete artifact records produced by that application.
+(define-syntax (define-selected-staged-row stx)
   (syntax-parse stx
     [(_ name:id
-        #:D (D-form ...)
-        #:Z (Z-form ...)
-        #:M (M-form ...)
-        #:B (B-form ...)
-        #:Big (Big-form ...))
-     #`(define-syntax name
-         (selected-stage-extension-binding
-          (quote-syntax #,stx)))]))
-
-(define-syntax (apply-selected-stage-extension stx)
-  (syntax-parse stx
-    [(_ #:extension extension-id:id
+        #:source-language source-language:id
         #:D D-stage-id:id
         #:Z Z-stage-id:id
         #:M M-stage-id:id
         #:B B-stage-id:id
         #:Big Big-stage-id:id)
-     (define declaration
-       (lookup-selected-stage-extension #'extension-id))
      (define D-stage (lookup-stage #'D-stage-id 'D))
      (define Z-stage (lookup-stage #'Z-stage-id 'Z))
      (define M-stage (lookup-stage #'M-stage-id 'M))
@@ -954,165 +1593,585 @@
        (for/list ([stage-id (in-list stage-ids)])
          (instance-info-source-language (lookup-instance stage-id))))
      (unless
-         (for/and ([other (in-list (rest source-languages))])
-           (free-identifier=? (first source-languages) other))
+         (and
+          (free-identifier=? #'source-language (first source-languages))
+          (for/and ([other (in-list (rest source-languages))])
+            (free-identifier=? (first source-languages) other)))
        (raise-syntax-error
         #f
-        "all coordinates of a selected stage extension must share one row"
+        "all coordinates of a selected staged row must share its source language"
         stx))
-     (define instance (lookup-instance #'D-stage-id))
+     (define D-stage-artifacts
+       (stage-binding-artifact-declaration D-stage))
+     (define Z-stage-artifacts
+       (stage-binding-artifact-declaration Z-stage))
+     (define M-stage-artifacts
+       (stage-binding-artifact-declaration M-stage))
+     (define B-stage-artifacts
+       (stage-binding-artifact-declaration B-stage))
+     (define Big-stage-artifacts
+       (stage-binding-artifact-declaration Big-stage))
+     (define D-artifacts
+       (project-artifact-record
+        D-stage-artifacts 'D-artifacts 'D-artifacts stx))
+     (define Z-artifacts
+       (project-artifact-record
+        Z-stage-artifacts 'Z-artifacts 'Z-artifacts stx))
+     (define M-artifacts
+       (project-artifact-record
+        M-stage-artifacts 'M-artifacts 'M-artifacts stx))
+     (define B-artifacts
+       (project-artifact-record
+        B-stage-artifacts 'B-artifacts 'B-artifacts stx))
+     (define Big-artifacts
+       (project-artifact-record
+        Big-stage-artifacts 'Big-artifacts 'Big-artifacts stx))
+     (define Z-diagnostics
+       (project-artifact-record
+        Z-stage-artifacts 'Z-artifacts 'Z-diagnostics stx))
+     (define M-diagnostics
+       (project-artifact-record
+        M-stage-artifacts 'M-artifacts 'M-diagnostics stx))
+     (define B-diagnostics
+       (project-artifact-record
+        B-stage-artifacts 'B-artifacts 'B-diagnostics stx))
+     (define Big-diagnostics
+       (project-artifact-record
+        Big-stage-artifacts 'Big-artifacts 'Big-diagnostics stx))
+     (validate-row-artifacts
+      D-artifacts Z-artifacts M-artifacts B-artifacts Big-artifacts stx)
+     (validate-row-diagnostics
+      Z-diagnostics M-diagnostics B-diagnostics Big-diagnostics stx)
+     (validate-primary-diagnostic-artifacts-disjoint
+      (list
+       (list 'D-artifacts D-artifacts)
+       (list 'Z-artifacts Z-artifacts)
+       (list 'M-artifacts M-artifacts)
+       (list 'B-artifacts B-artifacts)
+       (list 'Big-artifacts Big-artifacts))
+      (list
+       (list 'Z-diagnostics Z-diagnostics)
+       (list 'M-diagnostics M-diagnostics)
+       (list 'B-diagnostics B-diagnostics)
+       (list 'Big-diagnostics Big-diagnostics))
+      stx)
+     (define policy-declaration
+       (stage-binding-policy-declaration B-stage))
+     (unless (syntax? policy-declaration)
+       (raise-syntax-error
+        #f
+        "a selected staged row requires compressed-stage policy metadata"
+        stx
+        #'B-stage-id))
+     (define base-parameters
+       #`(#,@(for/list
+                 ([parameter
+                   (in-list
+                    (instance-info-redex-parameters
+                     (lookup-instance #'D-stage-id)))])
+               #`[#,(redex-parameter-info-local parameter)
+                  #,(redex-parameter-info-default parameter)])))
+     (staged-row-definition
+      #'name #'source-language
+      D-artifacts Z-artifacts M-artifacts B-artifacts Big-artifacts
+      Z-diagnostics M-diagnostics B-diagnostics Big-diagnostics
+      base-parameters base-parameters base-parameters
+      base-parameters base-parameters
+      base-parameters base-parameters base-parameters base-parameters
+      '()
+      (policy-labels (parse-policy policy-declaration))
+      '())]))
 
-     (define-values
-       (D-language D-plug-D D-plug-C D-contract-label
-                   D-decompose D-contract D-step)
-       (syntax-parse (stage-binding-artifact-declaration D-stage)
-         [((~datum D-artifacts)
-           #:language language:id
-           #:plug-D plug-D:id
-           #:plug-C plug-C:id
-           #:contract-label contract-label:id
-           #:decompose decompose:id
-           #:contract contract:id
-           #:step step:id)
-          (values #'language #'plug-D #'plug-C #'contract-label
-                  #'decompose #'contract #'step)]))
-     (define-values
-       (Z-language Z-refocus-phase Z-refocus-work Z-refocus Z-step)
-       (syntax-parse (stage-binding-artifact-declaration Z-stage)
-         [((~datum Z-artifacts)
-           #:language language:id
-           #:refocus-phase refocus-phase:id
-           #:D->Z _D->Z:id
-           #:Z->D _Z->D:id
-           #:readback _readback:id
-           #:refocus-spec _refocus-spec:id
-           #:refocus-work-direct refocus-work:id
-           #:refocus-direct refocus:id
-           #:step-spec _step-spec:id
-           #:step-direct step:id
-           . _tail)
-          (values #'language #'refocus-phase #'refocus-work
-                  #'refocus #'step)]))
-     (define-values
-       (M-language M-machineize M-refocus-work M-refocus M-step)
-       (syntax-parse (stage-binding-artifact-declaration M-stage)
-         [((~datum M-artifacts)
-           #:language language:id
-           #:machineize machineize:id
-           #:encode-ZM _encode-ZM:id
-           #:decode-MZ _decode-MZ:id
-           #:D->M _D->M:id
-           #:M->D _M->D:id
-           #:readback _readback:id
-           #:refocus-work-direct refocus-work:id
-           #:refocus-direct refocus:id
-           #:step-direct step:id
-           . _tail)
-          (values #'language #'machineize #'refocus-work
-                  #'refocus #'step)]))
-     (define-values
-       (B-language B-compress B-span-labels
-                   B-produce-settled B-produce-dead
-                   B-advance-settled B-advance-dead
-                   B-base-singleton B-step)
-       (syntax-parse (stage-binding-artifact-declaration B-stage)
-         [((~datum B-artifacts)
-           #:language language:id
-           #:compress compress:id
-           #:encode-MB _encode-MB:id
-           #:decode-BM _decode-BM:id
-           #:readback _readback:id
-           #:span-labels span-labels:id
-           #:produce-settled produce-settled:id
-           #:produce-dead produce-dead:id
-           #:advance-settled advance-settled:id
-           #:advance-dead advance-dead:id
-           #:base-singleton base-singleton:id
-           #:step-direct step:id
-           . _tail)
-          (values #'language #'compress #'span-labels
-                  #'produce-settled #'produce-dead
-                  #'advance-settled #'advance-dead
-                  #'base-singleton #'step)]))
-     (define-values
-       (Big-language Big-dispatch-one Big-dispatch
-                     Big-run Big-settled Big-dead
-                     Big-final Big-evaluate Big-spec-language Big-promote)
-       (syntax-parse (stage-binding-artifact-declaration Big-stage)
-         [((~datum Big-artifacts)
-           #:language language:id
-           #:readback _readback:id
-           #:dispatch-one dispatch-one:id
-           #:dispatch dispatch:id
-           #:run run:id
-           #:settled settled:id
-           #:dead dead:id
-           #:final final:id
-           #:evaluate evaluate:id
-           #:spec-language spec-language:id
-           #:promote promote:id
-           . _tail)
-          (values #'language #'dispatch-one #'dispatch
-                  #'run #'settled #'dead
-                  #'final #'evaluate #'spec-language #'promote)]))
+;; A nonidentity declaration states its effective source and every artifact it
+;; emits.  Its phase forms may mention BASE-* placeholders, which application
+;; resolves from the supplied staged row.  An identity declaration has no
+;; forms or output records; application copies the base row metadata exactly.
+(define-syntax (define-selected-stage-extension stx)
+  (syntax-parse stx
+    [(_ name:id
+        #:identity
+        #:feature-singletons ())
+     #`(define-syntax name
+         (selected-stage-extension-binding
+          (quote-syntax #,stx)))]
+    [(_ name:id
+        #:source-language output-source-language:id
+        #:feature-singletons (feature-singleton:id ...)
+        #:D [#:parameters D-parameters
+             #:artifacts D-artifacts
+             #:forms (D-form ...)]
+        #:Z [#:parameters Z-parameters
+             #:artifacts Z-artifacts
+             #:forms (Z-form ...)
+             #:diagnostic-parameters Z-diagnostic-parameters
+             #:diagnostics Z-diagnostics
+             #:diagnostic-forms (Z-diagnostic-form ...)]
+        #:M [#:parameters M-parameters
+             #:artifacts M-artifacts
+             #:forms (M-form ...)
+             #:diagnostic-parameters M-diagnostic-parameters
+             #:diagnostics M-diagnostics
+             #:diagnostic-forms (M-diagnostic-form ...)]
+        #:B [#:parameters B-parameters
+             #:artifacts B-artifacts
+             #:forms (B-form ...)
+             #:diagnostic-parameters B-diagnostic-parameters
+             #:diagnostics B-diagnostics
+             #:diagnostic-forms (B-diagnostic-form ...)]
+        #:Big [#:parameters Big-parameters
+               #:artifacts Big-artifacts
+               #:forms (Big-form ...)
+               #:diagnostic-parameters Big-diagnostic-parameters
+               #:diagnostics Big-diagnostics
+               #:diagnostic-forms (Big-diagnostic-form ...)])
+     (validate-row-artifacts
+      #'D-artifacts #'Z-artifacts #'M-artifacts
+      #'B-artifacts #'Big-artifacts stx)
+     (validate-row-diagnostics
+      #'Z-diagnostics #'M-diagnostics
+      #'B-diagnostics #'Big-diagnostics stx)
+     (validate-primary-diagnostic-artifacts-disjoint
+      (list
+       (list 'D-artifacts #'D-artifacts)
+       (list 'Z-artifacts #'Z-artifacts)
+       (list 'M-artifacts #'M-artifacts)
+       (list 'B-artifacts #'B-artifacts)
+       (list 'Big-artifacts #'Big-artifacts))
+      (list
+       (list 'Z-diagnostics #'Z-diagnostics)
+       (list 'M-diagnostics #'M-diagnostics)
+       (list 'B-diagnostics #'B-diagnostics)
+       (list 'Big-diagnostics #'Big-diagnostics))
+      stx)
+     (validate-primary-artifacts-diagnostic-parameters-disjoint
+      (list
+       (list 'D-artifacts #'D-artifacts)
+       (list 'Z-artifacts #'Z-artifacts)
+       (list 'M-artifacts #'M-artifacts)
+       (list 'B-artifacts #'B-artifacts)
+       (list 'Big-artifacts #'Big-artifacts))
+      (list
+       (list 'D-parameters #'D-parameters)
+       (list 'Z-parameters #'Z-parameters)
+       (list 'M-parameters #'M-parameters)
+       (list 'B-parameters #'B-parameters)
+       (list 'Big-parameters #'Big-parameters))
+      (list
+       (list 'Z-diagnostic-parameters #'Z-diagnostic-parameters)
+       (list 'M-diagnostic-parameters #'M-diagnostic-parameters)
+       (list 'B-diagnostic-parameters #'B-diagnostic-parameters)
+       (list 'Big-diagnostic-parameters #'Big-diagnostic-parameters))
+      stx)
+     (for ([description+parameters
+            (in-list
+             (list
+              (list 'D-parameters #'D-parameters)
+              (list 'Z-parameters #'Z-parameters)
+              (list 'M-parameters #'M-parameters)
+              (list 'B-parameters #'B-parameters)
+              (list 'Big-parameters #'Big-parameters)
+              (list 'Z-diagnostic-parameters
+                    #'Z-diagnostic-parameters)
+              (list 'M-diagnostic-parameters
+                    #'M-diagnostic-parameters)
+              (list 'B-diagnostic-parameters
+                    #'B-diagnostic-parameters)
+              (list 'Big-diagnostic-parameters
+                    #'Big-diagnostic-parameters)))])
+       (match-define (list description parameters)
+         description+parameters)
+       (parse-parameter-defaults parameters description stx))
+     (validate-direct-forms
+      (list #'(D-form ...) #'(Z-form ...) #'(M-form ...)
+            #'(B-form ...) #'(Big-form ...))
+      (list (list 'Z-diagnostics #'Z-diagnostics)
+            (list 'M-diagnostics #'M-diagnostics)
+            (list 'B-diagnostics #'B-diagnostics)
+            (list 'Big-diagnostics #'Big-diagnostics))
+      (list
+       (list 'D-parameters #'D-parameters)
+       (list 'Z-parameters #'Z-parameters)
+       (list 'M-parameters #'M-parameters)
+       (list 'B-parameters #'B-parameters)
+       (list 'Big-parameters #'Big-parameters))
+      (list
+       (list 'Z-diagnostic-parameters #'Z-diagnostic-parameters)
+       (list 'M-diagnostic-parameters #'M-diagnostic-parameters)
+       (list 'B-diagnostic-parameters #'B-diagnostic-parameters)
+       (list 'Big-diagnostic-parameters #'Big-diagnostic-parameters))
+      stx)
+     (define feature-labels
+       (map syntax-e (syntax->list #'(feature-singleton ...))))
+     (when (check-duplicates feature-labels)
+       (raise-syntax-error
+        #f
+        "feature singleton labels must be distinct"
+        stx
+        #'(feature-singleton ...)))
+     #`(define-syntax name
+         (selected-stage-extension-binding
+          (quote-syntax #,stx)))]))
 
-     (define replacements
-       (list
-        (cons 'BASE-SOURCE-LANGUAGE
-              (instance-info-source-language instance))
-        (cons 'BASE-D-LANGUAGE D-language)
-        (cons 'BASE-D-PLUG D-plug-D)
-        (cons 'BASE-C-PLUG D-plug-C)
-        (cons 'BASE-CONTRACT-LABEL D-contract-label)
-        (cons 'BASE-DECOMPOSE D-decompose)
-        (cons 'BASE-CONTRACT D-contract)
-        (cons 'BASE-D-STEP D-step)
-        (cons 'BASE-Z-LANGUAGE Z-language)
-        (cons 'BASE-REFOCUS-PHASE Z-refocus-phase)
-        (cons 'BASE-Z-REFOCUS-WORK Z-refocus-work)
-        (cons 'BASE-Z-REFOCUS Z-refocus)
-        (cons 'BASE-Z-STEP Z-step)
-        (cons 'BASE-M-LANGUAGE M-language)
-        (cons 'BASE-MACHINEIZE M-machineize)
-        (cons 'BASE-M-REFOCUS-WORK M-refocus-work)
-        (cons 'BASE-M-REFOCUS M-refocus)
-        (cons 'BASE-M-STEP M-step)
-        (cons 'BASE-B-LANGUAGE B-language)
-        (cons 'BASE-COMPRESS B-compress)
-        (cons 'BASE-SPAN-LABELS B-span-labels)
-        (cons 'BASE-B-PRODUCE-SETTLED B-produce-settled)
-        (cons 'BASE-B-PRODUCE-DEAD B-produce-dead)
-        (cons 'BASE-B-ADVANCE-SETTLED B-advance-settled)
-        (cons 'BASE-B-ADVANCE-DEAD B-advance-dead)
-        (cons 'BASE-B-SINGLETON B-base-singleton)
-        (cons 'BASE-B-STEP B-step)
-        (cons 'BASE-BIG-LANGUAGE Big-language)
-        (cons 'BASE-BIG-DISPATCH-ONE Big-dispatch-one)
-        (cons 'BASE-BIG-DISPATCH Big-dispatch)
-        (cons 'BASE-BIG-SPEC-LANGUAGE Big-spec-language)
-        (cons 'BASE-BIG-RUN Big-run)
-        (cons 'BASE-BIG-SETTLED Big-settled)
-        (cons 'BASE-BIG-DEAD Big-dead)
-        (cons 'BASE-BIG-FINAL Big-final)
-        (cons 'BASE-BIG-EVALUATE Big-evaluate)
-        (cons 'BASE-PROMOTE Big-promote)))
-     (define forms
-       (syntax-parse declaration
-         [(_ _name:id
-             #:D (D-form ...)
-             #:Z (Z-form ...)
-             #:M (M-form ...)
-             #:B (B-form ...)
-             #:Big (Big-form ...))
+(define-syntax (apply-selected-stage-extension stx)
+  (syntax-parse stx
+    [(_ result-row:id
+        #:extension extension-id:id
+        #:base base-row:id)
+     (define base (lookup-selected-staged-row #'base-row))
+     (define declaration
+       (lookup-selected-stage-extension #'extension-id))
+     (syntax-parse declaration
+       [(_ _name:id
+           #:identity
+           #:feature-singletons ())
+        (staged-row-definition
+         #'result-row
+         (selected-staged-row-binding-source-language base)
+         (selected-staged-row-binding-D-artifacts base)
+         (selected-staged-row-binding-Z-artifacts base)
+         (selected-staged-row-binding-M-artifacts base)
+         (selected-staged-row-binding-B-artifacts base)
+         (selected-staged-row-binding-Big-artifacts base)
+         (selected-staged-row-binding-Z-diagnostics base)
+         (selected-staged-row-binding-M-diagnostics base)
+         (selected-staged-row-binding-B-diagnostics base)
+         (selected-staged-row-binding-Big-diagnostics base)
+         (selected-staged-row-binding-D-parameters base)
+         (selected-staged-row-binding-Z-parameters base)
+         (selected-staged-row-binding-M-parameters base)
+         (selected-staged-row-binding-B-parameters base)
+         (selected-staged-row-binding-Big-parameters base)
+         (selected-staged-row-binding-Z-diagnostic-parameters base)
+         (selected-staged-row-binding-M-diagnostic-parameters base)
+         (selected-staged-row-binding-B-diagnostic-parameters base)
+         (selected-staged-row-binding-Big-diagnostic-parameters base)
+         (selected-staged-row-binding-feature-singletons base)
+         (selected-staged-row-binding-compression-labels base)
+         (selected-staged-row-binding-compression-boundaries base))]
+       [(_ _name:id
+           #:source-language output-source-language:id
+           #:feature-singletons (feature-singleton:id ...)
+           #:D [#:parameters D-parameters
+                #:artifacts D-artifacts
+                #:forms (D-form ...)]
+           #:Z [#:parameters Z-parameters
+                #:artifacts Z-artifacts
+                #:forms (Z-form ...)
+                #:diagnostic-parameters Z-diagnostic-parameters
+                #:diagnostics Z-diagnostics
+                #:diagnostic-forms (Z-diagnostic-form ...)]
+           #:M [#:parameters M-parameters
+                #:artifacts M-artifacts
+                #:forms (M-form ...)
+                #:diagnostic-parameters M-diagnostic-parameters
+                #:diagnostics M-diagnostics
+                #:diagnostic-forms (M-diagnostic-form ...)]
+           #:B [#:parameters B-parameters
+                #:artifacts B-artifacts
+                #:forms (B-form ...)
+                #:diagnostic-parameters B-diagnostic-parameters
+                #:diagnostics B-diagnostics
+                #:diagnostic-forms (B-diagnostic-form ...)]
+           #:Big [#:parameters Big-parameters
+                  #:artifacts Big-artifacts
+                  #:forms (Big-form ...)
+                  #:diagnostic-parameters Big-diagnostic-parameters
+                  #:diagnostics Big-diagnostics
+                  #:diagnostic-forms (Big-diagnostic-form ...)])
+        (define feature-labels
+          (map syntax-e (syntax->list #'(feature-singleton ...))))
+        (define duplicate-label
+          (for/or ([label (in-list feature-labels)])
+            (and
+             (member
+              label
+              (selected-staged-row-binding-compression-labels base))
+             label)))
+        (when duplicate-label
+          (raise-syntax-error
+           #f
+           (format
+            "feature singleton ~a is already classified by the base row"
+            duplicate-label)
+           stx
+           #'extension-id))
+        (define direct-replacements
           (append
-           (syntax->list #'(D-form ...))
-           (syntax->list #'(Z-form ...))
-           (syntax->list #'(M-form ...))
-           (syntax->list #'(B-form ...))
-           (syntax->list #'(Big-form ...)))]))
-     #`(begin
-         #,@(for/list ([form (in-list forms)])
-              (instantiate-selected-extension-form form replacements)))]))
+           (selected-row-replacements base)
+           (selected-row-parameter-replacements base)))
+        (define diagnostic-replacements
+          (append
+           direct-replacements
+           (selected-row-diagnostic-replacements base)
+           (selected-row-diagnostic-parameter-replacements base)))
+        (define output-source
+          (instantiate-selected-extension-form
+           #'output-source-language direct-replacements))
+        (define output-artifacts
+          (for/list
+              ([artifact
+                (in-list
+                 (list #'D-artifacts #'Z-artifacts #'M-artifacts
+                       #'B-artifacts #'Big-artifacts))])
+            (instantiate-selected-extension-form
+             artifact direct-replacements)))
+        (match-define
+          (list output-D output-Z output-M output-B output-Big)
+          output-artifacts)
+        (validate-row-artifacts
+         output-D output-Z output-M output-B output-Big declaration)
+        (define output-diagnostics
+          (for/list
+              ([artifact
+                (in-list
+                 (list #'Z-diagnostics #'M-diagnostics
+                       #'B-diagnostics #'Big-diagnostics))])
+            (instantiate-selected-extension-form
+             artifact diagnostic-replacements)))
+        (match-define
+          (list output-Z-diagnostics output-M-diagnostics
+                output-B-diagnostics output-Big-diagnostics)
+          output-diagnostics)
+        (validate-row-diagnostics
+         output-Z-diagnostics output-M-diagnostics
+         output-B-diagnostics output-Big-diagnostics declaration)
+        (validate-primary-diagnostic-artifacts-disjoint
+         (list
+          (list 'D-artifacts output-D)
+          (list 'Z-artifacts output-Z)
+          (list 'M-artifacts output-M)
+          (list 'B-artifacts output-B)
+          (list 'Big-artifacts output-Big))
+         (list
+          (list 'Z-diagnostics output-Z-diagnostics)
+          (list 'M-diagnostics output-M-diagnostics)
+          (list 'B-diagnostics output-B-diagnostics)
+          (list 'Big-diagnostics output-Big-diagnostics))
+         declaration)
+        (define output-direct-parameters
+          (for/list
+              ([parameters
+                (in-list
+                 (list #'D-parameters #'Z-parameters #'M-parameters
+                       #'B-parameters #'Big-parameters))])
+            (instantiate-selected-extension-form
+             parameters direct-replacements)))
+        (match-define
+          (list output-D-parameters output-Z-parameters
+                output-M-parameters output-B-parameters
+                output-Big-parameters)
+          output-direct-parameters)
+        (define output-diagnostic-parameters
+          (for/list
+              ([parameters
+                (in-list
+                 (list #'Z-diagnostic-parameters
+                       #'M-diagnostic-parameters
+                       #'B-diagnostic-parameters
+                       #'Big-diagnostic-parameters))])
+            (instantiate-selected-extension-form
+             parameters diagnostic-replacements)))
+        (match-define
+          (list output-Z-diagnostic-parameters
+                output-M-diagnostic-parameters
+                output-B-diagnostic-parameters
+                output-Big-diagnostic-parameters)
+          output-diagnostic-parameters)
+        (for ([description+parameters
+               (in-list
+                (list
+                 (list 'D-parameters output-D-parameters)
+                 (list 'Z-parameters output-Z-parameters)
+                 (list 'M-parameters output-M-parameters)
+                 (list 'B-parameters output-B-parameters)
+                 (list 'Big-parameters output-Big-parameters)
+                 (list 'Z-diagnostic-parameters
+                       output-Z-diagnostic-parameters)
+                 (list 'M-diagnostic-parameters
+                       output-M-diagnostic-parameters)
+                 (list 'B-diagnostic-parameters
+                       output-B-diagnostic-parameters)
+                 (list 'Big-diagnostic-parameters
+                       output-Big-diagnostic-parameters)))])
+          (match-define (list description parameters)
+            description+parameters)
+          (parse-parameter-defaults parameters description declaration))
+        (validate-primary-artifacts-diagnostic-parameters-disjoint
+         (list
+          (list 'D-artifacts output-D)
+          (list 'Z-artifacts output-Z)
+          (list 'M-artifacts output-M)
+          (list 'B-artifacts output-B)
+          (list 'Big-artifacts output-Big))
+         (list
+          (list 'D-parameters output-D-parameters)
+          (list 'Z-parameters output-Z-parameters)
+          (list 'M-parameters output-M-parameters)
+          (list 'B-parameters output-B-parameters)
+          (list 'Big-parameters output-Big-parameters))
+         (list
+          (list 'Z-diagnostic-parameters
+                output-Z-diagnostic-parameters)
+          (list 'M-diagnostic-parameters
+                output-M-diagnostic-parameters)
+          (list 'B-diagnostic-parameters
+                output-B-diagnostic-parameters)
+          (list 'Big-diagnostic-parameters
+                output-Big-diagnostic-parameters))
+         declaration)
+        (define (instantiate-forms forms replacements)
+          (for/list ([form (in-list (syntax->list forms))])
+            (instantiate-selected-extension-form form replacements)))
+        (define forms
+          (append
+           (instantiate-forms #'(D-form ...) direct-replacements)
+           (instantiate-forms #'(Z-form ...) direct-replacements)
+           (instantiate-forms #'(M-form ...) direct-replacements)
+           (instantiate-forms #'(B-form ...) direct-replacements)
+           (instantiate-forms #'(Big-form ...) direct-replacements)
+           (instantiate-forms
+            #'(Z-diagnostic-form ...) diagnostic-replacements)
+           (instantiate-forms
+            #'(M-diagnostic-form ...) diagnostic-replacements)
+           (instantiate-forms
+            #'(B-diagnostic-form ...) diagnostic-replacements)
+           (instantiate-forms
+            #'(Big-diagnostic-form ...) diagnostic-replacements)))
+        (define new-boundaries
+          (if (null? feature-labels)
+              (selected-staged-row-binding-compression-boundaries base)
+              (append
+               (selected-staged-row-binding-compression-boundaries base)
+               (list feature-labels))))
+        (define row-definition
+          (staged-row-definition
+           #'result-row output-source
+           output-D output-Z output-M output-B output-Big
+           output-Z-diagnostics output-M-diagnostics
+           output-B-diagnostics output-Big-diagnostics
+           output-D-parameters output-Z-parameters
+           output-M-parameters output-B-parameters
+           output-Big-parameters
+           output-Z-diagnostic-parameters
+           output-M-diagnostic-parameters
+           output-B-diagnostic-parameters
+           output-Big-diagnostic-parameters
+           (append
+            (selected-staged-row-binding-feature-singletons base)
+            feature-labels)
+           (append
+            (selected-staged-row-binding-compression-labels base)
+            feature-labels)
+           new-boundaries))
+        #`(begin
+            #,@forms
+            #,row-definition)])]))
+
+;; This assertion is exported only from the `test-support` submodule.  It
+;; compares compile-time row bindings and expands to no runtime inspection.
+(define-syntax (assert-selected-staged-row-metadata stx)
+  (syntax-parse stx
+    [(_ actual-row:id #:same-as expected-row:id)
+     (assert-row-identifiers-equal
+      (lookup-selected-staged-row #'actual-row)
+      (lookup-selected-staged-row #'expected-row)
+      stx)
+     #'(void)]
+    [(_ actual-row:id
+        #:source-language expected-source-language:id
+        #:D expected-D
+        #:Z expected-Z
+        #:M expected-M
+        #:B expected-B
+        #:Big expected-Big
+        #:Z-diagnostics expected-Z-diagnostics
+        #:M-diagnostics expected-M-diagnostics
+        #:B-diagnostics expected-B-diagnostics
+        #:Big-diagnostics expected-Big-diagnostics
+        #:D-parameters expected-D-parameters
+        #:Z-parameters expected-Z-parameters
+        #:M-parameters expected-M-parameters
+        #:B-parameters expected-B-parameters
+        #:Big-parameters expected-Big-parameters
+        #:Z-diagnostic-parameters expected-Z-diagnostic-parameters
+        #:M-diagnostic-parameters expected-M-diagnostic-parameters
+        #:B-diagnostic-parameters expected-B-diagnostic-parameters
+        #:Big-diagnostic-parameters expected-Big-diagnostic-parameters
+        #:feature-singletons (feature-singleton:id ...)
+        #:compression-labels (compression-label:id ...)
+        #:compression-boundaries
+        ((boundary-label:id ...) ...))
+     (define actual (lookup-selected-staged-row #'actual-row))
+     (unless
+         (free-identifier=?
+          (selected-staged-row-binding-source-language actual)
+          #'expected-source-language)
+       (raise-syntax-error
+        #f
+        "staged-row effective source language differs"
+        stx
+        #'expected-source-language))
+     (for ([kind+accessor (in-list row-record-accessors)]
+           [expected
+            (in-list
+             (list #'expected-D #'expected-Z #'expected-M
+                   #'expected-B #'expected-Big
+                   #'expected-Z-diagnostics #'expected-M-diagnostics
+                   #'expected-B-diagnostics #'expected-Big-diagnostics))])
+       (match-define (list kind accessor) kind+accessor)
+       (assert-record-identifiers-equal
+        (accessor actual) expected kind stx))
+     (for ([description+accessor (in-list row-parameter-accessors)]
+           [expected
+            (in-list
+             (list #'expected-D-parameters #'expected-Z-parameters
+                   #'expected-M-parameters #'expected-B-parameters
+                   #'expected-Big-parameters
+                   #'expected-Z-diagnostic-parameters
+                   #'expected-M-diagnostic-parameters
+                   #'expected-B-diagnostic-parameters
+                   #'expected-Big-diagnostic-parameters))])
+       (match-define (list description accessor) description+accessor)
+       (assert-parameter-defaults-equal
+        (accessor actual) expected description stx))
+     (define expected-feature-singletons
+       (identifier-symbol-list
+        #'(feature-singleton ...)
+        'feature-singletons
+        stx))
+     (define expected-compression-labels
+       (identifier-symbol-list
+        #'(compression-label ...)
+        'compression-labels
+        stx))
+     (define expected-compression-boundaries
+       (identifier-symbol-batches
+        #'((boundary-label ...) ...)
+        stx))
+     (for ([actual-metadata
+            (in-list
+             (list
+              (selected-staged-row-binding-feature-singletons actual)
+              (selected-staged-row-binding-compression-labels actual)
+              (selected-staged-row-binding-compression-boundaries actual)))]
+           [expected-metadata
+            (in-list
+             (list expected-feature-singletons
+                   expected-compression-labels
+                   expected-compression-boundaries))]
+           [description
+            (in-list
+             '(feature-singletons compression-labels
+               compression-boundaries))])
+       (unless (equal? actual-metadata expected-metadata)
+         (raise-syntax-error
+          #f
+          (format "staged-row ~a metadata differs" description)
+          stx)))
+     #'(void)]))
+
+(module+ test-support
+  (provide assert-selected-staged-row-metadata))
 
 (define-syntax (define-selected-compression-policy stx)
   (syntax-parse stx
@@ -2022,6 +3081,7 @@
           #:advance-dead #, #'advance-dead
           #:base-singleton #,base-singleton
           #:step-direct #, #'step-direct
+          #:corresponds #, #'corresponds
           #:replay #, #'replay
           #:step-spec #, #'step-spec
           #:square #, #'square
@@ -2034,6 +3094,128 @@
           #:decompose #,decompose))
      (define stage-def
        (stage-definition #'stage-id 'B instance artifacts policy))
+     (match-define
+       (list singleton-advance-settled singleton-advance-dead
+             step-produce-settled step-produce-dead
+             step-base-advance-settled step-base-advance-dead
+             step-singleton)
+       (generate-temporaries
+        '(singleton-advance-settled singleton-advance-dead
+          step-produce-settled step-produce-dead
+          step-base-advance-settled step-base-advance-dead
+          step-singleton)))
+     (define redex-parameter-pairs
+       (for/list ([parameter (in-list redex-parameters)])
+         #`[#,(redex-parameter-info-local parameter)
+            #,(redex-parameter-info-default parameter)]))
+     (define producer-categories
+       (append
+        (if (null? settled-producer-labels)
+            '()
+            (list
+             #`[SettledProducerName #,@settled-producer-labels]))
+        (if (null? dead-producer-labels)
+            '()
+            (list
+             #`[DeadProducerName #,@dead-producer-labels]))))
+     (define produce-settled-form
+       (if (null? settled-producer-labels)
+           #`(redex-parameter:define-judgment-form*
+              #, #'compressed-language
+              #:parameters (#,@redex-parameter-pairs)
+              #:mode (#, #'produce-settled I I O O O)
+              #:contract (#, #'produce-settled any any any any any)
+              [(side-condition #f)
+               ----
+               (#, #'produce-settled
+                any_0 any_1 any_0 any_1 any_1)])
+           #`(redex-parameter:define-judgment-form*
+              #, #'compressed-language
+              #:parameters (#,@redex-parameter-pairs)
+              #:mode (#, #'produce-settled I I O O O)
+              #:contract
+              (#, #'produce-settled
+               SourceW SourceWorkFocus
+               SettledProducerName Settled SourceWorkFocus)
+              #,@settled-producer-clauses)))
+     (define produce-dead-form
+       (if (null? dead-producer-labels)
+           #`(redex-parameter:define-judgment-form*
+              #, #'compressed-language
+              #:parameters (#,@redex-parameter-pairs)
+              #:mode (#, #'produce-dead I I O O O)
+              #:contract (#, #'produce-dead any any any any any)
+              [(side-condition #f)
+               ----
+               (#, #'produce-dead
+                any_0 any_1 any_0 any_1 any_1)])
+           #`(redex-parameter:define-judgment-form*
+              #, #'compressed-language
+              #:parameters (#,@redex-parameter-pairs)
+              #:mode (#, #'produce-dead I I O O O)
+              #:contract
+              (#, #'produce-dead
+               SourceW SourceWorkFocus
+               DeadProducerName FailureSummary SourceWorkFocus)
+              #,@dead-producer-clauses)))
+     (define step-fusion-clauses
+       (append
+        (if (null? settled-producer-labels)
+            '()
+            (list
+             #`[(#,step-produce-settled
+                 SourceW SourceWorkFocus_0
+                 SettledProducerName Settled SourceWorkFocus_1)
+                (#,step-base-advance-settled
+                 Settled SourceWorkFocus_1 SettledFollowerName B_1)
+                ----
+                (#, #'step-direct
+                 (BRun SourceW SourceWorkFocus_0)
+                 (transition-span
+                  SettledProducerName SettledFollowerName)
+                 B_1)]))
+        (if (null? dead-producer-labels)
+            '()
+            (list
+             #`[(#,step-produce-dead
+                 SourceW SourceWorkFocus_0
+                 DeadProducerName FailureSummary SourceWorkFocus_1)
+                (#,step-base-advance-dead
+                 FailureSummary SourceWorkFocus_1 DeadFollowerName B_1)
+                ----
+                (#, #'step-direct
+                 (BRun SourceW SourceWorkFocus_0)
+                 (transition-span
+                  DeadProducerName DeadFollowerName)
+                 B_1)]))))
+     (define replay-fusion-clauses
+       (append
+        (if (null? settled-producer-labels)
+            '()
+            (list
+             #`[(#,machine-step-direct
+                 M_0 SettledProducerName M_1)
+                (#,machine-step-direct
+                 M_1 SettledFollowerName M_2)
+                ----
+                (#, #'replay
+                 M_0
+                 (transition-span
+                  SettledProducerName SettledFollowerName)
+                 M_2)]))
+        (if (null? dead-producer-labels)
+            '()
+            (list
+             #`[(#,machine-step-direct
+                 M_0 DeadProducerName M_1)
+                (#,machine-step-direct
+                 M_1 DeadFollowerName M_2)
+                ----
+                (#, #'replay
+                 M_0
+                 (transition-span
+                  DeadProducerName DeadFollowerName)
+                 M_2)]))))
      (with-syntax ([machine-language machine-language]
                    [machine-step-direct machine-step-direct]
                    [compressed-language #'compressed-language]
@@ -2061,17 +3243,13 @@
                     (map redex-parameter-info-local redex-parameters)]
                    [(redex-parameter-default ...)
                     (map redex-parameter-info-default redex-parameters)]
-                   [(singleton-advance-settled singleton-advance-dead
-                                                step-produce-settled
-                                                step-produce-dead
-                                                step-base-advance-settled
-                                                step-base-advance-dead
-                                                step-singleton)
-                    (generate-temporaries
-                     '(singleton-advance-settled singleton-advance-dead
-                       step-produce-settled step-produce-dead
-                       step-base-advance-settled step-base-advance-dead
-                       step-singleton))]
+                   [singleton-advance-settled singleton-advance-settled]
+                   [singleton-advance-dead singleton-advance-dead]
+                   [step-produce-settled step-produce-settled]
+                   [step-produce-dead step-produce-dead]
+                   [step-base-advance-settled step-base-advance-settled]
+                   [step-base-advance-dead step-base-advance-dead]
+                   [step-singleton step-singleton]
                    [(nonallocation-run-production ...)
                     nonallocation-run-productions]
                    [(settled-producer-label ...) settled-producer-labels]
@@ -2087,6 +3265,11 @@
                    [(compress-frame-clause ...) compress-frame-clauses]
                    [(encode-frame-clause ...) encode-frame-clauses]
                    [(decode-frame-clause ...) decode-frame-clauses]
+                   [(producer-category ...) producer-categories]
+                   [produce-settled-form produce-settled-form]
+                   [produce-dead-form produce-dead-form]
+                   [(step-fusion-clause ...) step-fusion-clauses]
+                   [(replay-fusion-clause ...) replay-fusion-clauses]
                    [stage-def stage-def])
        #'(begin
            stage-def
@@ -2094,8 +3277,7 @@
              machine-language
              [FailureSummary failure-summary]
              [NonAllocateRun nonallocation-run-production ...]
-             [SettledProducerName settled-producer-label ...]
-             [DeadProducerName dead-producer-label ...]
+             producer-category ...
              [SettledFollowerName settled-follower-label ...]
              [DeadFollowerName dead-follower-label ...]
              [SingletonRuleName singleton-label ...]
@@ -2180,25 +3362,9 @@
                (transition-span RuleName_0 RuleName_1))
               (RuleName_0 RuleName_1)])
 
-           (redex-parameter:define-judgment-form*
-             compressed-language
-             #:parameters
-             ([redex-parameter-local redex-parameter-default] ...)
-             #:mode (produce-settled I I O O O)
-             #:contract
-             (produce-settled
-              SourceW SourceWorkFocus SettledProducerName Settled SourceWorkFocus)
-             settled-producer-clause ...)
+           produce-settled-form
 
-           (redex-parameter:define-judgment-form*
-             compressed-language
-             #:parameters
-             ([redex-parameter-local redex-parameter-default] ...)
-             #:mode (produce-dead I I O O O)
-             #:contract
-             (produce-dead
-              SourceW SourceWorkFocus DeadProducerName FailureSummary SourceWorkFocus)
-             dead-producer-clause ...)
+           produce-dead-form
 
            (redex-parameter:define-judgment-form*
              compressed-language
@@ -2255,31 +3421,11 @@
              #:contract (step-direct B TransitionSpan B)
              [(step-singleton B_0 TransitionSpan_0 B_1)
               ----
-              (step-direct
+             (step-direct
                B_0
                TransitionSpan_0
                B_1)]
-             [(step-produce-settled
-               SourceW SourceWorkFocus_0
-               SettledProducerName Settled SourceWorkFocus_1)
-              (step-base-advance-settled
-               Settled SourceWorkFocus_1 SettledFollowerName B_1)
-              ----
-              (step-direct
-               (BRun SourceW SourceWorkFocus_0)
-               (transition-span
-                SettledProducerName SettledFollowerName)
-               B_1)]
-             [(step-produce-dead
-               SourceW SourceWorkFocus_0 DeadProducerName FailureSummary SourceWorkFocus_1)
-              (step-base-advance-dead
-               FailureSummary SourceWorkFocus_1 DeadFollowerName B_1)
-              ----
-              (step-direct
-               (BRun SourceW SourceWorkFocus_0)
-               (transition-span
-                DeadProducerName DeadFollowerName)
-               B_1)])
+             step-fusion-clause ...)
 
            (define-judgment-form
              compressed-language
@@ -2296,30 +3442,11 @@
              [(machine-step-direct
                M_0 SingletonRuleName M_1)
               ----
-              (replay
+             (replay
                M_0
                (transition-span SingletonRuleName)
                M_1)]
-             [(machine-step-direct
-               M_0 SettledProducerName M_1)
-              (machine-step-direct
-               M_1 SettledFollowerName M_2)
-              ----
-              (replay
-               M_0
-               (transition-span
-                SettledProducerName SettledFollowerName)
-               M_2)]
-             [(machine-step-direct
-               M_0 DeadProducerName M_1)
-              (machine-step-direct
-               M_1 DeadFollowerName M_2)
-              ----
-              (replay
-               M_0
-               (transition-span
-                DeadProducerName DeadFollowerName)
-               M_2)])
+             replay-fusion-clause ...)
 
            (define-judgment-form
              compressed-language
@@ -2385,6 +3512,7 @@
            #:advance-dead _advance-dead:id
            #:base-singleton _base-singleton:id
            #:step-direct step-direct:id
+           #:corresponds _corresponds:id
            #:replay _replay:id
            #:step-spec _step-spec:id
            #:square _square:id
@@ -2468,7 +3596,12 @@
           #:spec-language #, #'spec-language
           #:promote #, #'promote
           #:evaluate-spec #, #'evaluate-spec
-          #:root-square #, #'root-square))
+          #:root-square #, #'root-square
+          #:initialize #, #'initialize
+          #:close #, #'close
+          #:flatten #, #'flatten
+          #:unfold-square #, #'unfold-square
+          #:closure-square #, #'closure-square))
      (define stage-def
        (stage-definition #'stage-id 'Big instance artifacts #f))
      (with-syntax ([compressed-language compressed-language]

@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         (prefix-in redex-parameter: redex/parameter)
+         (prefix-in redex-parameter: "./core-redex-parameter.rkt")
          "./core-stage-schema.rkt")
 
 (provide selected-foreign-base-lang
@@ -12,6 +12,7 @@
          selected-foreign/base-M
          selected-foreign/base-B
          selected-foreign/base-Big
+         selected-foreign/base-row
          selected-foreign-base-D-lang
          selected-foreign-base-decompose
          selected-foreign-base-contract
@@ -271,3 +272,11 @@
   #:unfold-square selected-foreign-base-B-Big-unfold-square
   #:closure-square selected-foreign-base-B-Big-closure-square
   #:root-square selected-foreign-base-B-Big-root-square)
+
+(define-selected-staged-row selected-foreign/base-row
+  #:source-language selected-foreign-base-lang
+  #:D selected-foreign/base-D
+  #:Z selected-foreign/base-Z
+  #:M selected-foreign/base-M
+  #:B selected-foreign/base-B
+  #:Big selected-foreign/base-Big)

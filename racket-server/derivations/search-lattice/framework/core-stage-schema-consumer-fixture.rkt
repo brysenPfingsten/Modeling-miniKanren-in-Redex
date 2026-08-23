@@ -2,9 +2,12 @@
 
 (require redex/reduction-semantics
          "./core-stage-schema-source-fixture.rkt"
-         "./core-stage-schema.rkt")
+         "./core-stage-schema.rkt"
+         (submod "./core-stage-schema.rkt" test-support))
 
 (provide foreign-core/D
+         foreign-core/row
+         foreign-core/identity-row
          foreign-core-D-lang
          foreign-core-decompose
          foreign-core-contract
@@ -158,20 +161,43 @@
 
 ;; Identity is the smallest post-generation StageExtension and proves that
 ;; application consumes the already-generated coordinate bindings.
-(define-selected-stage-extension foreign-core/identity-extension
-  #:D ()
-  #:Z ()
-  #:M ()
-  #:B ()
-  #:Big ())
+(define-syntax-rule
+  (define-foreign-staged-row
+    #:language source-language
+    #:Q-export _Q-export
+    #:Q-rebuild _Q-rebuild
+    #:Q-focus-export _Q-focus-export
+    #:Q-focus-rebuild _Q-focus-rebuild
+    #:Q-root-focus-export _Q-root-focus-export
+    #:Q-root-focus-rebuild _Q-root-focus-rebuild
+    #:Q-failure-focus-export _Q-failure-focus-export
+    #:Q-failure-focus-rebuild _Q-failure-focus-rebuild
+    #:Q-terminal-export _Q-terminal-export
+    #:Q-terminal-rebuild _Q-terminal-rebuild
+    row)
+  (define-selected-staged-row row
+    #:source-language source-language
+    #:D foreign-core/D
+    #:Z foreign-core/Z
+    #:M foreign-core/M
+    #:B foreign-core/B
+    #:Big foreign-core/Big))
 
-(apply-selected-stage-extension
+(foreign-core-source
+ #:visit define-foreign-staged-row
+ foreign-core/row)
+
+(define-selected-stage-extension foreign-core/identity-extension
+  #:identity
+  #:feature-singletons ())
+
+(apply-selected-stage-extension foreign-core/identity-row
   #:extension foreign-core/identity-extension
-  #:D foreign-core/D
-  #:Z foreign-core/Z
-  #:M foreign-core/M
-  #:B foreign-core/B
-  #:Big foreign-core/Big)
+  #:base foreign-core/row)
+
+(assert-selected-staged-row-metadata
+ foreign-core/identity-row
+ #:same-as foreign-core/row)
 
 (define (foreign-Q-R value) value)
 (define (foreign-Q-focus payload context) (list payload context))

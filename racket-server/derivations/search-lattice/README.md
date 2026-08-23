@@ -265,11 +265,16 @@ row-local `diagnostics` submodules and the secondary transport-diagnostics
 suite. They are not public selected maps, implementation routes, or sole
 oracles.
 
-The selected renderer uses `redex/parameter` where a generated Redex
-declaration depends on another stage-local judgment, metafunction, or relation
-that must later widen with a language extension. This is lexical dependency
-lifting for ordinary statically named artifacts; it is not dynamic
-`parameterize`, a representation selector, or a host semantic dispatcher.
+The selected renderer uses `framework/core-redex-parameter.rkt`, a
+selected-only transitive lifting module derived from `redex/parameter`, where a
+generated Redex declaration depends on another stage-local judgment,
+metafunction, or relation that must later widen with a language extension. It
+reconstructs every inherited extension at the exact descendant language, so a
+second staged delta does not freeze the first delta's dependency at the first
+language. The upstream package remains on the frozen prototype and its
+test-only whole-instance oracle. This is lexical dependency lifting for
+ordinary statically named artifacts; it is not dynamic `parameterize`, a
+representation selector, or a host semantic dispatcher.
 
 ### Retained horizontal-stage prototype
 
@@ -304,9 +309,11 @@ scaffolding.
 
 `define-derivation-delta` currently merges an augmentation into its base
 descriptor before any stage is generated. The foreign fixture therefore shows
-that one augmentation declaration propagates through the row. It does not yet
-show separate staging and recombination of an extension, or establish
-`Stage(Base + Delta) = Apply(StageExtension(Base, Delta), Stage(Base))`.
+that one augmentation declaration propagates through the row. By itself, this
+retained premerge route does not show separate staging and recombination of an
+extension, or establish
+`Stage(Base + Delta) = Apply(StageExtension(Base, Delta), Stage(Base))`; the
+selected bounded StageExtension evidence is stated below.
 
 ### Lifted Redex dependencies
 
@@ -433,6 +440,32 @@ and failure witnesses. This is explicit foreign post-generation evidence, not
 automatic `Delta -> StageExtension` generation, a real search feature, a
 universal staging theorem, or functoriality.
 
+Checkpoint 5 adds a second, still foreign and bounded fixture for the identity
+and composition laws. Its base row makes every executable compression label a
+singleton; two base-owned, always-false sentinel producer rules merely keep
+the frozen prototype's settled/dead producer classes grammatical and are
+checked to have no proofs. The identity StageExtension copies the complete row
+metadata exactly. Delta1 is the existing Query/Box StageExtension, and Delta2
+adds `Probe Input -> Query Input` against Delta1's actual result row. The
+selected route applies those extensions in sequence through D/Z/M/B/Big; the
+test-only oracle premerges Base+Query+Probe and sends the whole instance
+through the unchanged `stage-generators.rkt`.
+
+The comparison retains the complete multiset of normalized top-level
+`build-derivations` judgment terms, including duplicates, full targets,
+labels, and B spans; only the paired judgment heads are renamed to common
+stage tags. Renderer-specific derivation-name histograms are asserted
+separately rather than erased. The bounded corpus covers inherited Echo and
+Allocate carriers, both lifted Query proofs, the Probe success/failure/
+rejection paths, exact singleton traces, sentinel rejection, direct/spec
+systems, Z/M and M/B squares, B replay and promotion, and Big spec,
+unfold/closure/root squares, and finite traces. Expansion-time assertions also
+compare every identity/result-row primary and diagnostic artifact, dependency
+default, singleton label, and compression-boundary batch. This is concrete
+evidence for `Stage(identity) = identity` and for identity/composition on this
+two-delta corpus. It is not automatic `Delta -> StageExtension` synthesis, a
+universal functoriality theorem, or a real feature hierarchy.
+
 The S-to-E prototype bridge is independent and context-threaded. Its executable
 vertical correspondence currently stops at R and D: it checks source,
 decomposition, contraction, and D-step squares only on its stated well-formed
@@ -461,12 +494,22 @@ checks only. The generated E column does not import S, the bridge, or `Owners`.
   native direct transition systems, phase-owned representation maps, and their
   primary transformation squares without invoking the retained
   `#:environment` backend.
+- `framework/core-redex-parameter.rkt` is the selected-only transitive
+  dependency-lifting implementation. The frozen generator and test-only
+  whole-instance oracle continue to use the upstream package.
 - `framework/core-stage-extension-base-fixture.rkt`,
   `core-stage-extension-query-fixture.rkt`, and
   `core-stage-extension-applied-fixture.rkt` form the explicit foreign
   post-generation extension; `core-stage-extension-tests.rkt` checks its five
   bounded embedding laws, dependency lifting, conservative spans, and finite
   Big observations against the independent bounded oracle.
+- `framework/core-stage-functor-base-fixture.rkt`,
+  `core-stage-functor-identity-fixture.rkt`,
+  `core-stage-functor-probe-fixture.rkt`, and
+  `core-stage-functor-sequential-fixture.rkt` form the bounded identity and
+  two-delta selected route. `core-stage-functor-oracle-fixture.rkt` is its
+  test-only frozen whole-instance route, and `core-stage-functor-tests.rkt`
+  owns the raw-multiset, metadata, trace, replay, square, and closure checks.
 - `generated/core/stages/s.rkt`, `e.rkt`, and `n.rkt` are the three selected
   complete horizontal columns. `policy.rkt` is their one shared compression
   policy and `corpus.rkt` is their keyed independent witness corpus.
@@ -543,6 +586,7 @@ racket racket-server/derivations/search-lattice/demo.rkt
 raco test racket-server/derivations/search-lattice/framework/core-source-schema-tests.rkt
 raco test racket-server/derivations/search-lattice/framework/core-stage-schema-tests.rkt
 raco test racket-server/derivations/search-lattice/framework/core-stage-extension-tests.rkt
+raco test racket-server/derivations/search-lattice/framework/core-stage-functor-tests.rkt
 raco test racket-server/derivations/search-lattice/framework/stage-generators-tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/source/tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/stages/tests.rkt
@@ -619,11 +663,14 @@ core, but no production module imports this directory.
 
 This seed does not yet instantiate separately staged real feature
 augmentations, scheduler fibers, relation calls, or the distributed
-presentation. The explicit foreign Query/Box fixture does apply a separately
-compiled StageExtension to already-generated base coordinates and checks
-bounded embedding laws. It does not generate that extension automatically from
-a source delta, implement delay or disjunction, establish a real feature face,
-or prove functoriality.
+presentation. The foreign Query/Box fixture checks bounded embedding laws, and
+the foreign Query/Box then Probe fixture checks exact StageExtension identity
+metadata and bounded two-delta composition through D/Z/M/B/Big against the
+test-only frozen whole-instance oracle. Neither fixture generates a
+StageExtension automatically from a source delta, implements delay or
+disjunction, establishes a real feature face or hierarchy, or proves a
+universal functoriality theorem. Checkpoint 5 stops at this fixture boundary;
+Checkpoint 6 work has not begun.
 The retained prototype coordinates stop at core/S and the
 support-decorated-node core/E. The selected path separately completes the
 core/S, core/E, and core/N rows through R, D, Z ≅ M, B, and Big.
@@ -642,8 +689,9 @@ stage-transformation laws, secondary transport diagnostics, and direct S-to-N
 composition. The legacy prototype allocation behavior remains recovery
 evidence, not an administrative form for the selected generator to guess.
 
-This checkpoint claims neither a full cube nor functoriality or a universal
-naturality theorem. It distinguishes instantiated row-local artifacts from
-validated representation edges and commuting faces.
+This checkpoint claims bounded fixture-level identity and composition evidence,
+not a full feature cube, general functoriality, or a universal naturality
+theorem. It distinguishes instantiated row-local artifacts from validated
+representation edges and commuting faces.
 
 Production modules never import this directory.

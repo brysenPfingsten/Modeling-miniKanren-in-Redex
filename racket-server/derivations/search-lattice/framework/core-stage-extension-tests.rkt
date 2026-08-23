@@ -8,7 +8,8 @@
          "./core-stage-extension-base-fixture.rkt"
          "./core-stage-extension-query-fixture.rkt"
          "./core-stage-extension-applied-fixture.rkt"
-         "./core-stage-extension-premerged-oracle-fixture.rkt")
+         "./core-stage-extension-premerged-oracle-fixture.rkt"
+         "./core-stage-schema.rkt")
 
 (provide CORE-STAGE-EXTENSION-TESTS)
 
@@ -18,6 +19,60 @@
   "core-stage-extension-query-fixture.rkt")
 (define-runtime-path applied-fixture-path
   "core-stage-extension-applied-fixture.rkt")
+
+;; An all-singleton policy is the no-fusion edge of the generic compression
+;; renderer.  Its producer classes are intentionally empty.
+(define-selected-compression-policy
+  selected-foreign/all-singleton-compression
+  #:settled-producers ()
+  #:dead-producers ()
+  #:settled-followers (pop-wrap-value finish-value)
+  #:dead-followers (pop-wrap-crash finish-failure)
+  #:singletons
+  (echo tick fail allocate
+   pop-wrap-value pop-wrap-crash
+   finish-value finish-failure)
+  #:retained-observation rule-labels
+  #:maximum-span 2)
+
+(define-selected-compressed-stage selected-foreign/all-singleton-B
+  #:from selected-foreign/base-M
+  #:policy selected-foreign/all-singleton-compression
+  #:language selected-foreign-all-singleton-B-lang
+  #:compress selected-foreign-all-singleton-compress
+  #:encode-MB selected-foreign-all-singleton-encode-MB
+  #:decode-BM selected-foreign-all-singleton-decode-BM
+  #:readback selected-foreign-all-singleton-readback-B
+  #:span-labels selected-foreign-all-singleton-span-labels
+  #:produce-settled selected-foreign-all-singleton-produce-settled
+  #:produce-dead selected-foreign-all-singleton-produce-dead
+  #:advance-settled selected-foreign-all-singleton-advance-settled
+  #:advance-dead selected-foreign-all-singleton-advance-dead
+  #:step-direct selected-foreign-all-singleton-B-step
+  #:corresponds selected-foreign-all-singleton-MB-corresponds
+  #:replay selected-foreign-all-singleton-replay/M
+  #:step-spec selected-foreign-all-singleton-B-step/spec
+  #:square selected-foreign-all-singleton-MB-square)
+
+(define-selected-fixed-point-stage selected-foreign/all-singleton-Big
+  #:from selected-foreign/all-singleton-B
+  #:language selected-foreign-all-singleton-Big-lang
+  #:readback selected-foreign-all-singleton-readback-Big
+  #:dispatch selected-foreign-all-singleton-big-dispatch
+  #:run selected-foreign-all-singleton-big-run
+  #:settled selected-foreign-all-singleton-big-settled
+  #:dead selected-foreign-all-singleton-big-dead
+  #:final selected-foreign-all-singleton-big-final
+  #:evaluate selected-foreign-all-singleton-big-evaluate
+  #:spec-language selected-foreign-all-singleton-Big-spec-lang
+  #:initialize selected-foreign-all-singleton-initialize-B
+  #:close selected-foreign-all-singleton-close-B
+  #:flatten selected-foreign-all-singleton-flatten-BTrace
+  #:promote selected-foreign-all-singleton-promote
+  #:evaluate-spec selected-foreign-all-singleton-big-evaluate/spec
+  #:unfold-square selected-foreign-all-singleton-B-Big-unfold-square
+  #:closure-square selected-foreign-all-singleton-B-Big-closure-square
+  #:root-square selected-foreign-all-singleton-B-Big-root-square)
 
 (define base-fixture-text (file->string base-fixture-path))
 (define query-fixture-text (file->string query-fixture-path))
@@ -436,6 +491,59 @@
     (check-equal? (oracle-B-steps fail/seal) '())
     (check-equal? (applied-B-proof-count fail/seal) 0)
     (check-equal? (oracle-B-proof-count fail/seal) 0))
+
+  (test-case "an all-singleton policy has no producer categories or fusion"
+    (define carrier
+      (term (BRun (Tick 7) (Root (Wrap hole)))))
+    (define expected-step
+      (list
+       (list
+        (term (transition-span tick))
+        (term (BSettled (Value 8) (Root (Wrap hole)))))))
+    (define direct-steps
+      (judgment-holds
+       (selected-foreign-all-singleton-B-step
+        ,carrier TransitionSpan B)
+       (TransitionSpan B)))
+    (define spec-steps
+      (judgment-holds
+       (selected-foreign-all-singleton-B-step/spec
+        ,carrier TransitionSpan B)
+       (TransitionSpan B)))
+    (check-equal? direct-steps expected-step)
+    (check-equal? spec-steps expected-step)
+    (check-equal?
+     (length
+      (build-derivations
+       (selected-foreign-all-singleton-replay/M
+        (MWork (Tick 7) (Root (Wrap hole)))
+        TransitionSpan
+        M)))
+     1)
+    (define source (term (Root (Wrap (Tick 7)))))
+    (check-equal?
+     (judgment-holds
+      (selected-foreign-all-singleton-big-evaluate ,source Big)
+      Big)
+     (list (term (BigFinal (Halted 8)))))
+    (check-equal?
+     (judgment-holds
+      (selected-foreign-all-singleton-big-evaluate/spec
+       ,source BTrace Big)
+      (BTrace Big))
+     (list
+      (list
+       (term
+        ((transition-span tick)
+         (transition-span pop-wrap-value)
+         (transition-span finish-value)))
+       (term (BigFinal (Halted 8))))))
+    (check-equal?
+     (length
+      (build-derivations
+       (selected-foreign-all-singleton-B-Big-root-square
+        ,source BTrace Big)))
+     1))
 
   (test-case "Big recognizes feature recursion and preserves proof evidence"
     (for ([source

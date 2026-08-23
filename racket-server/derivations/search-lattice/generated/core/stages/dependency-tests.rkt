@@ -153,7 +153,8 @@
           contents)))))
 
   (test-case "Redex dependencies are lexical while representation selection is static"
-    (define redex-parameter-module (string-append "redex/" "parameter"))
+    (define redex-parameter-module
+      (string-append "core-redex-" "parameter.rkt"))
     ;; Only the selected renderer lifts rule dependencies.  Source/row/edge
     ;; declarations do not use Redex parameters to select a representation.
     (check-true

@@ -15,10 +15,20 @@
   "../framework/stage-generators.rkt")
 (define-runtime-path selected-stage-renderer-file
   "../framework/core-stage-renderers.rkt")
+(define-runtime-path selected-redex-parameter-file
+  "../framework/core-redex-parameter.rkt")
 (define-runtime-path selected-stage-extension-base-fixture-file
   "../framework/core-stage-extension-base-fixture.rkt")
 (define-runtime-path selected-stage-extension-query-fixture-file
   "../framework/core-stage-extension-query-fixture.rkt")
+(define-runtime-path selected-stage-functor-probe-fixture-file
+  "../framework/core-stage-functor-probe-fixture.rkt")
+(define-runtime-path selected-stage-functor-oracle-fixture-file
+  "../framework/core-stage-functor-oracle-fixture.rkt")
+(define-runtime-path selected-stage-functor-test-file
+  "../framework/core-stage-functor-tests.rkt")
+(define-runtime-path selected-stage-schema-test-file
+  "../framework/core-stage-schema-tests.rkt")
 (define-runtime-path stage-framework-test-file
   "../framework/stage-generators-tests.rkt")
 (define-runtime-path stage-parameter-base-fixture-file
@@ -339,7 +349,7 @@
       (check-false
        (regexp-match? (regexp (regexp-quote forbidden)) stage-renderers))))
 
-  (test-case "redex/parameter imports are confined to lifting frameworks and fixtures"
+  (test-case "upstream redex/parameter is confined to the frozen framework and its test oracles"
     (define implementation-files
       (for/list ([path (in-list (racket-files seed-root))]
                  #:unless (equal? (simplify-path path)
@@ -348,15 +358,75 @@
     (check-true (positive? (length implementation-files)))
     (check-equal?
      (sorted-path-strings
-     (files-containing implementation-files #rx"redex/parameter"))
+      (files-containing
+       implementation-files
+       #rx"redex/parameter"))
      (sorted-path-strings
       (list stage-framework-file
-            selected-stage-renderer-file
-            selected-stage-extension-base-fixture-file
-            selected-stage-extension-query-fixture-file
             stage-framework-test-file
             stage-parameter-base-fixture-file
-            stage-parameter-derived-fixture-file))))
+            stage-parameter-derived-fixture-file
+            selected-stage-functor-oracle-fixture-file
+            selected-redex-parameter-file))))
+
+  (test-case "selected dependency lifting goes through the selected-only transitive module"
+    (define implementation-files
+      (for/list ([path (in-list (racket-files seed-root))]
+                 #:unless (equal? (simplify-path path)
+                                  (simplify-path this-test-file)))
+        path))
+    (check-equal?
+     (sorted-path-strings
+      (files-containing
+       implementation-files
+       #rx"core-redex-parameter[.]rkt"))
+     (sorted-path-strings
+      (list selected-stage-renderer-file
+            selected-stage-extension-base-fixture-file
+            selected-stage-extension-query-fixture-file
+            selected-stage-functor-probe-fixture-file
+            selected-stage-schema-test-file)))
+    (define selected-parameter-contents
+      (file->string selected-redex-parameter-file))
+    (check-false
+     (regexp-match? #rx"stage-generators[.]rkt" selected-parameter-contents))
+    (check-false
+     (regexp-match? #rx"#:environment" selected-parameter-contents)))
+
+  (test-case "the frozen whole-instance functor route is a test-only oracle"
+    (define implementation-files
+      (for/list ([path (in-list (racket-files seed-root))]
+                 #:unless (equal? (simplify-path path)
+                                  (simplify-path this-test-file)))
+        path))
+    (define selected-stage-files
+      (for/list ([path (in-list (racket-files (build-path seed-root "framework")))]
+                 #:when
+                 (regexp-match?
+                  #rx"^core-stage-.*[.]rkt$"
+                  (path->string (file-name-from-path path))))
+        path))
+    (check-equal?
+     (sorted-path-strings
+      (files-containing
+       selected-stage-files
+       #rx"stage-generators[.]rkt"))
+     (sorted-path-strings
+      (list selected-stage-functor-oracle-fixture-file)))
+    (check-equal?
+     (sorted-path-strings
+      (files-containing
+       selected-stage-files
+       #px"(?m:^\\s*#:environment\\s)"))
+     (sorted-path-strings
+      (list selected-stage-functor-oracle-fixture-file)))
+    (check-equal?
+     (sorted-path-strings
+      (files-containing
+       implementation-files
+       #rx"core-stage-functor-oracle-fixture[.]rkt"))
+     (sorted-path-strings
+      (list selected-stage-functor-test-file))))
 
   (test-case "the seven semantic-premise sites are liftable and both fixtures are nonvacuous"
     (define framework-contents (file->string stage-framework-file))

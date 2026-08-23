@@ -9,6 +9,7 @@
          "../framework/core-source-schema-tests.rkt"
          "../framework/core-stage-schema-tests.rkt"
          "../framework/core-stage-extension-tests.rkt"
+         "../framework/core-stage-functor-tests.rkt"
          "../generated/core/s/column-tests.rkt"
          "../generated/core/e/column-tests.rkt"
          "../generated/core/source/comparison-tests.rkt"
@@ -98,6 +99,9 @@
     "framework/core-stage-extension-tests.rkt"
     CORE-STAGE-EXTENSION-TESTS)
    (register-test-suite
+    "framework/core-stage-functor-tests.rkt"
+    CORE-STAGE-FUNCTOR-TESTS)
+   (register-test-suite
     "generated/core/s/column-tests.rkt"
     GENERATED-CORE-S-COLUMN)
    (register-test-suite
@@ -160,11 +164,11 @@
         "oracles/core/e/all.rkt"
         "oracles/core/n/all.rkt"))
 
-(define EXPECTED-CANONICAL-SUITE-COUNT 22)
-(define EXPECTED-SEMANTIC-TEST-MODULE-COUNT 24)
+(define EXPECTED-CANONICAL-SUITE-COUNT 23)
+(define EXPECTED-SEMANTIC-TEST-MODULE-COUNT 25)
 (define EXPECTED-FOCUSED-AGGREGATE-COUNT 6)
 (define EXPECTED-INTRINSIC-TEST-MODULE-COUNT 13)
-(define EXPECTED-TEST-SUBMODULE-COUNT 42)
+(define EXPECTED-TEST-SUBMODULE-COUNT 43)
 
 (define (registration-module-file registration)
   (build-path SEARCH-LATTICE-ROOT
@@ -200,7 +204,9 @@
        (call-with-input-file path
          (lambda (input)
            (for/or ([line (in-lines input)])
-             (regexp-match? #px"^\\s*\\(module\\+\\s+test\\b" line))))))
+             (regexp-match?
+              #px"^\\s*\\(module\\+\\s+test(?:\\s|\\)|$)"
+              line))))))
 
 (define (discovered-test-submodules)
   (sort

@@ -1,9 +1,10 @@
 # Representation and compositional-staging architecture
 
 This document is the authoritative design contract for work after the
-stage-generator prototype checkpoint. It fixes the intended architecture; it
-does not claim that the representations, translations, staged extensions, or
-commuting theorems described here have already been implemented.
+stage-generator prototype checkpoint. It fixes the intended architecture and
+records bounded implementation evidence only where stated below; it does not
+promote executable fixtures into universal representation, staging, or
+commuting theorems.
 
 The implementation order is part of the contract:
 
@@ -369,11 +370,51 @@ Apply(StageExtension(T, Base, Delta), T(Base))
 ```
 
 A staged augmentation is parameterized by the staged base interface; it is not
-a standalone language. Identity and sequential composition are future
-functoriality obligations, not properties already established by this
-contract. `redex/parameter` is used only to lift dependent Redex judgments,
-metafunctions, and relations across language extensions. It is not the
-representation mechanism.
+a standalone language. `framework/core-redex-parameter.rkt`, the selected-only
+transitive lifting module derived from `redex/parameter`, is used only to lift
+dependent Redex judgments, metafunctions, and relations across descendant
+languages. It recursively reconstructs inherited extensions at the exact
+target language. The upstream package remains on the frozen generator and its
+test-only oracle. Neither lifting implementation is the representation
+mechanism.
+
+### Checkpoint 5 bounded identity and composition evidence
+
+Checkpoint 5 instantiates the identity and sequential-composition obligations
+with a foreign, non-miniKanren fixture. The base row classifies every
+executable compression label as a singleton. Two base-owned producer labels
+have always-false premises: they inhabit the settled/dead producer categories
+required by the unchanged frozen generator but have no derivations. Delta1 is
+the separately compiled Query/Box StageExtension. Delta2 adds
+`Probe Input -> Query Input` and is applied to Delta1's actual result row, not
+to the original base. An explicit identity StageExtension copies the complete
+base-row metadata.
+
+The selected route stages Base, applies Delta1, then applies Delta2 through
+D/Z/M/B/Big. A test-only route premerges Base+Query+Probe and invokes the
+unchanged whole-instance `stage-generators.rkt`; no selected public module
+imports that route or invokes `#:environment`. The comparison observes the
+complete multiset of top-level `build-derivations` judgment terms without
+deduplication, preserving full outputs, labels, targets, and B spans while
+canonicalizing only the paired judgment heads. Renderer-specific derivation
+names are reported as separate histograms because internal wrapper proof trees
+are scaffolding, not the cross-renderer semantic observation.
+
+The bounded corpus checks inherited Echo and Allocate, both lifted Query
+proofs, Probe success/failure/rejection, exact singleton traces and impossible
+sentinel rejection, direct/spec systems, Z/M and M/B squares, B replay and
+promotion, and Big spec, unfold/closure/root squares, and finite closure.
+Compile-time assertions separately check every identity/result-row primary and
+diagnostic identifier, phase dependency default, feature label, and
+compression boundary batch. This establishes
+`Stage(identity) = identity` and the stated sequential/whole-instance
+observation equality only for this explicit two-delta fixture and corpus.
+
+Checkpoint 5 stops here, before Checkpoint 6. There is no automatic
+`Delta -> StageExtension` synthesis, universal functoriality theorem, or
+separately staged real delay/disjunction/search hierarchy. The fixture does not
+authorize a claim about scheduler fibers, relation-call overlays, or arbitrary
+feature composition.
 
 ## Conservative compression and finite Big
 
@@ -407,9 +448,10 @@ The architecture separates four kinds of evidence:
 4. universal theorems, when separately established.
 
 Representative or generated Redex tests are evidence, not universal proofs.
-Neither a populated coordinate nor row-local agreement establishes
-functoriality or naturality. Production modules must never import this
-derivation subtree.
+Neither a populated coordinate nor row-local agreement establishes general
+functoriality or naturality. The Checkpoint 5 fixture establishes only its
+explicitly bounded identity and two-delta observation. Production modules must
+never import this derivation subtree.
 
 ## Non-negotiable construction boundaries
 

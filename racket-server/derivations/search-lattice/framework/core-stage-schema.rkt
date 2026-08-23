@@ -10,6 +10,7 @@
          define-selected-machine-isomorphism-stage
          define-selected-compressed-stage
          define-selected-fixed-point-stage
+         define-selected-staged-row
          define-selected-stage-extension
          apply-selected-stage-extension
          define-decomposition-representation-map
@@ -17,6 +18,10 @@
          define-machine-representation-map
          define-compressed-representation-map
          define-fixed-point-representation-map)
+
+(module test-support racket
+  (require (submod "./core-stage-renderers.rkt" test-support))
+  (provide assert-selected-staged-row-metadata))
 
 ;; The source interface retains the selected representation views and the one
 ;; shared rule inventory.  Instantiation feeds those views directly to the
