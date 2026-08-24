@@ -147,6 +147,18 @@
             ,S-STATE)))))))
 
    (test-case "binary WF carries prefixes through Pending and Forced"
+     (check-equal?
+      (judgment-holds
+       (live-supply/delay-n-smoke
+        (PendingDelay (Dead 0))
+        0
+        supply_out)
+       supply_out)
+      '(0))
+     (check-true
+      (judgment-holds
+       (wf-delay-n-smoke?
+        (More (PendingDelay (Dead 0))))))
      (check-true
       (judgment-holds
        (wf-delay-n-smoke?

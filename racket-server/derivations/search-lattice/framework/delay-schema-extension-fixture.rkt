@@ -48,6 +48,7 @@
     [(_ #:language base-language:id
         #:redex-parameters
         ([base-parameter-local:id base-parameter-default:id] ...)
+        #:branch-copy _base-branch-copy:id
         #:R-work-raw base-work-raw:id
         #:R-frontier-raw base-frontier-raw:id
         #:R-allocation-raw base-allocation-raw:id
@@ -55,6 +56,8 @@
         #:subst-goal-open base-subst-goal-open:id
         #:wf-root base-wf-root:id
         #:wf-goal base-wf-goal:id
+        #:wf-answer _base-wf-answer:id
+        #:wf-returned _base-wf-returned:id
         #:live-supply base-live-supply:id
         #:failure-summary _base-failure-summary:id
         #:wf-work base-wf-work:id
@@ -66,9 +69,13 @@
          #:node-case base-wf-node-case:id
          #:nodes base-wf-nodes:id]
         #:carrier-view
-        [#:work _work-template
+        [#:state _state-template
+         #:answer _answer-template
+         #:returned _returned-template
+         #:work _work-template
          #:dead _dead-template
          #:conj _conj-template
+         #:last _last-template
          #:more _more-template
          #:empty-supply empty-supply]
         #:prefix-view

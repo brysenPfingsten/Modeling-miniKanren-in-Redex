@@ -459,10 +459,82 @@ reusing generated artifacts.
 
 These executable faces establish only the observations made on the checked
 finite corpus. They are not a universal feature functor, a general naturality
-proof, or arbitrary `Delta -> StageExtension` synthesis. Checkpoint 6A stops
-before Checkpoint 6B: disjunction, search-owned interactions, search scheduler
+proof, or arbitrary `Delta -> StageExtension` synthesis. At Checkpoint 6A this
+work stopped before Disjunction, search-owned interactions, search scheduler
 fibers, relation-call overlays, and their additional WF/correspondence
-obligations remain absent.
+obligations.
+
+### Checkpoint 6B bounded Disjunction cube
+
+Checkpoint 6B adds Disjunction as a second, independent child of core. One
+neutral schema is rendered for S, E, and N and owns exactly
+`expand-disjunction`, `skip-left-failure`, `reassociate-left-result`,
+`commit-choice-answer`, and `resume-left-choice-success`. These five equations
+cover branch creation, failed-left elimination, nested-choice reassociation,
+answer emission, and successful-left commitment to a following conjunction
+goal. Core equations are inherited rather than copied, and the schema uses
+abstract Choice, Emit, prefix-transfer, branch-copy, and carrier views without
+matching Owner, Support, or counter syntax. Its neutral equations are:
+
+```text
+Work[p,(gL ∨ gR tag),State[pS,sub,dis,trail,stateTag]]
+  -> Choice[p,
+            Work[zero,gL,State[branch-copy(pS),sub,dis,trail,stateTag]],
+            Work[zero,gR,State[branch-copy(pS),sub,dis,trail,stateTag]]]
+Choice[p,Dead[d],W]
+  -> attach(prefix(p),W)
+Choice[pO,Choice[pI,Returned[pA,sigma],WL],WR]
+  -> Choice[pO,
+            attach(prefix(pI),Returned[pA,sigma]),
+            Choice[zero,attach(prefix(pI),WL),WR]]
+More[Choice[p,Returned[pA,sigma],W]]
+  -> Emit[p,Answer[pA,sigma],More[W]]
+Conj[pC,Choice[pI,Returned[pA,sigma],W],g]
+  -> attach(prefix(pC),
+            Choice[pI,Work[pA,g,sigma],Conj[zero,W,g]])
+```
+
+Branch creation constructs two complete possible-world states, preserving the
+incoming substitution, disequalities, trail, and state tag while applying the
+representation strategy's branch-copy operation to the allocation supply for
+each child. The common outer allocation therefore remains visible in both
+descendants, while the two branch-local histories remain incomparable: an
+allocation made only in one sibling neither reserves nor renames the
+corresponding atom or numeric level in the other. Direct Q export/rebuild
+preserves that distinction by exporting the shared prefix once and rebuilding
+each Choice child from its own final support. It never unions sibling supplies.
+
+The specialized Disjunction stage synthesizer consumes a generated
+Disjunction source and applies one StageExtension to each already generated
+core row. Its five controls are expansion from run to push, failed-choice pop
+to run, settled-choice reassociation, frontier-to-frontier answer emission,
+and settled-choice resumption into push. These controls are rendered through
+D, native Z and M, direct B, and finite Big without adding a scheduler.
+
+Every Disjunction label is a singleton B span. No label belongs to the core
+settled/dead follower categories, and no core-plus-Disjunction or
+cross-feature span is permitted. If an inherited settled/dead core producer
+reaches an immediate Disjunction boundary, its guarded producer fallback
+emits the core label as a singleton and the Disjunction transition is a second
+singleton. The inherited core fusion policy remains unchanged elsewhere.
+
+For every representation, direct embeddings `J-core->disjunction` are
+instantiated at R, D, Z, M, B, and Big. Direct S-to-E, E-to-N, and S-to-N maps
+are instantiated at every Disjunction coordinate, with S-to-N composition
+checked separately. The bounded harness preserves complete raw
+`build-derivations` proof multisets and exact B spans while checking the five
+feature rules, source and stage WF, sibling allocation reuse, shared outer
+variables, finite traces, embeddings, and the stated representation and stage
+faces. Independently written S/E/N Disjunction sources, WF judgments, and
+direct Q maps provide the finite source oracle without importing generated
+Disjunction artifacts.
+
+This is specialized Disjunction StageExtension synthesis and finite-corpus
+cube evidence. It is not a universal feature functor, a general naturality or
+functoriality proof, arbitrary `Delta -> StageExtension` synthesis, or evidence
+for a search policy. Checkpoint 6B stops before Checkpoint 6C constructs the
+Search join and owns Delay/Disjunction interaction rules, scheduler fibers,
+and their additional WF/correspondence obligations.
 
 ## Conservative compression and finite Big
 
@@ -498,8 +570,9 @@ The architecture separates four kinds of evidence:
 Representative or generated Redex tests are evidence, not universal proofs.
 Neither a populated coordinate nor row-local agreement establishes general
 functoriality or naturality. The Checkpoint 5 fixture establishes only its
-explicitly bounded identity and two-delta observation; Checkpoint 6A adds only
-the finite-corpus Delay embeddings and commuting faces stated above.
+explicitly bounded identity and two-delta observation; Checkpoints 6A and 6B
+add only the finite-corpus Delay and Disjunction embeddings and commuting
+faces stated above.
 Production modules must never import this derivation subtree.
 
 ## Non-negotiable construction boundaries
@@ -523,6 +596,9 @@ Production modules must never import this derivation subtree.
   schema. `Forced` remains structural and Q/WF-visible, and frontier control is
   generalized in the shared stage contract rather than special-cased in one
   coordinate.
+- Disjunction must be generated from its one representation-neutral five-rule
+  schema. Branch creation copies the complete state, Q keeps sibling histories
+  separate, and all five feature labels remain singleton B spans.
 - Inherited Redex rules and dependencies are lifted over extended languages,
   not copied into each descendant.
 - Correspondence compares complete raw derivation multisets. Successor

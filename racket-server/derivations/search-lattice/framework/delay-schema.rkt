@@ -34,12 +34,14 @@
     #:transparent)
 
   (struct delay-source-binding
-    (language redex-parameters relation raw-successors
+    (language redex-parameters relation raw-successors branch-copy
      work-raw frontier-raw allocation-raw
      subst-goal subst-goal-open
-     wf-root wf-goal live-supply failure-summary wf-work wf-frontier
+     wf-root wf-goal wf-answer wf-returned
+     live-supply failure-summary wf-work wf-frontier
      wf-goal-case wf-goal-tasks live-case wf-node-case wf-nodes
-     work-template dead-template conj-template more-template
+     state-template answer-template returned-template
+     work-template dead-template conj-template last-template more-template
      work-focus-prefix work-focus-prefix-open
      prefix-empty q-prefix-empty prefix-extend-premises
      pending-template pending-prefix-template
@@ -113,6 +115,7 @@
             #:language #,(delay-source-binding-language self)
             #:redex-parameters
             #,(delay-source-binding-redex-parameters self)
+            #:branch-copy #,(delay-source-binding-branch-copy self)
             #:R-work-raw #,(delay-source-binding-work-raw self)
             #:R-frontier-raw #,(delay-source-binding-frontier-raw self)
             #:R-allocation-raw #,(delay-source-binding-allocation-raw self)
@@ -120,6 +123,8 @@
             #:subst-goal-open #,(delay-source-binding-subst-goal-open self)
             #:wf-root #,(delay-source-binding-wf-root self)
             #:wf-goal #,(delay-source-binding-wf-goal self)
+            #:wf-answer #,(delay-source-binding-wf-answer self)
+            #:wf-returned #,(delay-source-binding-wf-returned self)
             #:live-supply #,(delay-source-binding-live-supply self)
             #:failure-summary
             #,(delay-source-binding-failure-summary self)
@@ -132,9 +137,13 @@
              #:node-case #,(delay-source-binding-wf-node-case self)
              #:nodes #,(delay-source-binding-wf-nodes self)]
             #:carrier-view
-            [#:work #,(delay-source-binding-work-template self)
+            [#:state #,(delay-source-binding-state-template self)
+             #:answer #,(delay-source-binding-answer-template self)
+             #:returned #,(delay-source-binding-returned-template self)
+             #:work #,(delay-source-binding-work-template self)
              #:dead #,(delay-source-binding-dead-template self)
              #:conj #,(delay-source-binding-conj-template self)
+             #:last #,(delay-source-binding-last-template self)
              #:more #,(delay-source-binding-more-template self)
              #:empty-supply #,(delay-source-binding-prefix-empty self)]
             #:prefix-view
@@ -261,13 +270,17 @@
   (define (render-delay-source use-stx view fields outputs)
     (match-define
       (list base-language base-redex-parameters
+            base-branch-copy
             base-work-raw base-frontier-raw base-allocation-raw
             base-subst-goal base-subst-goal-open
-            base-wf-root base-wf-goal base-live-supply base-failure-summary
+            base-wf-root base-wf-goal base-wf-answer base-wf-returned
+            base-live-supply base-failure-summary
             base-wf-work base-wf-frontier
             base-wf-goal-case base-wf-goal-tasks
             base-live-case base-wf-node-case base-wf-nodes
-            work-template dead-template conj-template more-template empty-supply
+            state-template answer-template returned-template
+            work-template dead-template conj-template last-template
+            more-template empty-supply
             q-prefix-empty
             prefix-extend-premises
             base-work-focus-prefix base-work-focus-prefix-open
@@ -559,6 +572,7 @@
                   #`[#,(car parameter) #,(cdr parameter)])))
            (quote-syntax #,relation-id)
            (quote-syntax #,raw-successors-id)
+           (quote-syntax #,base-branch-copy)
            (quote-syntax #,work-raw-id)
            (quote-syntax #,frontier-raw-id)
            (quote-syntax #,allocation-raw-id)
@@ -566,6 +580,8 @@
            (quote-syntax #,subst-goal-open-id)
            (quote-syntax #,wf-root-id)
            (quote-syntax #,wf-goal-id)
+           (quote-syntax #,base-wf-answer)
+           (quote-syntax #,base-wf-returned)
            (quote-syntax #,live-supply-id)
            (quote-syntax #,failure-summary-id)
            (quote-syntax #,wf-work-id)
@@ -575,9 +591,13 @@
            (quote-syntax #,live-case-id)
            (quote-syntax #,wf-node-case-id)
            (quote-syntax #,wf-nodes-id)
+           (quote-syntax #,state-template)
+           (quote-syntax #,answer-template)
+           (quote-syntax #,returned-template)
            (quote-syntax #,work-template)
            (quote-syntax #,dead-template)
            (quote-syntax #,conj-template)
+           (quote-syntax #,last-template)
            (quote-syntax #,more-template)
            (quote-syntax #,work-focus-id)
            (quote-syntax #,work-focus-open-id)
@@ -809,7 +829,7 @@
             (LiveContinue #,W #,supply-body))])
 
         #,(render-selected-live-supply-driver
-           language-id live-supply-id live-case-id)
+           language-id live-supply-id base-live-case)
 
         (redex-parameter:define-extended-judgment-form*
           #,base-wf-node-case
@@ -1211,6 +1231,7 @@
     [(_ #:language base-language:id
         #:redex-parameters
         ([base-parameter-local:id base-parameter-default:id] ...)
+        #:branch-copy base-branch-copy:id
         #:R-work-raw base-work-raw:id
         #:R-frontier-raw base-frontier-raw:id
         #:R-allocation-raw base-allocation-raw:id
@@ -1218,6 +1239,8 @@
         #:subst-goal-open base-subst-goal-open:id
         #:wf-root base-wf-root:id
         #:wf-goal base-wf-goal:id
+        #:wf-answer base-wf-answer:id
+        #:wf-returned base-wf-returned:id
         #:live-supply base-live-supply:id
         #:failure-summary base-failure-summary:id
         #:wf-work base-wf-work:id
@@ -1229,9 +1252,13 @@
          #:node-case base-wf-node-case:id
          #:nodes base-wf-nodes:id]
         #:carrier-view
-        [#:work work-template
+        [#:state state-template
+         #:answer answer-template
+         #:returned returned-template
+         #:work work-template
          #:dead dead-template
          #:conj conj-template
+         #:last last-template
          #:more more-template
          #:empty-supply empty-supply]
         #:prefix-view
@@ -1306,14 +1333,18 @@
                         (in-list
                          (syntax->list #'(base-parameter-default ...)))])
               (cons local default))
+            #'base-branch-copy
             #'base-work-raw #'base-frontier-raw #'base-allocation-raw
             #'base-subst-goal #'base-subst-goal-open
-            #'base-wf-root #'base-wf-goal #'base-live-supply
+            #'base-wf-root #'base-wf-goal #'base-wf-answer #'base-wf-returned
+            #'base-live-supply
             #'base-failure-summary
             #'base-wf-work #'base-wf-frontier
             #'base-wf-goal-case #'base-wf-goal-tasks
             #'base-live-case #'base-wf-node-case #'base-wf-nodes
-            #'work-template #'dead-template #'conj-template #'more-template
+            #'state-template #'answer-template #'returned-template
+            #'work-template #'dead-template #'conj-template #'last-template
+            #'more-template
             #'empty-supply
             #'q-prefix-empty
             (syntax->list #'(prefix-premise ...))

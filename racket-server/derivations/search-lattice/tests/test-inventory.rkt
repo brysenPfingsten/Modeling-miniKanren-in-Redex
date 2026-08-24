@@ -13,6 +13,8 @@
          "../framework/delay-schema-tests.rkt"
          "../framework/delay-stage-extension-tests.rkt"
          "../framework/delay-stage-asymmetric-tests.rkt"
+         "../framework/disjunction-schema-tests.rkt"
+         "../framework/disjunction-stage-extension-tests.rkt"
          "../generated/core/source/comparison-tests.rkt"
          "../generated/core/source/dependency-tests.rkt"
          "../generated/core/stages/dependency-tests.rkt"
@@ -25,12 +27,19 @@
          "../generated/delay/cube-tests.rkt"
          "../generated/delay/transport-diagnostics-tests.rkt"
          "../generated/delay/dependency-tests.rkt"
+         "../generated/disjunction/source-tests.rkt"
+         "../generated/disjunction/horizontal-tests.rkt"
+         "../generated/disjunction/embedding-tests.rkt"
+         "../generated/disjunction/cube-tests.rkt"
+         "../generated/disjunction/transport-diagnostics-tests.rkt"
+         "../generated/disjunction/dependency-tests.rkt"
          "../oracles/core/s/tests.rkt"
          "../oracles/core/e/tests.rkt"
          "../oracles/core/n/tests.rkt"
          "../oracles/core/vertical-tests.rkt"
          "../oracles/core/dependency-tests.rkt"
          "../oracles/delay/tests.rkt"
+         "../oracles/disjunction/tests.rkt"
          "./core-matrix-tests.rkt"
          "./core-s-horizontal-tests.rkt"
          "./dependency-boundary-tests.rkt")
@@ -119,6 +128,12 @@
     "framework/delay-stage-asymmetric-tests.rkt"
     DELAY-STAGE-ASYMMETRIC-TESTS)
    (register-test-suite
+    "framework/disjunction-schema-tests.rkt"
+    DISJUNCTION-SCHEMA-TESTS)
+   (register-test-suite
+    "framework/disjunction-stage-extension-tests.rkt"
+    DISJUNCTION-STAGE-EXTENSION-TESTS)
+   (register-test-suite
     "generated/core/source/comparison-tests.rkt"
     GENERATED-CORE-SOURCE-COMPARISONS)
    (register-test-suite
@@ -155,6 +170,24 @@
     "generated/delay/dependency-tests.rkt"
     GENERATED-DELAY-DEPENDENCY-TESTS)
    (register-test-suite
+    "generated/disjunction/source-tests.rkt"
+    GENERATED-DISJUNCTION-SOURCE-TESTS)
+   (register-test-suite
+    "generated/disjunction/horizontal-tests.rkt"
+    GENERATED-DISJUNCTION-HORIZONTAL-TESTS)
+   (register-test-suite
+    "generated/disjunction/embedding-tests.rkt"
+    GENERATED-DISJUNCTION-EMBEDDING-TESTS)
+   (register-test-suite
+    "generated/disjunction/cube-tests.rkt"
+    GENERATED-DISJUNCTION-CUBE-TESTS)
+   (register-test-suite
+    "generated/disjunction/transport-diagnostics-tests.rkt"
+    GENERATED-DISJUNCTION-TRANSPORT-DIAGNOSTICS-TESTS)
+   (register-test-suite
+    "generated/disjunction/dependency-tests.rkt"
+    GENERATED-DISJUNCTION-DEPENDENCY-TESTS)
+   (register-test-suite
     "oracles/core/s/tests.rkt"
     CORE-S-ORACLE-TESTS)
    (register-test-suite
@@ -172,6 +205,9 @@
    (register-test-suite
     "oracles/delay/tests.rkt"
     DELAY-ORACLE-TESTS)
+   (register-test-suite
+    "oracles/disjunction/tests.rkt"
+    DISJUNCTION-ORACLE-TESTS)
    (register-test-suite
     "tests/core-matrix-tests.rkt"
     CORE-MATRIX-SEED)
@@ -192,16 +228,17 @@
   (list "generated/core/source/tests.rkt"
         "generated/core/stages/tests.rkt"
         "generated/delay/tests.rkt"
+        "generated/disjunction/tests.rkt"
         "oracles/core/tests.rkt"
         "oracles/core/s/all.rkt"
         "oracles/core/e/all.rkt"
         "oracles/core/n/all.rkt"))
 
-(define EXPECTED-CANONICAL-SUITE-COUNT 31)
-(define EXPECTED-SEMANTIC-TEST-MODULE-COUNT 34)
-(define EXPECTED-FOCUSED-AGGREGATE-COUNT 7)
+(define EXPECTED-CANONICAL-SUITE-COUNT 40)
+(define EXPECTED-SEMANTIC-TEST-MODULE-COUNT 44)
+(define EXPECTED-FOCUSED-AGGREGATE-COUNT 8)
 (define EXPECTED-INTRINSIC-TEST-MODULE-COUNT 13)
-(define EXPECTED-TEST-SUBMODULE-COUNT 52)
+(define EXPECTED-TEST-SUBMODULE-COUNT 62)
 
 (define (registration-module-file registration)
   (build-path SEARCH-LATTICE-ROOT

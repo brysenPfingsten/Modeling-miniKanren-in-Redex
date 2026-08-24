@@ -23,6 +23,8 @@
   "../framework/delay-schema.rkt")
 (define-runtime-path delay-schema-extension-fixture-file
   "../framework/delay-schema-extension-fixture.rkt")
+(define-runtime-path disjunction-schema-file
+  "../framework/disjunction-schema.rkt")
 (define-runtime-path selected-stage-extension-base-fixture-file
   "../framework/core-stage-extension-base-fixture.rkt")
 (define-runtime-path selected-stage-extension-query-fixture-file
@@ -354,7 +356,8 @@
             selected-stage-functor-probe-fixture-file
             selected-stage-schema-test-file
             delay-schema-file
-            delay-schema-extension-fixture-file)))
+            delay-schema-extension-fixture-file
+            disjunction-schema-file)))
     (define selected-parameter-contents
       (file->string selected-redex-parameter-file))
     (check-false

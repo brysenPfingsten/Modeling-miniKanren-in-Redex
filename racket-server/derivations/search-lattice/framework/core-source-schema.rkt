@@ -57,15 +57,18 @@
     (selected-view
      language
      redex-parameters
+     branch-copy
      work-raw frontier-raw allocation-raw
      subst-goal subst-goal-open
-     wf-root wf-goal live-supply failure-summary wf-work wf-frontier
+     wf-root wf-goal wf-answer wf-returned
+     live-supply failure-summary wf-work wf-frontier
      wf-goal-case wf-goal-tasks live-supply-case wf-node-case wf-nodes
-     work-template dead-template conj-template more-template
+     state-template answer-template returned-template
+     work-template dead-template conj-template last-template more-template
      work-focus-prefix
      work-focus-prefix-open
      prefix-empty q-prefix-empty prefix-extend-premises
-     transfer-work-open
+     transfer-work-host transfer-work-open
      q-export-local q-rebuild-local
      q-work-export-open q-work-support-open q-work-rebuild-open
      q-frontier-export-open q-frontier-support-open q-frontier-rebuild-open
@@ -116,6 +119,7 @@
             #:language #,(source-interface-binding-language self)
             #:redex-parameters
             #,(source-interface-binding-redex-parameters self)
+            #:branch-copy #,(source-interface-binding-branch-copy self)
             #:R-work-raw #,(source-interface-binding-work-raw self)
             #:R-frontier-raw #,(source-interface-binding-frontier-raw self)
             #:R-allocation-raw #,(source-interface-binding-allocation-raw self)
@@ -123,6 +127,8 @@
             #:subst-goal-open #,(source-interface-binding-subst-goal-open self)
             #:wf-root #,(source-interface-binding-wf-root self)
             #:wf-goal #,(source-interface-binding-wf-goal self)
+            #:wf-answer #,(source-interface-binding-wf-answer self)
+            #:wf-returned #,(source-interface-binding-wf-returned self)
             #:live-supply #,(source-interface-binding-live-supply self)
             #:failure-summary
             #,(source-interface-binding-failure-summary self)
@@ -135,9 +141,13 @@
              #:node-case #,(source-interface-binding-wf-node-case self)
              #:nodes #,(source-interface-binding-wf-nodes self)]
             #:carrier-view
-            [#:work #,(source-interface-binding-work-template self)
+            [#:state #,(source-interface-binding-state-template self)
+             #:answer #,(source-interface-binding-answer-template self)
+             #:returned #,(source-interface-binding-returned-template self)
+             #:work #,(source-interface-binding-work-template self)
              #:dead #,(source-interface-binding-dead-template self)
              #:conj #,(source-interface-binding-conj-template self)
+             #:last #,(source-interface-binding-last-template self)
              #:more #,(source-interface-binding-more-template self)
              #:empty-supply #,(source-interface-binding-prefix-empty self)]
             #:prefix-view
@@ -152,6 +162,8 @@
              #,(source-interface-binding-work-focus-prefix-open self)
              #:transfer-work-open
              #,(source-interface-binding-transfer-work-open self)
+             #:transfer-work-host
+             #,(source-interface-binding-transfer-work-host self)
              #:Q-export-local
              #,(source-interface-binding-q-export-local self)
              #:Q-rebuild-local
@@ -1813,6 +1825,7 @@
                       ([#,allocation-subst-goal-id #,subst-goal-artifact-id]
                        [#,allocation-work-focus-prefix-id
                         #,work-focus-prefix-id]))
+                     (quote-syntax #,branch-copy-id)
                      (quote-syntax #,work-raw-id)
                      (quote-syntax #,frontier-raw-id)
                      (quote-syntax #,allocation-raw-id)
@@ -1820,6 +1833,8 @@
                      (quote-syntax #,subst-goal-open-id)
                      (quote-syntax #,wf-root-id)
                      (quote-syntax #,wf-goal-id)
+                     (quote-syntax #,wf-answer-id)
+                     (quote-syntax #,wf-returned-id)
                      (quote-syntax #,live-supply-id)
                      (quote-syntax #,failure-summary-id)
                      (quote-syntax #,wf-work-id)
@@ -1829,9 +1844,13 @@
                      (quote-syntax #,live-supply-one-id)
                      (quote-syntax #,wf-node-case-id)
                      (quote-syntax #,wf-nodes-id)
+                     (quote-syntax #,(state supply-v sub-v dis-v trail-v state-tag))
+                     (quote-syntax #,(answer supply-v sigma-v))
+                     (quote-syntax #,(returned supply-v sigma-v))
                      (quote-syntax #,(work supply-v g-v sigma-v))
                      (quote-syntax #,(dead supply-v))
                      (quote-syntax #,(conj supply-v W-v g-v))
+                     (quote-syntax #,(last supply-v A-v))
                      (quote-syntax #,(more W-v))
                      (quote-syntax #,work-focus-prefix-id)
                      (quote-syntax
@@ -1839,6 +1858,9 @@
                      (quote-syntax #,empty-supply)
                      (quote-syntax '())
                      (quote-syntax (#,@extension-prefix-premises))
+                     (quote-syntax
+                      #,(optional-public-hook
+                         (prefix-info-transfer-work prefix)))
                      (quote-syntax
                       #,(optional-public-hook
                          (prefix-info-transfer-work-open prefix)))

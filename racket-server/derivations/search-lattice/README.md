@@ -8,8 +8,9 @@ three-axis family `T[i,rho]`:
 - `rho` selects a representation;
 - `T` selects a derivation stage.
 
-The seed contains the selected complete core representation matrix and, at
-Checkpoint 6A, its first real feature child, `delay`:
+The seed contains the selected complete core representation matrix and its two
+separately staged real feature children: `delay` from Checkpoint 6A and
+`disjunction` from Checkpoint 6B:
 
 ```text
                      R      D      Z ≅ M      B      Big
@@ -22,10 +23,14 @@ selected N           ◆      ◆        ◆        ◆       ◆
 delay S              ◆      ◆        ◆        ◆       ◆
 delay E              ◆      ◆        ◆        ◆       ◆
 delay N              ◆      ◆        ◆        ◆       ◆
+
+disjunction S        ◆      ◆        ◆        ◆       ◆
+disjunction E        ◆      ◆        ◆        ◆       ◆
+disjunction N        ◆      ◆        ◆        ◆       ◆
 ```
 
 Here a diamond means a static Redex artifact plus bounded executable
-correspondence evidence on the stated well-formed core corpus. It does not mean
+correspondence evidence on the stated well-formed finite corpora. It does not mean
 a universal simulation, a full feature cube, or a general naturality theorem.
 The direct `Q_SN` map at every stage is checked against `Q_EN ∘ Q_SE`.
 The primary vertical evidence is the five stage-transformation squares for
@@ -439,6 +444,60 @@ for the checked corpus. It is not arbitrary `Delta -> StageExtension`
 synthesis, a universal functoriality or naturality theorem, or evidence about a
 branch scheduler.
 
+### Checkpoint 6B: the real Disjunction feature
+
+Checkpoint 6B adds Disjunction as a second child of core, independently of
+Delay and without introducing the Search join. One representation-neutral
+source schema owns exactly these five equations:
+
+```text
+expand-disjunction
+skip-left-failure
+reassociate-left-result
+commit-choice-answer
+resume-left-choice-success
+```
+
+They account respectively for branch creation, failed-left elimination,
+nested-choice reassociation, answer emission, and successful-left commitment
+to a following conjunction goal. The schema sees only abstract `Choice`,
+`Emit`, prefix-transfer, branch-copy, and source-carrier views. It does not
+inspect Owner groups, Support lists, or numeric counters. Expansion constructs
+two copies of the complete incoming possible-world state, preserving its
+substitution, disequalities, trail, and state tag while applying the strategy's
+branch-copy operation to its allocation supply. Consequently, an outer
+allocation remains visible in each descendant while incomparable siblings
+retain separate allocation histories and may reuse the same S/E atom or N
+level.
+
+The direct structural Q maps preserve the common inherited prefix and rebuild
+the two Choice branches from their own exported supports. They do not merge a
+sibling's branch-local allocation into the other branch. The finite corpus
+includes sibling reuse, a shared outer variable, left failure, multiple answer
+emission, nested reassociation, and conjunction resumption. Independently
+written S/E/N Disjunction source and WF oracles, with independent direct Q
+maps, are kept separate from the generated artifacts and preserve complete raw
+proof multiplicities.
+
+`define-generated-disjunction-stage-extension` specializes the five source
+rules through D, Z, M, B, and Big for each already generated core row. Its
+controls distinguish work expansion, failed and settled choice popping,
+frontier answer emission, and resumption into work. All five Disjunction
+labels are singleton B spans. When a core settled/dead producer is immediately
+followed by a Disjunction rule, the core producer uses its guarded singleton
+fallback and the feature step remains a separate singleton; established core
+fusion elsewhere is unchanged and no core-plus-feature or cross-feature span
+is introduced.
+
+The generated rows expose direct core-to-Disjunction embeddings at R, D, Z,
+M, B, and Big, direct S-to-E, E-to-N, and independently direct S-to-N maps at
+every coordinate, and the bounded feature, representation, and stage faces.
+The checked claims are restricted to the finite corpus, exact labels and
+spans, WF, raw proof multisets, finite traces, Q composition, embeddings, and
+commuting faces exercised by the focused suites. They are not universal
+functoriality or naturality theorems, arbitrary feature synthesis, or evidence
+for Search-owned interactions or a branch scheduler.
+
 The retained handwritten `core/s-to-e.rkt` bridge is a historical R/D
 reference only. Its bounded correspondence stops at R and D. The selected
 generated matrix supplies phase-local representation maps through Big
@@ -502,6 +561,26 @@ independently and does not import this bridge.
   the independent corpus, horizontal rows, embeddings, primary cube,
   secondary transport diagnostics, and dependency boundary. `all.rkt` exports
   the generated Delay artifacts without re-registering the leaf tests.
+- `framework/disjunction-schema.rkt` owns the neutral five-rule Disjunction
+  schema, the complete-state-copy and structural Choice/Emit view, and the
+  specialized Disjunction StageExtension synthesis.
+  `disjunction-schema-tests.rkt` checks the exact equations, source WF/raw
+  multiplicity, state copying, sibling separation, and direct Q behavior;
+  `disjunction-stage-extension-tests.rkt` checks the separately applied stage
+  controls, singleton boundary spans, and finite Big behavior.
+- `oracles/disjunction/` contains the independently written S, E, and N
+  Disjunction source/WF oracles and their direct vertical maps. Its tests do
+  not import generated Disjunction artifacts.
+- `generated/disjunction/source/` contains the three generated Disjunction
+  sources, their direct R maps, and direct core-to-Disjunction embeddings.
+  `generated/disjunction/stages/` applies the specialized extension to the
+  three core rows. `source-tests.rkt`, `horizontal-tests.rkt`,
+  `embedding-tests.rkt`, `cube-tests.rkt`,
+  `transport-diagnostics-tests.rkt`, and `dependency-tests.rkt` are the six
+  registered leaf suites; `tests.rkt` is their focused aggregate. They own
+  source/oracle correspondence, horizontal staging, embeddings, cube faces,
+  transport diagnostics, and dependency separation without turning those
+  bounded checks into a universal theorem.
 - `generated/core/stages/s.rkt`, `e.rkt`, and `n.rkt` are the three selected
   complete horizontal columns. `policy.rkt` is their one shared compression
   policy and `corpus.rkt` is their keyed independent witness corpus.
@@ -574,11 +653,15 @@ raco test racket-server/derivations/search-lattice/framework/core-stage-functor-
 raco test racket-server/derivations/search-lattice/framework/delay-schema-tests.rkt
 raco test racket-server/derivations/search-lattice/framework/delay-stage-extension-tests.rkt
 raco test racket-server/derivations/search-lattice/framework/delay-stage-asymmetric-tests.rkt
+raco test racket-server/derivations/search-lattice/framework/disjunction-schema-tests.rkt
+raco test racket-server/derivations/search-lattice/framework/disjunction-stage-extension-tests.rkt
 raco test racket-server/derivations/search-lattice/framework/stage-generators-tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/source/tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/stages/tests.rkt
 raco test racket-server/derivations/search-lattice/oracles/delay/tests.rkt
 raco test racket-server/derivations/search-lattice/generated/delay/tests.rkt
+raco test racket-server/derivations/search-lattice/oracles/disjunction/tests.rkt
+raco test racket-server/derivations/search-lattice/generated/disjunction/tests.rkt
 raco test racket-server/derivations/search-lattice/tests/all.rkt
 ```
 
@@ -621,6 +704,11 @@ default runner, canonical aggregate, and recursive audit.  Its handoff records
 the focused results and the statically checked inventory separately; it does
 not present a repeated or inferred canonical count as test evidence.
 
+Checkpoint 6B follows the same acceptance freeze. Its handoff records only the
+bounded focused Disjunction results and static inventory evidence obtained for
+this checkpoint; it does not claim a default-runner, canonical-aggregate, or
+recursive-audit pass.
+
 This literal recursive gate is required for the prototype checkpoint because it
 establishes the initial test-registration baseline. After Checkpoint 4T, use the
 canonical checkpoint runner described there; do not repeat this recursive
@@ -655,12 +743,13 @@ core, but no production module imports this directory.
 
 ## Deliberate stopping boundary
 
-This seed now instantiates one separately staged real augmentation: Delay over
-the selected S/E/N core rows through R/D/Z/M/B/Big. It stops at Checkpoint 6A.
-Checkpoint 6B disjunction and search, branch scheduler fibers, search-owned
-interaction rules, relation-call overlays, and the distributed presentation
-have not begun. Delay introduces no branch scheduler and supplies no evidence
-about those later coordinates.
+This seed now instantiates two separately staged real augmentations over the
+selected S/E/N core rows through R/D/Z/M/B/Big: Delay and Disjunction. It stops
+at Checkpoint 6B, before Checkpoint 6C constructs the Search join. Search-owned
+Delay/Disjunction interaction rules, branch-scheduler fibers, relation-call
+overlays, and the distributed presentation have not begun. Neither child
+feature introduces a branch scheduler or supplies evidence about those later
+coordinates.
 
 The retired historical prototype stopped at core/S and the
 support-decorated-node core/E; its last runnable state is the commit recorded
@@ -683,9 +772,10 @@ historical commit; it is not an administrative form for the selected generator
 to guess.
 
 This checkpoint claims the finite-corpus raw-proof, embedding, direct-Q, and
-commuting-face evidence stated above for core and Delay. It does not claim
-universal functoriality or naturality, arbitrary feature synthesis, or facts
-about the absent 6B search hierarchy. It distinguishes instantiated row-local
-artifacts from tested representation edges and bounded commuting faces.
+commuting-face evidence stated above for core, Delay, and Disjunction. It does
+not claim universal functoriality or naturality, arbitrary feature synthesis,
+or facts about the absent 6C Search join. It distinguishes instantiated
+row-local artifacts from tested representation edges and bounded commuting
+faces.
 
 Production modules never import this directory.
