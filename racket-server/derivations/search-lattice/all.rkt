@@ -21,7 +21,8 @@
          "./generated/core/source/all.rkt"
          "./generated/core/stages/all.rkt"
          "./generated/delay/all.rkt"
-         "./generated/disjunction/all.rkt")
+         "./generated/disjunction/all.rkt"
+         "./generated/search/all.rkt")
 
 (provide
  (all-from-out "./framework/decomposition-instance.rkt")
@@ -45,4 +46,5 @@
  (all-from-out "./generated/core/source/all.rkt")
  (all-from-out "./generated/core/stages/all.rkt")
  (all-from-out "./generated/delay/all.rkt")
- (all-from-out "./generated/disjunction/all.rkt"))
+ (all-from-out "./generated/disjunction/all.rkt")
+ (all-from-out "./generated/search/all.rkt"))

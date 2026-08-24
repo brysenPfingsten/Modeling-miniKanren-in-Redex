@@ -3428,14 +3428,22 @@
                  (transition-span
                   DeadProducerName DeadFollowerName)
                  B_1)]))))
+     (define replay-machine-step
+       (generate-temporary 'replay-machine-step))
+     (match-define
+       (list step-spec-decode step-spec-replay step-spec-target-encode
+             square-decode square-replay square-target-encode square-B-step)
+       (generate-temporaries
+        '(step-spec-decode step-spec-replay step-spec-target-encode
+          square-decode square-replay square-target-encode square-B-step)))
      (define replay-fusion-clauses
        (append
         (if (null? settled-producer-labels)
             '()
             (list
-             #`[(#,machine-step-direct
+             #`[(#,replay-machine-step
                  M_0 SettledProducerName M_1)
-                (#,machine-step-direct
+                (#,replay-machine-step
                  M_1 SettledFollowerName M_2)
                 ----
                 (#, #'replay
@@ -3446,9 +3454,9 @@
         (if (null? dead-producer-labels)
             '()
             (list
-             #`[(#,machine-step-direct
+             #`[(#,replay-machine-step
                  M_0 DeadProducerName M_1)
-                (#,machine-step-direct
+                (#,replay-machine-step
                  M_1 DeadFollowerName M_2)
                 ----
                 (#, #'replay
@@ -3473,8 +3481,16 @@
                    [step-direct #'step-direct]
                    [corresponds #'corresponds]
                    [replay #'replay]
+                   [replay-machine-step replay-machine-step]
                    [step-spec #'step-spec]
+                   [step-spec-decode step-spec-decode]
+                   [step-spec-replay step-spec-replay]
+                   [step-spec-target-encode step-spec-target-encode]
                    [square #'square]
+                   [square-decode square-decode]
+                   [square-replay square-replay]
+                   [square-target-encode square-target-encode]
+                   [square-B-step square-B-step]
                    [failure-summary failure-summary]
                    [failure-term failure-term]
                    [root-spine root-spine]
@@ -3586,7 +3602,8 @@
               (BFinal T)])
 
            ;; The M/B codec is diagnostic; `compress` is the phase transform.
-           (define-metafunction compressed-language
+           (redex-parameter:define-metafunction*
+             compressed-language
              encode-MB : M -> B
              [(encode-MB (MFinal T)) (BFinal T)]
              [(encode-MB (MAllocate AR SourceWorkFocus))
@@ -3611,7 +3628,8 @@
              [(encode-MB (MFrontier FR SourceSpineContext))
               (BFrontier FR SourceSpineContext)])
 
-           (define-metafunction compressed-language
+           (redex-parameter:define-metafunction*
+             compressed-language
              decode-BM : B -> M
              [(decode-BM (BFinal T)) (MFinal T)]
              [(decode-BM (BRun AR SourceWorkFocus))
@@ -3636,7 +3654,8 @@
                (in-hole root-focus failure-term)
                SourceSpineContext)])
 
-           (define-metafunction compressed-language
+           (redex-parameter:define-metafunction*
+             compressed-language
              readback : B -> SourceF
              [(readback (BRun NonAllocateRun SourceWorkFocus))
               (in-hole SourceWorkFocus NonAllocateRun)]
@@ -3733,11 +3752,12 @@
               ----
               (corresponds M_0 B_0)])
 
-           (define-judgment-form
+           (redex-parameter:define-judgment-form*
              compressed-language
-             #:contract (replay M TransitionSpan M)
+             #:parameters ([replay-machine-step machine-step-direct])
              #:mode (replay I O O)
-             [(machine-step-direct
+             #:contract (replay M TransitionSpan M)
+             [(replay-machine-step
                M_0 SingletonRuleName M_1)
               ----
              (replay
@@ -3746,24 +3766,33 @@
                M_1)]
              replay-fusion-clause ...)
 
-           (define-judgment-form
+           (redex-parameter:define-judgment-form*
              compressed-language
-             #:contract (step-spec B TransitionSpan B)
+             #:parameters
+             ([step-spec-decode decode-BM]
+              [step-spec-replay replay]
+              [step-spec-target-encode encode-MB])
              #:mode (step-spec I O O)
-             [(where M_0 (decode-BM B_0))
-              (replay M_0 TransitionSpan M_1)
-              (where B_1 (encode-MB M_1))
+             #:contract (step-spec B TransitionSpan B)
+             [(where M_0 (step-spec-decode B_0))
+              (step-spec-replay M_0 TransitionSpan M_1)
+              (where B_1 (step-spec-target-encode M_1))
               ----
               (step-spec B_0 TransitionSpan B_1)])
 
-           (define-judgment-form
+           (redex-parameter:define-judgment-form*
              compressed-language
-             #:contract (square B TransitionSpan B M M)
+             #:parameters
+             ([square-decode decode-BM]
+              [square-replay replay]
+              [square-target-encode encode-MB]
+              [square-B-step step-direct])
              #:mode (square I O O O O)
-             [(where M_0 (decode-BM B_0))
-              (replay M_0 TransitionSpan M_1)
-              (where B_1 (encode-MB M_1))
-              (step-direct B_0 TransitionSpan B_1)
+             #:contract (square B TransitionSpan B M M)
+             [(where M_0 (square-decode B_0))
+              (square-replay M_0 TransitionSpan M_1)
+              (where B_1 (square-target-encode M_1))
+              (square-B-step B_0 TransitionSpan B_1)
               ----
               (square B_0 TransitionSpan B_1 M_0 M_1)])))]))
 

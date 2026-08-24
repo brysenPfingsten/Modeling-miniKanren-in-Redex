@@ -8,9 +8,10 @@ three-axis family `T[i,rho]`:
 - `rho` selects a representation;
 - `T` selects a derivation stage.
 
-The seed contains the selected complete core representation matrix and its two
-separately staged real feature children: `delay` from Checkpoint 6A and
-`disjunction` from Checkpoint 6B:
+The seed contains the selected complete core representation matrix, its two
+separately staged real feature children (`delay` from Checkpoint 6A and
+`disjunction` from Checkpoint 6B), and their policy-neutral zero-rule Search
+join from Checkpoint 6C:
 
 ```text
                      R      D      Z ≅ M      B      Big
@@ -27,6 +28,10 @@ delay N              ◆      ◆        ◆        ◆       ◆
 disjunction S        ◆      ◆        ◆        ◆       ◆
 disjunction E        ◆      ◆        ◆        ◆       ◆
 disjunction N        ◆      ◆        ◆        ◆       ◆
+
+search S             ◆      ◆        ◆        ◆       ◆
+search E             ◆      ◆        ◆        ◆       ◆
+search N             ◆      ◆        ◆        ◆       ◆
 ```
 
 Here a diamond means a static Redex artifact plus bounded executable
@@ -496,12 +501,51 @@ The checked claims are restricted to the finite corpus, exact labels and
 spans, WF, raw proof multisets, finite traces, Q composition, embeddings, and
 commuting faces exercised by the focused suites. They are not universal
 functoriality or naturality theorems, arbitrary feature synthesis, or evidence
-for Search-owned interactions or a branch scheduler.
+for the later Search join or any scheduler-owned interaction.
 
 The retained handwritten `core/s-to-e.rkt` bridge is a historical R/D
 reference only. Its bounded correspondence stops at R and D. The selected
 generated matrix supplies phase-local representation maps through Big
 independently and does not import this bridge.
+
+### Checkpoint 6C: the zero-rule Search join
+
+Checkpoint 6C composes the two selected features without choosing a scheduler.
+The Search language is the Delay/Disjunction grammar union and its source
+relation has exactly the inherited 21 labels: 13 core, three Delay, and five
+Disjunction. `SearchJoinDelta` owns no labels, syntax, WF cases, Q cases, or
+stage transitions. This matches the production join boundary; DFS, flip, and
+rail each own different Delay-through-choice behavior and remain absent here.
+
+The canonical generated route is core to Disjunction to Delay to an identity
+Search join. A separately generated core-to-Delay-to-Disjunction route checks
+the feature-order diamond on the bounded mixed corpus. Stage emitters retain
+their owned source/template identity while accepting
+`#:dependencies-from` the completed Search source for exact-language
+substitution, prefix, and transfer dependencies. This lets Delay bubble into a
+later Choice and lets Disjunction skip into a later PendingDelay without
+adding a Search-owned semantic rule. The keyword defaults to the owned source,
+so the Checkpoint 6A and 6B rows keep their existing behavior.
+
+The mixed corpus exercises Delay inside Emit, Disjunction inside Forced,
+cross-carrier prefix transfer in both feature orders, joint allocation state,
+and bounded finite traces. It also records a deliberate scheduler barrier: an
+active PendingDelay inside DisjL is grammatical and WF but has no
+policy-neutral Search successor. The barrier is outside the finite Big
+WF/progress claim. It is not classified as terminal and no scheduler rule is
+invented to force progress.
+
+The focused evidence compares independent S/E/N Search source and WF oracles,
+complete raw proof multisets, exact B spans, child-to-Search embeddings, direct
+S-to-E/E-to-N/S-to-N maps, both feature orders, diagnostic transports, and
+finite Big results. Production Search provides a secondary 21-label inventory
+check, but its whole-frontier S allocation is not used as the oracle for the
+selected sibling-local policy.
+
+This is bounded additive-composition evidence, not a universal commutation or
+progress theorem. Checkpoint 6C stops before DFS, flip, rail/DisjR,
+relation-call overlays, fairness or interleaving claims, and scheduler-specific
+allocation cadence.
 
 ## What to look at
 
@@ -581,6 +625,21 @@ independently and does not import this bridge.
   source/oracle correspondence, horizontal staging, embeddings, cube faces,
   transport diagnostics, and dependency separation without turning those
   bounded checks into a universal theorem.
+- `framework/search-join-schema.rkt` names the explicit zero-rule source join
+  and identity StageExtension. `stage-extension-dependencies-tests.rkt` uses
+  two sibling fixtures to check late-bound dependency traversal in both
+  feature orders without changing either feature's owned source language.
+- `oracles/search/` independently composes the core, Delay, and Disjunction
+  source deltas in S, E, and N, supplies direct Q maps, and records the
+  policy-neutral scheduler barrier. It imports no generated Search artifact.
+- `generated/search/source/` constructs the canonical zero-rule Search rows;
+  `generated/search/stages/` applies both child extensions and the identity
+  join through D/Z/M/B/Big. Their `feature-order/` subdirectories contain the
+  reverse construction used only for the order diamond. The eight registered
+  leaves cover source/oracle correspondence, horizontal rows, child
+  embeddings, source and stage feature order, primary cube faces, secondary
+  diagnostics, and dependency separation; `tests.rkt` is their focused
+  aggregate and `all.rkt` exports only generated artifacts.
 - `generated/core/stages/s.rkt`, `e.rkt`, and `n.rkt` are the three selected
   complete horizontal columns. `policy.rkt` is their one shared compression
   policy and `corpus.rkt` is their keyed independent witness corpus.
@@ -655,6 +714,8 @@ raco test racket-server/derivations/search-lattice/framework/delay-stage-extensi
 raco test racket-server/derivations/search-lattice/framework/delay-stage-asymmetric-tests.rkt
 raco test racket-server/derivations/search-lattice/framework/disjunction-schema-tests.rkt
 raco test racket-server/derivations/search-lattice/framework/disjunction-stage-extension-tests.rkt
+raco test racket-server/derivations/search-lattice/framework/search-join-schema-tests.rkt
+raco test racket-server/derivations/search-lattice/framework/stage-extension-dependencies-tests.rkt
 raco test racket-server/derivations/search-lattice/framework/stage-generators-tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/source/tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/stages/tests.rkt
@@ -662,6 +723,8 @@ raco test racket-server/derivations/search-lattice/oracles/delay/tests.rkt
 raco test racket-server/derivations/search-lattice/generated/delay/tests.rkt
 raco test racket-server/derivations/search-lattice/oracles/disjunction/tests.rkt
 raco test racket-server/derivations/search-lattice/generated/disjunction/tests.rkt
+raco test racket-server/derivations/search-lattice/oracles/search/tests.rkt
+raco test racket-server/derivations/search-lattice/generated/search/tests.rkt
 raco test racket-server/derivations/search-lattice/tests/all.rkt
 ```
 
@@ -709,6 +772,12 @@ bounded focused Disjunction results and static inventory evidence obtained for
 this checkpoint; it does not claim a default-runner, canonical-aggregate, or
 recursive-audit pass.
 
+Checkpoint 6C retains that acceptance boundary. Its handoff records the
+bounded Search-join, feature-order, and compatibility results together with
+static inventory evidence. The default runner, canonical aggregate, and
+recursive registration audit are not restarted or inferred from those focused
+counts.
+
 This literal recursive gate is required for the prototype checkpoint because it
 establishes the initial test-registration baseline. After Checkpoint 4T, use the
 canonical checkpoint runner described there; do not repeat this recursive
@@ -744,12 +813,12 @@ core, but no production module imports this directory.
 ## Deliberate stopping boundary
 
 This seed now instantiates two separately staged real augmentations over the
-selected S/E/N core rows through R/D/Z/M/B/Big: Delay and Disjunction. It stops
-at Checkpoint 6B, before Checkpoint 6C constructs the Search join. Search-owned
-Delay/Disjunction interaction rules, branch-scheduler fibers, relation-call
-overlays, and the distributed presentation have not begun. Neither child
-feature introduces a branch scheduler or supplies evidence about those later
-coordinates.
+selected S/E/N core rows through R/D/Z/M/B/Big, Delay and Disjunction, plus
+their policy-neutral zero-rule Search join. It stops at Checkpoint 6C.
+Branch-scheduler interaction rules, DFS/flip/rail fibers, DisjR,
+relation-call overlays, scheduler-specific allocation cadence, and the
+distributed presentation have not begun. Neither child nor the common join
+chooses a branch scheduler or supplies evidence about those later coordinates.
 
 The retired historical prototype stopped at core/S and the
 support-decorated-node core/E; its last runnable state is the commit recorded
@@ -772,10 +841,10 @@ historical commit; it is not an administrative form for the selected generator
 to guess.
 
 This checkpoint claims the finite-corpus raw-proof, embedding, direct-Q, and
-commuting-face evidence stated above for core, Delay, and Disjunction. It does
-not claim universal functoriality or naturality, arbitrary feature synthesis,
-or facts about the absent 6C Search join. It distinguishes instantiated
-row-local artifacts from tested representation edges and bounded commuting
-faces.
+commuting-face evidence stated above for core, Delay, Disjunction, and their
+zero-rule Search join. It does not claim universal functoriality or naturality,
+arbitrary feature synthesis, scheduler progress, or facts about the absent 6D
+fibers. It distinguishes instantiated row-local artifacts from tested
+representation edges and bounded commuting faces.
 
 Production modules never import this directory.

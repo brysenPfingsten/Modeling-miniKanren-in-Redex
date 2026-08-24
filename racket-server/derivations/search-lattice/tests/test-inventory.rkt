@@ -15,6 +15,8 @@
          "../framework/delay-stage-asymmetric-tests.rkt"
          "../framework/disjunction-schema-tests.rkt"
          "../framework/disjunction-stage-extension-tests.rkt"
+         "../framework/search-join-schema-tests.rkt"
+         "../framework/stage-extension-dependencies-tests.rkt"
          "../generated/core/source/comparison-tests.rkt"
          "../generated/core/source/dependency-tests.rkt"
          "../generated/core/stages/dependency-tests.rkt"
@@ -33,6 +35,14 @@
          "../generated/disjunction/cube-tests.rkt"
          "../generated/disjunction/transport-diagnostics-tests.rkt"
          "../generated/disjunction/dependency-tests.rkt"
+         "../generated/search/source-tests.rkt"
+         "../generated/search/horizontal-tests.rkt"
+         "../generated/search/embedding-tests.rkt"
+         "../generated/search/feature-order-tests.rkt"
+         "../generated/search/stage-feature-order-tests.rkt"
+         "../generated/search/cube-tests.rkt"
+         "../generated/search/transport-diagnostics-tests.rkt"
+         "../generated/search/dependency-tests.rkt"
          "../oracles/core/s/tests.rkt"
          "../oracles/core/e/tests.rkt"
          "../oracles/core/n/tests.rkt"
@@ -40,6 +50,7 @@
          "../oracles/core/dependency-tests.rkt"
          "../oracles/delay/tests.rkt"
          "../oracles/disjunction/tests.rkt"
+         "../oracles/search/tests.rkt"
          "./core-matrix-tests.rkt"
          "./core-s-horizontal-tests.rkt"
          "./dependency-boundary-tests.rkt")
@@ -134,6 +145,12 @@
     "framework/disjunction-stage-extension-tests.rkt"
     DISJUNCTION-STAGE-EXTENSION-TESTS)
    (register-test-suite
+    "framework/search-join-schema-tests.rkt"
+    SEARCH-JOIN-SCHEMA)
+   (register-test-suite
+    "framework/stage-extension-dependencies-tests.rkt"
+    STAGE-EXTENSION-DEPENDENCIES-TESTS)
+   (register-test-suite
     "generated/core/source/comparison-tests.rkt"
     GENERATED-CORE-SOURCE-COMPARISONS)
    (register-test-suite
@@ -188,6 +205,30 @@
     "generated/disjunction/dependency-tests.rkt"
     GENERATED-DISJUNCTION-DEPENDENCY-TESTS)
    (register-test-suite
+    "generated/search/source-tests.rkt"
+    GENERATED-SEARCH-SOURCE-TESTS)
+   (register-test-suite
+    "generated/search/horizontal-tests.rkt"
+    GENERATED-SEARCH-HORIZONTAL-TESTS)
+   (register-test-suite
+    "generated/search/embedding-tests.rkt"
+    GENERATED-SEARCH-EMBEDDING-TESTS)
+   (register-test-suite
+    "generated/search/feature-order-tests.rkt"
+    GENERATED-SEARCH-FEATURE-ORDER-TESTS)
+   (register-test-suite
+    "generated/search/stage-feature-order-tests.rkt"
+    GENERATED-SEARCH-STAGE-FEATURE-ORDER-TESTS)
+   (register-test-suite
+    "generated/search/cube-tests.rkt"
+    GENERATED-SEARCH-CUBE-TESTS)
+   (register-test-suite
+    "generated/search/transport-diagnostics-tests.rkt"
+    GENERATED-SEARCH-TRANSPORT-DIAGNOSTICS-TESTS)
+   (register-test-suite
+    "generated/search/dependency-tests.rkt"
+    GENERATED-SEARCH-DEPENDENCY-TESTS)
+   (register-test-suite
     "oracles/core/s/tests.rkt"
     CORE-S-ORACLE-TESTS)
    (register-test-suite
@@ -209,6 +250,9 @@
     "oracles/disjunction/tests.rkt"
     DISJUNCTION-ORACLE-TESTS)
    (register-test-suite
+    "oracles/search/tests.rkt"
+    SEARCH-ORACLE-TESTS)
+   (register-test-suite
     "tests/core-matrix-tests.rkt"
     CORE-MATRIX-SEED)
    (register-test-suite
@@ -229,16 +273,17 @@
         "generated/core/stages/tests.rkt"
         "generated/delay/tests.rkt"
         "generated/disjunction/tests.rkt"
+        "generated/search/tests.rkt"
         "oracles/core/tests.rkt"
         "oracles/core/s/all.rkt"
         "oracles/core/e/all.rkt"
         "oracles/core/n/all.rkt"))
 
-(define EXPECTED-CANONICAL-SUITE-COUNT 40)
-(define EXPECTED-SEMANTIC-TEST-MODULE-COUNT 44)
-(define EXPECTED-FOCUSED-AGGREGATE-COUNT 8)
+(define EXPECTED-CANONICAL-SUITE-COUNT 51)
+(define EXPECTED-SEMANTIC-TEST-MODULE-COUNT 56)
+(define EXPECTED-FOCUSED-AGGREGATE-COUNT 9)
 (define EXPECTED-INTRINSIC-TEST-MODULE-COUNT 13)
-(define EXPECTED-TEST-SUBMODULE-COUNT 62)
+(define EXPECTED-TEST-SUBMODULE-COUNT 74)
 
 (define (registration-module-file registration)
   (build-path SEARCH-LATTICE-ROOT

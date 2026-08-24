@@ -349,7 +349,7 @@ core
 |-- delay
 |   `-- relation-call overlay
 |-- disjunction
-`-- search = delay + disjunction + search-owned interactions
+`-- search = delay + disjunction (zero-rule join)
     |-- DFS fiber
     |-- flip fiber
     `-- rail fiber with the additional DisjR carrier
@@ -360,9 +360,12 @@ schema may copy or carry a complete representation state, but it may not
 inspect Owner, Support, or counter internals unless allocation is genuinely
 owned by that feature.
 
-Search grammar may be the union of delay and disjunction grammar, but genuine
-interaction rules and their WF obligations are owned by the search-join
-augmentation. No inherited core rule is duplicated there.
+Search grammar is the union of Delay and Disjunction grammar. The policy-neutral
+search-join augmentation owns no source rule and duplicates no inherited rule;
+its exact rule-label inventory is the 13 core labels, three Delay labels, and
+five Disjunction labels. Rules that move Delay through a Disjunction carrier
+are scheduler policy: DFS, flip, and rail own different such rules, so none is
+part of the common Search join.
 
 The frozen whole-instance generator, which premerges a delta before staging,
 is retained as an oracle. The intended separately staged construction must
@@ -460,9 +463,9 @@ reusing generated artifacts.
 These executable faces establish only the observations made on the checked
 finite corpus. They are not a universal feature functor, a general naturality
 proof, or arbitrary `Delta -> StageExtension` synthesis. At Checkpoint 6A this
-work stopped before Disjunction, search-owned interactions, search scheduler
-fibers, relation-call overlays, and their additional WF/correspondence
-obligations.
+work stopped before Disjunction, the Search join, scheduler-owned interaction
+rules and fibers, relation-call overlays, and their additional
+WF/correspondence obligations.
 
 ### Checkpoint 6B bounded Disjunction cube
 
@@ -533,8 +536,53 @@ This is specialized Disjunction StageExtension synthesis and finite-corpus
 cube evidence. It is not a universal feature functor, a general naturality or
 functoriality proof, arbitrary `Delta -> StageExtension` synthesis, or evidence
 for a search policy. Checkpoint 6B stops before Checkpoint 6C constructs the
-Search join and owns Delay/Disjunction interaction rules, scheduler fibers,
-and their additional WF/correspondence obligations.
+literal Delay/Disjunction join; scheduler-specific interaction rules and their
+additional WF/correspondence obligations remain later work.
+
+### Checkpoint 6C bounded Search join
+
+Checkpoint 6C instantiates Search as the policy-neutral additive join of the
+already selected Delay and Disjunction features. `SearchJoinDelta` owns an
+empty rule-label list: every one-step Search proof is inherited exactly once
+from the 21-label union of core, Delay, and Disjunction. It adds no carrier,
+WF clause, Q clause, compression label, or scheduler transition.
+
+The canonical construction follows the production predecessor direction,
+core to Disjunction to Delay, and then applies the zero-rule join descriptor.
+An independently instantiated reverse route, core to Delay to Disjunction,
+checks the feature-order diamond on a bounded mixed corpus. The two routes use
+distinct generated artifact identifiers; equality is behavioral, including
+complete raw proof multisets, rather than identifier or append-order metadata
+equality.
+
+Each staged feature still owns its own templates and truthful intermediate
+source language. Its stage dependencies may be late-bound to the completed
+Search source through `#:dependencies-from`, so an inherited Delay rule can
+transfer through a later Choice and an inherited Disjunction rule can transfer
+through a later PendingDelay. Omitting that keyword retains the Checkpoint 6A
+and 6B single-feature behavior. The join's StageExtension is identity at
+D, Z, M, B, and Big and appends no singleton boundary.
+
+The mixed corpus includes both cross-carrier transfer directions, Delay under
+Emit, Disjunction under Forced, shared allocation state, finite progressing
+traces, and the scheduler barrier
+`More(DisjL ... (PendingDelay ...) ...)`. That barrier is grammatical and WF
+but has zero policy-neutral Search successors: forcing it would require a
+scheduler-specific interaction rule. It is therefore outside the stated Big
+WF/progress domain, not made terminal and not hidden by a new join rule.
+
+The bounded evidence compares independently written S/E/N Search source and
+WF oracles, direct representation maps, child-to-Search embeddings, both
+feature orders, exact singleton/fallback B spans, diagnostic transports, and
+finite Big results without deduplicating raw proofs. Production Search is a
+secondary rule-inventory oracle; its whole-frontier S allocation policy is not
+used as the oracle for selected sibling-local allocation.
+
+This checkpoint establishes only the finite additive join and its checked
+composition faces. It does not establish a universal feature commutation
+theorem, make every grammatical/WF mixed state progress, or choose DFS, flip,
+rail, fairness, interleaving, relation-call, or allocation-cadence policy.
+Those scheduler fibers and overlays begin after Checkpoint 6C.
 
 ## Conservative compression and finite Big
 

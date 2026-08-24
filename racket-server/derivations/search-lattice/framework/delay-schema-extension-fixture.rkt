@@ -107,7 +107,12 @@
          #:spine-export _base-q-spine-export-open:id
          #:spine-rebuild _base-q-spine-rebuild-open:id
          #:focus-shape _base-q-focus-shape-open:id
-         #:focus-shape-rebuild _base-q-focus-shape-rebuild-open:id]
+         #:focus-shape-rebuild _base-q-focus-shape-rebuild-open:id
+         #:work-export-dependencies _base-q-work-export-dependencies-open:id
+         #:frontier-export-dependencies
+         _base-q-frontier-export-dependencies-open:id
+         #:path-export-dependencies _base-q-path-export-dependencies-open:id
+         #:path-rebuild-dependencies _base-q-path-rebuild-dependencies-open:id]
         #:extension
         [#:language extension-language:id
          #:relation extension-relation:id

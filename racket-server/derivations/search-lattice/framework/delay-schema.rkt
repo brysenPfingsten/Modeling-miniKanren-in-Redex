@@ -57,6 +57,10 @@
      q-frontier-rebuild-context-open
      q-spine-export-open q-spine-rebuild-open
      q-focus-shape-open q-focus-shape-rebuild-open
+     q-work-export-dependencies-open
+     q-frontier-export-dependencies-open
+     q-path-export-dependencies-open
+     q-path-rebuild-dependencies-open
      q-export q-rebuild
      q-focus-export q-focus-rebuild
      q-root-focus-export q-root-focus-rebuild
@@ -203,7 +207,15 @@
              #:focus-shape
              #,(delay-source-binding-q-focus-shape-open self)
              #:focus-shape-rebuild
-             #,(delay-source-binding-q-focus-shape-rebuild-open self)]
+             #,(delay-source-binding-q-focus-shape-rebuild-open self)
+             #:work-export-dependencies
+             #,(delay-source-binding-q-work-export-dependencies-open self)
+             #:frontier-export-dependencies
+             #,(delay-source-binding-q-frontier-export-dependencies-open self)
+             #:path-export-dependencies
+             #,(delay-source-binding-q-path-export-dependencies-open self)
+             #:path-rebuild-dependencies
+             #,(delay-source-binding-q-path-rebuild-dependencies-open self)]
             argument ...)]
         [(_ #:instantiate-with _renderer:id #:instance _instance:id)
          (raise-syntax-error
@@ -295,7 +307,11 @@
             base-q-frontier-support-context-open
             base-q-frontier-rebuild-context-open
             base-q-spine-export-open base-q-spine-rebuild-open
-            base-q-focus-shape-open base-q-focus-shape-rebuild-open)
+            base-q-focus-shape-open base-q-focus-shape-rebuild-open
+            base-q-work-export-dependencies-open
+            base-q-frontier-export-dependencies-open
+            base-q-path-export-dependencies-open
+            base-q-path-rebuild-dependencies-open)
       fields)
     (match-define
       (list binding-id language-id relation-id raw-successors-id
@@ -436,6 +452,8 @@
     (define q-work-export-id (format-id q-export-id "~a/work" q-export-id))
     (define q-work-export-open-id
       (format-id q-export-id "~a/work/open" q-export-id))
+    (define q-work-export-dependencies-open-id
+      (format-id q-export-id "~a/work/dependencies-open" q-export-id))
     (define q-work-support-id (format-id q-export-id "~a/work-support" q-export-id))
     (define q-work-support-open-id
       (format-id q-export-id "~a/work-support/open" q-export-id))
@@ -448,6 +466,8 @@
       (format-id q-export-id "~a/frontier/open" q-export-id))
     (define q-frontier-export-context-open-id
       (format-id q-export-id "~a/frontier/context-open" q-export-id))
+    (define q-frontier-export-dependencies-open-id
+      (format-id q-export-id "~a/frontier/dependencies-open" q-export-id))
     (define q-frontier-support-id
       (format-id q-export-id "~a/frontier-support" q-export-id))
     (define q-frontier-support-open-id
@@ -463,9 +483,13 @@
     (define q-path-export-id (format-id q-export-id "~a/path" q-export-id))
     (define q-path-export-composed-open-id
       (format-id q-export-id "~a/path/open" q-export-id))
+    (define q-path-export-dependencies-open-id
+      (format-id q-export-id "~a/path/dependencies-open" q-export-id))
     (define q-path-rebuild-id (format-id q-rebuild-id "~a/path" q-rebuild-id))
     (define q-path-rebuild-composed-open-id
       (format-id q-rebuild-id "~a/path/open" q-rebuild-id))
+    (define q-path-rebuild-dependencies-open-id
+      (format-id q-rebuild-id "~a/path/dependencies-open" q-rebuild-id))
     (define q-spine-export-id (format-id q-export-id "~a/spine" q-export-id))
     (define q-spine-export-open-id
       (format-id q-export-id "~a/spine/open" q-export-id))
@@ -539,6 +563,18 @@
     (define base-context-open?
       (and base-q-frontier-export-context-open
            (syntax-e base-q-frontier-export-context-open)))
+    (define base-work-export-dependencies?
+      (and base-q-work-export-dependencies-open
+           (syntax-e base-q-work-export-dependencies-open)))
+    (define base-frontier-export-dependencies?
+      (and base-q-frontier-export-dependencies-open
+           (syntax-e base-q-frontier-export-dependencies-open)))
+    (define base-path-export-dependencies?
+      (and base-q-path-export-dependencies-open
+           (syntax-e base-q-path-export-dependencies-open)))
+    (define base-path-rebuild-dependencies?
+      (and base-q-path-rebuild-dependencies-open
+           (syntax-e base-q-path-rebuild-dependencies-open)))
     (define delay-redex-parameters
       (for/list ([parameter (in-list base-redex-parameters)])
         (match-define (cons local default) parameter)
@@ -631,6 +667,10 @@
            (quote-syntax #,q-spine-rebuild-open-id)
            (quote-syntax #,q-focus-shape-open-id)
            (quote-syntax #,q-focus-shape-rebuild-open-id)
+           (quote-syntax #,q-work-export-dependencies-open-id)
+           (quote-syntax #,q-frontier-export-dependencies-open-id)
+           (quote-syntax #,q-path-export-dependencies-open-id)
+           (quote-syntax #,q-path-rebuild-dependencies-open-id)
            (quote-syntax #,q-export-id)
            (quote-syntax #,q-rebuild-id)
            (quote-syntax #,q-focus-export-id)
@@ -894,7 +934,8 @@
           (#,q-address-goal-composed-open-id
            #,q-address-goal-id goal support))
 
-        (define (#,q-work-export-open-id work support recur)
+        (define (#,q-work-export-dependencies-open-id
+                 work support recur-work recur-work-support)
           (match work
             [#,pending-match
              (match-define (list provenance support-next)
@@ -903,10 +944,17 @@
                 support))
              `(q-pending
                ,provenance
-               ,(recur #,W support-next))]
+               ,(recur-work #,W support-next))]
             [_
-             (#,q-work-export-open
-              work support recur)]))
+             #,(if base-work-export-dependencies?
+                   #`(#,base-q-work-export-dependencies-open
+                      work support recur-work recur-work-support)
+                   #`(#,q-work-export-open
+                      work support recur-work))]))
+
+        (define (#,q-work-export-open-id work support recur)
+          (#,q-work-export-dependencies-open-id
+           work support recur #,q-work-support-id))
 
         (define (#,q-work-export-id work support)
           (#,q-work-export-open-id
@@ -941,8 +989,9 @@
           (#,q-work-rebuild-open-id
            neutral support #,q-work-rebuild-id #,q-address-goal-id))
 
-        (define (#,q-frontier-export-context-open-id
-                 frontier support recur-work recur-frontier)
+        (define (#,q-frontier-export-dependencies-open-id
+                 frontier support
+                 recur-work recur-frontier recur-frontier-support)
           (match frontier
             [#,forced-match
              (match-define (list provenance support-next)
@@ -953,11 +1002,23 @@
                ,provenance
                ,(recur-frontier #,F support-next))]
             [_
-             #,(if base-context-open?
-                   #`(#,base-q-frontier-export-context-open
-                      frontier support recur-work recur-frontier)
-                   #`(#,q-frontier-export-open
-                      frontier support recur-work))]))
+             #,(cond
+                 [base-frontier-export-dependencies?
+                  #`(#,base-q-frontier-export-dependencies-open
+                     frontier support
+                     recur-work recur-frontier recur-frontier-support)]
+                 [base-context-open?
+                  #`(#,base-q-frontier-export-context-open
+                     frontier support recur-work recur-frontier)]
+                 [else
+                  #`(#,q-frontier-export-open
+                     frontier support recur-work)])]))
+
+        (define (#,q-frontier-export-context-open-id
+                 frontier support recur-work recur-frontier)
+          (#,q-frontier-export-dependencies-open-id
+           frontier support
+           recur-work recur-frontier #,q-frontier-support-id))
 
         (define (#,q-frontier-export-open-id frontier support recur-work)
           (#,q-frontier-export-context-open-id
@@ -1009,21 +1070,37 @@
           (#,q-frontier-rebuild-open-id
            neutral support #,q-work-rebuild-id))
 
+        (define (#,q-path-export-dependencies-open-id
+                 path support
+                 recur-path recur-work-export recur-work-support)
+          #,(if base-path-export-dependencies?
+                #`(#,base-q-path-export-dependencies-open
+                   path support
+                   recur-path recur-work-export recur-work-support)
+                #`(#,q-path-export-open
+                   path support recur-path)))
+
         (define (#,q-path-export-composed-open-id path support recur)
-          (#,q-path-export-open
-           path support recur))
+          (#,q-path-export-dependencies-open-id
+           path support recur #,q-work-export-id #,q-work-support-id))
 
         (define (#,q-path-export-id path support)
           (#,q-path-export-composed-open-id
            path support #,q-path-export-id))
 
+        (define (#,q-path-rebuild-dependencies-open-id
+                 neutral support recur-path map-goal recur-work-rebuild)
+          #,(if base-path-rebuild-dependencies?
+                #`(#,base-q-path-rebuild-dependencies-open
+                   neutral support
+                   recur-path map-goal recur-work-rebuild)
+                #`(#,q-path-rebuild-open
+                   neutral support recur-path map-goal)))
+
         (define (#,q-path-rebuild-composed-open-id
                  neutral support recur map-goal)
-          (#,q-path-rebuild-open
-           neutral
-           support
-           recur
-           map-goal))
+          (#,q-path-rebuild-dependencies-open-id
+           neutral support recur map-goal #,q-work-rebuild-id))
 
         (define (#,q-path-rebuild-id neutral support)
           (#,q-path-rebuild-composed-open-id
@@ -1296,7 +1373,23 @@
            #:spine-export base-q-spine-export-open:id
            #:spine-rebuild base-q-spine-rebuild-open:id
            #:focus-shape base-q-focus-shape-open:id
-           #:focus-shape-rebuild base-q-focus-shape-rebuild-open:id])
+           #:focus-shape-rebuild base-q-focus-shape-rebuild-open:id
+           (~optional
+            (~seq #:work-export-dependencies
+                  base-q-work-export-dependencies-open:id)
+            #:defaults ([base-q-work-export-dependencies-open #'#f]))
+           (~optional
+            (~seq #:frontier-export-dependencies
+                  base-q-frontier-export-dependencies-open:id)
+            #:defaults ([base-q-frontier-export-dependencies-open #'#f]))
+           (~optional
+            (~seq #:path-export-dependencies
+                  base-q-path-export-dependencies-open:id)
+            #:defaults ([base-q-path-export-dependencies-open #'#f]))
+           (~optional
+            (~seq #:path-rebuild-dependencies
+                  base-q-path-rebuild-dependencies-open:id)
+            #:defaults ([base-q-path-rebuild-dependencies-open #'#f]))])
          #:defaults
          ([base-q-frontier-export-context-open #'#f]
           [base-q-frontier-support-context-open #'#f]
@@ -1304,7 +1397,11 @@
           [base-q-spine-export-open #'#f]
           [base-q-spine-rebuild-open #'#f]
           [base-q-focus-shape-open #'#f]
-          [base-q-focus-shape-rebuild-open #'#f]))
+          [base-q-focus-shape-rebuild-open #'#f]
+          [base-q-work-export-dependencies-open #'#f]
+          [base-q-frontier-export-dependencies-open #'#f]
+          [base-q-path-export-dependencies-open #'#f]
+          [base-q-path-rebuild-dependencies-open #'#f]))
         #:representation representation:id
         #:binding binding-id:id
         #:language language-id:id
@@ -1360,7 +1457,11 @@
             #'base-q-frontier-support-context-open
             #'base-q-frontier-rebuild-context-open
             #'base-q-spine-export-open #'base-q-spine-rebuild-open
-            #'base-q-focus-shape-open #'base-q-focus-shape-rebuild-open)
+            #'base-q-focus-shape-open #'base-q-focus-shape-rebuild-open
+            #'base-q-work-export-dependencies-open
+            #'base-q-frontier-export-dependencies-open
+            #'base-q-path-export-dependencies-open
+            #'base-q-path-rebuild-dependencies-open)
       (list #'binding-id #'language-id #'relation-id #'raw-successors-id
             #'wf-root-id #'live-supply-id #'failure-summary-id
             #'q-export-id #'q-rebuild-id
@@ -1423,12 +1524,12 @@
        identifier))
     value)
 
-  (define (parse-delay-redex-parameters source declaration)
+  (define (parse-delay-redex-parameters parameters declaration)
     (for/list
         ([entry
           (in-list
            (syntax->list
-            (delay-source-binding-redex-parameters source)))])
+            parameters))])
       (syntax-parse entry
         [[local:id default:id] (cons #'local #'default)]
         [_
@@ -1438,7 +1539,12 @@
           declaration
           entry)])))
 
-  (define (render-delay-stage-extension use-stx name source)
+  (define (render-delay-stage-extension
+           use-stx name source
+           dependency-parameters
+           dependency-subst dependency-subst-open
+           dependency-focus dependency-focus-open
+           dependency-transfer-host)
     (define (output suffix)
       (format-id name "~a/~a" (syntax-e name) suffix))
     (define (slot symbol)
@@ -1454,22 +1560,17 @@
        name
        name))
     (define source-language (delay-source-binding-language source))
-    (define source-subst (delay-source-binding-subst-goal source))
-    (define source-subst-open (delay-source-binding-subst-goal-open source))
-    (define source-focus (delay-source-binding-work-focus-prefix source))
-    (define source-focus-open
-      (delay-source-binding-work-focus-prefix-open source))
-    (define source-transfer-host
-      (delay-source-binding-transfer-work-host source))
     (define source-parameters
-      (parse-delay-redex-parameters source use-stx))
+      (parse-delay-redex-parameters dependency-parameters use-stx))
     (define subst-parameter
       (for/first ([parameter (in-list source-parameters)]
-                  #:when (free-identifier=? (cdr parameter) source-subst))
+                  #:when
+                  (free-identifier=? (cdr parameter) dependency-subst))
         (car parameter)))
     (define focus-parameter
       (for/first ([parameter (in-list source-parameters)]
-                  #:when (free-identifier=? (cdr parameter) source-focus))
+                  #:when
+                  (free-identifier=? (cdr parameter) dependency-focus))
         (car parameter)))
     (unless subst-parameter
       (raise-syntax-error
@@ -1481,7 +1582,7 @@
        #f
        "Delay source omits its allocation focus-prefix parameter"
        use-stx))
-    (unless (and source-focus-open (syntax-e source-focus-open))
+    (unless (and dependency-focus-open (syntax-e dependency-focus-open))
       (raise-syntax-error
        #f
        "Delay staging requires an open WorkFocus prefix traversal"
@@ -1590,8 +1691,8 @@
                (match-define (cons local default) parameter)
                #`[#,local
                   #,(cond
-                      [(free-identifier=? default source-subst) subst]
-                      [(free-identifier=? default source-focus) focus]
+                      [(free-identifier=? default dependency-subst) subst]
+                      [(free-identifier=? default dependency-focus) focus]
                       [else (placeholder phase local diagnostic?)])])
          [#,transfer-parameter #,transfer]))
 
@@ -1602,7 +1703,7 @@
       (define base-focus (placeholder phase focus-parameter))
       (list
        #`(define (#,subst-host goal substitutions)
-           (#,source-subst-open #,subst-host goal substitutions))
+           (#,dependency-subst-open #,subst-host goal substitutions))
        #`(redex-parameter:define-extended-metafunction*
           #,base-subst
           #,language
@@ -1610,7 +1711,7 @@
           [(#,subst g alloc)
            ,(#,subst-host (term g) (term alloc))])
        #`(define (#,focus-host focus-value support-value)
-           (#,source-focus-open
+           (#,dependency-focus-open
             focus-value support-value #,focus-host))
        #`(redex-parameter:define-extended-metafunction*
           #,base-focus
@@ -1622,7 +1723,7 @@
           #,language
           #,transfer : any W -> W
           [(#,transfer any_0 W)
-           ,(#,source-transfer-host (term any_0) (term W))])))
+           ,(#,dependency-transfer-host (term any_0) (term W))])))
 
     (define D-language (first D-phase))
     (define D-plug-D (output "D-plug-D"))
@@ -1674,6 +1775,12 @@
     (define B-readback (output "diagnostic-readback-B"))
     (define B-corresponds (output "diagnostic-MB-corresponds"))
     (define B-replay (output "diagnostic-replay-M"))
+    (define B-replay-M-refocus-frontier-bridge
+      (output "diagnostic-replay-M-refocus-frontier-bridge"))
+    (define B-replay-M-refocus-work-bridge
+      (output "diagnostic-replay-M-refocus-work-bridge"))
+    (define B-replay-machine-step-bridge
+      (output "diagnostic-replay-machine-step-bridge"))
     (define B-step-spec (output "diagnostic-B-step"))
     (define B-square (output "diagnostic-MB-square"))
 
@@ -2092,7 +2199,21 @@
             [F .... #,forced-grammar]
             [SpineContext .... #,forced-spine]
             [T .... #,forced-terminal]
-            [B .... (BFinal T)]
+            [SourceW W]
+            [SourceF F]
+            [SourceWorkFocus WorkFocus]
+            [SourceSpineContext SpineContext]
+            ;; Redex preserves inherited production references to their
+            ;; original language.  Replace the normalized source aliases and
+            ;; complete generic phase-carrier algebra so their payloads are
+            ;; checked in this exact extended language.
+            [B
+             (BRun NonAllocateRun SourceWorkFocus)
+             (BRun AR SourceWorkFocus)
+             (BFrontier FR SourceSpineContext)
+             (BSettled Settled SourceWorkFocus)
+             (BDead FailureSummary SourceWorkFocus)
+             (BFinal T)]
             [RuleName .... suspend-goal bubble-delay-through-conj force-delay]
             [WR .... #,suspended-work #,bubble-source]
             [FR .... #,force-source]
@@ -2172,112 +2293,53 @@
          ((module+ diagnostics
             (provide #,B-encode-MB #,B-decode-BM #,B-readback
                      #,B-corresponds #,B-replay #,B-step-spec #,B-square))
-          (define-metafunction #,B-language
-            #,B-encode-MB : M -> B
-            [(#,B-encode-MB (MFinal T)) (BFinal T)]
-            [(#,B-encode-MB (MAllocate AR SourceWorkFocus))
-             (BRun AR SourceWorkFocus)]
-            [(#,B-encode-MB (MWork NonAllocateRun SourceWorkFocus))
-             (BRun NonAllocateRun SourceWorkFocus)]
-            [(#,B-encode-MB (MWork (in-hole Frame Settled) SourceWorkFocus))
-             (BSettled Settled (in-hole SourceWorkFocus Frame))]
-            [(#,B-encode-MB
-              (MWork (in-hole Frame #,dead-term) SourceWorkFocus))
-             (BDead #,failure-summary-var
-                    (in-hole SourceWorkFocus Frame))]
-            [(#,B-encode-MB
-              (MFrontier (in-hole RootFocus Settled) SourceSpineContext))
-             (BSettled Settled
-                       (in-hole SourceSpineContext RootFocus))]
-            [(#,B-encode-MB
-             (MFrontier
-               (in-hole RootFocus #,dead-term)
-               SourceSpineContext))
-             (BDead #,failure-summary-var
-                    (in-hole SourceSpineContext RootFocus))]
-            [(#,B-encode-MB (MFrontier FR SourceSpineContext))
-             (BFrontier FR SourceSpineContext)])
-          (define-metafunction #,B-language
-            #,B-decode-BM : B -> M
-            [(#,B-decode-BM (BFinal T)) (MFinal T)]
-            [(#,B-decode-BM (BRun AR SourceWorkFocus))
-             (MAllocate AR SourceWorkFocus)]
-            [(#,B-decode-BM (BRun NonAllocateRun SourceWorkFocus))
-             (MWork NonAllocateRun SourceWorkFocus)]
-            [(#,B-decode-BM (BFrontier FR SourceSpineContext))
-             (MFrontier FR SourceSpineContext)]
-            [(#,B-decode-BM
-              (BSettled Settled (in-hole SourceWorkFocus Frame)))
-             (MWork (in-hole Frame Settled) SourceWorkFocus)]
-            [(#,B-decode-BM
-              (BDead #,failure-summary-var
-                     (in-hole SourceWorkFocus Frame)))
-             (MWork
-              (in-hole Frame #,dead-term)
-              SourceWorkFocus)]
-            [(#,B-decode-BM
-              (BSettled Settled (in-hole SourceSpineContext RootFocus)))
-             (MFrontier (in-hole RootFocus Settled) SourceSpineContext)]
-            [(#,B-decode-BM
-              (BDead
-               #,failure-summary-var
-               (in-hole SourceSpineContext RootFocus)))
-             (MFrontier
-              (in-hole RootFocus #,dead-term)
-              SourceSpineContext)])
-          (define-metafunction #,B-language
-            #,B-readback : B -> SourceF
-            [(#,B-readback (BRun NonAllocateRun SourceWorkFocus))
-             (in-hole SourceWorkFocus NonAllocateRun)]
-            [(#,B-readback (BRun AR SourceWorkFocus))
-             (in-hole SourceWorkFocus AR)]
-            [(#,B-readback (BFrontier FR SourceSpineContext))
-             (in-hole SourceSpineContext FR)]
-            [(#,B-readback (BSettled Settled SourceWorkFocus))
-             (in-hole SourceWorkFocus Settled)]
-            [(#,B-readback
-              (BDead #,failure-summary-var SourceWorkFocus))
-             (in-hole SourceWorkFocus #,dead-term)]
-            [(#,B-readback (BFinal T)) T])
+          ;; Delay owns no codec or readback exceptions.  Extending the
+          ;; inherited artifacts in this exact language preserves diagnostic
+          ;; clauses contributed by earlier features while reopening their
+          ;; contracts over Delay payloads.
+          (redex-parameter:define-extended-metafunction*
+           BASE-ENCODE-MB #,B-language
+           #,B-encode-MB : M -> B)
+          (redex-parameter:define-extended-metafunction*
+           BASE-DECODE-BM #,B-language
+           #,B-decode-BM : B -> M)
+          (redex-parameter:define-extended-metafunction*
+           BASE-B-READBACK #,B-language
+           #,B-readback : B -> SourceF)
           (define-judgment-form #,B-language
             #:mode (#,B-corresponds I O)
             #:contract (#,B-corresponds M B)
             [(where B_0 (#,B-compress M_0))
              ---- (#,B-corresponds M_0 B_0)])
-          (define-judgment-form #,B-language
+          ;; Generic replay is inherited once.  A fresh exact-language
+          ;; bridge chain registers the current final machine dependencies at
+          ;; the B-language keys used while lifting inherited replay.
+          (redex-parameter:define-extended-judgment-form*
+            #,M-refocus-frontier #,B-language
+            #:mode (#,B-replay-M-refocus-frontier-bridge I O))
+          (redex-parameter:define-extended-judgment-form*
+            #,M-refocus-work #,B-language
+            #:mode (#,B-replay-M-refocus-work-bridge I I O))
+          (redex-parameter:define-extended-judgment-form*
+            #,M-step #,B-language
+            #:mode (#,B-replay-machine-step-bridge I O O))
+          ;; Delay adds no replay proof rule of its own.
+          (redex-parameter:define-extended-judgment-form*
+            BASE-B-REPLAY #,B-language
             #:mode (#,B-replay I O O)
-            #:contract (#,B-replay M TransitionSpan M)
-            [(#,M-step M_0 SingletonRuleName M_1)
-             ----
-             (#,B-replay M_0 (transition-span SingletonRuleName) M_1)]
-            [(#,M-step M_0 SettledProducerName M_1)
-             (#,M-step M_1 SettledFollowerName M_2)
-             ----
-             (#,B-replay M_0
-                        (transition-span
-                         SettledProducerName SettledFollowerName)
-                        M_2)]
-            [(#,M-step M_0 DeadProducerName M_1)
-             (#,M-step M_1 DeadFollowerName M_2)
-             ----
-             (#,B-replay M_0
-                        (transition-span DeadProducerName DeadFollowerName)
-                        M_2)])
-          (define-judgment-form #,B-language
+            #:contract (#,B-replay M TransitionSpan M))
+          ;; Delay owns no span-sensitive target normalization.  Lift the
+          ;; inherited diagnostic specifications so an earlier feature's
+          ;; target policy (for example Disjunction's producer boundary)
+          ;; remains authoritative in this exact language.
+          (redex-parameter:define-extended-judgment-form*
+            BASE-B-STEP-SPEC #,B-language
             #:mode (#,B-step-spec I O O)
-            #:contract (#,B-step-spec B TransitionSpan B)
-            [(where M_0 (#,B-decode-BM B_0))
-             (#,B-replay M_0 TransitionSpan_0 M_1)
-             (where B_1 (#,B-encode-MB M_1))
-             ---- (#,B-step-spec B_0 TransitionSpan_0 B_1)])
-          (define-judgment-form #,B-language
+            #:contract (#,B-step-spec B TransitionSpan B))
+          (redex-parameter:define-extended-judgment-form*
+            BASE-MB-SQUARE #,B-language
             #:mode (#,B-square I O O O O)
-            #:contract (#,B-square B TransitionSpan B M M)
-            [(where M_0 (#,B-decode-BM B_0))
-             (#,B-replay M_0 TransitionSpan_0 M_1)
-             (where B_1 (#,B-encode-MB M_1))
-             (#,B-step B_0 TransitionSpan_0 B_1)
-             ---- (#,B-square B_0 TransitionSpan_0 B_1 M_0 M_1)]))]
+            #:contract (#,B-square B TransitionSpan B M M)))]
 
         #:Big
         [#:parameters #,(phase-parameters "BIG" Big-phase)
@@ -2302,7 +2364,11 @@
             [F .... #,forced-grammar]
             [SpineContext .... #,forced-spine]
             [T .... #,forced-terminal]
-            [Big .... (BigFinal T)]
+            [SourceW W]
+            [SourceF F]
+            [SourceWorkFocus WorkFocus]
+            [SourceSpineContext SpineContext]
+            [Big (BigFinal T)]
             [WR .... #,suspended-work #,bubble-source]
             [FR .... #,force-source]
             [RunW .... #,suspended-work #,bubble-source]
@@ -2313,27 +2379,22 @@
             ;; bubble redex and must not also take the descent clause.
             [OpenW .... #,suspended-work]
             [B
-             ....
              (BRun NonAllocateRun SourceWorkFocus)
              (BRun AR SourceWorkFocus)
              (BFrontier FR SourceSpineContext)
              (BSettled Settled SourceWorkFocus)
              (BDead FailureSummary SourceWorkFocus)
              (BFinal T)]
-            ;; Redex preserves inherited production references to their
-            ;; original language.  Repeat only the generic continuation and
-            ;; control shells so their payloads are checked in this exact
-            ;; extended language.
+            ;; Replace the complete generic continuation and control shells
+            ;; so their payloads are checked in this exact extended language.
             [BigNext
-             ....
              (BigContinue SourceW SourceWorkFocus)
-             (BigFrontierContinue SourceF)]
+             (BigFrontierContinue SourceF)
+             (BigDone Big)]
             [Control
-             ....
              (BigWorkControl SourceW SourceWorkFocus)
              (BigFrontierControl FR SourceSpineContext)]
             [ControlNext
-             ....
              (BigControlContinue Control)
              (BigControlDone Big)])
           #,@(dependency-forms "BIG" Big-phase)
@@ -2528,8 +2589,55 @@
 (module+ test-support
   (provide assert-generated-delay-stage-force-target))
 
+(define-syntax (render-delay-stage-extension/dependencies stx)
+  (syntax-parse stx
+    [(_ #:language _dependency-language:id
+        #:redex-parameters dependency-parameters
+        #:branch-copy _dependency-branch-copy:id
+        #:R-work-raw _dependency-work-raw:id
+        #:R-frontier-raw _dependency-frontier-raw:id
+        #:R-allocation-raw _dependency-allocation-raw:id
+        #:subst-goal dependency-subst:id
+        #:subst-goal-open dependency-subst-open:id
+        #:wf-root _dependency-wf-root:id
+        #:wf-goal _dependency-wf-goal:id
+        #:wf-answer _dependency-wf-answer:id
+        #:wf-returned _dependency-wf-returned:id
+        #:live-supply _dependency-live-supply:id
+        #:failure-summary _dependency-failure-summary:id
+        #:wf-work _dependency-wf-work:id
+        #:wf-frontier _dependency-wf-frontier:id
+        #:WF-open _dependency-wf-open
+        #:carrier-view _dependency-carrier-view
+        #:prefix-view
+        [#:extend-premises _dependency-prefix-premises
+         #:Q-empty _dependency-q-empty
+         #:work-focus-support dependency-focus:id
+         #:work-focus-support-open dependency-focus-open:id
+         (~optional (~seq #:transfer-work _dependency-transfer-work))
+         #:transfer-work-open _dependency-transfer-work-open
+         #:transfer-work-host dependency-transfer-host:id
+         #:Q-export-local _dependency-q-export-local
+         #:Q-rebuild-local _dependency-q-rebuild-local]
+        #:Q-open _dependency-q-open
+        (~optional (~seq #:Q-context-open _dependency-q-context-open))
+        #:extension-name name:id
+        #:owned-source source:id)
+     (render-delay-stage-extension
+      stx #'name (lookup-delay-source #'source)
+      #'dependency-parameters
+      #'dependency-subst #'dependency-subst-open
+      #'dependency-focus #'dependency-focus-open
+      #'dependency-transfer-host)]))
+
 (define-syntax (define-generated-delay-stage-extension stx)
   (syntax-parse stx
-    [(_ name:id #:source source:id)
-     (render-delay-stage-extension
-      stx #'name (lookup-delay-source #'source))]))
+    [(_ name:id
+        #:source source:id
+        (~optional
+         (~seq #:dependencies-from dependencies:id)
+         #:defaults ([dependencies #'source])))
+     #'(dependencies
+        #:visit-extension render-delay-stage-extension/dependencies
+        #:extension-name name
+        #:owned-source source)]))
