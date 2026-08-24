@@ -19,7 +19,8 @@
          "./core/e/decomposition.rkt"
          "./core/s-to-e.rkt"
          "./generated/core/source/all.rkt"
-         "./generated/core/stages/all.rkt")
+         "./generated/core/stages/all.rkt"
+         "./generated/delay/all.rkt")
 
 (provide
  (all-from-out "./framework/decomposition-instance.rkt")
@@ -41,4 +42,5 @@
  (all-from-out "./core/e/decomposition.rkt")
  (all-from-out "./core/s-to-e.rkt")
  (all-from-out "./generated/core/source/all.rkt")
- (all-from-out "./generated/core/stages/all.rkt"))
+ (all-from-out "./generated/core/stages/all.rkt")
+ (all-from-out "./generated/delay/all.rkt"))

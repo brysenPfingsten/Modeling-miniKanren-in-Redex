@@ -14,6 +14,7 @@
          work/base/s
          frontier/raw/s
          frontier/base/s
+         define-allocation/base/s
          allocate/base/s
          core-s-oracle-red
          raw-successors/s
@@ -168,12 +169,8 @@
   (reduction-relation
    core-s-oracle-lang
    #:domain any
-   [--> (Work owners
-              (g_1 ∧ g_2 tag)
-              (state sub dis trail tag_1))
-        (Conj owners
-              (Work (Owners) g_1 (state sub dis trail tag_1))
-              g_2)
+   [--> (Work owners (g_1 ∧ g_2 tag) (state sub dis trail tag_1))
+        (Conj owners (Work (Owners) g_1 (state sub dis trail tag_1)) g_2)
         "expand-conjunction"]
    [--> (Work owners (succeed tag) σ)
         (Returned owners σ)
@@ -187,41 +184,26 @@
    [--> (Conj owners_outer (Dead owners_inner) g)
         (Dead (owners-append/s owners_outer owners_inner))
         "conj-fail"]
-   [--> (Work owners
-              (t_1 =? t_2 tag)
-              (state sub dis ((t_3 =? t_4 tag_1) ...) tag_2))
-        (Returned
-         owners
-         (state sub_1
-                dis
-                ((t_3 =? t_4 tag_1) ... (t_1 =? t_2 tag))
-                tag_2))
+   [--> (Work owners (t_1 =? t_2 tag) (state sub dis ((t_3 =? t_4 tag_1) ...) tag_2))
+        (Returned owners (state sub_1 dis ((t_3 =? t_4 tag_1) ... (t_1 =? t_2 tag)) tag_2))
         (where sub_1 (unify/s (walk/s t_1 sub) (walk/s t_2 sub) sub))
         (where #f (invalid?/s sub_1 dis))
         "unify-success"]
-   [--> (Work owners
-              (t_1 =? t_2 tag)
-              (state sub dis ((t_3 =? t_4 tag_1) ...) tag_2))
+   [--> (Work owners (t_1 =? t_2 tag) (state sub dis ((t_3 =? t_4 tag_1) ...) tag_2))
         (Dead owners)
         (where sub_1 (unify/s (walk/s t_1 sub) (walk/s t_2 sub) sub))
         (where #t (invalid?/s sub_1 dis))
         "unify-violates-disequality"]
-   [--> (Work owners
-              (t_1 =? t_2 tag)
-              (state sub dis trail tag_2))
+   [--> (Work owners (t_1 =? t_2 tag) (state sub dis trail tag_2))
         (Dead owners)
         (where #f (unify/s (walk/s t_1 sub) (walk/s t_2 sub) sub))
         "unify-fail"]
-   [--> (Work owners
-              (t_1 != t_2 tag)
-              (state sub dis trail tag_2))
+   [--> (Work owners (t_1 != t_2 tag) (state sub dis trail tag_2))
         (Returned owners (state sub dis_1 trail tag_2))
         (where dis_1 ((t_1 t_2) ,@(term dis)))
         (where #f (invalid?/s sub dis_1))
         "disequality-success"]
-   [--> (Work owners
-              (t_1 != t_2 tag)
-              (state sub dis trail tag_2))
+   [--> (Work owners (t_1 != t_2 tag) (state sub dis trail tag_2))
         (Dead owners)
         (where dis_1 ((t_1 t_2) ,@(term dis)))
         (where #t (invalid?/s sub dis_1))
@@ -241,33 +223,38 @@
 ;; Freshness is computed from precisely the Owner groups on the active world
 ;; path.  Goal/state occurrences and unreachable sibling worlds are not used
 ;; as an allocation registry; well-formedness establishes their coverage by
-;; the path's introductions.
-(define allocate/base/s
-  (reduction-relation
-   core-s-oracle-lang
-   #:domain F
-   [--> (in-hole WorkFocus
-                 (Work owners
-                       (∃ (x_bound ...) g tag)
-                       σ))
-        (in-hole WorkFocus
-                 (Work
-                  (owners-append/s
-                   owners
-                   (Owners (Owner (u_new ...) tag)))
-                  g_new
-                  σ))
-        (where (u_new ...)
-               ,(fresh-u-atoms/s
-                 (extend-support-with-owners/s
-                  (term owners)
-                  (work-focus-prefix-support/s (term WorkFocus)))
-                 (length (term (x_bound ...)))))
-        (where g_new
-               ,(subst-goal/s
-                 (term g)
-                 (term ((x_bound u_new) ...))))
-        "allocate-fresh"]))
+;; the path's introductions.  The explicit operation arguments are the
+;; extension seams: a feature language can instantiate this same equation with
+;; its own recursively extended goal traversal and WorkFocus-prefix view,
+;; without replacing the rule.
+(define-syntax-rule
+  (define-allocation/base/s relation-id
+                            language-id
+                            substitute-goal-id
+                            work-focus-prefix-support-id)
+  (define relation-id
+    (reduction-relation
+     language-id
+     #:domain F
+     [--> (in-hole WorkFocus (Work owners (∃ (x_bound (... ...)) g tag) σ))
+          (in-hole WorkFocus (Work (owners-append/s owners (Owners (Owner (u_new (... ...)) tag))) g_new σ))
+          (where (u_new (... ...))
+                 ,(fresh-u-atoms/s
+                   (extend-support-with-owners/s
+                    (term owners)
+                    (work-focus-prefix-support-id (term WorkFocus)))
+                   (length (term (x_bound (... ...))))))
+          (where g_new
+                 ,(substitute-goal-id
+                   (term g)
+                   (term ((x_bound u_new) (... ...)))))
+          "allocate-fresh"])))
+
+(define-allocation/base/s
+  allocate/base/s
+  core-s-oracle-lang
+  subst-goal/s
+  work-focus-prefix-support/s)
 
 (define work/base/s
   (context-closure work/raw/s core-s-oracle-lang WorkFocus))

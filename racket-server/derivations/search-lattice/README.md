@@ -8,8 +8,8 @@ three-axis family `T[i,rho]`:
 - `rho` selects a representation;
 - `T` selects a derivation stage.
 
-The seed fixes `i = core` and contains the selected complete core
-representation matrix:
+The seed contains the selected complete core representation matrix and, at
+Checkpoint 6A, its first real feature child, `delay`:
 
 ```text
                      R      D      Z ≅ M      B      Big
@@ -18,6 +18,10 @@ selected E           ◆      ◆        ◆        ◆       ◆
 selected N           ◆      ◆        ◆        ◆       ◆
                      │      │        │        │       │
                      Q_R    Q_D      Q_Z/M      Q_B     Q_Big
+
+delay S              ◆      ◆        ◆        ◆       ◆
+delay E              ◆      ◆        ◆        ◆       ◆
+delay N              ◆      ◆        ◆        ◆       ◆
 ```
 
 Here a diamond means a static Redex artifact plus bounded executable
@@ -179,9 +183,9 @@ generates first-order variable operations, binder-local fresh substitution,
 the source relation, raw named-successor access, and common WF traversal as
 ordinary Redex definitions specialized by the strategy templates. The schema
 does not contain `Owner`, `Support`, counter syntax, a runtime representation
-dispatcher, grammar introspection, or `redex/parameter`. The latter remains a
-tool for lifting dependencies across feature-language extensions, not for
-selecting a representation.
+dispatcher, or grammar introspection. Its feature-open source dependencies use
+the selected-only transitive lifting module; they do not use the upstream
+frozen `redex/parameter` route or select a representation at runtime.
 
 The generated vertical-map consumer uses the three strategies' neutral
 structural export/rebuild views to emit `Qg_SE`, `Qg_EN`, and an independently
@@ -247,10 +251,11 @@ row-local `diagnostics` submodules and the secondary transport-diagnostics
 suite. They are not public selected maps, implementation routes, or sole
 oracles.
 
-The selected renderer uses `framework/core-redex-parameter.rkt`, a
-selected-only transitive lifting module derived from `redex/parameter`, where a
-generated Redex declaration depends on another stage-local judgment,
-metafunction, or relation that must later widen with a language extension. It
+The selected source and stage frameworks use
+`framework/core-redex-parameter.rkt`, a selected-only transitive lifting module
+derived from `redex/parameter`, where a generated Redex declaration depends on
+another source- or stage-local judgment, metafunction, or relation that must
+later widen with a language extension. It
 reconstructs every inherited extension at the exact descendant language, so a
 second staged delta does not freeze the first delta's dependency at the first
 language. The upstream package remains on the frozen generator and its
@@ -390,6 +395,50 @@ evidence for `Stage(identity) = identity` and for identity/composition on this
 two-delta corpus. It is not automatic `Delta -> StageExtension` synthesis, a
 universal functoriality theorem, or a real feature hierarchy.
 
+### Checkpoint 6A: the real Delay feature
+
+Checkpoint 6A instantiates the first representation-neutral, separately staged
+miniKanren feature. One abstract Delay source schema is applied to the selected
+S, E, and N core sources and owns exactly these three equations:
+
+```text
+suspend-goal
+bubble-delay-through-conj
+force-delay
+```
+
+The schema owns `suspend`, `PendingDelay`, and `Forced`, but no Owner, Support,
+counter, scheduler, disjunction, or relation-call case. `PendingDelay` carries
+work and `Forced` remains a real frontier/spine constructor: WF traverses it,
+the direct Q maps preserve it structurally, and all six stage representations
+retain its observable nesting. Core allocation and its lifted substitution and
+focused-world prefix dependencies remain inherited. A second test-only feature
+extends Delay without copying any Delay equation, exercising that open
+dependency boundary.
+
+`define-generated-delay-stage-extension` synthesizes the specialized Delay
+StageExtension from that Delay source descriptor and applies it independently
+to the already generated S, E, and N core rows. The selected stage-control IR
+now admits general frontier-to-frontier transitions. Z and M refocus such
+transitions directly, B has an explicit frontier control, and Big separates
+work dispatch from frontier control. All three Delay labels are singleton B
+spans; the existing inherited core fusion policy is unchanged and no
+cross-feature fusion is introduced.
+
+The generated rows expose direct core-to-Delay embeddings at R, D, Z, M, B,
+and Big; direct S-to-E, E-to-N, and independently direct S-to-N maps at every
+coordinate; and the selected feature, representation, and stage faces. The
+tests compare complete raw `build-derivations` proof multisets without
+deduplication, exact labels and singleton spans, WF, finite traces, Q
+composition, embeddings, and the bounded commuting faces. Independently
+written S/E/N Delay source oracles and direct oracle Q maps provide a separate
+semantic reference for the finite corpus.
+
+This is specialized Delay StageExtension synthesis and bounded cube evidence
+for the checked corpus. It is not arbitrary `Delta -> StageExtension`
+synthesis, a universal functoriality or naturality theorem, or evidence about a
+branch scheduler.
+
 The retained handwritten `core/s-to-e.rkt` bridge is a historical R/D
 reference only. Its bounded correspondence stops at R and D. The selected
 generated matrix supplies phase-local representation maps through Big
@@ -432,6 +481,27 @@ independently and does not import this bridge.
   two-delta selected route. `core-stage-functor-oracle-fixture.rkt` is its
   test-only frozen whole-instance route, and `core-stage-functor-tests.rkt`
   owns the raw-multiset, metadata, trace, replay, square, and closure checks.
+- `framework/delay-schema.rkt` owns the one neutral three-rule Delay schema,
+  the representation-view protocol, the open source extension, and the
+  specialized Delay StageExtension synthesis. `delay-schema-tests.rkt`,
+  `delay-stage-extension-tests.rkt`, and `delay-stage-asymmetric-tests.rkt`
+  check open feature inheritance, lifted dependencies, representation-view
+  separation, generic frontier controls, singleton B spans, and finite Big
+  behavior.
+- `oracles/delay/` contains the independently written S, E, and N source/WF
+  oracles and their direct vertical maps. Its tests do not import generated
+  Delay artifacts.
+- `generated/delay/source/` contains the three real Delay sources, their direct
+  R maps, and their direct core-to-Delay embeddings.
+  `generated/delay/stages/` applies the specialized extension to the three
+  already generated core rows and owns the D/Z/M/B/Big maps, embeddings, and
+  stage faces. `source-tests.rkt`, `horizontal-tests.rkt`,
+  `embedding-tests.rkt`, `cube-tests.rkt`,
+  `transport-diagnostics-tests.rkt`, and `dependency-tests.rkt` are the six
+  registered leaf suites; `tests.rkt` is their focused aggregate. They check
+  the independent corpus, horizontal rows, embeddings, primary cube,
+  secondary transport diagnostics, and dependency boundary. `all.rkt` exports
+  the generated Delay artifacts without re-registering the leaf tests.
 - `generated/core/stages/s.rkt`, `e.rkt`, and `n.rkt` are the three selected
   complete horizontal columns. `policy.rkt` is their one shared compression
   policy and `corpus.rkt` is their keyed independent witness corpus.
@@ -501,9 +571,14 @@ raco test racket-server/derivations/search-lattice/framework/core-source-schema-
 raco test racket-server/derivations/search-lattice/framework/core-stage-schema-tests.rkt
 raco test racket-server/derivations/search-lattice/framework/core-stage-extension-tests.rkt
 raco test racket-server/derivations/search-lattice/framework/core-stage-functor-tests.rkt
+raco test racket-server/derivations/search-lattice/framework/delay-schema-tests.rkt
+raco test racket-server/derivations/search-lattice/framework/delay-stage-extension-tests.rkt
+raco test racket-server/derivations/search-lattice/framework/delay-stage-asymmetric-tests.rkt
 raco test racket-server/derivations/search-lattice/framework/stage-generators-tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/source/tests.rkt
 raco test racket-server/derivations/search-lattice/generated/core/stages/tests.rkt
+raco test racket-server/derivations/search-lattice/oracles/delay/tests.rkt
+raco test racket-server/derivations/search-lattice/generated/delay/tests.rkt
 raco test racket-server/derivations/search-lattice/tests/all.rkt
 ```
 
@@ -539,6 +614,13 @@ That mode runs `raco test -x racket-server/derivations/search-lattice` only
 after the default lanes. Its repeated leaf/aggregate invocation count is
 reported separately and must never be added to the canonical aggregate count.
 
+Checkpoint 6A changed test registration and would ordinarily have triggered
+this explicit `--recursive` mode.  After roughly twelve hours of bounded
+implementation and diagnosis, its explicit acceptance stop prohibited the
+default runner, canonical aggregate, and recursive audit.  Its handoff records
+the focused results and the statically checked inventory separately; it does
+not present a repeated or inferred canonical count as test evidence.
+
 This literal recursive gate is required for the prototype checkpoint because it
 establishes the initial test-registration baseline. After Checkpoint 4T, use the
 canonical checkpoint runner described there; do not repeat this recursive
@@ -573,16 +655,12 @@ core, but no production module imports this directory.
 
 ## Deliberate stopping boundary
 
-This seed does not yet instantiate separately staged real feature
-augmentations, scheduler fibers, relation calls, or the distributed
-presentation. The foreign Query/Box fixture checks bounded embedding laws, and
-the foreign Query/Box then Probe fixture checks exact StageExtension identity
-metadata and bounded two-delta composition through D/Z/M/B/Big against the
-test-only frozen whole-instance oracle. Neither fixture generates a
-StageExtension automatically from a source delta, implements delay or
-disjunction, establishes a real feature face or hierarchy, or proves a
-universal functoriality theorem. Checkpoint 5 stops at this fixture boundary;
-Checkpoint 6 work has not begun.
+This seed now instantiates one separately staged real augmentation: Delay over
+the selected S/E/N core rows through R/D/Z/M/B/Big. It stops at Checkpoint 6A.
+Checkpoint 6B disjunction and search, branch scheduler fibers, search-owned
+interaction rules, relation-call overlays, and the distributed presentation
+have not begun. Delay introduces no branch scheduler and supplies no evidence
+about those later coordinates.
 
 The retired historical prototype stopped at core/S and the
 support-decorated-node core/E; its last runnable state is the commit recorded
@@ -604,9 +682,10 @@ composition. The legacy prototype allocation behavior is preserved in the
 historical commit; it is not an administrative form for the selected generator
 to guess.
 
-This checkpoint claims bounded fixture-level identity and composition evidence,
-not a full feature cube, general functoriality, or a universal naturality
-theorem. It distinguishes instantiated row-local artifacts from validated
-representation edges and commuting faces.
+This checkpoint claims the finite-corpus raw-proof, embedding, direct-Q, and
+commuting-face evidence stated above for core and Delay. It does not claim
+universal functoriality or naturality, arbitrary feature synthesis, or facts
+about the absent 6B search hierarchy. It distinguishes instantiated row-local
+artifacts from tested representation edges and bounded commuting faces.
 
 Production modules never import this directory.

@@ -40,6 +40,7 @@
   #:language selected-functor-probe-Z-lang
   #:refocus-phase selected-functor-probe-refocus-phase
   #:refocus-work-direct selected-functor-probe-Z-refocus-work
+  #:refocus-frontier-direct selected-functor-probe-Z-refocus-frontier
   #:refocus-direct selected-functor-probe-Z-refocus
   #:step-direct selected-functor-probe-Z-step)
  #:M
@@ -47,12 +48,14 @@
   #:language selected-functor-probe-M-lang
   #:machineize selected-functor-probe-machineize
   #:refocus-work-direct selected-functor-probe-M-refocus-work
+  #:refocus-frontier-direct selected-functor-probe-M-refocus-frontier
   #:refocus-direct selected-functor-probe-M-refocus
   #:step-direct selected-functor-probe-M-step)
  #:B
  (B-artifacts
   #:language selected-functor-probe-B-lang
   #:compress selected-functor-probe-compress
+  #:refocus-frontier-direct selected-functor-probe-B-refocus-frontier
   #:span-labels selected-functor-probe-span-labels
   #:produce-settled selected-functor-probe-produce-settled
   #:produce-dead selected-functor-probe-produce-dead
@@ -65,11 +68,17 @@
   #:language selected-functor-probe-Big-lang
   #:dispatch-one selected-functor-probe-big-dispatch-one
   #:dispatch selected-functor-probe-big-dispatch
+  #:refocus-frontier-direct selected-functor-probe-big-refocus-frontier
+  #:control-one selected-functor-probe-big-control-one
+  #:control selected-functor-probe-big-control
+  #:frontier selected-functor-probe-big-frontier
   #:run selected-functor-probe-big-run
   #:settled selected-functor-probe-big-settled
   #:dead selected-functor-probe-big-dead
   #:final selected-functor-probe-big-final
-  #:evaluate selected-functor-probe-big-evaluate)
+  #:evaluate selected-functor-probe-big-evaluate
+  #:promotion-language selected-functor-probe-Big-lang
+  #:promote selected-functor-probe-promote)
  #:Z-diagnostics
  (Z-diagnostics
   #:D->Z selected-functor-probe-D->Z
@@ -103,7 +112,6 @@
   #:initialize selected-functor-probe-initialize-B
   #:close selected-functor-probe-close-B
   #:flatten selected-functor-probe-flatten-BTrace
-  #:promote selected-functor-probe-promote
   #:evaluate-spec selected-functor-probe-big-evaluate/spec
   #:unfold-square selected-functor-probe-B-Big-unfold-square
   #:closure-square selected-functor-probe-B-Big-closure-square

@@ -46,9 +46,9 @@
     ((where (rv_new ...) (allocate/smoke supply (x_bound ...)))
      (where supply_new (advance/smoke supply (x_bound ...)))
      (where g_new
-            ,(subst-goal-hook
-              (term g)
-              (term ((x_bound rv_new) ...)))))]
+            (subst-goal-hook
+             g
+             ((x_bound rv_new) ...))))]
    #:addressing-hook address/smoke]
   #:supply/provenance
   [#:productions ([supply natural])

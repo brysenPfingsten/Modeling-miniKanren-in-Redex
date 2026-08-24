@@ -114,12 +114,16 @@
        (list 'root-settled #'payload #'spine)]
       [((~datum root-failed) summary raw spine)
        (list 'root-failed #'summary #'raw #'spine)]
+      [((~datum frontier) payload spine)
+       (list 'frontier #'payload #'spine)]
       [((~datum final) payload spine)
        (list 'final #'payload #'spine)]
       [_
        (raise-syntax-error
         #f
-        "expected a run/push/settled/failed/pop/root/final control form"
+        (string-append
+         "expected a run/push/settled/failed/pop/root/frontier/final "
+         "control form")
         control-stx)]))
 
   (define (parse-rule rule-stx)
@@ -421,7 +425,13 @@
   (define (control-kind control)
     (car control))
 
-  (define (control->D-source rule root-focus)
+  ;; Root followers are frontier equations closed over the selected spine.
+  ;; Their IR contains the root witness `hole`, but a separately staged
+  ;; extension must carry whatever exact-language spine surrounds that root.
+  (define (ambient-spine-context spine-view)
+    spine-view)
+
+  (define (control->D-source rule root-focus spine-view)
     (define control (rule-info-from rule))
     (define site (rule-info-site rule))
     (case (control-kind control)
@@ -438,18 +448,25 @@
        (match-define (list _ frame _summary raw context) control)
        #`(DecWork (in-hole #,frame #,raw) #,context)]
       [(root-settled)
-       (match-define (list _ payload spine) control)
-       #`(DecFrontier (in-hole #,root-focus #,payload) #,spine)]
+       (match-define (list _ payload _spine) control)
+       #`(DecFrontier
+          (in-hole #,root-focus #,payload)
+          #,(ambient-spine-context spine-view))]
       [(root-failed)
-       (match-define (list _ _summary raw spine) control)
-       #`(DecFrontier (in-hole #,root-focus #,raw) #,spine)]
+       (match-define (list _ _summary raw _spine) control)
+       #`(DecFrontier
+          (in-hole #,root-focus #,raw)
+          #,(ambient-spine-context spine-view))]
+      [(frontier)
+       (match-define (list _ payload spine) control)
+       #`(DecFrontier #,payload #,spine)]
       [else
        (raise-syntax-error
         #f
         "unsupported semantic-rule source control"
         (rule-info-source rule))]))
 
-  (define (control->C-target rule label)
+  (define (control->C-target rule label spine-view)
     (define control (rule-info-to rule))
     (case (control-kind control)
       [(run settled)
@@ -462,6 +479,10 @@
        (match-define (list _ _summary raw context) control)
        #`(ContractWork #,label #,raw #,context)]
       [(final)
+       (match-define (list _ payload _spine) control)
+       #`(ContractFrontier
+          #,label #,payload #,(ambient-spine-context spine-view))]
+      [(frontier)
        (match-define (list _ payload spine) control)
        #`(ContractFrontier #,label #,payload #,spine)]
       [else
@@ -472,10 +493,10 @@
 
   ;; Keeping the splicing helper separate makes the generated rule shape
   ;; testable without expanding Redex's own macros.
-  (define (render-contract-rule rule root-focus contract-id)
+  (define (render-contract-rule rule root-focus spine-view contract-id)
     (define label (rule-info-label rule))
-    (define source (control->D-source rule root-focus))
-    (define target (control->C-target rule label))
+    (define source (control->D-source rule root-focus spine-view))
+    (define target (control->C-target rule label spine-view))
     (define premises (rule-info-premises rule))
     (with-syntax ([(premise ...) premises]
                   [source source]
@@ -492,7 +513,8 @@
                                  work-constructor
                                  frontier-constructor
                                  allocate-constructor
-                                 root-focus)
+                                 root-focus
+                                 spine-view)
     (define control (rule-info-from rule))
     (define site (rule-info-site rule))
     (match control
@@ -504,14 +526,16 @@
        #`(#,work-constructor (in-hole #,frame #,payload) #,context)]
       [(list 'pop-failed frame _summary raw context)
        #`(#,work-constructor (in-hole #,frame #,raw) #,context)]
-      [(list 'root-settled payload spine)
+      [(list 'root-settled payload _spine)
        #`(#,frontier-constructor
           (in-hole #,root-focus #,payload)
-          #,spine)]
-      [(list 'root-failed _summary raw spine)
+          #,(ambient-spine-context spine-view))]
+      [(list 'root-failed _summary raw _spine)
        #`(#,frontier-constructor
           (in-hole #,root-focus #,raw)
-          #,spine)]
+          #,(ambient-spine-context spine-view))]
+      [(list 'frontier payload spine)
+       #`(#,frontier-constructor #,payload #,spine)]
       [_
        (raise-syntax-error
         #f
@@ -523,9 +547,11 @@
                                    work-constructor
                                    frontier-constructor
                                    allocate-constructor
-                                   final-constructor
-                                   root-focus
-                                   refocus-work-id
+                                 final-constructor
+                                 root-focus
+                                 spine-view
+                                 refocus-work-id
+                                   refocus-frontier-id
                                    step-id)
     (define source
       (control->phase-source
@@ -533,7 +559,8 @@
        work-constructor
        frontier-constructor
        allocate-constructor
-       root-focus))
+       root-focus
+       spine-view))
     (define label (rule-info-label rule))
     (define output
       (format-id carrier "~a_1" (syntax-e carrier)))
@@ -550,10 +577,16 @@
          #`(#,refocus-work-id #,payload #,context #,output)]
         [(list 'failed _summary raw context)
          #`(#,refocus-work-id #,raw #,context #,output)]
-        [(list 'final payload spine)
+        [(list 'frontier payload spine)
+         #`(#,refocus-frontier-id
+            (in-hole #,spine #,payload)
+            #,output)]
+        [(list 'final payload _spine)
          #`(where #,output
                   (#,final-constructor
-                   (in-hole #,spine #,payload)))]
+                   (in-hole
+                    #,(ambient-spine-context spine-view)
+                    #,payload)))]
         [_
          (raise-syntax-error
           #f
@@ -576,10 +609,10 @@
   ;; mechanical content of the explicit Z/M isomorphism stage.  This is
   ;; structural reification, not an additional semantic transformation.
   (define (render-retained-context-refocuser
-           language carrier refocus-work refocus
+           language carrier refocus-work refocus-frontier refocus
            final-constructor work-constructor
            frontier-constructor allocate-constructor
-           root-spine frames)
+           root-spine spine-view frames)
     (define carrier-var
       (format-id carrier "~a_0" (syntax-e carrier)))
     (define refocus-work-dependency
@@ -616,12 +649,14 @@
                   [carrier-var carrier-var]
                   [refocus-work refocus-work]
                   [refocus-work-dependency refocus-work-dependency]
+                  [refocus-frontier refocus-frontier]
                   [refocus refocus]
                   [final-constructor final-constructor]
                   [work-constructor work-constructor]
                   [frontier-constructor frontier-constructor]
                   [allocate-constructor allocate-constructor]
-                  [root-spine root-spine])
+                  [root-spine root-spine]
+                  [spine-view spine-view])
       (with-syntax ([(frame-refocus-clause ...)
                      frame-refocus-clauses])
       (list
@@ -652,6 +687,24 @@
               SourceSpineContext))])
        #'(redex-parameter:define-judgment-form*
            language
+           #:mode (refocus-frontier I O)
+           #:contract (refocus-frontier SourceF carrier)
+           [----
+            (refocus-frontier
+             (in-hole SourceWorkFocus WR)
+             (work-constructor WR SourceWorkFocus))]
+           [----
+            (refocus-frontier
+             (in-hole SourceSpineContext FR)
+             (frontier-constructor FR SourceSpineContext))]
+           [----
+            (refocus-frontier
+             (in-hole SourceWorkFocus AR)
+             (allocate-constructor AR SourceWorkFocus))]
+           [----
+            (refocus-frontier T (final-constructor T))])
+       #'(redex-parameter:define-judgment-form*
+           language
            #:parameters
            ([refocus-work-dependency refocus-work])
            #:mode (refocus I O)
@@ -664,9 +717,9 @@
              carrier-var)]
            [----
             (refocus
-             (ContractFrontier RuleName SourceF_0 root-spine)
+             (ContractFrontier RuleName SourceF_0 spine-view)
              (final-constructor
-              (in-hole root-spine SourceF_0)))])))))
+              (in-hole spine-view SourceF_0)))])))))
 
   (define (label-symbol identifier)
     (syntax-e identifier))
@@ -698,7 +751,7 @@
           (format "~a names an unknown semantic rule" who)
           identifier)))))
 
-  (define (control->B-target control)
+  (define (control->B-target control spine-view)
     (match control
       [(list 'run payload context)
        #`(BRun #,payload #,context)]
@@ -708,9 +761,10 @@
        #`(BSettled #,payload #,context)]
       [(list 'failed failure-summary _raw context)
        #`(BDead #,failure-summary #,context)]
+      [(list 'frontier payload spine)
+       #`(BFrontier #,payload #,spine)]
       [(list 'final payload _spine)
-       (define spine (third control))
-       #`(BFinal (in-hole #,spine #,payload))]
+       #`(BFinal (in-hole #,spine-view #,payload))]
       [_
        (error 'control->B-target "unsupported target control ~e" control)]))
 
@@ -750,7 +804,8 @@
          (judgment
           source source-context label output target-context)]))
 
-  (define (render-advance-rule rule judgment expected-source root-focus)
+  (define (render-advance-rule
+           rule judgment expected-source root-focus spine-view)
     (define source (rule-info-from rule))
     (unless (memq (control-kind source) expected-source)
       (raise-syntax-error
@@ -759,17 +814,19 @@
        (rule-info-source rule)))
     (define label (rule-info-label rule))
     (define premises (rule-info-premises rule))
-    (define target (control->B-target (rule-info-to rule)))
+    (define target (control->B-target (rule-info-to rule) spine-view))
     (define-values (payload focus)
       (match source
         [(list 'pop-settled frame settled context)
          (values settled #`(in-hole #,context #,frame))]
-        [(list 'root-settled settled spine)
-         (values settled #`(in-hole #,spine #,root-focus))]
+        [(list 'root-settled settled _spine)
+         (values settled #`(in-hole #,spine-view #,root-focus))]
         [(list 'pop-failed frame failure-summary _raw context)
          (values failure-summary #`(in-hole #,context #,frame))]
-        [(list 'root-failed failure-summary _raw spine)
-         (values failure-summary #`(in-hole #,spine #,root-focus))]))
+        [(list 'root-failed failure-summary _raw _spine)
+         (values
+          failure-summary
+          #`(in-hole #,spine-view #,root-focus))]))
     (with-syntax ([(premise ...) premises]
                   [judgment judgment]
                   [payload payload]
@@ -780,31 +837,48 @@
          ----
          (judgment payload focus label target)]))
 
-  (define (render-singleton-run-rule rule step-direct)
+  (define (render-singleton-rule
+           rule spine-view step-refocus-frontier step-direct)
     (define source-control (rule-info-from rule))
-    (unless (eq? (control-kind source-control) 'run)
+    (unless (memq (control-kind source-control) '(run frontier))
       (raise-syntax-error
        #f
-       "non-follower singleton must start from run control"
+       "non-follower singleton must start from run or frontier control"
        (rule-info-source rule)))
     (match-define (list _ source context) source-control)
-    (define target (control->B-target (rule-info-to rule)))
+    (define source-carrier
+      (case (control-kind source-control)
+        [(run) #`(BRun #,source #,context)]
+        [(frontier) #`(BFrontier #,source #,context)]))
+    (define target-control (rule-info-to rule))
+    (define-values (target target-premises)
+      (match target-control
+        [(list 'frontier payload spine)
+         (values
+          (datum->syntax (rule-info-source rule) 'B_1)
+          (list
+           #`(where B_1
+                    (#,step-refocus-frontier
+                     (in-hole #,spine #,payload)))))]
+        [_
+         (values (control->B-target target-control spine-view) '())]))
     (define label (rule-info-label rule))
     (define premises (rule-info-premises rule))
     (with-syntax ([(premise ...) premises]
                   [step-direct step-direct]
-                  [source source]
-                  [context context]
+                  [source-carrier source-carrier]
                   [target target]
-                  [label label])
+                  [label label]
+                  [(target-premise ...) target-premises])
       #'[premise ...
+         target-premise ...
          ----
          (step-direct
-          (BRun source context)
+          source-carrier
           (transition-span label)
           target)]))
 
-  (define (control->big-source control root-focus)
+  (define (control->big-work-source control root-focus spine-view)
     (match control
       [(list 'run payload context)
        (values payload context)]
@@ -812,14 +886,17 @@
        (values payload #`(in-hole #,context #,frame))]
       [(list 'pop-failed frame _summary raw context)
        (values raw #`(in-hole #,context #,frame))]
-      [(list 'root-settled payload spine)
-       (values payload #`(in-hole #,spine #,root-focus))]
-      [(list 'root-failed _summary raw spine)
-       (values raw #`(in-hole #,spine #,root-focus))]
+      [(list 'root-settled payload _root-spine)
+       (values payload #`(in-hole #,spine-view #,root-focus))]
+      [(list 'root-failed _summary raw _root-spine)
+       (values raw #`(in-hole #,spine-view #,root-focus))]
       [_
-       (error 'control->big-source "unsupported source control ~e" control)]))
+       (error
+        'control->big-work-source
+        "unsupported source control ~e"
+        control)]))
 
-  (define (control->big-next control)
+  (define (control->big-work-next control spine-view)
     (match control
       [(list 'run payload context)
        #`(BigContinue #,payload #,context)]
@@ -829,16 +906,22 @@
        #`(BigContinue #,payload #,context)]
       [(list 'failed _summary raw context)
        #`(BigContinue #,raw #,context)]
-      [(list 'final payload spine)
-       #`(BigDone (BigFinal (in-hole #,spine #,payload)))]
+      [(list 'final payload _root-spine)
+       #`(BigDone (BigFinal (in-hole #,spine-view #,payload)))]
       [_
-       (error 'control->big-next "unsupported target control ~e" control)]))
+       (error
+        'control->big-work-next
+        "unsupported target control ~e"
+        control)]))
 
-  (define (render-big-rule rule dispatch-one root-focus)
+  (define (render-big-work-rule
+           rule dispatch-one root-focus spine-view)
     (define-values (source context)
-      (control->big-source (rule-info-from rule) root-focus))
+      (control->big-work-source
+       (rule-info-from rule) root-focus spine-view))
     (define premises (rule-info-premises rule))
-    (define next (control->big-next (rule-info-to rule)))
+    (define next
+      (control->big-work-next (rule-info-to rule) spine-view))
     (with-syntax ([(premise ...) premises]
                   [dispatch-one dispatch-one]
                   [source source]
@@ -847,6 +930,50 @@
       #'[premise ...
          ----
          (dispatch-one source context next)]))
+
+  (define (control->whole-frontier control)
+    (match control
+      [(list 'run payload context)
+       #`(in-hole #,context #,payload)]
+      [(list 'push frame payload context)
+       #`(in-hole #,context (in-hole #,frame #,payload))]
+      [(list 'settled payload context)
+       #`(in-hole #,context #,payload)]
+      [(list 'failed _summary raw context)
+       #`(in-hole #,context #,raw)]
+      [(list 'frontier payload spine)
+       #`(in-hole #,spine #,payload)]
+      [(list 'final payload spine)
+       #`(in-hole #,spine #,payload)]
+      [_
+       (error
+        'control->whole-frontier
+        "unsupported target control ~e"
+        control)]))
+
+  (define (render-big-frontier-rule rule
+                                    control-one
+                                    refocus-frontier)
+    (match-define (list 'frontier source spine)
+      (rule-info-from rule))
+    (define target
+      (control->whole-frontier (rule-info-to rule)))
+    (define output
+      (datum->syntax (rule-info-source rule) 'ControlNext_1))
+    (define premises (rule-info-premises rule))
+    (with-syntax ([(premise ...) premises]
+                  [control-one control-one]
+                  [refocus-frontier refocus-frontier]
+                  [source source]
+                  [spine spine]
+                  [target target]
+                  [output output])
+      #'[premise ...
+         (refocus-frontier target output)
+         ----
+         (control-one
+          (BigFrontierControl source spine)
+          output)]))
 
   (define selected-extension-opaque-heads
     '(quote quasiquote syntax quasisyntax))
@@ -900,6 +1027,36 @@
        identifier))
     value)
 
+  ;; A phase map may be generated while a coordinate is still represented by
+  ;; its individual stage binding, or after a separately staged feature has
+  ;; produced one selected row binding.  Both routes expose the same primary
+  ;; artifact record; accepting either keeps Q generation attached to the
+  ;; phase transformer rather than forcing extensions to manufacture alias
+  ;; stages.
+  (define (lookup-phase-artifact identifier expected-kind)
+    (define value (syntax-local-value identifier (lambda () #f)))
+    (cond
+      [(stage-binding? value)
+       (unless (eq? (stage-binding-kind value) expected-kind)
+         (raise-syntax-error
+          #f
+          (format "expected a ~a stage" expected-kind)
+          identifier))
+       (stage-binding-artifact-declaration value)]
+      [(selected-staged-row-binding? value)
+       (case expected-kind
+         [(D) (selected-staged-row-binding-D-artifacts value)]
+         [(Z) (selected-staged-row-binding-Z-artifacts value)]
+         [(M) (selected-staged-row-binding-M-artifacts value)]
+         [(B) (selected-staged-row-binding-B-artifacts value)]
+         [(Big) (selected-staged-row-binding-Big-artifacts value)])]
+      [else
+       (raise-syntax-error
+        #f
+        (format "expected a ~a stage or selected staged row"
+                expected-kind)
+        identifier)]))
+
   ;; Primary records contain only artifacts that a later coordinate extension
   ;; may consume to build its own direct system.  Codec/readback/specification
   ;; artifacts live in a distinct diagnostics channel, so they cannot become
@@ -911,16 +1068,21 @@
        #:decompose #:contract #:step)
      'Z-artifacts
      '(#:language #:refocus-phase #:refocus-work-direct
+       #:refocus-frontier-direct
        #:refocus-direct #:step-direct)
      'M-artifacts
      '(#:language #:machineize #:refocus-work-direct
+       #:refocus-frontier-direct
        #:refocus-direct #:step-direct)
      'B-artifacts
-     '(#:language #:compress #:span-labels #:produce-settled #:produce-dead
+     '(#:language #:compress #:refocus-frontier-direct
+       #:span-labels #:produce-settled #:produce-dead
        #:advance-settled #:advance-dead #:base-singleton #:step-direct)
      'Big-artifacts
-     '(#:language #:dispatch-one #:dispatch #:run #:settled
-       #:dead #:final #:evaluate)))
+     '(#:language #:dispatch-one #:dispatch
+       #:refocus-frontier-direct #:control-one #:control #:frontier
+       #:run #:settled #:dead #:final #:evaluate
+       #:promotion-language #:promote)))
 
   (define diagnostic-artifact-fields
     (hash
@@ -934,7 +1096,7 @@
        #:corresponds #:replay #:step-spec #:square)
      'Big-diagnostics
      '(#:readback #:spec-language #:initialize #:close #:flatten
-       #:promote #:evaluate-spec #:unfold-square
+       #:evaluate-spec #:unfold-square
        #:closure-square #:root-square)))
 
   (define (required-artifact-fields expected-kind)
@@ -1025,8 +1187,20 @@
            projected)))
 
   (define (artifact-field artifact kind field declaration)
-    (define entries (parse-artifact-record artifact kind declaration))
-    (cdr (assq field entries)))
+    ;; Stage bindings retain the renderer's full record, whereas selected rows
+    ;; retain its exact primary/diagnostic projection.  Field lookup is valid
+    ;; on either shape; the projection boundaries themselves are still checked
+    ;; by `validate-row-artifacts` and `validate-row-diagnostics`.
+    (define entries (artifact-entries artifact kind declaration))
+    (define field-key (if (syntax? field) (syntax-e field) field))
+    (define entry (assq field-key entries))
+    (unless entry
+      (raise-syntax-error
+       #f
+       (format "~a is missing required field ~a" kind field-key)
+       declaration
+       artifact))
+    (cdr entry))
 
   (define (validate-row-artifacts D-artifacts Z-artifacts M-artifacts
                                   B-artifacts Big-artifacts declaration)
@@ -1156,7 +1330,7 @@
       BASE-MB-SQUARE
       BASE-BIG-READBACK BASE-BIG-SPEC-LANGUAGE
       BASE-BIG-INITIALIZE BASE-BIG-CLOSE BASE-BIG-FLATTEN
-      BASE-PROMOTE BASE-BIG-EVALUATE-SPEC
+      BASE-BIG-EVALUATE-SPEC
       BASE-BIG-UNFOLD-SQUARE BASE-BIG-CLOSURE-SQUARE
       BASE-BIG-ROOT-SQUARE))
 
@@ -1431,16 +1605,22 @@
            (field Z 'Z-artifacts '#:refocus-phase))
      (cons 'BASE-Z-REFOCUS-WORK
            (field Z 'Z-artifacts '#:refocus-work-direct))
+     (cons 'BASE-Z-REFOCUS-FRONTIER
+           (field Z 'Z-artifacts '#:refocus-frontier-direct))
      (cons 'BASE-Z-REFOCUS (field Z 'Z-artifacts '#:refocus-direct))
      (cons 'BASE-Z-STEP (field Z 'Z-artifacts '#:step-direct))
      (cons 'BASE-M-LANGUAGE (field M 'M-artifacts '#:language))
      (cons 'BASE-MACHINEIZE (field M 'M-artifacts '#:machineize))
      (cons 'BASE-M-REFOCUS-WORK
            (field M 'M-artifacts '#:refocus-work-direct))
+     (cons 'BASE-M-REFOCUS-FRONTIER
+           (field M 'M-artifacts '#:refocus-frontier-direct))
      (cons 'BASE-M-REFOCUS (field M 'M-artifacts '#:refocus-direct))
      (cons 'BASE-M-STEP (field M 'M-artifacts '#:step-direct))
      (cons 'BASE-B-LANGUAGE (field B 'B-artifacts '#:language))
      (cons 'BASE-COMPRESS (field B 'B-artifacts '#:compress))
+     (cons 'BASE-B-REFOCUS-FRONTIER
+           (field B 'B-artifacts '#:refocus-frontier-direct))
      (cons 'BASE-SPAN-LABELS (field B 'B-artifacts '#:span-labels))
      (cons 'BASE-B-PRODUCE-SETTLED
            (field B 'B-artifacts '#:produce-settled))
@@ -1456,11 +1636,22 @@
      (cons 'BASE-BIG-DISPATCH-ONE
            (field Big 'Big-artifacts '#:dispatch-one))
      (cons 'BASE-BIG-DISPATCH (field Big 'Big-artifacts '#:dispatch))
+     (cons 'BASE-BIG-REFOCUS-FRONTIER
+           (field Big 'Big-artifacts '#:refocus-frontier-direct))
+     (cons 'BASE-BIG-CONTROL-ONE
+           (field Big 'Big-artifacts '#:control-one))
+     (cons 'BASE-BIG-CONTROL
+           (field Big 'Big-artifacts '#:control))
+     (cons 'BASE-BIG-FRONTIER
+           (field Big 'Big-artifacts '#:frontier))
      (cons 'BASE-BIG-RUN (field Big 'Big-artifacts '#:run))
      (cons 'BASE-BIG-SETTLED (field Big 'Big-artifacts '#:settled))
      (cons 'BASE-BIG-DEAD (field Big 'Big-artifacts '#:dead))
      (cons 'BASE-BIG-FINAL (field Big 'Big-artifacts '#:final))
-     (cons 'BASE-BIG-EVALUATE (field Big 'Big-artifacts '#:evaluate))))
+     (cons 'BASE-BIG-EVALUATE (field Big 'Big-artifacts '#:evaluate))
+     (cons 'BASE-BIG-PROMOTION-LANGUAGE
+           (field Big 'Big-artifacts '#:promotion-language))
+     (cons 'BASE-PROMOTE (field Big 'Big-artifacts '#:promote))))
 
   (define (selected-row-diagnostic-replacements row)
     (define declaration #f)
@@ -1499,7 +1690,6 @@
            (field Big 'Big-diagnostics '#:initialize))
      (cons 'BASE-BIG-CLOSE (field Big 'Big-diagnostics '#:close))
      (cons 'BASE-BIG-FLATTEN (field Big 'Big-diagnostics '#:flatten))
-     (cons 'BASE-PROMOTE (field Big 'Big-diagnostics '#:promote))
      (cons 'BASE-BIG-EVALUATE-SPEC
            (field Big 'Big-diagnostics '#:evaluate-spec))
      (cons 'BASE-BIG-UNFOLD-SQUARE
@@ -2279,6 +2469,7 @@
               (render-contract-rule
                rule
                (instance-info-root-focus instance)
+               source-spine-context
                #'contract))
             (instance-info-rules instance)))
      (define artifacts
@@ -2460,6 +2651,8 @@
      (define redex-parameters (instance-info-redex-parameters instance))
      (define root-focus (instance-info-root-focus instance))
      (define root-spine (instance-info-root-spine instance))
+     (define source-spine-context
+       (instance-info-spine-context instance))
      (define frames (instance-info-frames instance))
      (define open-work-productions
        (instance-info-open-work-productions instance))
@@ -2467,6 +2660,10 @@
        (if (null? frames)
            '()
            (list #`[Frame #,@frames])))
+     (define refocus-frontier-direct
+       (format-id #'refocus-direct
+                  "~a/frontier"
+                  (syntax-e #'refocus-direct)))
      (define artifacts
        #`(Z-artifacts
           #:language #, #'refocused-language
@@ -2476,6 +2673,7 @@
           #:readback #, #'readback
           #:refocus-spec #, #'refocus-spec
           #:refocus-work-direct #, #'refocus-work-direct
+          #:refocus-frontier-direct #,refocus-frontier-direct
           #:refocus-direct #, #'refocus-direct
           #:step-spec #, #'step-spec
           #:step-direct #, #'step-direct
@@ -2490,15 +2688,19 @@
         #'refocused-language
         #'Z
         #'refocus-work-direct
+        refocus-frontier-direct
         #'refocus-direct
         #'ZFinal
         #'ZWork
         #'ZFrontier
         #'ZAllocate
         root-spine
+        source-spine-context
         frames))
      (define step-refocus-work
        (generate-temporary 'step-refocus-work))
+     (define step-refocus-frontier
+       (generate-temporary 'step-refocus-frontier))
      (define native-step-clauses
        (for/list ([rule (in-list (instance-info-rules instance))])
          (render-native-step-rule
@@ -2509,7 +2711,9 @@
           #'ZAllocate
           #'ZFinal
           root-focus
+          source-spine-context
           step-refocus-work
+          step-refocus-frontier
           #'step-direct)))
      (with-syntax ([(run-production ...) run-productions]
                    [(frame ...) frames]
@@ -2533,10 +2737,12 @@
                    [readback #'readback]
                    [refocus-spec #'refocus-spec]
                    [refocus-work-direct #'refocus-work-direct]
+                   [refocus-frontier-direct refocus-frontier-direct]
                    [refocus-direct #'refocus-direct]
                    [step-spec #'step-spec]
                    [step-direct #'step-direct]
                    [step-refocus-work step-refocus-work]
+                   [step-refocus-frontier step-refocus-frontier]
                    [(refocus-form ...) refocus-forms]
                    [(native-step-clause ...) native-step-clauses]
                    [stage-def stage-def])
@@ -2625,7 +2831,8 @@
              refocused-language
              #:parameters
              ([redex-parameter-local redex-parameter-default] ...
-              [step-refocus-work refocus-work-direct])
+              [step-refocus-work refocus-work-direct]
+              [step-refocus-frontier refocus-frontier-direct])
              #:mode (step-direct I O O)
              #:contract (step-direct Z RuleName Z)
              native-step-clause ...)))]))
@@ -2665,6 +2872,7 @@
            #:readback _readback:id
            #:refocus-spec _refocus-spec:id
            #:refocus-work-direct _refocus-work-direct:id
+           #:refocus-frontier-direct _refocus-frontier-direct:id
            #:refocus-direct _refocus-direct:id
            #:step-spec _step-spec:id
            #:step-direct Z-step-direct:id
@@ -2683,8 +2891,14 @@
                   #'contract-label)]))
      (define root-spine (instance-info-root-spine instance))
      (define root-focus (instance-info-root-focus instance))
+     (define source-spine-context
+       (instance-info-spine-context instance))
      (define frames (instance-info-frames instance))
      (define redex-parameters (instance-info-redex-parameters instance))
+     (define refocus-frontier-direct
+       (format-id #'refocus-direct
+                  "~a/frontier"
+                  (syntax-e #'refocus-direct)))
      (define artifacts
        #`(M-artifacts
           #:language #, #'machine-language
@@ -2695,6 +2909,7 @@
           #:M->D #, #'M->D
           #:readback #, #'readback
           #:refocus-work-direct #, #'refocus-work-direct
+          #:refocus-frontier-direct #,refocus-frontier-direct
           #:refocus-direct #, #'refocus-direct
           #:step-direct #, #'step-direct
           #:corresponds #, #'corresponds
@@ -2715,15 +2930,19 @@
         #'machine-language
         #'M
         #'refocus-work-direct
+        refocus-frontier-direct
         #'refocus-direct
         #'MFinal
         #'MWork
         #'MFrontier
         #'MAllocate
         root-spine
+        source-spine-context
         frames))
      (define step-refocus-work
        (generate-temporary 'step-refocus-work))
+     (define step-refocus-frontier
+       (generate-temporary 'step-refocus-frontier))
      (define native-step-clauses
        (for/list ([rule (in-list (instance-info-rules instance))])
          (render-native-step-rule
@@ -2734,7 +2953,9 @@
           #'MAllocate
           #'MFinal
           root-focus
+          source-spine-context
           step-refocus-work
+          step-refocus-frontier
           #'step-direct)))
      (with-syntax ([refocused-language refocused-language]
                    [Z->D Z->D]
@@ -2754,9 +2975,11 @@
                    [M->D #'M->D]
                    [readback #'readback]
                    [refocus-work-direct #'refocus-work-direct]
+                   [refocus-frontier-direct refocus-frontier-direct]
                    [refocus-direct #'refocus-direct]
                    [step-direct #'step-direct]
                    [step-refocus-work step-refocus-work]
+                   [step-refocus-frontier step-refocus-frontier]
                    [corresponds #'corresponds]
                    [step-spec #'step-spec]
                    [square #'square]
@@ -2841,7 +3064,8 @@
              machine-language
              #:parameters
              ([redex-parameter-local redex-parameter-default] ...
-              [step-refocus-work refocus-work-direct])
+              [step-refocus-work refocus-work-direct]
+              [step-refocus-frontier refocus-frontier-direct])
              #:mode (step-direct I O O)
              #:contract (step-direct M RuleName M)
              native-step-clause ...)
@@ -2913,6 +3137,7 @@
            #:M->D _M->D:id
            #:readback _readback:id
            #:refocus-work-direct _refocus-work-direct:id
+           #:refocus-frontier-direct _refocus-frontier-direct:id
            #:refocus-direct _refocus-direct:id
            #:step-direct machine-step-direct:id
            #:corresponds _corresponds:id
@@ -2971,6 +3196,12 @@
        (format-id #'step-direct
                   "~a/base-singleton"
                   (syntax-e #'step-direct)))
+     (define refocus-frontier-direct
+       (format-id #'compress
+                  "~a/frontier"
+                  (syntax-e #'compress)))
+     (define singleton-refocus-frontier
+       (generate-temporary 'singleton-refocus-frontier))
      (define classified-labels
        (map label-symbol
             (append (policy-info-settled-producers policy)
@@ -2987,6 +3218,8 @@
         stx))
      (define root-spine (instance-info-root-spine instance))
      (define root-focus (instance-info-root-focus instance))
+     (define source-spine-context
+       (instance-info-spine-context instance))
      (define frames (instance-info-frames instance))
      (define root-work-focus
        (compose-context root-spine root-focus))
@@ -3004,7 +3237,8 @@
                rule
                #'advance-settled
                '(pop-settled root-settled)
-               root-focus))
+               root-focus
+               source-spine-context))
             settled-followers))
      (define dead-follower-clauses
        (map (lambda (rule)
@@ -3012,11 +3246,16 @@
                rule
                #'advance-dead
                '(pop-failed root-failed)
-               root-focus))
+               root-focus
+               source-spine-context))
             dead-followers))
      (define singleton-run-clauses
        (map (lambda (rule)
-              (render-singleton-run-rule rule base-singleton))
+              (render-singleton-rule
+               rule
+               source-spine-context
+               singleton-refocus-frontier
+               base-singleton))
             singleton-run-rules))
      (define settled-producer-labels
        (policy-info-settled-producers policy))
@@ -3071,6 +3310,7 @@
        #`(B-artifacts
           #:language #, #'compressed-language
           #:compress #, #'compress
+          #:refocus-frontier-direct #,refocus-frontier-direct
           #:encode-MB #, #'encode-MB
           #:decode-BM #, #'decode-BM
           #:readback #, #'readback
@@ -3220,6 +3460,7 @@
                    [machine-step-direct machine-step-direct]
                    [compressed-language #'compressed-language]
                    [compress #'compress]
+                   [refocus-frontier-direct refocus-frontier-direct]
                    [encode-MB #'encode-MB]
                    [decode-BM #'decode-BM]
                    [readback #'readback]
@@ -3245,6 +3486,7 @@
                     (map redex-parameter-info-default redex-parameters)]
                    [singleton-advance-settled singleton-advance-settled]
                    [singleton-advance-dead singleton-advance-dead]
+                   [singleton-refocus-frontier singleton-refocus-frontier]
                    [step-produce-settled step-produce-settled]
                    [step-produce-dead step-produce-dead]
                    [step-base-advance-settled step-base-advance-settled]
@@ -3284,6 +3526,7 @@
              [LabelTrace (RuleName (... ...))]
              [B (BRun NonAllocateRun SourceWorkFocus)
                 (BRun AR SourceWorkFocus)
+                (BFrontier FR SourceSpineContext)
                 (BSettled Settled SourceWorkFocus)
                 (BDead FailureSummary SourceWorkFocus)
                 (BFinal T)]
@@ -3301,11 +3544,46 @@
               (BRun NonAllocateRun SourceWorkFocus)]
              compress-frame-clause ...
              [(compress
-               (MFrontier (in-hole root-focus Settled) root-spine))
-              (BSettled Settled root-work-focus)]
+               (MFrontier
+                (in-hole root-focus Settled)
+                SourceSpineContext))
+              (BSettled
+               Settled
+               (in-hole SourceSpineContext root-focus))]
              [(compress
-               (MFrontier (in-hole root-focus failure-term) root-spine))
-              (BDead failure-summary root-work-focus)])
+               (MFrontier
+                (in-hole root-focus failure-term)
+                SourceSpineContext))
+              (BDead
+               failure-summary
+               (in-hole SourceSpineContext root-focus))]
+             [(compress (MFrontier FR SourceSpineContext))
+              (BFrontier FR SourceSpineContext)])
+
+           ;; A singleton frontier rule supplies a whole source frontier as
+           ;; its contractum.  Normalize that frontier directly into the B
+           ;; carrier; this is the B-local analogue of the Z/M frontier
+           ;; refocuser and never decodes through M.
+           (redex-parameter:define-metafunction*
+             compressed-language
+             refocus-frontier-direct : SourceF -> B
+             [(refocus-frontier-direct
+               (in-hole SourceWorkFocus Settled))
+              (BSettled Settled SourceWorkFocus)]
+             [(refocus-frontier-direct
+               (in-hole SourceWorkFocus failure-term))
+              (BDead failure-summary SourceWorkFocus)]
+             [(refocus-frontier-direct
+               (in-hole SourceWorkFocus NonAllocateRun))
+              (BRun NonAllocateRun SourceWorkFocus)]
+             [(refocus-frontier-direct
+               (in-hole SourceWorkFocus AR))
+              (BRun AR SourceWorkFocus)]
+             [(refocus-frontier-direct
+               (in-hole SourceSpineContext FR))
+              (BFrontier FR SourceSpineContext)]
+             [(refocus-frontier-direct T)
+              (BFinal T)])
 
            ;; The M/B codec is diagnostic; `compress` is the phase transform.
            (define-metafunction compressed-language
@@ -3317,11 +3595,21 @@
               (BRun NonAllocateRun SourceWorkFocus)]
              encode-frame-clause ...
              [(encode-MB
-               (MFrontier (in-hole root-focus Settled) root-spine))
-              (BSettled Settled root-work-focus)]
+               (MFrontier
+                (in-hole root-focus Settled)
+                SourceSpineContext))
+              (BSettled
+               Settled
+               (in-hole SourceSpineContext root-focus))]
              [(encode-MB
-               (MFrontier (in-hole root-focus failure-term) root-spine))
-              (BDead failure-summary root-work-focus)])
+               (MFrontier
+                (in-hole root-focus failure-term)
+                SourceSpineContext))
+              (BDead
+               failure-summary
+               (in-hole SourceSpineContext root-focus))]
+             [(encode-MB (MFrontier FR SourceSpineContext))
+              (BFrontier FR SourceSpineContext)])
 
            (define-metafunction compressed-language
              decode-BM : B -> M
@@ -3330,16 +3618,23 @@
               (MAllocate AR SourceWorkFocus)]
              [(decode-BM (BRun NonAllocateRun SourceWorkFocus))
               (MWork NonAllocateRun SourceWorkFocus)]
+             [(decode-BM (BFrontier FR SourceSpineContext))
+              (MFrontier FR SourceSpineContext)]
              decode-frame-clause ...
-             [(decode-BM (BSettled Settled root-work-focus))
+             [(decode-BM
+               (BSettled
+                Settled
+                (in-hole SourceSpineContext root-focus)))
               (MFrontier
                (in-hole root-focus Settled)
-               root-spine)]
+               SourceSpineContext)]
              [(decode-BM
-               (BDead failure-summary root-work-focus))
+               (BDead
+                failure-summary
+                (in-hole SourceSpineContext root-focus)))
               (MFrontier
                (in-hole root-focus failure-term)
-               root-spine)])
+               SourceSpineContext)])
 
            (define-metafunction compressed-language
              readback : B -> SourceF
@@ -3347,6 +3642,8 @@
               (in-hole SourceWorkFocus NonAllocateRun)]
              [(readback (BRun AR SourceWorkFocus))
               (in-hole SourceWorkFocus AR)]
+             [(readback (BFrontier FR SourceSpineContext))
+              (in-hole SourceSpineContext FR)]
              [(readback (BSettled Settled SourceWorkFocus))
               (in-hole SourceWorkFocus Settled)]
              [(readback (BDead failure-summary SourceWorkFocus))
@@ -3389,6 +3686,7 @@
              compressed-language
              #:parameters
              ([redex-parameter-local redex-parameter-default] ...
+              [singleton-refocus-frontier refocus-frontier-direct]
               [singleton-advance-settled advance-settled]
               [singleton-advance-dead advance-dead])
              #:mode (base-singleton I O O)
@@ -3502,6 +3800,7 @@
          [((~datum B-artifacts)
            #:language language:id
            #:compress compress:id
+           #:refocus-frontier-direct _refocus-frontier-direct:id
            #:encode-MB encode-MB:id
            #:decode-BM _decode-BM:id
            #:readback _readback:id
@@ -3546,6 +3845,13 @@
      (define source-spine-context (instance-info-spine-context instance))
      (define redex-parameters (instance-info-redex-parameters instance))
      (define run-productions (instance-info-run-productions instance))
+     (define nonallocation-run-productions
+       (instance-info-nonallocation-run-productions instance))
+     (define work-redexes (instance-info-work-redexes instance))
+     (define frontier-redexes
+       (instance-info-frontier-redexes instance))
+     (define allocation-redexes
+       (instance-info-allocation-redexes instance))
      (define failure-summary (instance-info-failure-summary instance))
      (define failure-term (instance-info-failure-term instance))
      (define terminal-success
@@ -3558,9 +3864,27 @@
         (instance-info-root-spine instance)
         root-focus))
      (define frames (instance-info-frames instance))
+     (define open-work-productions
+       (instance-info-open-work-productions instance))
      (define dispatch-one
        (format-id #'dispatch
                   "~a/one"
+                  (syntax-e #'dispatch)))
+     (define control-one
+       (format-id #'dispatch
+                  "~a/control-one"
+                  (syntax-e #'dispatch)))
+     (define control-refocus
+       (format-id #'dispatch
+                  "~a/refocus-frontier"
+                  (syntax-e #'dispatch)))
+     (define control-dispatch
+       (format-id #'dispatch
+                  "~a/control"
+                  (syntax-e #'dispatch)))
+     (define frontier-entry
+       (format-id #'dispatch
+                  "~a/frontier"
                   (syntax-e #'dispatch)))
      (define frame-categories
        (if (null? frames)
@@ -3572,29 +3896,43 @@
            (list
             #`[----
                (#,dispatch-one
-                (in-hole Frame SourceW_0)
+                (in-hole Frame OpenW_0)
                 SourceWorkFocus
                 (BigContinue
-                 SourceW_0
+                 OpenW_0
                  (in-hole SourceWorkFocus Frame)))])))
-     (define big-rules
-       (map (lambda (rule)
-              (render-big-rule
-               rule dispatch-one root-focus))
-            (instance-info-rules instance)))
+     (define control-frontier-refocus
+       (generate-temporary 'control-frontier-refocus))
+     (define big-work-rules
+       (for/list ([rule (in-list (instance-info-rules instance))]
+                  #:unless
+                  (eq? (control-kind (rule-info-from rule)) 'frontier))
+         (render-big-work-rule
+          rule dispatch-one root-focus source-spine-context)))
+     (define big-frontier-rules
+       (for/list ([rule (in-list (instance-info-rules instance))]
+                  #:when
+                  (eq? (control-kind (rule-info-from rule)) 'frontier))
+         (render-big-frontier-rule
+          rule control-one control-frontier-refocus)))
      (define artifacts
        #`(Big-artifacts
           #:language #, #'big-language
           #:readback #, #'readback
           #:dispatch-one #,dispatch-one
           #:dispatch #, #'dispatch
+          #:refocus-frontier-direct #,control-refocus
+          #:control-one #,control-one
+          #:control #,control-dispatch
+          #:frontier #,frontier-entry
           #:run #, #'run
           #:settled #, #'settled-entry
           #:dead #, #'dead-entry
           #:final #, #'final-entry
           #:evaluate #, #'evaluate
-          #:spec-language #, #'spec-language
+          #:promotion-language #, #'big-language
           #:promote #, #'promote
+          #:spec-language #, #'spec-language
           #:evaluate-spec #, #'evaluate-spec
           #:root-square #, #'root-square
           #:initialize #, #'initialize
@@ -3634,15 +3972,27 @@
                    [root-focus root-focus]
                    [root-work-focus root-work-focus]
                    [(run-production ...) run-productions]
+                   [(nonallocation-run-production ...)
+                    nonallocation-run-productions]
+                   [(work-redex ...) work-redexes]
+                   [(frontier-redex ...) frontier-redexes]
+                   [(allocation-redex ...) allocation-redexes]
                    [(frame ...) frames]
                    [(frame-category ...) frame-categories]
+                   [(open-work-production ...) open-work-productions]
                    [(dispatch-one-descent-clause ...)
                     dispatch-one-descent-clauses]
-                   [(big-rule ...) big-rules]
+                   [(big-work-rule ...) big-work-rules]
+                   [(big-frontier-rule ...) big-frontier-rules]
                    [big-language #'big-language]
                    [readback #'readback]
                    [dispatch-one dispatch-one]
                    [dispatch #'dispatch]
+                   [control-refocus control-refocus]
+                   [control-one control-one]
+                   [control-frontier-refocus control-frontier-refocus]
+                   [control-dispatch control-dispatch]
+                   [frontier-entry frontier-entry]
                    [run #'run]
                    [settled-entry #'settled-entry]
                    [dead-entry #'dead-entry]
@@ -3657,15 +4007,19 @@
                    [unfold-square #'unfold-square]
                    [closure-square #'closure-square]
                    [root-square #'root-square]
-                   [(dispatch-next
+                   [(dispatch-next control-work-next control-next
+                     frontier-control
                      run-dispatch settled-dispatch dead-dispatch
                      evaluate-dispatch evaluate-final
-                     promote-run promote-settled promote-dead promote-final)
+                     promote-run promote-frontier
+                     promote-settled promote-dead promote-final)
                     (generate-temporaries
-                     '(dispatch-next
+                     '(dispatch-next control-work-next control-next
+                       frontier-control
                        run-dispatch settled-dispatch dead-dispatch
                        evaluate-dispatch evaluate-final
-                       promote-run promote-settled promote-dead promote-final))]
+                       promote-run promote-frontier
+                       promote-settled promote-dead promote-final))]
                    [stage-def stage-def])
        #'(begin
            stage-def
@@ -3687,17 +4041,39 @@
              [SourceTerminalFailure terminal-failure]
              [SourceWorkFocus source-work-focus]
              [SourceSpineContext source-spine-context]
+             [WR work-redex ...]
+             [FR frontier-redex ...]
+             [AR allocation-redex ...]
              [RunW run-production ...]
+             [NonAllocateRun nonallocation-run-production ...]
              [Settled SourceReturnedView]
              [FailureSummary failure-summary]
              [DeadW SourceFailureView]
              frame-category ...
              [RootFocus root-focus]
              [RootWorkFocus root-work-focus]
+             ;; OpenW is the positive structural-descent category.  Matching
+             ;; the focused child against it avoids a negative host-language
+             ;; query, so lifted dispatchers neither descend into a semantic
+             ;; whole-frame redex nor close over the base language.
+             [OpenW WR AR open-work-production ...]
              [T SourceTerminalSuccess SourceTerminalFailure]
              [Big (BigFinal T)]
+             [B (BRun NonAllocateRun SourceWorkFocus)
+                (BRun AR SourceWorkFocus)
+                (BFrontier FR SourceSpineContext)
+                (BSettled Settled SourceWorkFocus)
+                (BDead FailureSummary SourceWorkFocus)
+                (BFinal T)]
              [BigNext (BigContinue SourceW SourceWorkFocus)
-                      (BigDone Big)])
+                      (BigFrontierContinue SourceF)
+                      (BigDone Big)]
+             [Control
+              (BigWorkControl SourceW SourceWorkFocus)
+              (BigFrontierControl FR SourceSpineContext)]
+             [ControlNext
+              (BigControlContinue Control)
+              (BigControlDone Big)])
 
            (define-metafunction big-language
              readback : Big -> SourceF
@@ -3710,7 +4086,7 @@
              #:mode (dispatch-one I I O)
              #:contract (dispatch-one SourceW SourceWorkFocus BigNext)
              dispatch-one-descent-clause ...
-             big-rule ...)
+             big-work-rule ...)
 
            (redex-parameter:define-judgment-form*
              big-language
@@ -3729,30 +4105,137 @@
               ----
               (dispatch SourceW_0 SourceWorkFocus_0 Big_0)])
 
+           ;; Classify a whole frontier contractum directly into the next Big
+           ;; control.  A feature frontier equation calls this dependency on
+           ;; its target, so nested feature spines are re-decomposed by the
+           ;; extended grammar without any W/FR cases in the feature schema.
            (redex-parameter:define-judgment-form*
              big-language
-             #:parameters ([run-dispatch dispatch])
+             #:mode (control-refocus I O)
+             #:contract (control-refocus SourceF ControlNext)
+             [----
+              (control-refocus
+               (in-hole SourceWorkFocus WR)
+               (BigControlContinue
+                (BigWorkControl WR SourceWorkFocus)))]
+             [----
+             (control-refocus
+               (in-hole SourceWorkFocus AR)
+               (BigControlContinue
+                (BigWorkControl AR SourceWorkFocus)))]
+             [----
+              (control-refocus
+               (in-hole SourceWorkFocus Settled)
+               (BigControlContinue
+                (BigWorkControl Settled SourceWorkFocus)))]
+             [----
+              (control-refocus
+               (in-hole SourceWorkFocus DeadW)
+               (BigControlContinue
+                (BigWorkControl DeadW SourceWorkFocus)))]
+             [----
+              (control-refocus
+               (in-hole SourceSpineContext FR)
+               (BigControlContinue
+                (BigFrontierControl FR SourceSpineContext)))]
+             [----
+              (control-refocus
+               T
+               (BigControlDone (BigFinal T)))])
+
+           ;; `dispatch` remains the work-focused driver used by the core
+           ;; coordinate.  The control driver is a strict primary extension
+           ;; point for carriers such as a suspended frontier: inherited work
+           ;; still delegates to the exact lifted `dispatch-one`, while a
+           ;; feature may add frontier clauses without copying any base rule.
+           (redex-parameter:define-judgment-form*
+             big-language
+             #:parameters
+             ([control-work-next dispatch-one]
+              [control-frontier-refocus control-refocus])
+             #:mode (control-one I O)
+             #:contract (control-one Control ControlNext)
+             big-frontier-rule ...
+             [(control-work-next
+               SourceW_0 SourceWorkFocus_0 (BigDone Big_0))
+              ----
+              (control-one
+               (BigWorkControl SourceW_0 SourceWorkFocus_0)
+               (BigControlDone Big_0))]
+             [(control-work-next
+               SourceW_0 SourceWorkFocus_0
+               (BigContinue SourceW_1 SourceWorkFocus_1))
+              ----
+              (control-one
+               (BigWorkControl SourceW_0 SourceWorkFocus_0)
+               (BigControlContinue
+                (BigWorkControl SourceW_1 SourceWorkFocus_1)))]
+             [(control-work-next
+               SourceW_0 SourceWorkFocus_0
+               (BigFrontierContinue SourceF_1))
+              (control-frontier-refocus
+               SourceF_1
+               ControlNext_1)
+              ----
+              (control-one
+               (BigWorkControl SourceW_0 SourceWorkFocus_0)
+               ControlNext_1)])
+
+           (redex-parameter:define-judgment-form*
+             big-language
+             #:parameters ([control-next control-one])
+             #:mode (control-dispatch I O)
+             #:contract (control-dispatch Control Big)
+             [(control-next any_0 (BigControlDone Big_0))
+              ----
+              (control-dispatch any_0 Big_0)]
+             [(control-next
+               any_0 (BigControlContinue any_1))
+              (control-dispatch any_1 Big_0)
+              ----
+              (control-dispatch any_0 Big_0)])
+
+           (redex-parameter:define-judgment-form*
+             big-language
+             #:parameters ([frontier-control control-dispatch])
+             #:mode (frontier-entry I I O)
+             #:contract (frontier-entry FR SourceSpineContext Big)
+             [(frontier-control
+               (BigFrontierControl FR SourceSpineContext)
+               Big_0)
+              ----
+              (frontier-entry FR SourceSpineContext Big_0)])
+
+           (redex-parameter:define-judgment-form*
+             big-language
+             #:parameters ([run-dispatch control-dispatch])
              #:mode (run I I O)
              #:contract (run RunW SourceWorkFocus Big)
-             [(run-dispatch RunW SourceWorkFocus Big_0)
+             [(run-dispatch
+               (BigWorkControl RunW SourceWorkFocus)
+               Big_0)
               ----
               (run RunW SourceWorkFocus Big_0)])
 
            (redex-parameter:define-judgment-form*
              big-language
-             #:parameters ([settled-dispatch dispatch])
+             #:parameters ([settled-dispatch control-dispatch])
              #:mode (settled-entry I I O)
              #:contract (settled-entry Settled SourceWorkFocus Big)
-             [(settled-dispatch Settled SourceWorkFocus Big_0)
+             [(settled-dispatch
+               (BigWorkControl Settled SourceWorkFocus)
+               Big_0)
               ----
               (settled-entry Settled SourceWorkFocus Big_0)])
 
            (redex-parameter:define-judgment-form*
              big-language
-             #:parameters ([dead-dispatch dispatch])
+             #:parameters ([dead-dispatch control-dispatch])
              #:mode (dead-entry I I O)
              #:contract (dead-entry FailureSummary SourceWorkFocus Big)
-             [(dead-dispatch failure-term SourceWorkFocus Big_0)
+             [(dead-dispatch
+               (BigWorkControl failure-term SourceWorkFocus)
+               Big_0)
               ----
               (dead-entry failure-summary SourceWorkFocus Big_0)])
 
@@ -3766,16 +4249,53 @@
            (redex-parameter:define-judgment-form*
              big-language
              #:parameters
-             ([evaluate-dispatch dispatch]
-              [evaluate-final final-entry])
+             ([evaluate-dispatch control-dispatch]
+              [evaluate-final control-refocus])
              #:mode (evaluate I O)
              #:contract (evaluate SourceF Big)
-             [(evaluate-dispatch SourceW_0 RootWorkFocus Big_0)
+             [(evaluate-final
+               SourceF_0
+               (BigControlDone Big_0))
               ----
-              (evaluate (in-hole RootWorkFocus SourceW_0) Big_0)]
-             [(evaluate-final T Big_0)
+              (evaluate SourceF_0 Big_0)]
+             [(evaluate-final
+               SourceF_0
+               (BigControlContinue Control_0))
+              (evaluate-dispatch Control_0 Big_0)
               ----
-              (evaluate T Big_0)])
+              (evaluate SourceF_0 Big_0)])
+
+           ;; Promotion is a primary B -> Big transformation in the direct Big
+           ;; language.  Keeping its entry judgments and dispatcher in the
+           ;; same exact language makes dependency lifting transitive across a
+           ;; separately staged feature without rebuilding any Big rule.
+           (redex-parameter:define-judgment-form*
+             big-language
+             #:parameters
+             ([promote-run run]
+              [promote-frontier frontier-entry]
+              [promote-settled settled-entry]
+              [promote-dead dead-entry]
+              [promote-final final-entry])
+             #:mode (promote I O)
+             #:contract (promote B Big)
+             [(promote-run RunW SourceWorkFocus Big_0)
+              ----
+              (promote (BRun RunW SourceWorkFocus) Big_0)]
+             [(promote-frontier FR SourceSpineContext Big_0)
+              ----
+              (promote
+               (BFrontier FR SourceSpineContext)
+               Big_0)]
+             [(promote-settled Settled SourceWorkFocus Big_0)
+              ----
+              (promote (BSettled Settled SourceWorkFocus) Big_0)]
+             [(promote-dead FailureSummary SourceWorkFocus Big_0)
+              ----
+              (promote (BDead FailureSummary SourceWorkFocus) Big_0)]
+             [(promote-final T Big_0)
+              ----
+              (promote (BFinal T) Big_0)])
 
            ;; The specification deliberately retains B and its exact span
            ;; trace; none of these forms is referenced by the direct driver.
@@ -3783,6 +4303,7 @@
              compressed-language
              [Big (BigFinal T)]
              [BigNext (BigContinue SourceW SourceWorkFocus)
+                      (BigFrontierContinue SourceF)
                       (BigDone Big)]
              [BTrace (TransitionSpan (... ...))])
 
@@ -3827,28 +4348,6 @@
               (where (RuleName_rest (... ...))
                      (flatten
                       (TransitionSpan_rest (... ...))))])
-
-           (redex-parameter:define-judgment-form*
-             spec-language
-             #:parameters
-             ([promote-run run]
-              [promote-settled settled-entry]
-              [promote-dead dead-entry]
-              [promote-final final-entry])
-             #:mode (promote I O)
-             #:contract (promote B Big)
-             [(promote-run RunW SourceWorkFocus Big_0)
-              ----
-              (promote (BRun RunW SourceWorkFocus) Big_0)]
-             [(promote-settled Settled SourceWorkFocus Big_0)
-              ----
-              (promote (BSettled Settled SourceWorkFocus) Big_0)]
-             [(promote-dead FailureSummary SourceWorkFocus Big_0)
-              ----
-              (promote (BDead FailureSummary SourceWorkFocus) Big_0)]
-             [(promote-final T Big_0)
-              ----
-              (promote (BFinal T) Big_0)])
 
            (define-judgment-form
              spec-language
@@ -3905,10 +4404,8 @@
         #:Q-terminal Q-terminal:id
         #:Q-D Q-D:id
         #:commutes commutes:id)
-     (define source-binding (lookup-stage #'source-stage 'D))
-     (define target-binding (lookup-stage #'target-stage 'D))
-     (define (decompose-id binding)
-       (syntax-parse (stage-binding-artifact-declaration binding)
+     (define (decompose-id stage-id)
+       (syntax-parse (lookup-phase-artifact stage-id 'D)
          [((~datum D-artifacts)
            #:language _language:id
            #:plug-D _plug-D:id
@@ -3918,8 +4415,8 @@
            #:contract _contract:id
            #:step _step:id)
           #'decompose]))
-     (with-syntax ([source-decompose (decompose-id source-binding)]
-                   [target-decompose (decompose-id target-binding)]
+     (with-syntax ([source-decompose (decompose-id #'source-stage)]
+                   [target-decompose (decompose-id #'target-stage)]
                    [(map-pair proof-outputs multiset=?)
                     (generate-temporaries
                      '(map-pair proof-outputs multiset=?))])
@@ -3986,8 +4483,7 @@
         #:Q-Z Q-Z:id
         #:commutes commutes:id)
      (define (phase-id stage-id)
-       (define binding (lookup-stage stage-id 'Z))
-       (syntax-parse (stage-binding-artifact-declaration binding)
+       (syntax-parse (lookup-phase-artifact stage-id 'Z)
          [((~datum Z-artifacts)
            #:language _language:id
            #:refocus-phase phase:id
@@ -4045,8 +4541,7 @@
         #:Q-M Q-M:id
         #:commutes commutes:id)
      (define (phase-id stage-id)
-       (define binding (lookup-stage stage-id 'M))
-       (syntax-parse (stage-binding-artifact-declaration binding)
+       (syntax-parse (lookup-phase-artifact stage-id 'M)
          [((~datum M-artifacts)
            #:language _language:id
            #:machineize phase:id
@@ -4099,13 +4594,15 @@
         #:target target-stage:id
         #:Q-M Q-M:id
         #:Q-focus Q-focus:id
+        (~optional
+         (~seq #:Q-root-focus Q-root-focus:id)
+         #:defaults ([Q-root-focus #'Q-focus]))
         #:Q-failure-focus Q-failure-focus:id
         #:Q-terminal Q-terminal:id
         #:Q-B Q-B:id
         #:commutes commutes:id)
      (define (phase-id stage-id)
-       (define binding (lookup-stage stage-id 'B))
-       (syntax-parse (stage-binding-artifact-declaration binding)
+       (syntax-parse (lookup-phase-artifact stage-id 'B)
          [((~datum B-artifacts)
            #:language _language:id
            #:compress phase:id
@@ -4133,6 +4630,10 @@
                 (define-values (target-payload target-context)
                   (map-pair 'Q-B Q-focus payload context))
                 `(BRun ,target-payload ,target-context)]
+               [`(BFrontier ,payload ,context)
+                (define-values (target-payload target-context)
+                  (map-pair 'Q-B Q-root-focus payload context))
+                `(BFrontier ,target-payload ,target-context)]
                [`(BSettled ,payload ,context)
                 (define-values (target-payload target-context)
                   (map-pair 'Q-B Q-focus payload context))
@@ -4162,22 +4663,11 @@
         #:Q-Big Q-Big:id
         #:commutes commutes:id)
      (define (phase-id stage-id)
-       (define binding (lookup-stage stage-id 'Big))
-       (syntax-parse (stage-binding-artifact-declaration binding)
-         [((~datum Big-artifacts)
-           #:language _language:id
-           #:readback _readback:id
-           #:dispatch-one _dispatch-one:id
-           #:dispatch _dispatch:id
-           #:run _run:id
-           #:settled _settled:id
-           #:dead _dead:id
-           #:final _final:id
-           #:evaluate _evaluate:id
-           #:spec-language _spec-language:id
-           #:promote promote:id
-           . _tail)
-          #'promote]))
+       (artifact-field
+        (lookup-phase-artifact stage-id 'Big)
+        'Big-artifacts
+        '#:promote
+        stx))
      (with-syntax ([source-phase (phase-id #'source-stage)]
                    [target-phase (phase-id #'target-stage)]
                    [(proof-outputs multiset=?)

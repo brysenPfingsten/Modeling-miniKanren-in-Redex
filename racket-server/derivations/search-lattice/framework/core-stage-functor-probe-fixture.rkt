@@ -110,6 +110,7 @@
     #:language selected-functor-probe-Z-lang
     #:refocus-phase selected-functor-probe-refocus-phase
     #:refocus-work-direct selected-functor-probe-Z-refocus-work
+    #:refocus-frontier-direct selected-functor-probe-Z-refocus-frontier
     #:refocus-direct selected-functor-probe-Z-refocus
     #:step-direct selected-functor-probe-Z-step)
    #:forms
@@ -117,6 +118,7 @@
              selected-functor-probe-query-evidence/Z
              selected-functor-probe-refocus-phase
              selected-functor-probe-Z-refocus-work
+             selected-functor-probe-Z-refocus-frontier
              selected-functor-probe-Z-refocus
              selected-functor-probe-Z-step)
 
@@ -141,6 +143,11 @@
      BASE-Z-REFOCUS-WORK
      selected-functor-probe-Z-lang
      #:mode (selected-functor-probe-Z-refocus-work I I O))
+
+    (redex-parameter:define-extended-judgment-form*
+     BASE-Z-REFOCUS-FRONTIER
+     selected-functor-probe-Z-lang
+     #:mode (selected-functor-probe-Z-refocus-frontier I O))
 
     (redex-parameter:define-extended-judgment-form*
      BASE-Z-REFOCUS
@@ -242,6 +249,7 @@
     #:language selected-functor-probe-M-lang
     #:machineize selected-functor-probe-machineize
     #:refocus-work-direct selected-functor-probe-M-refocus-work
+    #:refocus-frontier-direct selected-functor-probe-M-refocus-frontier
     #:refocus-direct selected-functor-probe-M-refocus
     #:step-direct selected-functor-probe-M-step)
    #:forms
@@ -249,6 +257,7 @@
              selected-functor-probe-query-evidence/M
              selected-functor-probe-machineize
              selected-functor-probe-M-refocus-work
+             selected-functor-probe-M-refocus-frontier
              selected-functor-probe-M-refocus
              selected-functor-probe-M-step)
 
@@ -273,6 +282,11 @@
      BASE-M-REFOCUS-WORK
      selected-functor-probe-M-lang
      #:mode (selected-functor-probe-M-refocus-work I I O))
+
+    (redex-parameter:define-extended-judgment-form*
+     BASE-M-REFOCUS-FRONTIER
+     selected-functor-probe-M-lang
+     #:mode (selected-functor-probe-M-refocus-frontier I O))
 
     (redex-parameter:define-extended-judgment-form*
      BASE-M-REFOCUS
@@ -417,6 +431,7 @@
    (B-artifacts
     #:language selected-functor-probe-B-lang
     #:compress selected-functor-probe-compress
+    #:refocus-frontier-direct selected-functor-probe-B-refocus-frontier
     #:span-labels selected-functor-probe-span-labels
     #:produce-settled selected-functor-probe-produce-settled
     #:produce-dead selected-functor-probe-produce-dead
@@ -428,6 +443,7 @@
    ((provide selected-functor-probe-B-lang
              selected-functor-probe-query-evidence/B
              selected-functor-probe-compress
+             selected-functor-probe-B-refocus-frontier
              selected-functor-probe-span-labels
              selected-functor-probe-produce-settled
              selected-functor-probe-produce-dead
@@ -454,6 +470,11 @@
      BASE-COMPRESS
      selected-functor-probe-B-lang
      selected-functor-probe-compress : M -> B)
+
+    (redex-parameter:define-extended-metafunction*
+     BASE-B-REFOCUS-FRONTIER
+     selected-functor-probe-B-lang
+     selected-functor-probe-B-refocus-frontier : SourceF -> B)
 
     (redex-parameter:define-extended-metafunction*
      BASE-SPAN-LABELS
@@ -494,6 +515,8 @@
      #:mode (selected-functor-probe-singleton I O O)
      #:parameters
      ([query-evidence selected-functor-probe-query-evidence/B]
+      [singleton-refocus-frontier
+       selected-functor-probe-B-refocus-frontier]
       [singleton-advance-settled
        selected-functor-probe-advance-settled]
       [singleton-advance-dead
@@ -654,26 +677,39 @@
     #:language selected-functor-probe-Big-lang
     #:dispatch-one selected-functor-probe-big-dispatch-one
     #:dispatch selected-functor-probe-big-dispatch
+    #:refocus-frontier-direct selected-functor-probe-big-refocus-frontier
+    #:control-one selected-functor-probe-big-control-one
+    #:control selected-functor-probe-big-control
+    #:frontier selected-functor-probe-big-frontier
     #:run selected-functor-probe-big-run
     #:settled selected-functor-probe-big-settled
     #:dead selected-functor-probe-big-dead
     #:final selected-functor-probe-big-final
-    #:evaluate selected-functor-probe-big-evaluate)
+    #:evaluate selected-functor-probe-big-evaluate
+    #:promotion-language selected-functor-probe-Big-lang
+    #:promote selected-functor-probe-promote)
    #:forms
    ((provide selected-functor-probe-Big-lang
              selected-functor-probe-query-evidence/Big
              selected-functor-probe-big-dispatch-one
              selected-functor-probe-big-dispatch
+             selected-functor-probe-big-refocus-frontier
+             selected-functor-probe-big-control-one
+             selected-functor-probe-big-control
+             selected-functor-probe-big-frontier
              selected-functor-probe-big-run
              selected-functor-probe-big-settled
              selected-functor-probe-big-dead
              selected-functor-probe-big-final
-             selected-functor-probe-big-evaluate)
+             selected-functor-probe-big-evaluate
+             selected-functor-probe-promote)
 
     (define-extended-language selected-functor-probe-Big-lang
       BASE-BIG-LANGUAGE
       [Task .... (Probe Input)]
-      [RunW .... (Probe Input)])
+      [WR .... (Probe Input)]
+      [RunW .... (Probe Input)]
+      [NonAllocateRun .... (Probe Input)])
 
     (redex-parameter:define-extended-judgment-form*
      BASE-BIG-PARAMETER-query-evidence
@@ -697,6 +733,32 @@
      #:mode (selected-functor-probe-big-dispatch I I O)
      #:parameters
      ([dispatch-next selected-functor-probe-big-dispatch-one]))
+
+    (redex-parameter:define-extended-judgment-form*
+     BASE-BIG-REFOCUS-FRONTIER
+     selected-functor-probe-Big-lang
+     #:mode (selected-functor-probe-big-refocus-frontier I O))
+
+    (redex-parameter:define-extended-judgment-form*
+     BASE-BIG-CONTROL-ONE
+     selected-functor-probe-Big-lang
+     #:mode (selected-functor-probe-big-control-one I O)
+     #:parameters
+     ([control-work-next selected-functor-probe-big-dispatch-one]))
+
+    (redex-parameter:define-extended-judgment-form*
+     BASE-BIG-CONTROL
+     selected-functor-probe-Big-lang
+     #:mode (selected-functor-probe-big-control I O)
+     #:parameters
+     ([control-next selected-functor-probe-big-control-one]))
+
+    (redex-parameter:define-extended-judgment-form*
+     BASE-BIG-FRONTIER
+     selected-functor-probe-Big-lang
+     #:mode (selected-functor-probe-big-frontier I I O)
+     #:parameters
+     ([frontier-control selected-functor-probe-big-control]))
 
     (redex-parameter:define-extended-judgment-form*
      BASE-BIG-RUN
@@ -730,7 +792,18 @@
      #:mode (selected-functor-probe-big-evaluate I O)
      #:parameters
      ([evaluate-dispatch selected-functor-probe-big-dispatch]
-      [evaluate-final selected-functor-probe-big-final])))
+      [evaluate-final selected-functor-probe-big-final]))
+
+    (redex-parameter:define-extended-judgment-form*
+     BASE-PROMOTE
+     selected-functor-probe-Big-lang
+     #:mode (selected-functor-probe-promote I O)
+     #:parameters
+     ([promote-run selected-functor-probe-big-run]
+      [promote-frontier selected-functor-probe-big-frontier]
+      [promote-settled selected-functor-probe-big-settled]
+      [promote-dead selected-functor-probe-big-dead]
+      [promote-final selected-functor-probe-big-final])))
    #:diagnostic-parameters
    ([query-evidence selected-functor-probe-query-evidence/Big-spec])
    #:diagnostics
@@ -740,7 +813,6 @@
     #:initialize selected-functor-probe-initialize-B
     #:close selected-functor-probe-close-B
     #:flatten selected-functor-probe-flatten-BTrace
-    #:promote selected-functor-probe-promote
     #:evaluate-spec selected-functor-probe-big-evaluate/spec
     #:unfold-square selected-functor-probe-B-Big-unfold-square
     #:closure-square selected-functor-probe-B-Big-closure-square
@@ -752,7 +824,6 @@
              selected-functor-probe-initialize-B
              selected-functor-probe-close-B
              selected-functor-probe-flatten-BTrace
-             selected-functor-probe-promote
              selected-functor-probe-big-evaluate/spec
              selected-functor-probe-B-Big-unfold-square
              selected-functor-probe-B-Big-closure-square
@@ -809,27 +880,6 @@
        (where (RuleName_rest ...)
               (selected-functor-probe-flatten-BTrace
                (TransitionSpan_rest ...)))])
-
-    (define-judgment-form selected-functor-probe-Big-spec-lang
-      #:contract (selected-functor-probe-promote B Big)
-      #:mode (selected-functor-probe-promote I O)
-      [(selected-functor-probe-big-run RunW SourceWorkFocus Big_0)
-       ----
-       (selected-functor-probe-promote
-        (BRun RunW SourceWorkFocus) Big_0)]
-      [(selected-functor-probe-big-settled
-        Settled SourceWorkFocus Big_0)
-       ----
-       (selected-functor-probe-promote
-        (BSettled Settled SourceWorkFocus) Big_0)]
-      [(selected-functor-probe-big-dead
-        FailureSummary SourceWorkFocus Big_0)
-       ----
-       (selected-functor-probe-promote
-        (BDead FailureSummary SourceWorkFocus) Big_0)]
-      [(selected-functor-probe-big-final T Big_0)
-       ----
-       (selected-functor-probe-promote (BFinal T) Big_0)])
 
     (define-judgment-form selected-functor-probe-Big-spec-lang
       #:contract

@@ -573,7 +573,27 @@
     (check-equal?
      (applied-Big
       (term (Root (Query "rejected"))))
-     '())))
+     '()))
+
+  (test-case "B whole-frontier normalization retains a foreign frame"
+    ;; This is a non-core witness for a frontier contractum whose next active
+    ;; redex lies under feature-owned syntax.  The B-local normalizer rebuilds
+    ;; the direct carrier without consulting M or a readback codec.
+    (check-equal?
+     (term
+      (selected-foreign-query-B-refocus-frontier
+       (Root (Box (Tick 7)))))
+     (term (BRun (Tick 7) (Root (Box hole)))))
+    (check-equal?
+     (judgment-holds
+      (selected-foreign-query-big-refocus-frontier
+       (Root (Box (Tick 7)))
+       any)
+      any)
+     (list
+      (term
+       (BigControlContinue
+        (BigWorkControl (Tick 7) (Root (Box hole)))))))))
 
 (module+ test
   (run-tests CORE-STAGE-EXTENSION-TESTS))

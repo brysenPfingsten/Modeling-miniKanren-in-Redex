@@ -238,7 +238,12 @@
     (check-true
      (regexp-match? #rx"work-focus-prefix-support/generated/s"
                     s-contents))
-    (check-true (regexp-match? #rx"[(]term WorkFocus[)]" s-contents))
+    (check-true
+     (regexp-match?
+      (regexp
+       (regexp-quote
+        "(term (WORK-FOCUS-PREFIX-HOOK WorkFocus ()))"))
+      s-contents))
     (check-false (regexp-match? #rx"whole-frontier" s-contents))
     (for ([path (in-list row-files)])
       (define contents (file->string path))

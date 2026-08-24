@@ -98,6 +98,7 @@
           #:language primary-output
           #:refocus-phase primary-output
           #:refocus-work-direct primary-output
+          #:refocus-frontier-direct primary-output
           #:refocus-direct primary-output
           #:step-direct #,Z-step-direct)
          #:forms ()
@@ -117,6 +118,7 @@
           #:language primary-output
           #:machineize primary-output
           #:refocus-work-direct primary-output
+          #:refocus-frontier-direct primary-output
           #:refocus-direct primary-output
           #:step-direct primary-output)
          #:forms ()
@@ -138,6 +140,7 @@
          (B-artifacts
           #:language primary-output
           #:compress primary-output
+          #:refocus-frontier-direct primary-output
           #:span-labels primary-output
           #:produce-settled primary-output
           #:produce-dead primary-output
@@ -164,11 +167,17 @@
           #:language primary-output
           #:dispatch-one primary-output
           #:dispatch primary-output
+          #:refocus-frontier-direct primary-output
+          #:control-one primary-output
+          #:control primary-output
+          #:frontier primary-output
           #:run primary-output
           #:settled primary-output
           #:dead primary-output
           #:final primary-output
-          #:evaluate primary-output)
+          #:evaluate primary-output
+          #:promotion-language primary-output
+          #:promote primary-output)
          #:forms ()
          #:diagnostic-parameters ()
          #:diagnostics
@@ -178,7 +187,6 @@
           #:initialize diagnostic-output
           #:close diagnostic-output
           #:flatten diagnostic-output
-          #:promote diagnostic-output
           #:evaluate-spec diagnostic-output
           #:unfold-square diagnostic-output
           #:closure-square diagnostic-output
@@ -394,6 +402,18 @@
       (empty-frame-big-evaluate (root (tick 3)) Big)
       Big)
      (list (term (BigFinal (halted 4))))))
+
+  (test-case "Big renders frontier-to-frontier instance IR through control"
+    (check-equal?
+     (judgment-holds
+      (empty-frame-big-dispatch/control-one
+       (BigFrontierControl (flip 3) hole)
+       ControlNext)
+      ControlNext)
+     (list
+      (term
+       (BigControlContinue
+        (BigFrontierControl (rail 4) hole))))))
 
   (test-case "direct extension forms cannot consume output diagnostics"
     (check-exn

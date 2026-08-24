@@ -48,9 +48,9 @@
      (where supply_new
             (advance/private-fixture supply (x_bound ...)))
      (where g_new
-            ,(SUBST-GOAL-HOOK
-              (term g)
-              (term ((x_bound rv_new) ...)))))]
+            (SUBST-GOAL-HOOK
+             g
+             ((x_bound rv_new) ...))))]
    #:addressing-hook address/private-fixture]
   #:supply/provenance
   [#:productions ([supply natural])

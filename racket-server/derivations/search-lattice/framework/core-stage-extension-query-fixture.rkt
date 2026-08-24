@@ -168,12 +168,14 @@
     #:language selected-foreign-query-Z-lang
     #:refocus-phase selected-foreign-query-refocus-phase
     #:refocus-work-direct selected-foreign-query-Z-refocus-work
+    #:refocus-frontier-direct selected-foreign-query-Z-refocus-frontier
     #:refocus-direct selected-foreign-query-Z-refocus
     #:step-direct selected-foreign-query-Z-step)
    #:forms
    ((provide selected-foreign-query-Z-lang
             selected-foreign-query-refocus-phase
             selected-foreign-query-Z-refocus-work
+            selected-foreign-query-Z-refocus-frontier
             selected-foreign-query-Z-refocus
             selected-foreign-query-Z-step)
 
@@ -213,6 +215,11 @@
     BASE-Z-REFOCUS-WORK
     selected-foreign-query-Z-lang
     #:mode (selected-foreign-query-Z-refocus-work I I O))
+
+   (redex-parameter:define-extended-judgment-form*
+    BASE-Z-REFOCUS-FRONTIER
+    selected-foreign-query-Z-lang
+    #:mode (selected-foreign-query-Z-refocus-frontier I O))
 
    (redex-parameter:define-extended-judgment-form*
     BASE-Z-REFOCUS
@@ -331,12 +338,14 @@
     #:language selected-foreign-query-M-lang
     #:machineize selected-foreign-query-machineize
     #:refocus-work-direct selected-foreign-query-M-refocus-work
+    #:refocus-frontier-direct selected-foreign-query-M-refocus-frontier
     #:refocus-direct selected-foreign-query-M-refocus
     #:step-direct selected-foreign-query-M-step)
    #:forms
    ((provide selected-foreign-query-M-lang
             selected-foreign-query-machineize
             selected-foreign-query-M-refocus-work
+            selected-foreign-query-M-refocus-frontier
             selected-foreign-query-M-refocus
             selected-foreign-query-M-step)
 
@@ -376,6 +385,11 @@
     BASE-M-REFOCUS-WORK
     selected-foreign-query-M-lang
     #:mode (selected-foreign-query-M-refocus-work I I O))
+
+   (redex-parameter:define-extended-judgment-form*
+    BASE-M-REFOCUS-FRONTIER
+    selected-foreign-query-M-lang
+    #:mode (selected-foreign-query-M-refocus-frontier I O))
 
    (redex-parameter:define-extended-judgment-form*
     BASE-M-REFOCUS
@@ -537,6 +551,7 @@
    (B-artifacts
     #:language selected-foreign-query-B-lang
     #:compress selected-foreign-query-compress
+    #:refocus-frontier-direct selected-foreign-query-B-refocus-frontier
     #:span-labels selected-foreign-query-span-labels
     #:produce-settled selected-foreign-query-base-produce-settled
     #:produce-dead selected-foreign-query-base-produce-dead
@@ -547,6 +562,7 @@
    #:forms
    ((provide selected-foreign-query-B-lang
             selected-foreign-query-compress
+            selected-foreign-query-B-refocus-frontier
             selected-foreign-query-span-labels
             selected-foreign-query-base-produce-settled
             selected-foreign-query-base-produce-dead
@@ -593,6 +609,11 @@
     selected-foreign-query-compress : M -> B)
 
    (redex-parameter:define-extended-metafunction*
+    BASE-B-REFOCUS-FRONTIER
+    selected-foreign-query-B-lang
+    selected-foreign-query-B-refocus-frontier : SourceF -> B)
+
+   (redex-parameter:define-extended-metafunction*
     BASE-SPAN-LABELS
     selected-foreign-query-B-lang
     selected-foreign-query-span-labels : TransitionSpan -> LabelTrace)
@@ -631,6 +652,8 @@
     #:mode (selected-foreign-query-singleton I O O)
     #:parameters
     ([query-evidence selected-foreign-query-evidence/B]
+     [singleton-refocus-frontier
+      selected-foreign-query-B-refocus-frontier]
      [singleton-advance-settled
       selected-foreign-query-base-advance-settled]
      [singleton-advance-dead
@@ -854,20 +877,31 @@
     #:language selected-foreign-query-Big-lang
     #:dispatch-one selected-foreign-query-big-dispatch-one
     #:dispatch selected-foreign-query-big-dispatch
+    #:refocus-frontier-direct selected-foreign-query-big-refocus-frontier
+    #:control-one selected-foreign-query-big-control-one
+    #:control selected-foreign-query-big-control
+    #:frontier selected-foreign-query-big-frontier
     #:run selected-foreign-query-big-run
     #:settled selected-foreign-query-big-settled
     #:dead selected-foreign-query-big-dead
     #:final selected-foreign-query-big-final
-    #:evaluate selected-foreign-query-big-evaluate)
+    #:evaluate selected-foreign-query-big-evaluate
+    #:promotion-language selected-foreign-query-Big-lang
+    #:promote selected-foreign-query-promote)
    #:forms
    ((provide selected-foreign-query-Big-lang
             selected-foreign-query-big-dispatch-one
             selected-foreign-query-big-dispatch
+            selected-foreign-query-big-refocus-frontier
+            selected-foreign-query-big-control-one
+            selected-foreign-query-big-control
+            selected-foreign-query-big-frontier
             selected-foreign-query-big-run
             selected-foreign-query-big-settled
             selected-foreign-query-big-dead
             selected-foreign-query-big-final
-            selected-foreign-query-big-evaluate)
+            selected-foreign-query-big-evaluate
+            selected-foreign-query-promote)
 
    (define-extended-language selected-foreign-query-Big-lang
      BASE-BIG-LANGUAGE
@@ -879,7 +913,12 @@
      [TaskPath ....
                (Box TaskPath)
                (Seal TaskPath)]
+     [WR ....
+         (Query Input)
+         (Box (Value N))
+         (Box (Crashed N))]
      [RunW .... (Query Input)]
+     [NonAllocateRun .... (Query Input)]
      [Frame .... (Box hole) (Seal hole)])
 
    (define-query-evidence-extension
@@ -917,6 +956,32 @@
     ([dispatch-next selected-foreign-query-big-dispatch-one]))
 
    (redex-parameter:define-extended-judgment-form*
+    BASE-BIG-REFOCUS-FRONTIER
+    selected-foreign-query-Big-lang
+    #:mode (selected-foreign-query-big-refocus-frontier I O))
+
+   (redex-parameter:define-extended-judgment-form*
+    BASE-BIG-CONTROL-ONE
+    selected-foreign-query-Big-lang
+    #:mode (selected-foreign-query-big-control-one I O)
+    #:parameters
+    ([control-work-next selected-foreign-query-big-dispatch-one]))
+
+   (redex-parameter:define-extended-judgment-form*
+    BASE-BIG-CONTROL
+    selected-foreign-query-Big-lang
+    #:mode (selected-foreign-query-big-control I O)
+    #:parameters
+    ([control-next selected-foreign-query-big-control-one]))
+
+   (redex-parameter:define-extended-judgment-form*
+    BASE-BIG-FRONTIER
+    selected-foreign-query-Big-lang
+    #:mode (selected-foreign-query-big-frontier I I O)
+    #:parameters
+    ([frontier-control selected-foreign-query-big-control]))
+
+   (redex-parameter:define-extended-judgment-form*
     BASE-BIG-RUN
     selected-foreign-query-Big-lang
     #:mode (selected-foreign-query-big-run I I O)
@@ -948,7 +1013,18 @@
     #:mode (selected-foreign-query-big-evaluate I O)
     #:parameters
     ([evaluate-dispatch selected-foreign-query-big-dispatch]
-     [evaluate-final selected-foreign-query-big-final])))
+     [evaluate-final selected-foreign-query-big-final]))
+
+   (redex-parameter:define-extended-judgment-form*
+    BASE-PROMOTE
+    selected-foreign-query-Big-lang
+    #:mode (selected-foreign-query-promote I O)
+    #:parameters
+    ([promote-run selected-foreign-query-big-run]
+     [promote-frontier selected-foreign-query-big-frontier]
+     [promote-settled selected-foreign-query-big-settled]
+     [promote-dead selected-foreign-query-big-dead]
+     [promote-final selected-foreign-query-big-final])))
    #:diagnostic-parameters
    ([query-evidence selected-foreign-query-evidence/Big-spec])
    #:diagnostics
@@ -958,7 +1034,6 @@
     #:initialize selected-foreign-query-initialize-B
     #:close selected-foreign-query-close-B
     #:flatten selected-foreign-query-flatten-BTrace
-    #:promote selected-foreign-query-promote
     #:evaluate-spec selected-foreign-query-big-evaluate/spec
     #:unfold-square selected-foreign-query-B-Big-unfold-square
     #:closure-square selected-foreign-query-B-Big-closure-square
@@ -969,7 +1044,6 @@
              selected-foreign-query-initialize-B
              selected-foreign-query-close-B
              selected-foreign-query-flatten-BTrace
-             selected-foreign-query-promote
              selected-foreign-query-big-evaluate/spec
              selected-foreign-query-B-Big-unfold-square
              selected-foreign-query-B-Big-closure-square
@@ -1048,32 +1122,6 @@
       (where (RuleName_rest ...)
              (selected-foreign-query-flatten-BTrace
               (TransitionSpan_rest ...)))])
-
-   ;; Promotion is the B-to-Big observation for the augmented row.  Its
-   ;; clauses call the already-generated direct feature wrappers, so it does
-   ;; not decode through an earlier stage or replay a premerged instance.
-   (define-judgment-form selected-foreign-query-Big-spec-lang
-     #:contract (selected-foreign-query-promote B Big)
-     #:mode (selected-foreign-query-promote I O)
-     [(selected-foreign-query-big-run
-       RunW SourceWorkFocus Big_0)
-      ----------------
-      (selected-foreign-query-promote
-       (BRun RunW SourceWorkFocus) Big_0)]
-     [(selected-foreign-query-big-settled
-       Settled SourceWorkFocus Big_0)
-      ----------------
-      (selected-foreign-query-promote
-       (BSettled Settled SourceWorkFocus) Big_0)]
-     [(selected-foreign-query-big-dead
-       FailureSummary SourceWorkFocus Big_0)
-      ----------------
-      (selected-foreign-query-promote
-       (BDead FailureSummary SourceWorkFocus) Big_0)]
-     [(selected-foreign-query-big-final T Big_0)
-      ----------------
-      (selected-foreign-query-promote
-       (BFinal T) Big_0)])
 
    (define-judgment-form selected-foreign-query-Big-spec-lang
      #:contract

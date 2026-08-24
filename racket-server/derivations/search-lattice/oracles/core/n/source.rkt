@@ -8,6 +8,7 @@
          allocate/raw/n
          work/base/n
          frontier/base/n
+         define-allocation/n
          allocate/base/n
          core-n-oracle-red
          raw-successors/n
@@ -94,32 +95,45 @@
         (Done next)
         "finish-failure"]))
 
-(define allocate/raw/n
-  (reduction-relation
-   core-n-oracle-lang
-   #:domain any
-   [--> (Work
-         (∃ (x_bound ...) g tag)
-         (state next_0 sub dis trail tag_state))
-        (Work
-         g_new
-         (state next_1 sub dis trail tag_state))
-        (where (lv_new ...)
-               (allocate-interval/n next_0 (x_bound ...)))
-        (where next_1
-               (advance-next/n next_0 (x_bound ...)))
-        (where g_new
-               (subst-goal/n g ((x_bound lv_new) ...)))
-        "allocate-fresh"]))
+;; The substitution metafunction identifier is the feature-extension seam for
+;; this otherwise unchanged numeric allocation equation.
+(define-syntax-rule
+  (define-allocation/n raw-id base-id language-id substitute-goal-id)
+  (begin
+    (define raw-id
+      (reduction-relation
+       language-id
+       #:domain any
+       [--> (Work
+             (∃ (x_bound (... ...)) g tag)
+             (state next_0 sub dis trail tag_state))
+            (Work
+             g_new
+             (state next_1 sub dis trail tag_state))
+            (where (lv_new (... ...))
+                   (allocate-interval/n next_0 (x_bound (... ...))))
+            (where next_1
+                   (advance-next/n next_0 (x_bound (... ...))))
+            (where g_new
+                   (substitute-goal-id
+                    g
+                    ((x_bound lv_new) (... ...))))
+            "allocate-fresh"]))
+
+    (define base-id
+      (context-closure raw-id language-id WorkFocus))))
+
+(define-allocation/n
+  allocate/raw/n
+  allocate/base/n
+  core-n-oracle-lang
+  subst-goal/n)
 
 (define work/base/n
   (context-closure work/raw/n core-n-oracle-lang WorkFocus))
 
 (define frontier/base/n
   (context-closure frontier/raw/n core-n-oracle-lang SpineContext))
-
-(define allocate/base/n
-  (context-closure allocate/raw/n core-n-oracle-lang WorkFocus))
 
 (define core-n-oracle-red
   (extend-reduction-relation

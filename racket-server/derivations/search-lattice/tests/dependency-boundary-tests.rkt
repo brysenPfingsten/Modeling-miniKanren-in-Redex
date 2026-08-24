@@ -15,8 +15,14 @@
   "../framework/stage-generators.rkt")
 (define-runtime-path selected-stage-renderer-file
   "../framework/core-stage-renderers.rkt")
+(define-runtime-path selected-source-schema-file
+  "../framework/core-source-schema.rkt")
 (define-runtime-path selected-redex-parameter-file
   "../framework/core-redex-parameter.rkt")
+(define-runtime-path delay-schema-file
+  "../framework/delay-schema.rkt")
+(define-runtime-path delay-schema-extension-fixture-file
+  "../framework/delay-schema-extension-fixture.rkt")
 (define-runtime-path selected-stage-extension-base-fixture-file
   "../framework/core-stage-extension-base-fixture.rkt")
 (define-runtime-path selected-stage-extension-query-fixture-file
@@ -342,10 +348,13 @@
        #rx"core-redex-parameter[.]rkt"))
      (sorted-path-strings
       (list selected-stage-renderer-file
+            selected-source-schema-file
             selected-stage-extension-base-fixture-file
             selected-stage-extension-query-fixture-file
             selected-stage-functor-probe-fixture-file
-            selected-stage-schema-test-file)))
+            selected-stage-schema-test-file
+            delay-schema-file
+            delay-schema-extension-fixture-file)))
     (define selected-parameter-contents
       (file->string selected-redex-parameter-file))
     (check-false

@@ -1,6 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
+         (prefix-in redex-parameter: "./core-redex-parameter.rkt")
          (for-syntax racket/base
                      racket/list
                      racket/match
@@ -9,13 +10,36 @@
 
 (provide define-core-representation-strategy
          define-generated-core-source
-         define-generated-core-representation-maps)
+         define-generated-core-representation-maps
+         (for-syntax render-selected-live-supply-driver))
 
 ;; A representation strategy is syntax, not a runtime value.  Keeping the
 ;; declaration at expansion time lets an instance emit ordinary, statically
 ;; named Redex artifacts without a compiled-language registry or grammar
 ;; introspection.
 (begin-for-syntax
+  ;; Live-supply traversal is a fixed-point scaffold over an extensible
+  ;; one-layer case judgment.  Rendering the same scaffold in each exact
+  ;; feature language keeps recursive descent in that language; descendants
+  ;; extend only the case artifact and never copy a semantic clause.
+  (define (render-selected-live-supply-driver
+           language relation case-relation)
+    (with-syntax ([language language]
+                  [relation relation]
+                  [case-relation case-relation])
+      #'(redex-parameter:define-judgment-form*
+          language
+          #:parameters ([live-next case-relation])
+          #:mode (relation I I O)
+          #:contract (relation W supply supply)
+          [(live-next W_0 supply_in (LiveDone supply_out))
+           ----
+           (relation W_0 supply_in supply_out)]
+          [(live-next W_0 supply_in (LiveContinue W_1 supply_next))
+           (relation W_1 supply_next supply_out)
+           ----
+           (relation W_0 supply_in supply_out)])))
+
   (struct strategy-binding (declaration)
     #:property prop:procedure
     (lambda (_self use-stx)
@@ -32,6 +56,21 @@
   (struct source-interface-binding
     (selected-view
      language
+     redex-parameters
+     work-raw frontier-raw allocation-raw
+     subst-goal subst-goal-open
+     wf-root wf-goal live-supply failure-summary wf-work wf-frontier
+     wf-goal-case wf-goal-tasks live-supply-case wf-node-case wf-nodes
+     work-template dead-template conj-template more-template
+     work-focus-prefix
+     work-focus-prefix-open
+     prefix-empty q-prefix-empty prefix-extend-premises
+     transfer-work-open
+     q-export-local q-rebuild-local
+     q-work-export-open q-work-support-open q-work-rebuild-open
+     q-frontier-export-open q-frontier-support-open q-frontier-rebuild-open
+     q-path-export-open q-path-rebuild-open
+     q-failure-export q-failure-rebuild q-address-goal-open
      q-export q-rebuild
      focus-export focus-rebuild
      root-focus-export root-focus-rebuild
@@ -64,6 +103,83 @@
             #:Q-terminal-rebuild
             #,(source-interface-binding-terminal-rebuild self)
             argument ...)]
+        [(_ #:visit-extension visitor:id argument ...)
+         (unless
+             (and (source-interface-binding-q-work-export-open self)
+                  (syntax-e
+                   (source-interface-binding-q-work-export-open self)))
+           (raise-syntax-error
+            #f
+            "this source strategy does not declare the extension visitor hooks"
+            use-stx))
+         #`(visitor
+            #:language #,(source-interface-binding-language self)
+            #:redex-parameters
+            #,(source-interface-binding-redex-parameters self)
+            #:R-work-raw #,(source-interface-binding-work-raw self)
+            #:R-frontier-raw #,(source-interface-binding-frontier-raw self)
+            #:R-allocation-raw #,(source-interface-binding-allocation-raw self)
+            #:subst-goal #,(source-interface-binding-subst-goal self)
+            #:subst-goal-open #,(source-interface-binding-subst-goal-open self)
+            #:wf-root #,(source-interface-binding-wf-root self)
+            #:wf-goal #,(source-interface-binding-wf-goal self)
+            #:live-supply #,(source-interface-binding-live-supply self)
+            #:failure-summary
+            #,(source-interface-binding-failure-summary self)
+            #:wf-work #,(source-interface-binding-wf-work self)
+            #:wf-frontier #,(source-interface-binding-wf-frontier self)
+            #:WF-open
+            [#:goal-case #,(source-interface-binding-wf-goal-case self)
+             #:goal-tasks #,(source-interface-binding-wf-goal-tasks self)
+             #:live-case #,(source-interface-binding-live-supply-case self)
+             #:node-case #,(source-interface-binding-wf-node-case self)
+             #:nodes #,(source-interface-binding-wf-nodes self)]
+            #:carrier-view
+            [#:work #,(source-interface-binding-work-template self)
+             #:dead #,(source-interface-binding-dead-template self)
+             #:conj #,(source-interface-binding-conj-template self)
+             #:more #,(source-interface-binding-more-template self)
+             #:empty-supply #,(source-interface-binding-prefix-empty self)]
+            #:prefix-view
+            [#:extend-premises
+             (#,@(syntax->list
+                  (source-interface-binding-prefix-extend-premises self)))
+             #:Q-empty
+             #,(source-interface-binding-q-prefix-empty self)
+             #:work-focus-support
+             #,(source-interface-binding-work-focus-prefix self)
+             #:work-focus-support-open
+             #,(source-interface-binding-work-focus-prefix-open self)
+             #:transfer-work-open
+             #,(source-interface-binding-transfer-work-open self)
+             #:Q-export-local
+             #,(source-interface-binding-q-export-local self)
+             #:Q-rebuild-local
+             #,(source-interface-binding-q-rebuild-local self)]
+            #:Q-open
+            [#:work-export
+             #,(source-interface-binding-q-work-export-open self)
+             #:work-support
+             #,(source-interface-binding-q-work-support-open self)
+             #:work-rebuild
+             #,(source-interface-binding-q-work-rebuild-open self)
+             #:frontier-export
+             #,(source-interface-binding-q-frontier-export-open self)
+             #:frontier-support
+             #,(source-interface-binding-q-frontier-support-open self)
+             #:frontier-rebuild
+             #,(source-interface-binding-q-frontier-rebuild-open self)
+             #:path-export
+             #,(source-interface-binding-q-path-export-open self)
+             #:path-rebuild
+             #,(source-interface-binding-q-path-rebuild-open self)
+             #:failure-export
+             #,(source-interface-binding-q-failure-export self)
+             #:failure-rebuild
+             #,(source-interface-binding-q-failure-rebuild self)
+             #:address-goal
+             #,(source-interface-binding-q-address-goal-open self)]
+            argument ...)]
         [_
          (raise-syntax-error
           #f
@@ -82,6 +198,7 @@
      allocation-source
      allocation-target
      allocation-premises
+     work-focus-prefix-open
      addressing-hook)
     #:transparent)
 
@@ -99,11 +216,19 @@
     #:transparent)
   (struct q-info
     (definitions
+     work-export-open work-support-open work-rebuild-open
+     frontier-export-open frontier-support-open frontier-rebuild-open
+     path-export-open path-rebuild-open
+     failure-export failure-rebuild address-goal-open
      export rebuild
      focus-export focus-rebuild
      root-focus-export root-focus-rebuild
      failure-focus-export failure-focus-rebuild
      terminal-export terminal-rebuild)
+    #:transparent)
+
+  (struct prefix-info
+    (transfer-work-open transfer-work q-export-local q-rebuild-local)
     #:transparent)
 
   (struct supply-info
@@ -118,6 +243,7 @@
      live-supply-hook
      failure-summary-hook
      definitions
+     prefix
      wf
      q)
     #:transparent)
@@ -185,7 +311,7 @@
          definition))))
 
   (define fixed-nonterminals
-    '(d eq g t pt x rv tag sigma sub dis maybe-sub trail
+    '(d alloc support eq g t pt x rv tag sigma sub dis maybe-sub trail
         A S W F WorkPath SpineContext WorkFocus))
 
   (define (production-name production)
@@ -238,6 +364,9 @@
            [#:source allocation-source
             #:target allocation-target
             #:premises (allocation-premise ...)]
+           (~optional
+            (~seq #:work-focus-prefix-open work-focus-prefix-open:id)
+            #:defaults ([work-focus-prefix-open #'#f]))
            #:addressing-hook addressing-hook:id]
           #:supply/provenance
           [#:productions (supply-production ...)
@@ -260,6 +389,18 @@
            #:live-supply-hook live-supply-hook:id
            #:failure-summary-hook failure-summary-hook:id
            #:definitions (supply-definition ...)
+           (~optional
+            (~seq
+             #:extension-prefix
+             [#:transfer-work-open transfer-work-open:id
+              #:transfer-work transfer-work:id
+              #:Q-export-local q-export-local:id
+              #:Q-rebuild-local q-rebuild-local:id])
+            #:defaults
+            ([transfer-work-open #'#f]
+             [transfer-work #'#f]
+             [q-export-local #'#f]
+             [q-rebuild-local #'#f]))
            #:well-formedness
            [#:definitions (wf-definition ...)
             #:allocated-hook allocated-hook:id
@@ -274,6 +415,32 @@
             #:root wf-root:id]
            #:q-map
            [#:definitions (q-definition ...)
+            (~optional
+             (~seq
+              #:open
+              [#:work-export q-work-export-open:id
+               #:work-support q-work-support-open:id
+               #:work-rebuild q-work-rebuild-open:id
+               #:frontier-export q-frontier-export-open:id
+               #:frontier-support q-frontier-support-open:id
+               #:frontier-rebuild q-frontier-rebuild-open:id
+               #:path-export q-path-export-open:id
+               #:path-rebuild q-path-rebuild-open:id
+               #:failure-export q-failure-export:id
+               #:failure-rebuild q-failure-rebuild:id
+               #:address-goal q-address-goal-open:id])
+             #:defaults
+             ([q-work-export-open #'#f]
+              [q-work-support-open #'#f]
+              [q-work-rebuild-open #'#f]
+              [q-frontier-export-open #'#f]
+              [q-frontier-support-open #'#f]
+              [q-frontier-rebuild-open #'#f]
+              [q-path-export-open #'#f]
+              [q-path-rebuild-open #'#f]
+              [q-failure-export #'#f]
+              [q-failure-rebuild #'#f]
+              [q-address-goal-open #'#f]))
             #:export q-export:id
             #:rebuild q-rebuild:id
             #:focus-export q-focus-export:id
@@ -335,6 +502,7 @@
          #'allocation-source
          #'allocation-target
          (syntax->list #'(allocation-premise ...))
+         #'work-focus-prefix-open
          #'addressing-hook)
         (supply-info
          supply-productions
@@ -356,6 +524,11 @@
          #'live-supply-hook
          #'failure-summary-hook
          supply-definitions
+         (prefix-info
+          #'transfer-work-open
+          #'transfer-work
+          #'q-export-local
+          #'q-rebuild-local)
          (wf-info
           wf-definitions
           #'allocated-hook
@@ -368,6 +541,17 @@
           (syntax->list #'(terminal-prefix-premise ...))
           #'wf-root)
          (q-info q-definitions
+                 #'q-work-export-open
+                 #'q-work-support-open
+                 #'q-work-rebuild-open
+                 #'q-frontier-export-open
+                 #'q-frontier-support-open
+                 #'q-frontier-rebuild-open
+                 #'q-path-export-open
+                 #'q-path-rebuild-open
+                 #'q-failure-export
+                 #'q-failure-rebuild
+                 #'q-address-goal-open
                  #'q-export
                  #'q-rebuild
                  #'q-focus-export
@@ -505,6 +689,7 @@
        #`(in-hole #,root-focus #,payload)]
       [('root-failed (list _summary raw _spine))
        #`(in-hole #,root-focus #,raw)]
+      [('frontier (list payload _spine)) payload]
       [(_ _)
        (error 'control->source-term
               "unsupported source control ~e"
@@ -521,6 +706,7 @@
        #`(in-hole #,frame #,payload)]
       [('settled (list payload _context)) payload]
       [('failed (list _summary raw _context)) raw]
+      [('frontier (list payload _spine)) payload]
       [('final (list payload _spine)) payload]
       [(_ _)
        (error 'control->target-term
@@ -626,6 +812,12 @@
       (format-id relation-id "~a/frontier-raw" relation-id))
     (define allocation-raw-id
       (format-id relation-id "~a/allocation-raw" relation-id))
+    (define allocation-subst-goal-id
+      (format-id relation-id "~a/allocation-subst-goal" relation-id))
+    (define allocation-work-focus-prefix-id
+      (format-id relation-id
+                 "~a/allocation-work-focus-prefix-support"
+                 relation-id))
     (define work-base-id (format-id relation-id "~a/work-base" relation-id))
     (define frontier-base-id
       (format-id relation-id "~a/frontier-base" relation-id))
@@ -642,6 +834,14 @@
       (format-id relation-id "~a/drop-shadowed" relation-id))
     (define subst-goal-id
       (format-id relation-id "~a/subst-goal" relation-id))
+    (define subst-goal-open-id
+      (format-id relation-id "~a/subst-goal/open" relation-id))
+    (define subst-goal-artifact-id
+      (format-id relation-id "~a/subst-goal/direct" relation-id))
+    (define work-focus-prefix-id
+      (format-id relation-id "~a/work-focus-prefix-support" relation-id))
+    (define work-focus-prefix-host-id
+      (format-id relation-id "~a/work-focus-prefix-support/host" relation-id))
     (define wf-root-id
       (public-hook (wf-info-root (supply-info-wf supply))))
     (define live-supply-id
@@ -654,12 +854,22 @@
     (define wf-trail-id (format-id wf-root-id "~a/trail" wf-root-id))
     (define wf-state-id (format-id wf-root-id "~a/state" wf-root-id))
     (define wf-goal-id (format-id wf-root-id "~a/goal" wf-root-id))
+    (define wf-goal-case-id
+      (format-id wf-root-id "~a/goal-case" wf-root-id))
+    (define wf-goal-tasks-id
+      (format-id wf-root-id "~a/goal-tasks" wf-root-id))
     (define wf-answer-id (format-id wf-root-id "~a/answer" wf-root-id))
     (define wf-returned-id
       (format-id wf-root-id "~a/returned" wf-root-id))
     (define wf-work-id (format-id wf-root-id "~a/work" wf-root-id))
     (define wf-frontier-id
       (format-id wf-root-id "~a/frontier" wf-root-id))
+    (define wf-node-case-id
+      (format-id wf-root-id "~a/node-case" wf-root-id))
+    (define wf-nodes-id
+      (format-id wf-root-id "~a/nodes" wf-root-id))
+    (define live-supply-one-id
+      (format-id live-supply-id "~a/one" live-supply-id))
 
     (define wf (supply-info-wf supply))
     (define wf-root (wf-info-root wf))
@@ -690,8 +900,34 @@
       (q-info-terminal-export (supply-info-q supply)))
     (define q-terminal-rebuild
       (q-info-terminal-rebuild (supply-info-q supply)))
+    (define prefix (supply-info-prefix supply))
+    (define work-focus-prefix-open
+      (variable-info-work-focus-prefix-open variable))
+    (define q-open (supply-info-q supply))
+    (define (optional-public-hook declared-id)
+      (and (syntax-e declared-id) (public-hook declared-id)))
+    (define extension-hook-identifiers
+      (filter
+       (lambda (identifier) (syntax-e identifier))
+       (list work-focus-prefix-open
+             (prefix-info-transfer-work-open prefix)
+             (prefix-info-transfer-work prefix)
+             (prefix-info-q-export-local prefix)
+             (prefix-info-q-rebuild-local prefix)
+             (q-info-work-export-open q-open)
+             (q-info-work-support-open q-open)
+             (q-info-work-rebuild-open q-open)
+             (q-info-frontier-export-open q-open)
+             (q-info-frontier-support-open q-open)
+             (q-info-frontier-rebuild-open q-open)
+             (q-info-path-export-open q-open)
+             (q-info-path-rebuild-open q-open)
+             (q-info-failure-export q-open)
+             (q-info-failure-rebuild q-open)
+             (q-info-address-goal-open q-open))))
     (define hook-replacements
-      (list
+      (append
+       (list
        (cons 'WALK-HOOK walk-id)
        (cons 'UNIFY-HOOK unify-id)
        (cons 'INVALID-HOOK invalid-id)
@@ -750,7 +986,9 @@
        (cons (syntax-e q-terminal-export)
              (public-hook q-terminal-export))
        (cons (syntax-e q-terminal-rebuild)
-             (public-hook q-terminal-rebuild))))
+             (public-hook q-terminal-rebuild)))
+       (for/list ([identifier (in-list extension-hook-identifiers)])
+         (cons (syntax-e identifier) (public-hook identifier)))))
 
     (define variable-definitions
       (instantiate-definitions
@@ -779,9 +1017,21 @@
       (instantiate-wf-premises (wf-info-state-supply-premises wf)))
     (define frame-prefix-premises
       (instantiate-wf-premises (wf-info-frame-prefix-premises wf)))
+    (define extension-prefix-premises
+      (for/list ([premise (in-list (wf-info-frame-prefix-premises wf))])
+        (instantiate-template
+         premise
+         (cons (cons 'supply_frame supply-out)
+               hook-replacements))))
     (define conjunction-goal-supply-premises
-      (instantiate-wf-premises
-       (wf-info-conjunction-goal-supply-premises wf)))
+      (for/list
+          ([premise
+            (in-list
+             (wf-info-conjunction-goal-supply-premises wf))])
+        (instantiate-template
+         premise
+         (append hook-replacements
+                 (list (cons 'LIVE-SUPPLY-HOOK #'wf-node-live))))))
     (define terminal-prefix-premises
       (instantiate-wf-premises (wf-info-terminal-prefix-premises wf)))
 
@@ -884,20 +1134,32 @@
     (define allocation-source
       (instantiate-template
        (variable-info-allocation-source variable)
-       (cons (cons 'subst-goal-hook subst-goal-id)
-             hook-replacements)))
+       (append
+        hook-replacements
+        (list (cons 'SUBST-GOAL-HOOK allocation-subst-goal-id)
+              (cons 'subst-goal-hook allocation-subst-goal-id)
+              (cons 'WORK-FOCUS-PREFIX-HOOK
+                    allocation-work-focus-prefix-id)))))
     (define allocation-target
       (instantiate-template
        (variable-info-allocation-target variable)
-       (cons (cons 'subst-goal-hook subst-goal-id)
-             hook-replacements)))
+       (append
+        hook-replacements
+        (list (cons 'SUBST-GOAL-HOOK allocation-subst-goal-id)
+              (cons 'subst-goal-hook allocation-subst-goal-id)
+              (cons 'WORK-FOCUS-PREFIX-HOOK
+                    allocation-work-focus-prefix-id)))))
     (define allocation-premises
       (for/list ([premise
                   (in-list (variable-info-allocation-premises variable))])
         (instantiate-template
          premise
-         (cons (cons 'subst-goal-hook subst-goal-id)
-               hook-replacements))))
+         (append
+          hook-replacements
+          (list (cons 'SUBST-GOAL-HOOK allocation-subst-goal-id)
+                (cons 'subst-goal-hook allocation-subst-goal-id)
+                (cons 'WORK-FOCUS-PREFIX-HOOK
+                      allocation-work-focus-prefix-id))))))
 
     (define hole-v (slot 'hole))
     (define work-focus-v (slot 'WorkFocus))
@@ -1106,6 +1368,9 @@
     (define selected-stage-view
       #`(define-selected-core-instance SOURCE-INSTANCE
           #:source-language #,language-id
+          #:redex-parameters
+          ([#,allocation-subst-goal-id #,subst-goal-artifact-id]
+           [#,allocation-work-focus-prefix-id #,work-focus-prefix-id])
           #:variable-view
           [#:runtime-variable #,rv-v]
           #:live-state-view
@@ -1248,99 +1513,139 @@
              ---------------------------------------- "logical state"
              (#,wf-state-id #,wf-state-pattern supply_in)])
 
-          (define-judgment-form
+          ;; Goal traversal is split into a feature-extensible, nonrecursive
+          ;; classifier and a representation-neutral task driver.  Lifting
+          ;; the driver to an extended language therefore routes every nested
+          ;; goal through the exact-language classifier.
+          (redex-parameter:define-judgment-form*
             #,language-id
-            #:contract (#,wf-goal-id g (x (... ...)) supply)
-            #:mode (#,wf-goal-id I I I)
+            #:mode (#,wf-goal-case-id I O)
+            #:contract (#,wf-goal-case-id WFGoalTask WFGoalTasks)
 
             [---------------------------------------- "success goal"
-             (#,wf-goal-id
-              (succeed tag)
-              (x_bound (... ...))
-              supply)]
+             (#,wf-goal-case-id
+              (GoalCheck (succeed tag) (x_bound (... ...)) supply)
+              (GoalChecks))]
 
             [---------------------------------------- "failure goal"
-             (#,wf-goal-id
-              (fail tag)
-              (x_bound (... ...))
-              supply)]
+             (#,wf-goal-case-id
+              (GoalCheck (fail tag) (x_bound (... ...)) supply)
+              (GoalChecks))]
 
             [(#,wf-term-id t_1 (x_bound (... ...)) supply)
              (#,wf-term-id t_2 (x_bound (... ...)) supply)
              ---------------------------------------- "unification goal"
-             (#,wf-goal-id
-              (t_1 =? t_2 tag)
-              (x_bound (... ...))
-              supply)]
+             (#,wf-goal-case-id
+              (GoalCheck
+               (t_1 =? t_2 tag)
+               (x_bound (... ...))
+               supply)
+              (GoalChecks))]
 
             [(#,wf-term-id t_1 (x_bound (... ...)) supply)
              (#,wf-term-id t_2 (x_bound (... ...)) supply)
              ---------------------------------------- "disequality goal"
-             (#,wf-goal-id
-              (t_1 != t_2 tag)
-              (x_bound (... ...))
-              supply)]
+             (#,wf-goal-case-id
+              (GoalCheck
+               (t_1 != t_2 tag)
+               (x_bound (... ...))
+               supply)
+              (GoalChecks))]
 
-            [(#,wf-goal-id
-              g
-              (x_fresh (... ...) x_bound (... ...))
-              supply)
-             ---------------------------------------- "fresh goal"
-             (#,wf-goal-id
-              (∃ (x_fresh (... ...)) g tag)
-              (x_bound (... ...))
-              supply)]
+            [---------------------------------------- "fresh goal"
+             (#,wf-goal-case-id
+              (GoalCheck
+               (∃ (x_fresh (... ...)) g tag)
+               (x_bound (... ...))
+               supply)
+              (GoalChecks
+               (GoalCheck
+                g
+                (x_fresh (... ...) x_bound (... ...))
+                supply)))]
 
-            [(#,wf-goal-id g_1 (x_bound (... ...)) supply)
-             (#,wf-goal-id g_2 (x_bound (... ...)) supply)
-             ---------------------------------------- "conjunction goal"
-             (#,wf-goal-id
-              (g_1 ∧ g_2 tag)
-              (x_bound (... ...))
-              supply)])
+            [---------------------------------------- "conjunction goal"
+             (#,wf-goal-case-id
+              (GoalCheck
+               (g_1 ∧ g_2 tag)
+               (x_bound (... ...))
+               supply)
+              (GoalChecks
+               (GoalCheck g_1 (x_bound (... ...)) supply)
+               (GoalCheck g_2 (x_bound (... ...)) supply)))])
 
-          (define-judgment-form
+          (redex-parameter:define-judgment-form*
             #,language-id
-            #:contract (#,live-supply-id W supply supply)
-            #:mode (#,live-supply-id I I O)
+            #:parameters ([wf-goal-next #,wf-goal-case-id])
+            #:mode (#,wf-goal-tasks-id I)
+            #:contract (#,wf-goal-tasks-id WFGoalTasks)
+            [----
+             (#,wf-goal-tasks-id (GoalChecks))]
+            [(wf-goal-next
+              WFGoalTask_0
+              (GoalChecks WFGoalTask_child (... ...)))
+             (#,wf-goal-tasks-id
+              (GoalChecks
+               WFGoalTask_child (... ...)
+               WFGoalTask_rest (... ...)))
+             ----
+             (#,wf-goal-tasks-id
+              (GoalChecks WFGoalTask_0 WFGoalTask_rest (... ...)))])
+
+          (redex-parameter:define-judgment-form*
+            #,language-id
+            #:parameters ([wf-goal-run #,wf-goal-tasks-id])
+            #:mode (#,wf-goal-id I I I)
+            #:contract (#,wf-goal-id g (x (... ...)) supply)
+            [(wf-goal-run
+              (GoalChecks (GoalCheck g (x_bound (... ...)) supply)))
+             ----
+             (#,wf-goal-id g (x_bound (... ...)) supply)])
+
+          (redex-parameter:define-judgment-form*
+            #,language-id
+            #:mode (#,live-supply-one-id I I O)
+            #:contract (#,live-supply-one-id W supply LiveNext)
 
             [(#,extend-supply-hook
               supply_in
               supply_local
               supply_out)
              ---------------------------------------- "work exposes supply"
-             (#,live-supply-id
+             (#,live-supply-one-id
               #,wf-active-pattern
               supply_in
-              supply_out)]
+              (LiveDone supply_out))]
 
             [(#,extend-supply-hook
               supply_in
               supply_local
               supply_out)
              ---------------------------------------- "return exposes supply"
-             (#,live-supply-id
+             (#,live-supply-one-id
               #,wf-returned-pattern
               supply_in
-              supply_out)]
+              (LiveDone supply_out))]
 
             [(#,extend-supply-hook
               supply_in
               supply_local
               supply_out)
              ---------------------------------------- "failure exposes supply"
-             (#,live-supply-id
+             (#,live-supply-one-id
               #,wf-dead-pattern
               supply_in
-              supply_out)]
+              (LiveDone supply_out))]
 
             [#,@frame-prefix-premises
-             (#,live-supply-id W supply_frame supply_out)
              ---------------------------------------- "supply through conjunction"
-             (#,live-supply-id
+             (#,live-supply-one-id
               #,wf-conj-pattern
               supply_in
-              supply_out)])
+              (LiveContinue W supply_frame))])
+
+          #,(render-selected-live-supply-driver
+             language-id live-supply-id live-supply-one-id)
 
           (define-metafunction #,language-id
             #,failure-summary-id : any -> supply
@@ -1371,23 +1676,34 @@
              ---------------------------------------- "returned"
              (#,wf-returned-id #,wf-returned-pattern supply_in)])
 
-          (define-judgment-form
+          ;; Work and frontier traversal share the same open task driver.
+          ;; Delay extends only this nonrecursive classifier with Pending and
+          ;; Forced cases; inherited Conj/More recursion then reaches those
+          ;; cases through the exact-language `wf-node-next` dependency.
+          (redex-parameter:define-judgment-form*
             #,language-id
-            #:contract (#,wf-work-id W supply)
-            #:mode (#,wf-work-id I I)
+            #:parameters
+            ([wf-node-goal #,wf-goal-id]
+             [wf-node-live #,live-supply-id])
+            #:mode (#,wf-node-case-id I O)
+            #:contract (#,wf-node-case-id WFNode WFNodes)
 
             [(#,extend-supply-hook
               supply_in
               supply_local
               supply_out)
-             (#,wf-goal-id g () supply_out)
+             (wf-node-goal g () supply_out)
              (#,wf-state-id #,wf-state-pattern supply_out)
              ---------------------------------------- "active work"
-             (#,wf-work-id #,wf-active-pattern supply_in)]
+             (#,wf-node-case-id
+              (WorkCheck #,wf-active-pattern supply_in)
+              (NodeChecks))]
 
             [(#,wf-returned-id #,wf-returned-pattern supply_in)
              ---------------------------------------- "returned work"
-             (#,wf-work-id #,wf-returned-pattern supply_in)]
+             (#,wf-node-case-id
+              (WorkCheck #,wf-returned-pattern supply_in)
+              (NodeChecks))]
 
             [(#,extend-supply-hook
               supply_in
@@ -1395,42 +1711,83 @@
               supply_out)
              (#,valid-supply-hook supply_out)
              ---------------------------------------- "dead work"
-             (#,wf-work-id #,wf-dead-pattern supply_in)]
+             (#,wf-node-case-id
+              (WorkCheck #,wf-dead-pattern supply_in)
+              (NodeChecks))]
 
             [#,@frame-prefix-premises
-             (#,wf-work-id W supply_frame)
              #,@conjunction-goal-supply-premises
-             (#,wf-goal-id g () supply_goal)
+             (wf-node-goal g () supply_goal)
              ---------------------------------------- "conjunction frame"
-             (#,wf-work-id #,wf-conj-pattern supply_in)])
+             (#,wf-node-case-id
+              (WorkCheck #,wf-conj-pattern supply_in)
+              (NodeChecks (WorkCheck W supply_frame)))]
 
-          (define-judgment-form
-            #,language-id
-            #:contract (#,wf-frontier-id F)
-            #:mode (#,wf-frontier-id I)
-
-            [(#,wf-work-id W #,empty-supply)
-             ---------------------------------------- "unfinished frontier"
-             (#,wf-frontier-id #,wf-more-pattern)]
+            [---------------------------------------- "unfinished frontier"
+             (#,wf-node-case-id
+              (FrontierCheck #,wf-more-pattern supply_in)
+              (NodeChecks (WorkCheck W supply_in)))]
 
             [#,@terminal-prefix-premises
              (#,wf-answer-id A supply_prefix)
              ---------------------------------------- "successful terminal"
-             (#,wf-frontier-id #,wf-last-pattern)]
+             (#,wf-node-case-id
+              (FrontierCheck #,wf-last-pattern supply_in)
+              (NodeChecks))]
 
             [(#,extend-supply-hook
-              #,empty-supply
+              supply_in
               supply_local
               supply_out)
              (#,valid-supply-hook supply_out)
              ---------------------------------------- "failed terminal"
-             (#,wf-frontier-id #,wf-done-pattern)])
+             (#,wf-node-case-id
+              (FrontierCheck #,wf-done-pattern supply_in)
+              (NodeChecks))])
 
-          (define-judgment-form
+          (redex-parameter:define-judgment-form*
             #,language-id
-            #:contract (#,wf-root-id F)
+            #:parameters ([wf-node-next #,wf-node-case-id])
+            #:mode (#,wf-nodes-id I)
+            #:contract (#,wf-nodes-id WFNodes)
+            [----
+             (#,wf-nodes-id (NodeChecks))]
+            [(wf-node-next
+              WFNode_0
+              (NodeChecks WFNode_child (... ...)))
+             (#,wf-nodes-id
+              (NodeChecks
+               WFNode_child (... ...)
+               WFNode_rest (... ...)))
+             ----
+             (#,wf-nodes-id
+              (NodeChecks WFNode_0 WFNode_rest (... ...)))])
+
+          (redex-parameter:define-judgment-form*
+            #,language-id
+            #:parameters ([wf-work-run #,wf-nodes-id])
+            #:mode (#,wf-work-id I I)
+            #:contract (#,wf-work-id W supply)
+            [(wf-work-run (NodeChecks (WorkCheck W supply_in)))
+             ---------------------------------------- "unfinished frontier"
+             (#,wf-work-id W supply_in)])
+
+          (redex-parameter:define-judgment-form*
+            #,language-id
+            #:parameters ([wf-frontier-run #,wf-nodes-id])
+            #:mode (#,wf-frontier-id I I)
+            #:contract (#,wf-frontier-id F supply)
+            [(wf-frontier-run
+              (NodeChecks (FrontierCheck F supply_in)))
+             ----
+             (#,wf-frontier-id F supply_in)])
+
+          (redex-parameter:define-judgment-form*
+            #,language-id
+            #:parameters ([wf-root-frontier #,wf-frontier-id])
             #:mode (#,wf-root-id I)
-            [(#,wf-frontier-id F)
+            #:contract (#,wf-root-id F)
+            [(wf-root-frontier F #,empty-supply)
              ---------------------------------------- "generated core root"
              (#,wf-root-id F)]))
        (for/list ([symbol
@@ -1452,6 +1809,78 @@
                     (source-interface-binding
                      (quote-syntax #,selected-stage-view)
                      (quote-syntax #,language-id)
+                     (quote-syntax
+                      ([#,allocation-subst-goal-id #,subst-goal-artifact-id]
+                       [#,allocation-work-focus-prefix-id
+                        #,work-focus-prefix-id]))
+                     (quote-syntax #,work-raw-id)
+                     (quote-syntax #,frontier-raw-id)
+                     (quote-syntax #,allocation-raw-id)
+                     (quote-syntax #,subst-goal-artifact-id)
+                     (quote-syntax #,subst-goal-open-id)
+                     (quote-syntax #,wf-root-id)
+                     (quote-syntax #,wf-goal-id)
+                     (quote-syntax #,live-supply-id)
+                     (quote-syntax #,failure-summary-id)
+                     (quote-syntax #,wf-work-id)
+                     (quote-syntax #,wf-frontier-id)
+                     (quote-syntax #,wf-goal-case-id)
+                     (quote-syntax #,wf-goal-tasks-id)
+                     (quote-syntax #,live-supply-one-id)
+                     (quote-syntax #,wf-node-case-id)
+                     (quote-syntax #,wf-nodes-id)
+                     (quote-syntax #,(work supply-v g-v sigma-v))
+                     (quote-syntax #,(dead supply-v))
+                     (quote-syntax #,(conj supply-v W-v g-v))
+                     (quote-syntax #,(more W-v))
+                     (quote-syntax #,work-focus-prefix-id)
+                     (quote-syntax
+                      #,(optional-public-hook work-focus-prefix-open))
+                     (quote-syntax #,empty-supply)
+                     (quote-syntax '())
+                     (quote-syntax (#,@extension-prefix-premises))
+                     (quote-syntax
+                      #,(optional-public-hook
+                         (prefix-info-transfer-work-open prefix)))
+                     (quote-syntax
+                      #,(optional-public-hook
+                         (prefix-info-q-export-local prefix)))
+                     (quote-syntax
+                      #,(optional-public-hook
+                         (prefix-info-q-rebuild-local prefix)))
+                     (quote-syntax
+                      #,(optional-public-hook
+                         (q-info-work-export-open q-open)))
+                     (quote-syntax
+                      #,(optional-public-hook
+                         (q-info-work-support-open q-open)))
+                     (quote-syntax
+                      #,(optional-public-hook
+                         (q-info-work-rebuild-open q-open)))
+                     (quote-syntax
+                      #,(optional-public-hook
+                         (q-info-frontier-export-open q-open)))
+                     (quote-syntax
+                      #,(optional-public-hook
+                         (q-info-frontier-support-open q-open)))
+                     (quote-syntax
+                      #,(optional-public-hook
+                         (q-info-frontier-rebuild-open q-open)))
+                     (quote-syntax
+                      #,(optional-public-hook
+                         (q-info-path-export-open q-open)))
+                     (quote-syntax
+                      #,(optional-public-hook
+                         (q-info-path-rebuild-open q-open)))
+                     (quote-syntax
+                      #,(optional-public-hook
+                         (q-info-failure-export q-open)))
+                     (quote-syntax
+                      #,(optional-public-hook
+                         (q-info-failure-rebuild q-open)))
+                     (quote-syntax
+                      #,(optional-public-hook
+                         (q-info-address-goal-open q-open)))
                      (quote-syntax #,(public-hook q-export))
                      (quote-syntax #,(public-hook q-rebuild))
                      (quote-syntax #,(public-hook q-focus-export))
@@ -1465,6 +1894,8 @@
                '())
         (define-language #,language-id
           [d (x_!_ (... ...))]
+          [alloc ((x_!_ rv) (... ...))]
+          [support (rv_!_ (... ...))]
           [eq (t =? t tag)]
           [g eq
              (t != t tag)
@@ -1500,6 +1931,13 @@
           [WorkPath hole #,path-conj]
           [SpineContext hole]
           [WorkFocus (in-hole SpineContext #,focus-more)]
+          [WFGoalTask (GoalCheck g (x (... ...)) supply)]
+          [WFGoalTasks (GoalChecks WFGoalTask (... ...))]
+          [WFNode (WorkCheck W supply)
+                  (FrontierCheck F supply)]
+          [WFNodes (NodeChecks WFNode (... ...))]
+          [LiveNext (LiveDone supply)
+                    (LiveContinue W supply)]
           #:binding-forms
           (∃ (x (... ...)) g #:refers-to (shadow x (... ...))))
 
@@ -1594,7 +2032,7 @@
                  (cons binding
                        (#,drop-shadowed-id binders rest)))]))
 
-        (define (#,subst-goal-id goal substitutions)
+        (define (#,subst-goal-open-id recur goal substitutions)
           (match goal
             [`(succeed ,goal-tag) `(succeed ,goal-tag)]
             [`(fail ,goal-tag) `(fail ,goal-tag)]
@@ -1609,45 +2047,84 @@
                ,(#,subst-term-id right substitutions)
                ,goal-tag)]
             [`(,left ∧ ,right ,goal-tag)
-             `(,(#,subst-goal-id left substitutions)
+             `(,(recur left substitutions)
                ∧
-               ,(#,subst-goal-id right substitutions)
+               ,(recur right substitutions)
                ,goal-tag)]
             [`(∃ ,binders ,body ,goal-tag)
              `(∃ ,binders
-                 ,(#,subst-goal-id
+                 ,(recur
                    body
                    (#,drop-shadowed-id binders substitutions))
                  ,goal-tag)]
             [_
-             (error '#,subst-goal-id
+             (error '#,subst-goal-open-id
                     "unsupported generated core goal: ~e"
                     goal)]))
+
+        (define (#,subst-goal-id goal substitutions)
+          (#,subst-goal-open-id
+           #,subst-goal-id
+           goal
+           substitutions))
+
+        ;; Allocation depends on this exact-language object.  A feature
+        ;; supplies one host-level open-recursive traversal and registers a
+        ;; single catch-all extension at its source language; no inherited
+        ;; allocation equation or core goal case is copied.
+        (redex-parameter:define-metafunction*
+          #,language-id
+          #,subst-goal-artifact-id : g alloc -> g
+          [(#,subst-goal-artifact-id g alloc)
+           ,(#,subst-goal-id (term g) (term alloc))])
 
         #,@variable-definitions
         #,@supply-definitions
         #,@wf-definitions
         #,@q-definitions
+
+        #,@(if (syntax-e work-focus-prefix-open)
+               (list
+                #`(define (#,work-focus-prefix-host-id focus support)
+                    (#,(public-hook work-focus-prefix-open)
+                     focus
+                     support
+                     #,work-focus-prefix-host-id))
+                #`(redex-parameter:define-metafunction*
+                    #,language-id
+                    #,work-focus-prefix-id : WorkFocus support -> support
+                    [(#,work-focus-prefix-id WorkFocus support)
+                     ,(#,work-focus-prefix-host-id
+                       (term WorkFocus)
+                       (term support))]))
+               (list
+                #`(redex-parameter:define-metafunction*
+                    #,language-id
+                    #,work-focus-prefix-id : WorkFocus support -> support
+                    [(#,work-focus-prefix-id WorkFocus support) support])))
         #,wf-structural-definitions
 
         ;; R is one renderer of the shared 13-equation compile-time IR.
-        (define #,work-raw-id
-          (reduction-relation
-           #,language-id
-           #:domain any
-           #,@work-R-rules))
+        (redex-parameter:define-reduction-relation*
+          #,work-raw-id
+          #,language-id
+          #:domain any
+          #,@work-R-rules)
 
-        (define #,frontier-raw-id
-          (reduction-relation
-           #,language-id
-           #:domain any
-           #,@frontier-R-rules))
+        (redex-parameter:define-reduction-relation*
+          #,frontier-raw-id
+          #,language-id
+          #:domain any
+          #,@frontier-R-rules)
 
-        (define #,allocation-raw-id
-          (reduction-relation
-           #,language-id
-           #:domain F
-           #,@allocation-R-rules))
+        (redex-parameter:define-reduction-relation*
+          #,allocation-raw-id
+          #,language-id
+          #:parameters
+          ([#,allocation-subst-goal-id #,subst-goal-artifact-id]
+           [#,allocation-work-focus-prefix-id #,work-focus-prefix-id])
+          #:domain F
+          #,@allocation-R-rules)
 
         (define #,work-base-id
           (context-closure #,work-raw-id #,language-id WorkFocus))

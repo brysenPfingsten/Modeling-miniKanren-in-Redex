@@ -13,6 +13,8 @@
          empty-frame-machineize
          empty-frame-compress
          empty-frame-B-step
+         empty-frame-big-dispatch/refocus-frontier
+         empty-frame-big-dispatch/control-one
          empty-frame-big-evaluate)
 
 ;; A frame-free row is a real boundary case: the root is the only context in
@@ -29,6 +31,8 @@
      (returned rv)
      (failed rv)]
   [F (root W)
+     (flip rv)
+     (rail rv)
      (halted rv)
      (aborted rv)]
   [WorkFocus (root hole)]
@@ -65,7 +69,9 @@
    #:frames ()
    #:work-redexes ((tick rv) (crash rv))
    #:frontier-redexes ((root (returned rv))
-                       (root (failed rv)))
+                       (root (failed rv))
+                       (flip rv)
+                       (rail rv))
    #:allocation-redexes ((allocate rv))
    #:open-work-productions ()]
   #:rules
@@ -94,7 +100,13 @@
     #:site frontier
     #:from (root-failed rv (failed rv) Spine)
     #:to (final (aborted rv) Spine)
-    #:premises ()])))
+    #:premises ()]
+   [flip
+    #:site frontier
+    #:from (frontier (flip rv_0) Spine)
+    #:to (frontier (rail rv_1) Spine)
+    #:premises
+    ((where rv_1 ,(add1 (term rv_0))))])))
 
 (define-generated-core-stage-instance
   #:source-interface empty-frame-source
@@ -144,7 +156,7 @@
   #:dead-producers (crash)
   #:settled-followers (finish-success)
   #:dead-followers (finish-failure)
-  #:singletons (allocate finish-success finish-failure)
+  #:singletons (allocate finish-success finish-failure flip)
   #:retained-observation rule-labels
   #:maximum-span 2)
 

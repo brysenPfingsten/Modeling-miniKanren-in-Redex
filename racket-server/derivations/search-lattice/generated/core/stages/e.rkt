@@ -11,6 +11,7 @@
          core/stage/M/E
          core/stage/B/E
          core/stage/Big/E
+         core/staged-row/E
          generated-core-stage-e-decomposition-lang
          generated-stage-plug-C/e
          generated-stage-contract-label/e
@@ -20,24 +21,33 @@
          generated-core-stage-e-refocused-lang
          generated-stage-refocus-phase/e
          generated-stage-refocus-work/direct/e
+         generated-stage-refocus/direct/e/frontier
          generated-stage-refocus/direct/e
          generated-stage-refocused-step/direct/e
          generated-core-stage-e-machine-lang
          generated-stage-machineize/e
          generated-stage-machine-refocus-work/direct/e
+         generated-stage-machine-refocus/direct/e/frontier
          generated-stage-machine-refocus/direct/e
          generated-stage-machine-step/direct/e
          generated-core-stage-e-compressed-lang
          generated-stage-compress/e
+         generated-stage-compress/e/frontier
          generated-stage-transition-span-labels/e
          generated-stage-produce-settled/direct/e
          generated-stage-produce-dead/direct/e
          generated-stage-advance-settled/direct/e
          generated-stage-advance-dead/direct/e
+         generated-stage-compressed-step/direct/e/base-singleton
          generated-stage-compressed-step/direct/e
          generated-stage-replay-transition-span/M/e
          generated-core-stage-e-big-lang
+         generated-stage-big-dispatch/direct/e/one
          generated-stage-big-dispatch/direct/e
+         generated-stage-big-dispatch/direct/e/refocus-frontier
+         generated-stage-big-dispatch/direct/e/control-one
+         generated-stage-big-dispatch/direct/e/control
+         generated-stage-big-dispatch/direct/e/frontier
          generated-stage-big-run/direct/e
          generated-stage-big-settled/direct/e
          generated-stage-big-dead/direct/e
@@ -159,3 +169,11 @@
   #:unfold-square generated-stage-B-Big-unfold-square/e
   #:closure-square generated-stage-B-Big-closure-square/e
   #:root-square generated-stage-B-Big-root-square/e)
+
+(define-selected-staged-row core/staged-row/E
+  #:source-language generated-core-e-lang
+  #:D core/stage/D/E
+  #:Z core/stage/Z/E
+  #:M core/stage/M/E
+  #:B core/stage/B/E
+  #:Big core/stage/Big/E)

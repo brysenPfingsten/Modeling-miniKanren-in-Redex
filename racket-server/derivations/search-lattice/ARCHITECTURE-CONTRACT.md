@@ -415,11 +415,54 @@ compression boundary batch. This establishes
 `Stage(identity) = identity` and the stated sequential/whole-instance
 observation equality only for this explicit two-delta fixture and corpus.
 
-Checkpoint 5 stops here, before Checkpoint 6. There is no automatic
-`Delta -> StageExtension` synthesis, universal functoriality theorem, or
-separately staged real delay/disjunction/search hierarchy. The fixture does not
-authorize a claim about scheduler fibers, relation-call overlays, or arbitrary
-feature composition.
+Checkpoint 5 stopped at that fixture boundary. It established no automatic
+`Delta -> StageExtension` synthesis, universal functoriality theorem, or claim
+about scheduler fibers, relation-call overlays, or arbitrary feature
+composition.
+
+### Checkpoint 6A bounded Delay cube
+
+Checkpoint 6A adds the first real child of core. A single neutral Delay schema
+is rendered for S, E, and N and owns exactly `suspend-goal`,
+`bubble-delay-through-conj`, and `force-delay`. Its representation view owns
+only `PendingDelay` and `Forced` shapes and their neutral prefix transfer; it
+does not branch on Owner, Support, or counter syntax. Core equations are
+inherited, not copied. The source is transitively open to a later feature, and
+the bounded second-feature fixture checks that Delay equations and lifted core
+allocation dependencies remain available without restatement.
+
+`Forced` is part of the configuration carrier, not trace-only allocation
+evidence. It is traversed by WF, exported and rebuilt by the direct structural
+Q views, retained by D/Z/M/B/Big, and remains visible around the frontier as
+execution continues. The stage-control contract therefore admits a general
+frontier-to-frontier source rule: Z and M use native whole-frontier refocusers,
+B uses an explicit frontier control, and Big keeps work dispatch separate from
+frontier control. This general control path is representation-neutral; it is
+not a Delay-coordinate exception.
+
+The specialized Delay stage synthesizer consumes a generated Delay source and
+produces one StageExtension that is applied to each already generated core row.
+It is evidence for this schema, not a general compiler from arbitrary deltas.
+Each Delay rule is a singleton B span. Inherited core producer/follower fusion
+remains exactly the core policy, and the Delay feature introduces no
+cross-feature fusion or branch scheduler.
+
+For every representation, direct embeddings `J-core->delay` are instantiated
+at R, D, Z, M, B, and Big. Direct S-to-E, E-to-N, and S-to-N maps are
+instantiated at every Delay coordinate; S-to-N composition is checked
+separately. The bounded cube harness checks the feature embeddings, the five
+stage-transformation faces, the representation faces, exact labels and B
+spans, WF and finite traces, and complete raw `build-derivations` proof
+multisets without deduplication. Independent handwritten S/E/N Delay sources,
+WF judgments, and direct Q maps provide the finite source oracle instead of
+reusing generated artifacts.
+
+These executable faces establish only the observations made on the checked
+finite corpus. They are not a universal feature functor, a general naturality
+proof, or arbitrary `Delta -> StageExtension` synthesis. Checkpoint 6A stops
+before Checkpoint 6B: disjunction, search-owned interactions, search scheduler
+fibers, relation-call overlays, and their additional WF/correspondence
+obligations remain absent.
 
 ## Conservative compression and finite Big
 
@@ -455,8 +498,9 @@ The architecture separates four kinds of evidence:
 Representative or generated Redex tests are evidence, not universal proofs.
 Neither a populated coordinate nor row-local agreement establishes general
 functoriality or naturality. The Checkpoint 5 fixture establishes only its
-explicitly bounded identity and two-delta observation. Production modules must
-never import this derivation subtree.
+explicitly bounded identity and two-delta observation; Checkpoint 6A adds only
+the finite-corpus Delay embeddings and commuting faces stated above.
+Production modules must never import this derivation subtree.
 
 ## Non-negotiable construction boundaries
 
@@ -475,6 +519,10 @@ never import this derivation subtree.
   coordinate-specific exception.
 - A separately staged augmentation must operate on the staged base interface;
   premerging the source descriptor again does not satisfy the staging law.
+- Delay must be generated from its one representation-neutral three-rule
+  schema. `Forced` remains structural and Q/WF-visible, and frontier control is
+  generalized in the shared stage contract rather than special-cased in one
+  coordinate.
 - Inherited Redex rules and dependencies are lifted over extended languages,
   not copied into each descendant.
 - Correspondence compares complete raw derivation multisets. Successor

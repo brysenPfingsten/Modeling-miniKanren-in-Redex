@@ -12,6 +12,21 @@
          live-supply/generated/n
          failure-summary/generated/n
          address/generated/n
+         transfer-work-prefix/open/generated/n
+         transfer-work-prefix/generated/n
+         q-export-local-prefix/generated/n
+         q-rebuild-local-prefix/generated/n
+         q-work-export/open/generated/n
+         q-work-support/open/generated/n
+         q-work-rebuild/open/generated/n
+         q-frontier-export/open/generated/n
+         q-frontier-support/open/generated/n
+         q-frontier-rebuild/open/generated/n
+         q-path-export/open/generated/n
+         q-path-rebuild/open/generated/n
+         q-failure-export/generated/n
+         q-failure-rebuild/generated/n
+         q-address-goal/open/generated/n
          q-export/generated/n
          q-rebuild/generated/n
          q-focus-export/generated/n
@@ -65,9 +80,7 @@
      (where supply_new
             (advance-next/generated/n supply (x_bound ...)))
      (where g_new
-            ,(SUBST-GOAL-HOOK
-              (term g)
-              (term ((x_bound rv_new) ...)))))]
+            (SUBST-GOAL-HOOK g ((x_bound rv_new) ...))))]
    #:addressing-hook address/generated/n]
   #:supply/provenance
   [#:productions ([supply natural])
@@ -90,6 +103,11 @@
    #:live-supply-hook live-supply/generated/n
    #:failure-summary-hook failure-summary/generated/n
    #:definitions ()
+   #:extension-prefix
+   [#:transfer-work-open transfer-work-prefix/open/generated/n
+    #:transfer-work transfer-work-prefix/generated/n
+    #:Q-export-local q-export-local-prefix/generated/n
+    #:Q-rebuild-local q-rebuild-local-prefix/generated/n]
    #:well-formedness
    [#:definitions
     ((define (runtime-levels/generated/n term [acc '()])
@@ -162,7 +180,7 @@
     #:conjunction-goal-supply-premises
     ((LIVE-SUPPLY-HOOK W supply_frame supply_goal))
     #:terminal-prefix-premises
-    ((where supply_prefix 0))
+    ((where supply_prefix supply_in))
     #:root wf-core/generated/n?]
    #:q-map
    [#:definitions
@@ -210,7 +228,7 @@
             :
             ,(address-term/generated/n right support))]
          [_ term]))
-     (define (address-goal/generated/n goal support)
+     (define (q-address-goal/open/generated/n recur goal support)
        (match goal
          [`(succeed ,goal-tag) `(succeed ,goal-tag)]
          [`(fail ,goal-tag) `(fail ,goal-tag)]
@@ -225,18 +243,23 @@
             ,(address-term/generated/n right support)
             ,goal-tag)]
          [`(,left ∧ ,right ,goal-tag)
-          `(,(address-goal/generated/n left support)
+          `(,(recur left support)
             ∧
-            ,(address-goal/generated/n right support)
+            ,(recur right support)
             ,goal-tag)]
          [`(∃ ,binders ,body ,goal-tag)
           `(∃ ,binders
-              ,(address-goal/generated/n body support)
+              ,(recur body support)
               ,goal-tag)]
          [_
           (error 'q-rebuild/generated/n
                  "expected a core goal, received ~e"
                  goal)]))
+     (define (address-goal/generated/n goal support)
+       (q-address-goal/open/generated/n
+        address-goal/generated/n
+        goal
+        support))
      (define (address-substitution/generated/n substitution support)
        (for/list ([binding (in-list substitution)])
          (match binding
@@ -260,6 +283,15 @@
             ,equation-tag)]))
      (define (address/generated/n value support)
        (address-term/generated/n value support))
+     (define (transfer-work-prefix/open/generated/n
+              _prefix work _extension)
+       work)
+     (define (transfer-work-prefix/generated/n _prefix work)
+       work)
+     (define (q-export-local-prefix/generated/n _local accumulated)
+       (list #f accumulated))
+     (define (q-rebuild-local-prefix/generated/n _provenance)
+       0)
      (define (state->q/generated/n state)
        (match state
          [`(state ,next ,sub ,dis ,trail ,state-tag)
@@ -273,7 +305,7 @@
           (error 'q-export/generated/n
                  "expected N state, received ~e"
                  state)]))
-     (define (work->q/generated/n work)
+     (define (q-work-export/open/generated/n work support recur)
        (match work
          [`(Work ,goal ,state)
           `(q-work #f ,goal ,(state->q/generated/n state))]
@@ -282,15 +314,18 @@
          [`(Dead ,next)
           `(q-dead #f ,(build-list next values))]
          [`(Conj ,inner ,goal)
-          `(q-conj #f ,(work->q/generated/n inner) ,goal)]
+          `(q-conj #f ,(recur inner support) ,goal)]
          [_
           (error 'q-export/generated/n
                  "expected N work, received ~e"
                  work)]))
-     (define (q-export/generated/n frontier)
+     (define (work->q/generated/n work [support '()])
+       (q-work-export/open/generated/n work support work->q/generated/n))
+     (define (q-frontier-export/open/generated/n
+              frontier prefix recur-work)
        (match frontier
          [`(More ,work)
-          `(q-more ,(work->q/generated/n work))]
+          `(q-more ,(recur-work work prefix))]
          [`(Done ,next)
           `(q-done #f ,(build-list next values))]
          [`(Last (Answer ,state))
@@ -299,6 +334,11 @@
           (error 'q-export/generated/n
                  "expected N frontier, received ~e"
                  frontier)]))
+     (define (q-export/generated/n frontier)
+       (q-frontier-export/open/generated/n
+        frontier
+        '()
+        work->q/generated/n))
      (define (q-state-support/generated/n q-state)
        (match q-state
          [`(q-state ,support ,_sub ,_dis ,_trail ,_state-tag)
@@ -307,7 +347,7 @@
           (error 'q-rebuild/generated/n
                  "expected neutral state, received ~e"
                  q-state)]))
-     (define (q-work-support/generated/n q-work)
+     (define (q-work-support/open/generated/n q-work recur)
        (match q-work
          [`(q-work ,_ ,_ ,q-state)
           (q-state-support/generated/n q-state)]
@@ -316,11 +356,30 @@
          [`(q-dead ,_ ,support)
           (validate-q-support/generated/n support)]
          [`(q-conj ,_ ,inner ,_)
-          (q-work-support/generated/n inner)]
+          (recur inner)]
          [_
           (error 'q-rebuild/generated/n
                  "expected neutral work, received ~e"
                  q-work)]))
+     (define (q-work-support/generated/n q-work)
+       (q-work-support/open/generated/n
+        q-work
+        q-work-support/generated/n))
+     (define (q-frontier-support/open/generated/n neutral recur-work)
+       (match neutral
+         [`(q-more ,q-work) (recur-work q-work)]
+         [`(q-done ,_ ,support)
+          (validate-q-support/generated/n support)]
+         [`(q-last ,_ (q-answer ,_ ,q-state))
+          (q-state-support/generated/n q-state)]
+         [_
+          (error 'q-frontier-support/open/generated/n
+                 "expected neutral frontier, received ~e"
+                 neutral)]))
+     (define (q-frontier-support/generated/n neutral)
+       (q-frontier-support/open/generated/n
+        neutral
+        q-work-support/generated/n))
      (define (q-state->n/generated/n q-state support)
        (match q-state
          [`(q-state ,state-support ,sub ,dis ,trail ,state-tag)
@@ -336,11 +395,12 @@
             ,(for/list ([equation (in-list trail)])
                (address-equation/generated/n equation support))
             ,state-tag)]))
-     (define (q-work->n/generated/n q-work support)
+     (define (q-work-rebuild/open/generated/n
+              q-work support recur map-goal)
        (match q-work
          [`(q-work ,_ ,goal ,q-state)
           `(Work
-            ,(address-goal/generated/n goal support)
+            ,(map-goal goal support)
             ,(q-state->n/generated/n q-state support))]
          [`(q-returned ,_ ,q-state)
           `(Returned ,(q-state->n/generated/n q-state support))]
@@ -353,17 +413,23 @@
           `(Dead ,(length support))]
          [`(q-conj ,_ ,inner ,goal)
           `(Conj
-            ,(q-work->n/generated/n inner support)
-            ,(address-goal/generated/n goal support))]
+            ,(recur inner support)
+            ,(map-goal goal support))]
          [_
           (error 'q-rebuild/generated/n
                  "expected neutral work, received ~e"
                  q-work)]))
-     (define (q-rebuild/generated/n neutral)
+     (define (q-work->n/generated/n q-work support)
+       (q-work-rebuild/open/generated/n
+        q-work
+        support
+        q-work->n/generated/n
+        address-goal/generated/n))
+     (define (q-frontier-rebuild/open/generated/n
+              neutral support recur-work)
        (match neutral
          [`(q-more ,q-work)
-          (define support (q-work-support/generated/n q-work))
-          `(More ,(q-work->n/generated/n q-work support))]
+          `(More ,(recur-work q-work support))]
          [`(q-done ,_ ,support)
           (validate-q-support/generated/n support)
           `(Done ,(length support))]
@@ -374,40 +440,60 @@
           (error 'q-rebuild/generated/n
                  "expected neutral core frontier, received ~e"
                  neutral)]))
-     (define (focus-path->q/generated/n path)
+     (define (q-rebuild/generated/n neutral)
+       (q-frontier-rebuild/open/generated/n
+        neutral
+        (q-frontier-support/generated/n neutral)
+        q-work->n/generated/n))
+     (define (q-path-export/open/generated/n path support recur)
        (match path
          [(? (lambda (datum) (equal? datum (term hole))))
-          'q-focus-hole]
+          (values 'q-focus-hole support)]
          [`(Conj ,inner ,goal)
-          `(q-focus-conj
-            #f
-            ,(focus-path->q/generated/n inner)
-            ,goal)]
+          (define-values (q-inner support-at-hole)
+            (recur inner support))
+          (values
+           `(q-focus-conj #f ,q-inner ,goal)
+           support-at-hole)]
          [_
           (error 'q-focus-export/generated/n
                  "expected an N WorkPath, received ~e"
                  path)]))
+     (define (focus-path->q/generated/n path [support '()])
+       (q-path-export/open/generated/n
+        path
+        support
+        focus-path->q/generated/n))
      (define (q-focus-export/generated/n focused focus)
        (match focus
          [`(More ,path)
+          (define-values (q-path support-at-hole)
+            (focus-path->q/generated/n path))
           `(q-focused
-            ,(work->q/generated/n focused)
-            (q-work-focus ,(focus-path->q/generated/n path)))]
+            ,(work->q/generated/n focused support-at-hole)
+            (q-work-focus ,q-path))]
          [_
           (error 'q-focus-export/generated/n
                  "expected an N WorkFocus, received ~e"
                  focus)]))
-     (define (q-focus-path->n/generated/n q-path support)
+     (define (q-path-rebuild/open/generated/n
+              q-path support recur map-goal)
        (match q-path
          ['q-focus-hole (term hole)]
          [`(q-focus-conj ,_ ,q-inner ,goal)
           `(Conj
-            ,(q-focus-path->n/generated/n q-inner support)
-            ,(address-goal/generated/n goal support))]
+            ,(recur q-inner support)
+            ,(map-goal goal support))]
          [_
           (error 'q-focus-rebuild/generated/n
                  "expected a neutral WorkPath, received ~e"
                  q-path)]))
+     (define (q-focus-path->n/generated/n q-path support)
+       (q-path-rebuild/open/generated/n
+        q-path
+        support
+        q-focus-path->n/generated/n
+        address-goal/generated/n))
      (define (q-focus-rebuild/generated/n neutral)
        (match neutral
          [`(q-focused ,q-work (q-work-focus ,q-path))
@@ -443,23 +529,31 @@
           (error 'q-root-focus-rebuild/generated/n
                  "expected a neutral root focus, received ~e"
                  other)]))
+     (define (q-failure-export/generated/n summary _prefix)
+       (list #f (build-list summary values)))
+     (define (q-failure-rebuild/generated/n _provenance support)
+       (validate-q-support/generated/n support)
+       (length support))
      (define (q-failure-focus-export/generated/n summary focus)
        (match focus
          [`(More ,path)
+          (define-values (q-path support-at-hole)
+            (focus-path->q/generated/n path))
+          (match-define (list provenance support)
+            (q-failure-export/generated/n summary support-at-hole))
           `(q-failure-focused
-            #f
-            ,(build-list summary values)
-            (q-work-focus ,(focus-path->q/generated/n path)))]
+            ,provenance
+            ,support
+            (q-work-focus ,q-path))]
          [other
           (error 'q-failure-focus-export/generated/n
                  "expected an N WorkFocus, received ~e"
                  other)]))
      (define (q-failure-focus-rebuild/generated/n neutral)
        (match neutral
-         [`(q-failure-focused ,_provenance ,support (q-work-focus ,q-path))
-          (validate-q-support/generated/n support)
+         [`(q-failure-focused ,provenance ,support (q-work-focus ,q-path))
           (list
-           (length support)
+           (q-failure-rebuild/generated/n provenance support)
            `(More
              ,(q-focus-path->n/generated/n q-path support)))]
          [other
@@ -467,27 +561,27 @@
                  "expected a neutral failure focus, received ~e"
                  other)]))
      (define (q-terminal-export/generated/n terminal)
-       (match terminal
-         [`(Done ,next)
-          `(q-done #f ,(build-list next values))]
-         [`(Last (Answer ,state))
-          `(q-last #f (q-answer #f ,(state->q/generated/n state)))]
-         [other
-          (error 'q-terminal-export/generated/n
-                 "expected an N terminal, received ~e"
-                 other)]))
+       (q-frontier-export/open/generated/n
+        terminal
+        '()
+        work->q/generated/n))
      (define (q-terminal-rebuild/generated/n neutral)
-       (match neutral
-         [`(q-done ,_provenance ,support)
-          (validate-q-support/generated/n support)
-          `(Done ,(length support))]
-         [`(q-last ,_provenance (q-answer ,_answer-provenance ,q-state))
-          (define support (q-state-support/generated/n q-state))
-          `(Last (Answer ,(q-state->n/generated/n q-state support)))]
-         [other
-          (error 'q-terminal-rebuild/generated/n
-                 "expected a neutral terminal, received ~e"
-                 other)])))
+       (q-frontier-rebuild/open/generated/n
+        neutral
+        (q-frontier-support/generated/n neutral)
+        q-work->n/generated/n)))
+    #:open
+    [#:work-export q-work-export/open/generated/n
+     #:work-support q-work-support/open/generated/n
+     #:work-rebuild q-work-rebuild/open/generated/n
+     #:frontier-export q-frontier-export/open/generated/n
+     #:frontier-support q-frontier-support/open/generated/n
+     #:frontier-rebuild q-frontier-rebuild/open/generated/n
+     #:path-export q-path-export/open/generated/n
+     #:path-rebuild q-path-rebuild/open/generated/n
+     #:failure-export q-failure-export/generated/n
+     #:failure-rebuild q-failure-rebuild/generated/n
+     #:address-goal q-address-goal/open/generated/n]
     #:export q-export/generated/n
     #:rebuild q-rebuild/generated/n
     #:focus-export q-focus-export/generated/n

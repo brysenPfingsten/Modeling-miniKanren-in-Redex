@@ -10,6 +10,7 @@
          allocate/raw/e
          work/base/e
          frontier/base/e
+         define-allocation/e
          allocate/base/e
          core-e-oracle-red
          raw-successors/e
@@ -164,33 +165,47 @@
         (Done support)
         "finish-failure"]))
 
-(define allocate/raw/e
-  (reduction-relation
-   core-e-oracle-lang
-   #:domain any
+;; The substitution identifier is an explicit feature-extension seam.  Core
+;; and feature oracles instantiate this one allocation equation with the
+;; recursive goal traversal belonging to their language.
+(define-syntax-rule
+  (define-allocation/e raw-id base-id language-id substitute-goal-id)
+  (begin
+    (define raw-id
+      (reduction-relation
+       language-id
+       #:domain any
 
-   [--> (Work
-         (∃ (x_bound ...) g tag)
-         (state support sub dis trail tag_state))
-        (Work
-         g_new
-         (state support_new sub dis trail tag_state))
-        (where (u_new ...) (fresh-intro/e support (x_bound ...)))
-        (where support_new (support-extend/e support (u_new ...)))
-        (where g_new
-               ,(subst-goal/lexical/e
-                 (term g)
-                 (term ((x_bound u_new) ...))))
-        "allocate-fresh"]))
+       [--> (Work
+             (∃ (x_bound (... ...)) g tag)
+             (state support sub dis trail tag_state))
+            (Work
+             g_new
+             (state support_new sub dis trail tag_state))
+            (where (u_new (... ...))
+                   (fresh-intro/e support (x_bound (... ...))))
+            (where support_new
+                   (support-extend/e support (u_new (... ...))))
+            (where g_new
+                   ,(substitute-goal-id
+                     (term g)
+                     (term ((x_bound u_new) (... ...)))))
+            "allocate-fresh"]))
+
+    (define base-id
+      (context-closure raw-id language-id WorkFocus))))
+
+(define-allocation/e
+  allocate/raw/e
+  allocate/base/e
+  core-e-oracle-lang
+  subst-goal/lexical/e)
 
 (define work/base/e
   (context-closure work/raw/e core-e-oracle-lang WorkFocus))
 
 (define frontier/base/e
   (context-closure frontier/raw/e core-e-oracle-lang SpineContext))
-
-(define allocate/base/e
-  (context-closure allocate/raw/e core-e-oracle-lang WorkFocus))
 
 (define core-e-oracle-red
   (extend-reduction-relation
