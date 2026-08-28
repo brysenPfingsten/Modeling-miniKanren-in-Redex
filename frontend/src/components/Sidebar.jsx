@@ -3,8 +3,12 @@ import { Drawer, Tabs, Tab, Box, IconButton } from '@mui/material';
 import { Menu, Close } from '@mui/icons-material';
 import '../styles.css';
 
-const Sidebar = ({ substitutionData = [], trailData = [], isOpen, onToggle }) => {
+const Sidebar = ({ substitutionData = [], trailData = [], hasSelectedState, isOpen, onToggle }) => {
   const [activeTab, setActiveTab] = useState(0);
+  const rows = activeTab === 0 ? substitutionData : trailData;
+  const emptyMessage = hasSelectedState
+    ? `This state has no ${activeTab === 0 ? 'substitution' : 'trail'} entries.`
+    : 'Select an answer or active goal to inspect its substitution and trail.';
 
   return (
     <>
@@ -43,12 +47,14 @@ const Sidebar = ({ substitutionData = [], trailData = [], isOpen, onToggle }) =>
           </Tabs>
 
           <Box className="sidebar-list">
-            {(activeTab === 0 ? substitutionData : trailData).map((row, i) => (
-              <Box key={i} className="sidebar-item">
-                <Box className="sidebar-left">{row.left}</Box>
-                <Box className="sidebar-right">{row.right}</Box>
-              </Box>
-            ))}
+            {rows.length === 0
+              ? <Box className="sidebar-empty">{emptyMessage}</Box>
+              : rows.map((row, i) => (
+                <Box key={i} className="sidebar-item">
+                  <Box className="sidebar-left">{row.left}</Box>
+                  <Box className="sidebar-right">{row.right}</Box>
+                </Box>
+              ))}
           </Box>
         </Box>
       </Drawer>

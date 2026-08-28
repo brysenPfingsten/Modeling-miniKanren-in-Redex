@@ -8,6 +8,7 @@ import CustomAlert     from './components/CustomAlert';
 import useStepper      from './hooks/useStepper';
 import Resizable       from './components/Resizable';
 import Sidebar from './components/Sidebar';
+import { deriveStateSelectionUpdate, hasStateSelection } from './utils/stateSelection.js';
 import './styles.css'
 
 function App() {
@@ -122,11 +123,20 @@ function App() {
           <div className="scroll-container">
             <TreeCanvas
               ref={treeRef}
-              onNodeClick={({ substitutionData, trailData, gId, sId }) => {
-                setSubstitutionData(substitutionData);
-                setTrailData(trailData);
+              onNodeClick={({ substitutionData, trailData, gId, sId, hasStateId }) => {
+                const stateSelection = deriveStateSelectionUpdate({
+                  substitutionData,
+                  trailData,
+                  sId,
+                  hasStateId,
+                });
+
+                if (stateSelection) {
+                  setSubstitutionData(stateSelection.substitutionData);
+                  setTrailData(stateSelection.trailData);
+                  setStateId(stateSelection.stateId);
+                }
                 setGoalId(gId);
-                setStateId(sId);
               }}
               selectedGoalId={goalId}
               selectedStateId={stateId}
@@ -137,6 +147,7 @@ function App() {
       <Sidebar
         substitutionData={substitutionData}
         trailData={trailData}
+        hasSelectedState={hasStateSelection(stateId)}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(o => !o)}
       />

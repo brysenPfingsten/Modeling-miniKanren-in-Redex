@@ -198,6 +198,7 @@ const TreeCanvas = forwardRef(({ onNodeClick, selectedGoalId, selectedStateId },
                     right: termToString(crumb.right),
                 }));
 
+                const hasStateId = d.data.stateId !== undefined;
                 let sId = d.data.stateId;
                 let gId = d.data.id;
                 const prevGoalId = goalIdRef.current;
@@ -207,7 +208,13 @@ const TreeCanvas = forwardRef(({ onNodeClick, selectedGoalId, selectedStateId },
                     sId = null;
                     gId = null;
                 }
-                onNodeClick({ substitutionData: subs, trailData: trails, gId: gId, sId: sId });
+                onNodeClick({
+                    substitutionData: subs,
+                    trailData: trails,
+                    gId: gId,
+                    sId: sId,
+                    hasStateId: hasStateId,
+                });
             })
             .on("mouseover", (event, d) => {
                 if (d.data.reified) {
