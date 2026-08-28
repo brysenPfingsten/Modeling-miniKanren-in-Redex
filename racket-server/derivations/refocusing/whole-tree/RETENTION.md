@@ -21,6 +21,8 @@ during the transition:
 | [`whole-tree-pipeline-pilot/`](../whole-tree-pipeline-pilot/) | Handwritten behavioral oracle for the first complete vertical pipeline. Its four source goals have moved to the constructor-neutral canonical corpus; its remaining arrow laws, span witnesses, and prose must be checked off before removal. Retire after `P[Ktoy]` parity and byte-identical canonical traces are recorded without an inbound pilot dependency. |
 | [`whole-tree-redex-column/`](../whole-tree-redex-column/) | Concrete Ktoy Redex oracle. Retain temporarily for exact labeled parity of source, decomposition, refocusing, machine, compression, and finite big step. Retire after those parity checks live outside the sole marked reference and all unique laws have moved. |
 | [`reference/marked/`](reference/marked/README.md) | Sole temporary marked reference, moved once from the concrete-column subtree. Retain through independent lean, reference Q, and modular-family validation. Retire only when every criterion in [`README.md`](README.md) is satisfied by the modular marked instantiation. |
+| [`reference/lean/`](reference/lean/README.md) | Independent lean reference.  Its source grammar, WF, Ktoy/Kmk kernels, 20 control rules, and exact 23/27 source inventories are executable.  Retain through the later lean `D/Z/M/B/Big`, reference-Q, and modular-family validation; the present source checkpoint is not a complete derivation. |
+| [`q/reference/`](q/reference/README.md) | Marked-to-lean source correspondence.  Retain its explicit constructor map, five ranked stutters, alpha-aware allocation law, and rule-complete bounded named-successor witnesses.  Extend it stage by stage only after each independent lean stage exists; do not use it to manufacture either reference. |
 | [`premachine/`](../premachine/) | Older derivation evidence. Harvest only unique state-shape or transition-correspondence cases; otherwise retire after the canonical machine codec and bisimulation suite subsume it. |
 | [`zipper/`](../zipper/) | Older zipper derivation evidence, not a source representation. Harvest any unique plug/context law; retire when grammatical decomposition and refocusing cover it. Do not reintroduce an answer-stream zipper into the source calculus. |
 | [`cfree/`](../cfree/) | Earlier c-free experiment. Transfer unique cache-insensitivity examples and state translations to the lean/cache bridge corpus; retire after the canonical c verdict and bridge laws subsume it. |
@@ -35,9 +37,12 @@ ownership, ordered force evidence, unit exact-step cost, and dynamic allocation
 laws have now moved to
 [`reference/marked/OBSERVATIONS.md`](reference/marked/OBSERVATIONS.md), the
 semantic-import-free [`corpus/observation-cases.rkt`](corpus/observation-cases.rkt),
-and the temporary external-oracle parity suite.  This transfers those laws; it
-does not yet satisfy the older artifacts' remaining feature-survey, cache, Q,
-or naturality retirement gates.
+the semantic-import-free
+[`corpus/source-correspondence-cases.rkt`](corpus/source-correspondence-cases.rkt),
+the source-stage [`q/reference/`](q/reference/README.md) laws, and the temporary
+external-oracle parity suite.  This transfers the source representation laws;
+it does not yet satisfy the older artifacts' remaining derived-stage,
+feature-survey, cache, or naturality retirement gates.
 
 ## Production progress witnesses
 

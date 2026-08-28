@@ -43,18 +43,31 @@ cost, and dynamic allocation events are separately executable.  Temporary
 agreement with the pilot and broad-spike observation equations lives in the
 outer canonical test suite, not in the reference implementation.
 
-An independently stated lean reference will live at `reference/lean/`.  It
-must have its own genuine named source relation and complete derivation:
+The independently stated lean source reference now lives at
+[`reference/lean/`](reference/lean/README.md).  It has its own grammar,
+well-formedness judgments, kernel instances, and genuine named source
+relation; it neither imports nor operationally calls the marked reference.
+The source-stage reference correspondence lives at
+[`q/reference/`](q/reference/README.md).  Its `Q_R` erases only persistent
+fresh-ownership wrappers, retains `Emit`/`Last`/`Forced`, and states a weak
+alpha-aware simulation: five marked ownership-administration steps stutter
+with a decreasing rank, while every retained step has one lean step with the
+same semantic label.
+
+The focused acceptance entry point is
+[`tests/source-checkpoint.rkt`](tests/source-checkpoint.rkt).  It runs only the
+lean source, intrinsic import-boundary, and source-correspondence suites.
+
+This source checkpoint does **not** yet claim the lean complete derivation:
 
 ```text
 R -> D -> Z <-> M -> B -> finite big step
 ```
 
-It must not be generated from, or operationally call, the marked reference.
-The reference Q layer will state the marked-to-lean maps and laws explicitly,
-including separate decisions for fresh ownership and force/cost evidence.
-Cache insertion belongs to a separate lean-to-cached bridge; it is not folded
-into an indiscriminate erasure.
+Those later stages remain the next representation milestone.  Cache insertion
+belongs to a separate lean-to-cached bridge; it is not folded into an
+indiscriminate erasure.  Scheduler-policy comparisons likewise remain outside
+this source correspondence.
 
 The durable result is a modular family indexed along three axes:
 
