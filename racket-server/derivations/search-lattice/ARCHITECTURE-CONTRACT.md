@@ -378,13 +378,12 @@ Apply(StageExtension(T, Base, Delta), T(Base))
 ```
 
 A staged augmentation is parameterized by the staged base interface; it is not
-a standalone language. `framework/core-redex-parameter.rkt`, the selected-only
-transitive lifting module derived from `redex/parameter`, is used only to lift
-dependent Redex judgments, metafunctions, and relations across descendant
-languages. It recursively reconstructs inherited extensions at the exact
-target language. The upstream package remains on the frozen generator and its
-test-only oracle. Neither lifting implementation is the representation
-mechanism.
+a standalone language. `redex/parameter` is used only to lift dependent Redex
+judgments, metafunctions, and relations across descendant languages. The
+required package behavior recursively reconstructs inherited extensions at the
+exact target language, registers extensions through ancestor bases, and
+invalidates automatic lifts after explicit extensions. It is dependency
+lifting, not the representation mechanism.
 
 ### Checkpoint 5 bounded identity and composition evidence
 

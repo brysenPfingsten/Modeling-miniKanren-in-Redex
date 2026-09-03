@@ -17,8 +17,6 @@
   "../framework/core-stage-renderers.rkt")
 (define-runtime-path selected-source-schema-file
   "../framework/core-source-schema.rkt")
-(define-runtime-path selected-redex-parameter-file
-  "../framework/core-redex-parameter.rkt")
 (define-runtime-path delay-schema-file
   "../framework/delay-schema.rkt")
 (define-runtime-path delay-schema-extension-fixture-file
@@ -51,6 +49,17 @@
 (define-runtime-path s-compressed-file "../core/s/compressed.rkt")
 (define-runtime-path s-fixed-point-file "../core/s/fixed-point.rkt")
 (define-runtime-path this-test-file "./dependency-boundary-tests.rkt")
+
+(define selected-parameter-files
+  (list selected-stage-renderer-file
+        selected-source-schema-file
+        selected-stage-extension-base-fixture-file
+        selected-stage-extension-query-fixture-file
+        selected-stage-functor-probe-fixture-file
+        selected-stage-schema-test-file
+        delay-schema-file
+        delay-schema-extension-fixture-file
+        disjunction-schema-file))
 
 (define retired-generated-column-files
   (for*/list ([row (in-list '("s" "e"))]
@@ -317,7 +326,7 @@
       (check-false
        (regexp-match? (regexp (regexp-quote forbidden)) stage-renderers))))
 
-  (test-case "upstream redex/parameter is confined to the frozen framework and its test oracles"
+  (test-case "redex/parameter is confined to dependency-lifting framework and test oracles"
     (define implementation-files
       (for/list ([path (in-list (racket-files seed-root))]
                  #:unless (equal? (simplify-path path)
@@ -330,40 +339,42 @@
        implementation-files
        #rx"redex/parameter"))
      (sorted-path-strings
-      (list stage-framework-file
-            stage-framework-test-file
-            stage-parameter-base-fixture-file
-            stage-parameter-derived-fixture-file
-            selected-stage-functor-oracle-fixture-file
-            selected-redex-parameter-file))))
+      (append
+       (list stage-framework-file
+             stage-framework-test-file
+             stage-parameter-base-fixture-file
+             stage-parameter-derived-fixture-file
+             selected-stage-functor-oracle-fixture-file)
+       selected-parameter-files))))
 
-  (test-case "selected dependency lifting goes through the selected-only transitive module"
+  (test-case "selected dependency lifting imports redex/parameter directly"
     (define implementation-files
       (for/list ([path (in-list (racket-files seed-root))]
                  #:unless (equal? (simplify-path path)
                                   (simplify-path this-test-file)))
         path))
     (check-equal?
-     (sorted-path-strings
-      (files-containing
-       implementation-files
-       #rx"core-redex-parameter[.]rkt"))
-     (sorted-path-strings
-      (list selected-stage-renderer-file
-            selected-source-schema-file
-            selected-stage-extension-base-fixture-file
-            selected-stage-extension-query-fixture-file
-            selected-stage-functor-probe-fixture-file
-            selected-stage-schema-test-file
-            delay-schema-file
-            delay-schema-extension-fixture-file
-            disjunction-schema-file)))
-    (define selected-parameter-contents
-      (file->string selected-redex-parameter-file))
+     (files-containing
+      implementation-files
+      #rx"core-redex-parameter[.]rkt")
+     '())
+    (for ([path (in-list selected-parameter-files)])
+      (check-true
+       (regexp-match? #rx"redex/parameter" (file->string path))
+       (format "selected dependency does not import redex/parameter: ~a"
+               path)))
     (check-false
-     (regexp-match? #rx"stage-generators[.]rkt" selected-parameter-contents))
-    (check-false
-     (regexp-match? #rx"#:environment" selected-parameter-contents)))
+     (file-exists?
+      (build-path seed-root "framework" "core-redex-parameter.rkt"))))
+
+  (test-case "feature stages replace exact-language source aliases"
+    (for ([path (in-list (list delay-schema-file disjunction-schema-file))])
+      (check-false
+       (regexp-match?
+        #px"\\[Source(?:W|F|WorkFocus|SpineContext)\\s+\\.\\.\\.\\."
+        (file->string path))
+       (format "feature stage appends an already inherited source alias: ~a"
+               path))))
 
   (test-case "the frozen whole-instance functor route is a test-only oracle"
     (define implementation-files

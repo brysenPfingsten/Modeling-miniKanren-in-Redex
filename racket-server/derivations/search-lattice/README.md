@@ -194,8 +194,8 @@ the source relation, raw named-successor access, and common WF traversal as
 ordinary Redex definitions specialized by the strategy templates. The schema
 does not contain `Owner`, `Support`, counter syntax, a runtime representation
 dispatcher, or grammar introspection. Its feature-open source dependencies use
-the selected-only transitive lifting module; they do not use the upstream
-frozen `redex/parameter` route or select a representation at runtime.
+`redex/parameter` for lexical dependency lifting, not to select a
+representation at runtime.
 
 The generated vertical-map consumer uses the three strategies' neutral
 structural export/rebuild views to emit `Qg_SE`, `Qg_EN`, and an independently
@@ -261,17 +261,17 @@ row-local `diagnostics` submodules and the secondary transport-diagnostics
 suite. They are not public selected maps, implementation routes, or sole
 oracles.
 
-The selected source and stage frameworks use
-`framework/core-redex-parameter.rkt`, a selected-only transitive lifting module
-derived from `redex/parameter`, where a generated Redex declaration depends on
-another source- or stage-local judgment, metafunction, or relation that must
-later widen with a language extension. It
-reconstructs every inherited extension at the exact descendant language, so a
-second staged delta does not freeze the first delta's dependency at the first
-language. The upstream package remains on the frozen generator and its
-test-only whole-instance oracle. This is lexical dependency lifting for
-ordinary statically named artifacts; it is not dynamic `parameterize`, a
-representation selector, or a host semantic dispatcher.
+The selected source and stage frameworks use `redex/parameter` where a
+generated Redex declaration depends on another source- or stage-local
+judgment, metafunction, or relation that must later widen with a language
+extension. The required package behavior reconstructs every inherited
+extension at the exact descendant language, registers extensions through
+ancestor bases, and invalidates automatic lifts after explicit extensions. A
+second staged delta therefore does not freeze the first delta's dependency at
+the first language or reuse a lift from an older extension environment. This
+is lexical dependency lifting for ordinary statically named artifacts; it is
+not dynamic `parameterize`, a representation selector, or a host semantic
+dispatcher.
 
 ### Frozen whole-instance oracle generator
 
@@ -568,9 +568,9 @@ allocation cadence.
   native direct transition systems, phase-owned representation maps, and their
   primary transformation squares without invoking the retained
   `#:environment` backend.
-- `framework/core-redex-parameter.rkt` is the selected-only transitive
-  dependency-lifting implementation. The frozen generator and test-only
-  whole-instance oracle continue to use the upstream package.
+- The selected schemas and renderers import `redex/parameter` directly;
+  transitive feature-order regressions enforce the package behavior they
+  require.
 - `framework/core-stage-extension-base-fixture.rkt`,
   `core-stage-extension-query-fixture.rkt`, and
   `core-stage-extension-applied-fixture.rkt` form the explicit foreign

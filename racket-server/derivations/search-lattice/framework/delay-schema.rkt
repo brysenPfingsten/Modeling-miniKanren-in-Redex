@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         (prefix-in redex-parameter: "./core-redex-parameter.rkt")
+         (prefix-in redex-parameter: redex/parameter)
          "./core-source-schema.rkt"
          "./core-stage-renderers.rkt"
          (for-syntax racket/base
@@ -1839,14 +1839,14 @@
             [W .... #,pending-grammar]
             [F .... #,forced-grammar]
             [SpineContext .... #,forced-spine]
-            ;; Reopen each selected-view alias in the exact feature language.
-            ;; Redex otherwise retains the inherited production reference to
-            ;; the base language and rejects feature payloads inside generic
-            ;; continuation/control shells.
-            [SourceW .... W]
-            [SourceF .... F]
-            [SourceWorkFocus .... WorkFocus]
-            [SourceSpineContext .... SpineContext]
+            ;; Replace each selected-view alias in the exact feature language.
+            ;; Appending the current category duplicates every inherited
+            ;; production because W, F, and their contexts already extend the
+            ;; base language.
+            [SourceW W]
+            [SourceF F]
+            [SourceWorkFocus WorkFocus]
+            [SourceSpineContext SpineContext]
             [T .... #,forced-terminal]
             [D .... (Final T)]
             [RuleName .... suspend-goal bubble-delay-through-conj force-delay]

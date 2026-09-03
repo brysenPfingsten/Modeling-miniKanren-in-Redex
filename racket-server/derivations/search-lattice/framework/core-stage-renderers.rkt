@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         (prefix-in redex-parameter: "./core-redex-parameter.rkt")
+         (prefix-in redex-parameter: redex/parameter)
          (for-syntax racket/base
                      racket/list
                      racket/match

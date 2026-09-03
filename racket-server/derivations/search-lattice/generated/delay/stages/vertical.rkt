@@ -85,6 +85,7 @@
   #:target e:delay/staged-row/E
   #:Q-M Q-SE/M/stages/delay
   #:Q-focus source:Q-SE/focus/delay
+  #:Q-root-focus source:Q-SE/root-focus/delay
   #:Q-failure-focus source:Q-SE/failure-focus/delay
   #:Q-terminal source:Q-SE/terminal/delay
   #:Q-B Q-SE/B/stages/delay
@@ -133,6 +134,7 @@
   #:target n:delay/staged-row/N
   #:Q-M Q-EN/M/stages/delay
   #:Q-focus source:Q-EN/focus/delay
+  #:Q-root-focus source:Q-EN/root-focus/delay
   #:Q-failure-focus source:Q-EN/failure-focus/delay
   #:Q-terminal source:Q-EN/terminal/delay
   #:Q-B Q-EN/B/stages/delay
@@ -183,6 +185,7 @@
   #:target n:delay/staged-row/N
   #:Q-M Q-SN/M/stages/delay
   #:Q-focus source:Q-SN/focus/delay
+  #:Q-root-focus source:Q-SN/root-focus/delay
   #:Q-failure-focus source:Q-SN/failure-focus/delay
   #:Q-terminal source:Q-SN/terminal/delay
   #:Q-B Q-SN/B/stages/delay

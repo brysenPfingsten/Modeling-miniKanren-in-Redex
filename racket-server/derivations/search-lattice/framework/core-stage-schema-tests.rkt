@@ -3,7 +3,7 @@
 (require rackunit
          rackunit/text-ui
          redex/reduction-semantics
-         (prefix-in selected-parameter: "./core-redex-parameter.rkt")
+         (prefix-in selected-parameter: redex/parameter)
          "./core-stage-empty-frame-fixture.rkt"
          "./core-stage-schema.rkt"
          "./core-stage-schema-consumer-fixture.rkt")

@@ -366,6 +366,7 @@
    (test-case
     "eight mixed inherited equations preserve exact raw proofs"
     (for ([case (in-list MIXED-CASES/S)])
+      (define case-name (~a (mixed-case-name case)))
       (define label (mixed-case-label case))
       (define source/s (mixed-case-source case))
       (define target/s (mixed-case-target case))
@@ -379,25 +380,25 @@
 
       (check-equal? (ss:raw-successors/search/s source/s)
                     expected/s
-                    (mixed-case-name case))
+                    case-name)
       (check-equal?
        (ss:raw-successors/search/s/disjunction-first source/s)
        expected/s
-       (mixed-case-name case))
+       case-name)
       (check-equal? (es:raw-successors/search/e source/e)
                     expected/e
-                    (mixed-case-name case))
+                    case-name)
       (check-equal?
        (es:raw-successors/search/e/disjunction-first source/e)
        expected/e
-       (mixed-case-name case))
+       case-name)
       (check-equal? (ns:raw-successors/search/n source/n)
                     expected/n
-                    (mixed-case-name case))
+                    case-name)
       (check-equal?
        (ns:raw-successors/search/n/disjunction-first source/n)
        expected/n
-       (mixed-case-name case))
+       case-name)
 
       ;; Exact proof counts guard both reduction and WF multiplicity.
       (for ([proofs
@@ -408,7 +409,7 @@
                     (wf-proofs/e target/e)
                     (wf-proofs/n source/n)
                     (wf-proofs/n target/n)))])
-        (check-equal? (length proofs) 1 (mixed-case-name case)))
+        (check-equal? (length proofs) 1 case-name))
 
       (check-true (Q-SE-step-square/raw?/search source/s))
       (check-true (Q-EN-step-square/raw?/search source/e))

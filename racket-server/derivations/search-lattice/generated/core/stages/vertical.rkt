@@ -88,6 +88,7 @@
   #:target e:core/stage/B/E
   #:Q-M Q-SE/M/stages
   #:Q-focus source:Q-SE/focus/generated
+  #:Q-root-focus source:Q-SE/root-focus/generated
   #:Q-failure-focus source:Q-SE/failure-focus/generated
   #:Q-terminal source:Q-SE/terminal/generated
   #:Q-B Q-SE/B/stages
@@ -136,6 +137,7 @@
   #:target n:core/stage/B/N
   #:Q-M Q-EN/M/stages
   #:Q-focus source:Q-EN/focus/generated
+  #:Q-root-focus source:Q-EN/root-focus/generated
   #:Q-failure-focus source:Q-EN/failure-focus/generated
   #:Q-terminal source:Q-EN/terminal/generated
   #:Q-B Q-EN/B/stages
@@ -186,6 +188,7 @@
   #:target n:core/stage/B/N
   #:Q-M Q-SN/M/stages
   #:Q-focus source:Q-SN/focus/generated
+  #:Q-root-focus source:Q-SN/root-focus/generated
   #:Q-failure-focus source:Q-SN/failure-focus/generated
   #:Q-terminal source:Q-SN/terminal/generated
   #:Q-B Q-SN/B/stages

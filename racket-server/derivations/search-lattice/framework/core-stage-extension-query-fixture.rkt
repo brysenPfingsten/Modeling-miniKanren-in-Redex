@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         (prefix-in redex-parameter: "./core-redex-parameter.rkt")
+         (prefix-in redex-parameter: redex/parameter)
          "./core-stage-extension-base-fixture.rkt"
          "./core-stage-schema.rkt")
 

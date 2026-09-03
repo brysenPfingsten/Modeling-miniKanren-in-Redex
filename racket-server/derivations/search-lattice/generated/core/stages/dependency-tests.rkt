@@ -154,15 +154,16 @@
 
   (test-case "Redex dependencies are lexical while representation selection is static"
     (define redex-parameter-module
-      (string-append "core-redex-" "parameter.rkt"))
-    ;; Only the selected renderer lifts rule dependencies.  Source/row/edge
-    ;; declarations do not use Redex parameters to select a representation.
-    (check-true
-     (regexp-match?
-      (regexp (regexp-quote redex-parameter-module))
-      (file->string renderer-file)))
-    (for ([path (in-list (append (list source-framework-file
-                                       framework-file
+      (string-append "redex/" "parameter"))
+    ;; The source schema and selected renderer lift lexical dependencies.
+    ;; Row and edge declarations do not use Redex parameters to select a
+    ;; representation.
+    (for ([path (in-list (list source-framework-file renderer-file))])
+      (check-true
+       (regexp-match?
+        (regexp (regexp-quote redex-parameter-module))
+        (file->string path))))
+    (for ([path (in-list (append (list framework-file
                                        policy-file
                                        vertical-file)
                                  row-files))])

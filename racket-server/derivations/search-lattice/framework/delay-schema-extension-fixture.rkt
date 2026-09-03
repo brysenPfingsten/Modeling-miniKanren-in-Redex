@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         (prefix-in redex-parameter: "./core-redex-parameter.rkt")
+         (prefix-in redex-parameter: redex/parameter)
          "./core-source-schema.rkt"
          "./delay-schema-prefix-fixture.rkt"
          (for-syntax racket/base

@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         (prefix-in redex-parameter: "./core-redex-parameter.rkt")
+         (prefix-in redex-parameter: redex/parameter)
          "./core-source-schema.rkt"
          "./core-stage-renderers.rkt"
          (for-syntax racket/base
@@ -2319,10 +2319,10 @@
             [SpineContext .... #,(r 'emit-spine)]
             [T .... #,(r 'emit-terminal)]
             [D .... (Final T)]
-            [SourceW .... W]
-            [SourceF .... F]
-            [SourceWorkFocus .... WorkFocus]
-            [SourceSpineContext .... SpineContext]
+            [SourceW W]
+            [SourceF F]
+            [SourceWorkFocus WorkFocus]
+            [SourceSpineContext SpineContext]
             [RuleName .... #,@(syntax->list labels)]
             [FeatureRuleName #,@(syntax->list labels)]
             [WR .... #,(r 'expansion-source) #,(r 'skip-source)

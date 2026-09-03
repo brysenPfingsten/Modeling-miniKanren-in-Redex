@@ -79,11 +79,15 @@
   (test-case "representation selection uses neither Redex nor Racket parameters"
     (define redex-parameter-module
       (string-append "redex/" "parameter"))
-    (for ([path (in-list implementation-files)])
+    ;; The source schema uses the lifting package only for lexical dependencies.
+    ;; Generated rows and vertical maps do not use it to select a representation.
+    (for ([path (in-list (list s-file e-file n-file vertical-file))])
       (define contents (file->string path))
       (check-false
        (regexp-match? (regexp (regexp-quote redex-parameter-module))
-                      contents))
+                      contents)))
+    (for ([path (in-list implementation-files)])
+      (define contents (file->string path))
       (check-false (regexp-match? #px"[(]parameterize(?=[[:space:]])"
                                   contents))
       (check-false (regexp-match? #rx"AllocateEvent" contents)))
