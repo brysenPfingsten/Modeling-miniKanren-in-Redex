@@ -1,4 +1,4 @@
-# Marked-to-lean source correspondence
+# Marked-to-lean source and decomposition correspondence
 
 This directory owns the explicit reference map from the independent marked
 source to the independent lean source.  Neither reference imports this layer
@@ -34,5 +34,20 @@ Consequently the source observations divide deliberately:
 - lean unit cost equals the marked label count after removing the five
   ownership-administration labels.
 
-This checkpoint contains no `D`, `Z`, `M`, `B`, big-step, cache insertion, or
+At the decomposition stage, a marked focus on fresh administration need not
+have a homomorphic lean focus: the constructor being focused is precisely what
+`Q_R` removes.  The reference therefore states `Q_D` by the commuting square:
+
+```text
+Q_D(D_marked) =
+  decompose_lean(Q_R(plug_marked(D_marked)))
+```
+
+The lean decomposition is independently defined before this relation is
+introduced.  `Q_D` is total and single-valued, reconstructs the `Q_R`
+square, and lifts the same weak alpha-aware simulation to `D`: the five
+ownership labels stutter with decreasing rank, and every visible marked `D`
+step has one lean `D` step with the same label.
+
+This checkpoint contains no `Z`, `M`, `B`, big-step, cache insertion, or
 scheduler-policy derivation.

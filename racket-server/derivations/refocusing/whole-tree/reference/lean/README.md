@@ -1,11 +1,12 @@
-# Lean whole-tree source reference
+# Lean whole-tree source and decomposition reference
 
-This subtree is the independent source-level reference for the lean
-representation of the selected whole-tree search cell.  It is handwritten
+This subtree is the independent source-through-decomposition reference for
+the lean representation of the selected whole-tree search cell.  It is stated
 separately from [`../marked/`](../marked/README.md): no lean semantic module
 imports, generates from, or operationally calls the marked reference.
 
-The checkpoint deliberately erases only persistent fresh-ownership wrappers:
+The representation deliberately erases only persistent fresh-ownership
+wrappers:
 
 ```text
 WorkFresh(intro,W,tag)      -> W
@@ -85,6 +86,41 @@ an erased marker can permit later name reuse in lean.  The intended `Q_R`
 claim is therefore alpha-aware weak correspondence, not unconditional literal
 name lockstep.
 
+## Decomposition
+
+The independent lean decomposition now supplies the first derived stage:
+
+```text
+R[lean] -> D[lean]
+```
+
+Its grammar has no marked-only local-fresh focus or context class:
+
+```text
+BR ::= Returned(kst)
+     | Dead
+     | PendingDelay(W)
+     | DisjL(S,W)
+     | DisjR(W,S)
+
+LR ::= Work(g,kst)
+     | Conj(S,g) | Conj(Dead,g) | Conj(PendingDelay(W),g)
+     | Conj(SC,g)
+     | DisjL(Dead,W) | DisjL(PendingDelay(W),W) | DisjL(SC,W)
+     | DisjR(W,Dead) | DisjR(W,PendingDelay(W)) | DisjR(W,SC)
+
+D  ::= DecWork(BR,BF)
+     | DecWork(LR,WF)
+     | DecFrontier(T,FF)
+```
+
+`decompose` is total, single-valued, and reconstructing on the precise
+`Ktoy` and `Kmk` languages.  `contract` restates every lean source
+contractum, including fresh allocation directly to marker-free `Work`.  A
+separately stated direct `D` step repeats those contracta and agrees with the
+decompose/contract/plug specification.  Both derived presentations agree
+exactly with source successors and labels.
+
 ## Well-formedness and imports
 
 Lean well-formedness retains lexical scope, kernel state validity,
@@ -106,5 +142,6 @@ From the repository root:
 racket -y racket-server/derivations/refocusing/whole-tree/reference/lean/tests/run.rkt
 ```
 
-This source-only checkpoint does not claim lean decomposition, refocusing,
-machine, compression, or finite big-step artifacts.
+This checkpoint claims lean source and decomposition only.  It does not yet
+claim lean refocusing, machine, compression, cache insertion, or finite
+big-step artifacts.

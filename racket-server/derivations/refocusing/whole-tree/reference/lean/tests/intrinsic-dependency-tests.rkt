@@ -86,7 +86,7 @@
 
 (define lean-intrinsic-dependency-tests
   (test-suite
-   "lean source intrinsic dependency boundary"
+   "lean reference intrinsic dependency boundary"
 
    (test-case
     "semantic modules import only lean and approved atomic helpers"

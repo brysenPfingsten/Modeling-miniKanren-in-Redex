@@ -9,6 +9,7 @@
          (prefix-in marked-mk-s: "../../../reference/marked/mk/source.rkt")
          (prefix-in marked-toy-l: "../../../reference/marked/toy/labels.rkt")
          (prefix-in marked-toy-s: "../../../reference/marked/toy/source.rkt")
+         (prefix-in marked-toy-wf: "../../../reference/marked/toy/wf.rkt")
          (prefix-in lean-mk-l: "../../../reference/lean/mk/labels.rkt")
          (prefix-in lean-mk-s: "../../../reference/lean/mk/source.rkt")
          (prefix-in lean-toy-l: "../../../reference/lean/toy/labels.rkt")
@@ -300,6 +301,20 @@
      (WorkFresh (u:0) Dead (label "local-fresh"))
      (Work (succeed (label "alternate")) (state unit)))))
 
+(define nested-marker-stutter-before
+  '(More
+    (Conj
+     (WorkFresh
+      (u:0)
+      (WorkFresh
+       (u:1)
+       (DisjL
+        (Returned (state unit))
+        (Work (fail (label "alternate")) (state unit)))
+       (label "inner"))
+      (label "outer"))
+     (succeed (label "continue")))))
+
 (define direct-visible-cases
   (list
    (list
@@ -523,6 +538,27 @@
     (check-equal?
      direct-kernel-labels
      (map second direct-kernel-cases)))
+
+   (test-case
+    "fresh stutter rank decreases beneath another WorkFresh"
+    (check-true
+     (judgment-holds
+      (marked-toy-wf:wf-frontier/toy
+       ,nested-marker-stutter-before)))
+    (match-define
+      (list label after)
+      (only-successor
+       "nested marker stutter multiplicity"
+       (marked-toy-successors nested-marker-stutter-before)))
+    (check-equal?
+     label
+     '(expose-choice-through-work-fresh disj))
+    (check-equal?
+     (term (q-toy:Q-R/toy ,nested-marker-stutter-before))
+     (term (q-toy:Q-R/toy ,after)))
+    (check-true
+     (< (q:fresh-marker-rank after)
+        (q:fresh-marker-rank nested-marker-stutter-before))))
 
    (test-case
     "marked and lean sources expose the exact 23/27 visible inventories"

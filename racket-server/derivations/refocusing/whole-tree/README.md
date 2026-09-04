@@ -43,31 +43,38 @@ cost, and dynamic allocation events are separately executable.  Temporary
 agreement with the pilot and broad-spike observation equations lives in the
 outer canonical test suite, not in the reference implementation.
 
-The independently stated lean source reference now lives at
+The independently stated lean source and decomposition reference now lives at
 [`reference/lean/`](reference/lean/README.md).  It has its own grammar,
-well-formedness judgments, kernel instances, and genuine named source
+well-formedness judgments, kernel instances, genuine named source relation,
+grammatical decomposition, contract relation, and independent direct `D`
 relation; it neither imports nor operationally calls the marked reference.
-The source-stage reference correspondence lives at
+The stagewise reference correspondence lives at
 [`q/reference/`](q/reference/README.md).  Its `Q_R` erases only persistent
 fresh-ownership wrappers, retains `Emit`/`Last`/`Forced`, and states a weak
 alpha-aware simulation: five marked ownership-administration steps stutter
 with a decreasing rank, while every retained step has one lean step with the
-same semantic label.
+same semantic label.  Its `Q_D` reconstructs a marked decomposition,
+applies `Q_R`, and re-decomposes in the independent lean system.  This is
+necessary because a marked fresh-administration focus can disappear rather
+than map homomorphically to a lean focus.
 
-The focused acceptance entry point is
-[`tests/source-checkpoint.rkt`](tests/source-checkpoint.rkt).  It runs only the
-lean source, intrinsic import-boundary, and source-correspondence suites.
+The current focused acceptance entry point is
+[`tests/decomposition-checkpoint.rkt`](tests/decomposition-checkpoint.rkt).
+It includes the prior source checkpoint, the independent lean `D` suites, the
+intrinsic import boundary, and the `Q_R`/`Q_D` suites.
 
-This source checkpoint does **not** yet claim the lean complete derivation:
+This decomposition checkpoint does **not** yet claim the lean complete
+derivation:
 
 ```text
 R -> D -> Z <-> M -> B -> finite big step
 ```
 
-Those later stages remain the next representation milestone.  Cache insertion
+`R -> D` is now present; `Z` and the later stages remain the next
+representation milestone.  Cache insertion
 belongs to a separate lean-to-cached bridge; it is not folded into an
 indiscriminate erasure.  Scheduler-policy comparisons likewise remain outside
-this source correspondence.
+this stagewise correspondence.
 
 The durable result is a modular family indexed along three axes:
 

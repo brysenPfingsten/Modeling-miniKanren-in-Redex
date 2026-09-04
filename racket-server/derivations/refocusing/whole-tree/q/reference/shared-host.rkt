@@ -62,32 +62,29 @@
   (equal? (alpha-normal-form left)
           (alpha-normal-form right)))
 
-;; Size is used only to give every WorkFresh crossing a strictly positive,
-;; super-additive weight.  Base 3 makes distributing one marker across a
-;; binary choice strictly decrease the total even when both branches are
-;; leaves.
-(define (work-size work)
-  (match work
-    [`(Work ,_goal ,_state) 1]
-    [`(Returned ,_state) 1]
-    ['Dead 1]
-    [`(WorkFresh ,_intro ,inner ,_tag)
-     (add1 (work-size inner))]
-    [`(Conj ,inner ,_goal)
-     (add1 (work-size inner))]
-    [`(PendingDelay ,inner)
-     (add1 (work-size inner))]
-    [`(DisjL ,left ,right)
-     (+ 1 (work-size left) (work-size right))]
-    [`(DisjR ,left ,right)
-     (+ 1 (work-size left) (work-size right))]
-    [_ (raise-argument-error 'work-size "marked work term" work)]))
-
+;; This polynomial interpretation is context-monotone.  WorkFresh doubles its
+;; child's rank; choice contributes 2 and delay contributes 1.  Consequently:
+;;
+;;   WF(Disj(l,r)) = 5 + 2L + 2R > 4 + 2L + 2R = Disj(WF(l),WF(r))
+;;   WF(Delay(w))  = 3 + 2W      > 2 + 2W      = Delay(WF(w))
+;;
+;; erasing a dead marker and exposing one at More also strictly decrease.
+;; Unlike the former subtree-size sum, these inequalities remain strict below
+;; another WorkFresh because every enclosing interpretation is monotone.
 (define (fresh-marker-rank datum)
   (match datum
     [`(WorkFresh ,_intro ,inner ,_tag)
-     (+ (expt 3 (work-size inner))
-        (fresh-marker-rank inner))]
+     (add1 (* 2 (fresh-marker-rank inner)))]
+    [`(PendingDelay ,inner)
+     (add1 (fresh-marker-rank inner))]
+    [`(DisjL ,left ,right)
+     (+ 2
+        (fresh-marker-rank left)
+        (fresh-marker-rank right))]
+    [`(DisjR ,left ,right)
+     (+ 2
+        (fresh-marker-rank left)
+        (fresh-marker-rank right))]
     [(cons first rest)
      (+ (fresh-marker-rank first)
         (fresh-marker-rank rest))]
