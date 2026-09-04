@@ -488,6 +488,13 @@
     border-radius: 3px;
   }
 
+  .sidebar-empty {
+    padding: var(--space-md);
+    color: var(--color-text);
+    line-height: 1.5;
+    opacity: 0.7;
+  }
+
   /* items */
   .sidebar-item {
     display: flex;

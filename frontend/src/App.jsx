@@ -28,6 +28,7 @@ import {
   parseStepperPayload,
 } from './utils/stepper_protocol.js';
 import {
+  deriveStateSelectionUpdate,
   deriveToolbarState,
 } from './utils/app_state.js';
 import {
@@ -313,11 +314,16 @@ function App() {
             <div style={{ display: 'block', width: 'max-content', margin: '0 auto' }}>
               <TreeCanvas
                 ref={treeRef}
-                onNodeClick={({ substitutionData, trailData, gId, sId }) => {
-                  setSubstitutionData(substitutionData);
-                  setTrailData(trailData);
+                onNodeClick={(payload) => {
+                  const stateUpdate = deriveStateSelectionUpdate(payload);
+                  const { gId } = payload;
+
                   setGoalId(gId);
-                  setStateId(sId);
+                  if (stateUpdate) {
+                    setSubstitutionData(stateUpdate.substitutionData);
+                    setTrailData(stateUpdate.trailData);
+                    setStateId(stateUpdate.stateId);
+                  }
                 }}
                 selectedGoalId={goalId}
                 selectedStateId={stateId}
@@ -329,6 +335,7 @@ function App() {
       <Sidebar
         substitutionData={substitutionData}
         trailData={trailData}
+        hasStateSelection={stateId !== null}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen((open) => !open)}
       />

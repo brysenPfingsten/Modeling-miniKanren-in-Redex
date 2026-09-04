@@ -14,3 +14,17 @@ export function deriveToolbarState({
     canStep: isFrozen && !isAtEnd,
   };
 }
+
+export function deriveStateSelectionUpdate({
+  substitutionData = [],
+  trailData = [],
+  sId,
+}) {
+  if (sId == null) return null;
+
+  return {
+    stateId: sId,
+    substitutionData,
+    trailData,
+  };
+}
