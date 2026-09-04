@@ -1,6 +1,8 @@
 # Property-Based Testing Audit (2026-02-26)
 
-Scope: current `language-refactor` branch.
+Historical scope: the pre-rewrite checkout then named `language-refactor`,
+preserved by `archive/language-refactor-pre-rewrite-2026-03-28`. The
+2026-02-27 testing update corresponds to that line through commit `82ec83d`.
 
 ## Status Update (2026-02-27)
 - Completed:
