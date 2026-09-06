@@ -16,9 +16,9 @@
   [SV (Empty owners) (One owners σ)
       (Yield owners A SV) (Delay owners c)]
   [c SV (eval owners g σ) (mplus owners c c) (bind owners c g)
-     (Yield owners A c) (force c) (prefix owners c)]
+     (Yield owners A c) (force c)]
   [E hole (mplus owners E c) (mplus owners SV E)
-     (bind owners E g) (Yield owners A E) (force E) (prefix owners E)]
+     (bind owners E g) (Yield owners A E) (force E)]
   [O (Done owners) (Last owners A) (Emit owners A O) (Forced owners O)]
   [F (Done owners) (Last owners A) (Emit owners A F) (Forced owners F)
      (More (Delay owners c))]
@@ -39,7 +39,7 @@
     [`(bind ,owners ,inner ,_) (context-support/s inner (owners-support owners support))]
     [`(,(or 'Yield 'Emit) ,owners ,_ ,inner)
      (context-support/s inner (owners-support owners support))]
-    [`(,(or 'Forced 'prefix) ,owners ,inner)
+    [`(Forced ,owners ,inner)
      (context-support/s inner (owners-support owners support))]
     [`(,(or 'force 'render 'commit 'advance 'collect) ,inner)
      (context-support/s inner support)]

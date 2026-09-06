@@ -110,11 +110,12 @@
            (not (suite? path))))
     (check-closure (filter runtime? (source-files matrix)) runtime?))
 
-  (test-case "matrix checks use native rows and independent shared evidence"
+  (test-case "matrix checks use native rows and the independent retained checkpoint"
     (check-closure (source-files matrix)
                    (lambda (path)
                      (or (inside? path matrix) (inside? path shared)
-                         (inside? path support)))))
+                         (inside? path support)
+                         (and (inside? path retained) (not (suite? path)))))))
 
   (test-case "the strict aggregate includes both maintained derivation accounts"
     ;; Parse the actual direct require, without loading the broad aggregate

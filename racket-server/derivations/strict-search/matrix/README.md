@@ -1,14 +1,16 @@
 # Strict representation and feature matrix
 
-These maintained native S/E/N feature instances use the explicit
-`prefix` ownership operation. The selected S source and interpreter are in
+These native S/E/N feature instances use the retained-scope operation of the
+selected S source and interpreter in
 [retained-scope/](../retained-scope/README.md). Common grammars, kernels,
 representation maps, and stage construction live in [shared/](../shared/README.md);
 this directory owns the matrix's source and Big rules and their instances.
 The [research guide](../README.md#sen-coordinate-inventory) owns the complete
-coordinate inventory and remaining obligations. These source and downstream
-equations still need retained-scope alignment; their existing correspondence
-checks do not establish that extension.
+coordinate inventory and remaining obligations. Source and R/D/Z/M/B/Big
+equations use this factoring in all twelve feature cells. The
+[checkpoint gate](retained-scope-tests.rkt) connects the independently stated
+Search/rail S source and stages to the selected S functional machine and the
+native E/N machine transitions.
 
 This matrix adds the `strict-round` branch-evaluation coordinate to the
 preserved S/E/N representation contract. Each row evaluates both operands of
@@ -33,7 +35,7 @@ coordinate:
 | Role | Existing matrix syntax | Operational responsibility |
 | --- | --- | --- |
 | Program | `g`: atomic goals, fresh, conjunction, disjunction, suspend | Describes work to evaluate against a state. A disjunction in `g` is not a computed answer or a scheduler residual. |
-| Active Search | `c`: eval/mplus/bind/force/prefix computations; mature `SV`: Empty/One/Yield/Delay | Retains strict work and mature eager chunks that merge/bind may still process. A mature answer is not automatically settled output. |
+| Active Search | `c`: eval/mplus/bind/force computations; mature `SV`: Empty/One/Yield/Delay | Retains strict work and mature eager chunks that merge/bind may still process. A mature answer is not automatically settled output. |
 | Settled frontier | `F`: Done/Last/Emit/Forced and unary More(Delay); `O` is the completed subset | Contains committed answers and at most one explicit unfinished tip. It is a normal form even when that tip is pending. |
 
 Observation computations `o` include `commit c`, `advance o`, and `collect o`.
@@ -63,13 +65,21 @@ retains a crossed Delay's Owners on Forced and commits the unprefixed body.
 Active merge/bind and internal force retain their own role and strict order.
 
 Public advance/collect/render expose the stored body directly, as does the
-resumption stored by delayed bind. Internal force has a pending ownership
-operation: `force(Delay(O,c)) → prefix(O,c)`. The context `prefix(O,E)` supplies
-allocation ancestry while the body runs; `prefix-value` attaches O only after
-Search matures. Refocusing independently derives the analogue of KPrefix.
-E/N retain unary prefix and its identity contraction, keeping their labelled
-step correspondence with S exact. The selected [retained-scope equations](../retained-scope/README.md) instead
-retain these introductions directly on the active computation.
+resumption stored by delayed bind. Internal force instead retains the removed
+Delay's introductions on the active body:
+
+```text
+S:   force(Delay(O,c)) → lift_O(c)
+E/N: force(Delay(c))   → c
+```
+
+`lift_O` prepends O to the active body's root Owners and passes through a
+`force` wrapper. S allocation therefore sees those introductions while the
+body runs. E/N already carry the corresponding allocation world in states and
+failed values. There is no syntactic `prefix` computation, `prefix-value`
+contraction, or prefix frame in any row. The functional interpreter still
+uses a `prefix` helper to attach Owners to an already mature Search; that
+helper does not resume work or derive a pending continuation.
 
 The older `render c` operation remains an explicit full-consumption observer
 for comparison. It can resume repeatedly and is not the partial public query.
@@ -120,9 +130,9 @@ and statically generated Redex rule set in each representation:
 | Feature coordinate | Goals and carriers added | Strict rule count |
 | --- | --- | --- |
 | Core | Atomic goals, lexical fresh, conjunction; Empty/One, Done/Last, eval/bind and observation operations | 13 |
-| Delay | suspend; Delay/force/prefix/Forced, unfinished More(Delay), explicit crossing | 23 |
+| Delay | suspend; Delay/force/Forced, unfinished More(Delay), explicit crossing | 22 |
 | Disjunction | disjunction; active Yield/mplus/Emit | 22 |
-| Search/rail | Both features plus the rail merge of Delay | 33 |
+| Search/rail | Both features plus the rail merge of Delay | 32 |
 
 These counts describe unique rule labels, not test passes. Lower rows reject
 absent constructors even inside a mature value or observer; they do not merely
@@ -167,6 +177,16 @@ traces, all three vertical maps and direct composition at every reached state.
 [property-tests.rkt](property-tests.rkt) extends those checks over generated
 lexical goals using the native S/E/N rows.
 
+[retained-scope-tests.rkt](retained-scope-tests.rkt) checks the independently
+stated selected and matrix S sources and D/Z/M/B configurations at each edge.
+It then maps the selected S functional configuration into native S/E/N M
+configurations and checks actual native steps: one preclassified source
+operation with only administrative normalization around it. Native B steps
+must report and replay that exact M span. Direct S→N and
+S→E→N remain separate checks. These checks include commit, advance, collect,
+exact intermediate Frontiers and suspended bodies. They derive no separate
+E/N functional interpreter or register program.
+
 These are bounded executable correspondence checks. They do not constitute
 universal adequacy, naturality, guarded fusion, or productive-stream proofs.
 The source's `eval-atom` label is its strict atomic contraction; preserved
@@ -186,6 +206,8 @@ trace. Relation calls are outside this matrix's current source language.
   its README records the stage-specific construction and evidence.
 - `big/`: direct finite Big equations over the actual row carriers.
 - `property-tests.rkt`: generated-goal representation and source checks.
+- `retained-scope-tests.rkt`: selected S checkpoint and actual S/E/N source
+  and machine transition checks.
 - `all.rkt`: aggregate source, feature, property, stage, and Big checks.
 
 Each source exposes its own named relation, `contract`, Search-value,
@@ -205,5 +227,6 @@ raco test racket-server/derivations/strict-search/matrix/all.rkt
 
 The focused source/feature, [stage](stages/README.md), and [Big](big/README.md)
 suites remain independently runnable. A source-only run does not establish
-the complete horizontal pipeline. The gate's finite native correspondences
-do not establish retained-scope E/N, relation calls, or productive streams.
+the complete horizontal pipeline. The gate checks the retained-scope S/E/N
+connection over finite witnesses; it does not establish a universal machine
+correspondence, relation calls, or productive streams.

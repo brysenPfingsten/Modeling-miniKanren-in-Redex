@@ -65,8 +65,7 @@
                  (mplus (eval g σ) (bind SV g)) bind-yield]
             [--> (bind (Delay c) g)
                  (Delay (bind c g)) bind-delay]
-            [--> (force (Delay c)) (prefix c) force-delay]
-            [--> (prefix SV) SV prefix-value]
+            [--> (force (Delay c)) c force-delay]
             [--> (render (Empty supply)) (Done supply) render-empty]
             [--> (render (One σ)) (Last σ) render-one]
             [--> (render (Yield σ SV)) (Emit σ (render SV)) render-yield]

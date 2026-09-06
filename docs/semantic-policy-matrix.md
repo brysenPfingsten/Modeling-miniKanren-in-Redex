@@ -9,7 +9,7 @@ records why the selected account makes its semantic distinctions.
 | Account | Current role | Operational policy |
 | --- | --- | --- |
 | [Retained scope](../racket-server/derivations/strict-search/retained-scope/README.md) | Selected S interpreter and corresponding functional/syntactic machines | Strict disjunction, eager Yield tails and bind, explicit Search/Frontier commitment; only Delay suspends |
-| [S/E/N matrix](../racket-server/derivations/strict-search/matrix/README.md) | Live representation and feature machinery through Big, awaiting retained-scope alignment | Same strict Search/rail evaluation, with the earlier explicit-prefix scope operation |
+| [S/E/N matrix](../racket-server/derivations/strict-search/matrix/README.md) | Native retained-scope representation and feature machinery through Big; checkpoint source/machine transition checks connect it to selected S | Same strict Search/rail evaluation; S retains introductions on active work, E/N carry the corresponding support in states |
 | [Production search lattice](../racket-server/src/search-lattice/SEMILATTICE.md) | Live compiler, API, GUI and library runtime | Dormant-right / online disjunction with DFS, flip and rail schedulers and relation calls |
 
 Branch evaluation and scheduler are separate choices. The production Search
@@ -23,7 +23,7 @@ interaction. Its DFS/flip and relation-call coordinates are not implemented.
 production relation and well-formedness checker. The compiler emits its
 configuration language, and
 [`picture.rkt`](../racket-server/src/search-lattice/picture.rkt) renders it.
-The organizational cleanup does not change any of those operational modules.
+The research matrix alignment does not change any of those operational modules.
 Connecting the selected account to the GUI will require aligning initial
 configurations, supported goals, named stepping, and Frontier rendering.
 
@@ -41,5 +41,7 @@ including guardedness and a pure deterministic kernel. Without guardedness,
 Frontiers, productive streams, and eventual answer sets require different
 claims; source-relative pipeline correctness does not identify them.
 
-Neither adoption of retained scope across S/E/N nor future GUI integration
-depends on proving or adopting an online fusion optimization.
+The retained-scope S/E/N connection and future GUI integration do not depend
+on proving or adopting an online fusion optimization. The native matrix
+connection does not supply separately derived E/N functional interpreters or
+register programs.

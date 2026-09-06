@@ -20,11 +20,15 @@
       (check-exn exn:fail:contract? (lambda () (m-step stage (M value 'halt))))
       (check-exn exn:fail:contract? (lambda () (b-step stage (BFinal value))))
       (check-exn exn:fail:contract? (lambda () (b-trace stage (BFinal value))))
-      ;; Prefix belongs to the same Delay extension as internal forcing;
-      ;; its body alone is otherwise admitted by these lower coordinates.
-      (define pending-prefix
-        (map-source `(prefix (Owners) ,(s:s-initial '(succeed (label "body"))))))
-      (check-exn exn:fail:contract? (lambda () (initial-M stage pending-prefix)))))
+      ;; Internal force is still a Delay operation; removing the old prefix
+      ;; phase does not admit forcing into Core or Disjunction.
+      (check-exn exn:fail:contract? (lambda () (initial-M stage `(force ,value))))))
+
+  (for ([row (in-list (list (list S '(prefix (Owners) (Empty (Owners))))
+                            (list E '(prefix (Empty (Support))))
+                            (list N '(prefix (Empty 0)))))])
+    (match-define (list stage retired) row)
+    (check-exn exn:fail:contract? (lambda () (initial-M stage retired))))
 
   ;; A strict machine retains the complete mature left answer chunk while
   ;; evaluating the right operand. Administrative compression retains that

@@ -190,6 +190,12 @@ the exact public Frontiers, their unforced bodies, and actual atomic goal/state
 work in order. Decoders and maps are checked without kernel execution or
 closure observers. These tests join the retained-scope aggregate.
 
+The [matrix checkpoint gate](../matrix/retained-scope-tests.rkt) connects S
+functional configurations to actual native S/E/N M transitions. The register
+decoder and prescribed compression spans provide the preceding maps. This
+connection does not supply separately generated E/N register programs or a
+direct register-to-Big certificate map.
+
 For every checked public operation, the gate also verifies the exact count
 equation `register dispatches - compressed dispatches = 2 × atomic evaluations`.
 All other original transitions remain represented individually.

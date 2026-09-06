@@ -116,7 +116,7 @@
      (define here (extend-valid-owners owners prefix))
      (define answer (and here (extend-valid-owners answer-owners here)))
      (and answer (state-s-valid? state answer))]
-    [`(,(or 'Delay 'Forced 'prefix) ,owners ,body)
+    [`(,(or 'Delay 'Forced) ,owners ,body)
      (define here (extend-valid-owners owners prefix))
      (and here (s-valid? body here))]
     [`(,(or 'force 'render 'commit 'advance 'collect 'More) ,body)
@@ -146,7 +146,7 @@
     [`(,(or 'Empty 'Done) (Support ,support ...)) (valid-support? support)]
     [`(,(or 'One 'Last) ,state) (state-e-valid? state)]
     [`(,(or 'Yield 'Emit) ,state ,tail) (and (state-e-valid? state) (e-valid? tail))]
-    [`(,(or 'Delay 'force 'prefix 'render 'commit 'advance 'collect 'Forced 'More) ,body)
+    [`(,(or 'Delay 'force 'render 'commit 'advance 'collect 'Forced 'More) ,body)
      (e-valid? body)]
     [_ #f]))
 
@@ -170,7 +170,7 @@
     [`(,(or 'Empty 'Done) ,next) (list next)]
     [`(,(or 'One 'Last) (state ,next ,_ ,_ ,_ ,_)) (list next)]
     [`(,(or 'Yield 'Emit) (state ,next ,_ ,_ ,_ ,_) ,tail) (cons next (world-nexts tail))]
-    [`(,(or 'Delay 'force 'prefix 'render 'commit 'advance 'collect 'Forced 'More) ,body)
+    [`(,(or 'Delay 'force 'render 'commit 'advance 'collect 'Forced 'More) ,body)
      (world-nexts body)]))
 
 (define (n-valid? computation)
@@ -186,7 +186,7 @@
     [`(,(or 'Empty 'Done) ,next) (exact-nonnegative-integer? next)]
     [`(,(or 'One 'Last) ,state) (state-n-valid? state)]
     [`(,(or 'Yield 'Emit) ,state ,tail) (and (state-n-valid? state) (n-valid? tail))]
-    [`(,(or 'Delay 'force 'prefix 'render 'commit 'advance 'collect 'Forced 'More) ,body)
+    [`(,(or 'Delay 'force 'render 'commit 'advance 'collect 'Forced 'More) ,body)
      (n-valid? body)]
     [_ #f]))
 

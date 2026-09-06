@@ -11,7 +11,7 @@
     '(eval-atom allocate-fresh eval-conj bind-empty bind-one render-empty render-one
       commit-empty commit-one advance-done advance-last collect-done collect-last))
   (define delay-labels
-    '(eval-suspend bind-delay force-delay prefix-value render-delay
+    '(eval-suspend bind-delay force-delay render-delay
       commit-delay advance-forced advance-delay collect-forced collect-delay))
   (define disjunction-labels
     '(eval-disj mplus-empty mplus-one mplus-yield bind-yield render-yield
@@ -38,8 +38,8 @@
     (define delay
       (case category
         [(SV) (if owned? '((Delay owners c)) '((Delay c)))]
-        [(c) (if owned? '((force c) (prefix owners c)) '((force c) (prefix c)))]
-        [(E) (if owned? '((force E) (prefix owners E)) '((force E) (prefix E)))]
+        [(c) '((force c))]
+        [(E) '((force E))]
         [(O) (if owned? '((Forced owners O)) '((Forced O)))]
         [(F) (if owned? '((Forced owners F) (More (Delay owners c)))
                  '((Forced F) (More (Delay c))))]

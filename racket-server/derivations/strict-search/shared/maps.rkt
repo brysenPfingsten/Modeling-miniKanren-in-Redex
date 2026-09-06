@@ -35,8 +35,8 @@
     [`(Yield ,owners (Answer ,answer-owners ,state) ,tail)
      (define here (owners-support owners prefix))
      `(Yield ,(state-SE state (owners-support answer-owners here)) ,(Q-SE tail here))]
-    [`(,(and constructor (or 'Delay 'prefix)) ,owners ,body)
-     `(,constructor ,(Q-SE body (owners-support owners prefix)))]
+    [`(Delay ,owners ,body)
+     `(Delay ,(Q-SE body (owners-support owners prefix)))]
     [`(,(and constructor (or 'force 'render 'commit 'advance 'collect 'More)) ,body)
      `(,constructor ,(Q-SE body prefix))]
     [`(Done ,owners) `(Done (Support ,@(owners-support owners prefix)))]
@@ -56,7 +56,7 @@
     [`(,(or 'Empty 'Done) (Support ,support ...)) (list support)]
     [`(,(or 'One 'Last) ,state) (list (state-support state))]
     [`(,(or 'Yield 'Emit) ,state ,tail) (cons (state-support state) (world-supports tail))]
-    [`(,(or 'Delay 'force 'prefix 'render 'commit 'advance 'collect 'Forced 'More) ,body)
+    [`(,(or 'Delay 'force 'render 'commit 'advance 'collect 'Forced 'More) ,body)
      (world-supports body)]
     [_ (raise-argument-error 'world-supports "strict E computation/observation" computation)]))
 
@@ -90,7 +90,7 @@
      `(,constructor ,(address-state state (state-support state)))]
     [`(,(and constructor (or 'Yield 'Emit)) ,state ,tail)
      `(,constructor ,(address-state state (state-support state)) ,(Q-EN tail))]
-    [`(,(and constructor (or 'Delay 'force 'prefix 'render 'commit 'advance 'collect 'Forced 'More)) ,body)
+    [`(,(and constructor (or 'Delay 'force 'render 'commit 'advance 'collect 'Forced 'More)) ,body)
      `(,constructor ,(Q-EN body))]
     [_ (raise-argument-error 'Q-EN "strict E computation/observation" computation)]))
 
@@ -120,8 +120,8 @@
     [`(Yield ,owners (Answer ,answer-owners ,state) ,tail)
      (define here (owners-support owners prefix))
      `(Yield ,(state-SN state (owners-support answer-owners here)) ,(Q-SN tail here))]
-    [`(,(and constructor (or 'Delay 'prefix)) ,owners ,body)
-     `(,constructor ,(Q-SN body (owners-support owners prefix)))]
+    [`(Delay ,owners ,body)
+     `(Delay ,(Q-SN body (owners-support owners prefix)))]
     [`(,(and constructor (or 'force 'render 'commit 'advance 'collect 'More)) ,body)
      `(,constructor ,(Q-SN body prefix))]
     [`(Last ,owners (Answer ,answer-owners ,state))

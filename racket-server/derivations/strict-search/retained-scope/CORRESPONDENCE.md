@@ -82,9 +82,15 @@ readback-M(Φ(f)) = readback-F(f).
 This equality checks two separately stated maps; the whole-tree map is not
 used to implement Φ. Existing fieldwise S→E/N maps also agree with translating
 the reconstructed source, including every pending computation and state.
-These are structural representation squares. The matrix's E/N transition
-systems still retain a unary prefix phase and are not asserted to have the
-new S machine's operation granularity.
+These are structural representation squares. The
+[matrix checkpoint gate](../matrix/retained-scope-tests.rkt) additionally checks
+the independently stated selected and matrix S source/stage transitions, then
+maps functional configurations into native S/E/N M configurations and steps
+those machines. All three rows use the retained-scope force boundary with
+no unary prefix phase. At each functional edge, the native check performs
+the preclassified source operation or administrative normalization only;
+native B steps must report and replay that exact M span. Direct S→N is checked
+alongside S→E→N.
 
 ## Where the continuations go
 
@@ -192,5 +198,8 @@ Strictness, eager bind, commitment, and retained introduction placement are
 the common specification. [Machine checks](machine-correspondence-tests.rkt)
 exercise the diagrams and domain conditions above. The subsequent
 [registerization and compression](REGISTERIZATION.md) compose with this
-relation under their own contracts. Retained-scope E/N transitions, productive
-infinite behavior, relation calls, and the compact rail machine remain open.
+relation under their own contracts. The S/E/N connection extends through
+mapped configurations and actual native machine transitions; it does not
+derive separate E/N functional interpreters or register dispatchers. General
+correspondence, productive infinite behavior, relation calls, and the compact
+rail machine remain open.

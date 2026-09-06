@@ -11,8 +11,8 @@
     (define choice '(Yield Emit mplus ∨ "eval-disj" "mplus-empty" "mplus-one"
                          "mplus-yield" "bind-yield" "render-yield" "commit-yield"
                          "advance-emit" "collect-emit"))
-    (define delay '(Delay force prefix Forced suspend "eval-suspend" "bind-delay"
-                         "force-delay" "prefix-value" "render-delay" "commit-delay"
+    (define delay '(Delay force Forced suspend "eval-suspend" "bind-delay"
+                         "force-delay" "render-delay" "commit-delay"
                          "advance-delay" "advance-forced" "collect-delay" "collect-forced"))
     (case feature
       [(core) (append choice delay '("mplus-delay"))]

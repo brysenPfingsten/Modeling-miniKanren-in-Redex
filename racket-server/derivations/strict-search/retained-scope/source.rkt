@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         (only-in "../shared/grammar-s.rkt" StrictS context-support/s)
+         (only-in "../shared/grammar-s.rkt" [StrictS ScopeS] context-support/s)
          "../shared/kernel.rkt")
 
 (provide ScopeS retained-red retained-contract
@@ -9,14 +9,6 @@
          retained-initial retained-query-initial retained-run retained-trace
          lift-owners
          (rename-out [context-support/s retained-context-support]))
-
-;; Internal force retains a removed Delay's introductions on the root of its
-;; running computation. Active Search and committed Frontier remain distinct.
-(define-extended-language ScopeS StrictS
-  [c SV (eval owners g σ) (mplus owners c c) (bind owners c g)
-     (Yield owners A c) (force c)]
-  [E hole (mplus owners E c) (mplus owners SV E)
-     (bind owners E g) (Yield owners A E) (force E)])
 
 ;; Attach at the active root, passing only through the transparent force
 ;; wrapper. In particular this neither descends beneath Delay nor distributes

@@ -89,14 +89,10 @@
    (search-big (Yield σ c) (Yield σ SV) trace)]
 
   [(search-big c_1 (Delay c_2) trace_1)
-   (search-big (prefix c_2) SV trace_2)
+   (search-big c_2 SV trace_2)
    ----------------------------------------------- "force suspension"
    (search-big (force c_1) SV
-               (traces trace_1 ("force-delay") trace_2))]
-
-  [(search-big c SV trace)
-   ----------------------------------------------- "prefix returned Search"
-   (search-big (prefix c) SV (traces trace ("prefix-value")))])
+               (traces trace_1 ("force-delay") trace_2))])
 
 (define-judgment-form language
   #:mode (merge-big I I O O)
@@ -268,8 +264,7 @@
         [`(Yield ,state ,tail) `(Yield ,state ,(promote-search tail))]
         [`(force ,search)
          (match-define `(Delay ,body) (promote-search search))
-         (promote-search `(prefix ,body))]
-        [`(prefix ,body) (promote-search body)]))
+         (promote-search body)]))
     (define (promote-merge left right)
       (match left
         [`(Empty ,_) right]

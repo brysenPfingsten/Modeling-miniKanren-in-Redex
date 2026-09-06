@@ -19,8 +19,10 @@ entry point, and its aggregate includes this directory's `all.rkt`. Common
 grammars, kernels, stage construction and control transformation live in
 [shared/](../shared/README.md); fixtures and reusable checks live in
 [test-support/](../test-support/README.md). Runtime and derivation modules
-depend on those shared implementations directly. The matrix's source
-factoring is a separate coordinate pending alignment, not an execution oracle.
+depend on those shared implementations directly. The native S/E/N matrix
+now uses the same source factoring. Its independently stated S equations and
+stages are checked against this checkpoint; the functional interpreter does
+not execute any matrix source or machine.
 
 ## Inspectable path from syntax to interpreter
 
@@ -196,8 +198,14 @@ caller support the basic identity is
 `Q(lift_O(V),P) = Q(V,P ++ names(O))` for mature Search.
 [machine-correspondence-tests.rkt](machine-correspondence-tests.rkt) checks
 structural squares for complete configurations. The matrix's E/N sources
-still retain unary prefix phases. Their transition correspondence with this
-S machine, including a direct S→N check, remains future work.
+use the same force boundary without unary prefix phases. The
+[matrix checkpoint gate](../matrix/retained-scope-tests.rkt) goes beyond
+structural squares: it checks actual S/E/N source and machine transitions
+against this checkpoint, including the independent direct S→N map. Each
+functional step prescribes one source label or administrative identity; the
+native comparison performs only the specified operation and structural
+normalization. There are still no separately derived E/N functional
+interpreters or register programs.
 
 ## Examples and validation
 
@@ -232,5 +240,8 @@ freshness of its three generated programs; commands are in the
 
 These are finite checks of the selected account and its downstream
 transformations. General domain preservation, administrative progress on the
-native side, retained-scope E/N correspondence, productive streams, Big, and
-compact κ/Q/π rail compression remain obligations.
+native side, universal S/E/N correspondence, productive streams, and compact
+κ/Q/π rail compression remain obligations. The aligned
+[matrix Big](../matrix/big/README.md) supplies finite judgments and certificate
+checks for these source rows; it does not add a separate register-to-Big map
+or a productive-stream theorem.

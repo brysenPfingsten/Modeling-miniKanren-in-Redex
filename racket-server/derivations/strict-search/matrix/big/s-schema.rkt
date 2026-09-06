@@ -42,6 +42,15 @@
     [(Failure) `(Empty ,owners)]
     [(Success next) `(One ,owners ,next)]))
 
+;; Big's structural owner operation is stated independently of the source
+;; contraction. Owners surround the active root before it evaluates; only
+;; force is transparent. Neither delayed bodies nor siblings are scanned.
+(define (retain-owners owners computation)
+  (match computation
+    [`(force ,inner) `(force ,(retain-owners owners inner))]
+    [`(,constructor ,local ,rest (... ...))
+     `(,constructor ,(owners-append owners local) ,@rest)]))
+
 (define-judgment-form language
   #:mode (search-big I I O O)
   #:contract (search-big P c SV trace)
@@ -84,24 +93,21 @@
    ---------------------------------------------------- "eager Yield tail"
    (search-big P (Yield owners A c) (Yield owners A SV) trace)]
   [(search-big P c_1 (Delay owners c_2) trace_1)
-   (search-big P (prefix owners c_2) SV trace_2)
+   (where c_retained ,(retain-owners (term owners) (term c_2)))
+   (search-big P c_retained SV trace_2)
    ---------------------------------------------------- "force"
-   (search-big P (force c_1) SV (traces trace_1 ("force-delay") trace_2))]
-  [(search-big (support+ P owners) c SV_1 trace)
-   (where SV ,(prefix/s (term owners) (term SV_1)))
-   ---------------------------------------------------- "prefix returned Search"
-   (search-big P (prefix owners c) SV (traces trace ("prefix-value")))])
+   (search-big P (force c_1) SV (traces trace_1 ("force-delay") trace_2))])
 
 (define-judgment-form language
   #:mode (merge-big I I I I O O)
   #:contract (merge-big P owners SV SV SV trace)
-  [(where SV_result ,(prefix/s (term owners) (term SV)))
+  [(where SV_result ,(retain-owners (term owners) (term SV)))
    ---------------------------------------------------- "merge empty"
    (merge-big P owners (Empty owners_1) SV SV_result ("mplus-empty"))]
   [---------------------------------------------------- "merge one"
    (merge-big P owners (One owners_1 σ) SV
                 (Yield owners (Answer owners_1 σ) SV) ("mplus-one"))]
-  [(where SV_left ,(prefix/s (term owners_1) (term SV_1)))
+  [(where SV_left ,(retain-owners (term owners_1) (term SV_1)))
    (merge-big (support+ P owners) (Owners) SV_left SV_2 SV trace)
    ---------------------------------------------------- "merge Yield"
    (merge-big P owners (Yield owners_1 (Answer owners_2 σ) SV_1) SV_2
@@ -266,17 +272,15 @@
      `(Yield ,owners ,answer ,(promote-search tail (owners-support owners ancestry)))]
     [`(force ,search)
      (match-define `(Delay ,owners ,body) (promote-search search ancestry))
-     (promote-search `(prefix ,owners ,body) ancestry)]
-    [`(prefix ,owners ,body)
-     (prefix/s owners (promote-search body (owners-support owners ancestry)))]))
+     (promote-search (retain-owners owners body) ancestry)]))
 
 (define (promote-merge owners left right ancestry)
   (match left
-    [`(Empty ,_) (prefix/s owners right)]
+    [`(Empty ,_) (retain-owners owners right)]
     [`(One ,left-owners ,state) `(Yield ,owners (Answer ,left-owners ,state) ,right)]
     [`(Yield ,left-owners (Answer ,answer-owners ,state) ,tail)
      `(Yield ,owners (Answer ,(owners-append left-owners answer-owners) ,state)
-            ,(promote-merge '(Owners) (prefix/s left-owners tail) right
+            ,(promote-merge '(Owners) (retain-owners left-owners tail) right
                             (owners-support owners ancestry)))]
     [`(Delay ,left-owners ,body)
      `(Delay ,owners (mplus (Owners) ,right (force (Delay ,left-owners ,body))))]))

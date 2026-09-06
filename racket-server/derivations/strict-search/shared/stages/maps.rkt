@@ -26,7 +26,6 @@
       (match-define `(One ,mapped-state) (map-control `(One ,head-owners ,state) here))
       (Frame kind (list constructor mapped-state) '() #f)]
      ['forced (Frame kind '(Forced) '() #f)]
-     ['prefix (Frame kind '(prefix) '() #f)]
      [(or 'force 'render 'commit 'advance 'collect) (Frame kind before after #f)]
      [_ (raise-argument-error 'map-S-frame "strict S frame" frame)])
    here))
@@ -100,7 +99,7 @@
      (define support (q:state-support state))
      (values (Frame kind (list constructor (address-state state support)) '() #f)
              (cons support worlds))]
-    [(or 'force 'prefix 'render 'forced 'commit 'advance 'collect)
+    [(or 'force 'render 'forced 'commit 'advance 'collect)
      (values (Frame kind before after #f) worlds)]
     [_ (raise-argument-error 'map-E-frame "strict E frame" frame)]))
 

@@ -5,9 +5,10 @@ The selected account is **retained-scope S, Search/rail**. Its
 [reduction semantics](retained-scope/source.rkt) have functional and syntactic
 derivations connected by a machine-configuration map and finite transition
 checks, followed by registers and one bounded atomic-outcome compression.
-The [S/E/N matrix](matrix/README.md) remains live through Big in twelve native
-feature cells; its explicit-prefix factoring still needs alignment with
-retained scope.
+The [S/E/N matrix](matrix/README.md) carries that retained-scope factoring
+through R/D/Z/M/B/Big in twelve native feature cells. Its Search/rail S row
+is checked against this checkpoint, and configuration-level transition
+checks connect the checkpoint machine to the native E/N machines.
 
 Both accounts preserve strict left-to-right disjunction, eager `Yield` tails
 and bind, exact allocation ancestry, and the Search/Frontier commitment
@@ -42,7 +43,7 @@ structure. Observations compare exact Frontiers, including suspended bodies.
 | --- | --- |
 | [retained-scope/](retained-scope/README.md) | Selected S interpreter, source, functional/syntactic correspondence, registers, and first compression |
 | [shared/](shared/README.md) | S/E/N variable/state languages, allocation and kernels, grammars, structural maps, well-formedness, and narrow transformation machinery |
-| [matrix/](matrix/README.md) | Native S/E/N feature instances through R/D/Z/M/B/Big; explicit-prefix factoring pending alignment |
+| [matrix/](matrix/README.md) | Native retained-scope S/E/N feature instances through R/D/Z/M/B/Big and their connection to the selected S checkpoint |
 | [test-support/](test-support/README.md) | Named witnesses, generated lexical goals, and reusable structural/transition assertions |
 | [all.rkt](all.rkt) | Maintained aggregate: retained scope, matrix, constructor/dependency contracts, and the online-policy witness |
 
@@ -65,7 +66,7 @@ outcome-handler dispatches; these are distinct downstream transformations.
 | Source and syntactic stages | [source.rkt](retained-scope/source.rkt), [stages.rkt](retained-scope/stages.rkt); [source tests](retained-scope/source-tests.rkt) | Domain preservation and general R/D/Z/M/B correspondence |
 | Machine relation | [configuration map](retained-scope/machine-correspondence.rkt), independent [readback](retained-scope/readback.rkt), [administrative rank](retained-scope/administration.rkt); [transition checks](retained-scope/machine-correspondence-tests.rkt) | All-configuration labelled diagrams and native administrative progress; [contract](retained-scope/CORRESPONDENCE.md) |
 | Registers and compression | [registers.rkt](retained-scope/registers.rkt), [compressed.rkt](retained-scope/compressed.rkt), [span maps](retained-scope/compression-correspondence.rkt); [register tests](retained-scope/register-tests.rkt), [span tests](retained-scope/register-compression-tests.rkt) | Generator/mutation correctness and prescribed spans on the full domain; [contract](retained-scope/REGISTERIZATION.md) |
-| S/E/N structural maps | [source maps](shared/maps.rkt), [stage maps](shared/stages/maps.rkt), [domain predicates](shared/wf.rkt); selected [machine checks](retained-scope/machine-correspondence-tests.rkt) | Structural readback squares do **not** establish retained-scope E/N transition or machine correspondence |
+| S/E/N correspondence | [source maps](shared/maps.rkt), [stage maps](shared/stages/maps.rkt), [domain predicates](shared/wf.rkt); [checkpoint transition checks](matrix/retained-scope-tests.rkt) | Universal source/stage diagrams and domain preservation; E/N functional interpreters and register programs are not separately derived |
 
 The interpreters do not execute the source relation. The functional machine
 map constructs native controls and continuation fields directly. Independent
@@ -82,8 +83,10 @@ unification and disequality kernels. [Kernel checks](matrix/kernel-tests.rkt)
 exercise their native outcomes and state preservation.
 
 Every cell below has native R/D/Z/M/B and Big implementations under the
-matrix's **explicit-prefix** equations. These cells do not establish
-retained-scope extensions.
+retained-scope equations. Internal S force puts the removed Delay's Owners
+on its active body; E/N force enters the body directly because allocation
+support is already in their states. There is no syntactic `prefix` operation
+or prefix continuation in these cells.
 
 | Feature | S source | E source | N source | Correspondence checks |
 | --- | --- | --- | --- | --- |
@@ -101,9 +104,13 @@ proofs are obtained independently. The
 [stage commitment checks](matrix/stages/commit-tests.rkt) cover exact public
 boundaries and direct S→E, E→N, and S→N squares.
 
-Finite checks support these coordinates. General adequacy, preservation, and
-productivity proofs remain open. Matrix Big is retained; Big for the selected
-retained-scope account is **not established**.
+The [checkpoint gate](matrix/retained-scope-tests.rkt) compares the independently
+stated S sources and native stages, then checks the selected functional
+machine's mapped configurations against actual S/E/N machine transitions.
+These are prescribed source-operation and administrative spans, not only
+readback equalities. Big independently supplies finite judgments and mapped
+certificates for the aligned source rows. General adequacy, preservation,
+machine correspondence, and productivity proofs remain open.
 
 ## Generated artifacts and reproduction
 
@@ -144,44 +151,39 @@ are not evidence for the maintained artifact; the
 [correction log](CORRECTIONS.md#retired-and-deferred-results) records their
 deliberately deferred unique results.
 
-### Cleanup validation
+The maintained aggregate excludes retired numeric-interpreter/register
+comparisons and their additional host-language domains. Native S/E/N
+[work checks](matrix/work-tests.rkt) compare actual atomic work directly;
+literal ownership, settled-prefix persistence, and independent register-bank
+assertions remain in the selected account. These do not retain the older
+numeric Big proof-search or productive host-recursion results. Application
+checks and their separate scope are described in
+[TEST-LANES.md](../../tests/TEST-LANES.md).
 
-On 2026-09-06 with Racket 9.3, using
-`PLTCOMPILEDROOTS=/private/tmp/strict-cleanup-cache:` and
-`racket -y -l raco -- test`:
+### Current validation
+
+The test runs used `PLTCOMPILEDROOTS=/private/tmp/matrix-retained-cache:` and
+`racket -y -l raco -- test`. These separately run gates overlap; their counts
+are not additive.
 
 | Gate | Result |
 | --- | --- |
-| `retained-scope/all.rkt` | 510 tests passed |
-| `matrix/all.rkt` | 2,688 tests passed |
-| `all.rkt` | 3,212 tests passed, including constructor, policy, and dependency checks |
-| Three generation `--check` commands above | Passed |
+| [Full aggregate](all.rkt) | 3,214 tests passed |
+| [Selected S aggregate](retained-scope/all.rkt) | 510 tests passed |
+| Focused source, feature, and stage suites | 308 tests passed |
+| [Selected checkpoint to S/E/N](matrix/retained-scope-tests.rkt) | 31 tests passed |
+| [Big judgments and certificates](matrix/big/tests.rkt) | 139 tests passed |
+| Three generator `--check` commands above | Passed; generated artifacts unchanged |
 | Three `show` demonstrations above | Passed |
-
-The previous 37,620-test aggregate covered the now-retired alternative routes.
-The smaller aggregate does not retain those comparisons or their additional
-host-language domains. In particular, 744 numeric-interpreter/register
-endpoint comparisons and 344 numeric-register atomic-event comparisons were
-removed. The 344 corpus/state work cases now execute native S/E/N rows and
-compare their work directly, with four additional literal witnesses in
-[work-tests.rkt](matrix/work-tests.rkt). They establish no new retained-scope
-E/N register correspondence. Literal ownership, settled-prefix persistence,
-and interleaved register-bank assertions were transferred into the selected
-account. Tests comparing it only to the retired prefix interpreter were removed.
-
-Application validation also passed: 244 headless tests, 37 API tests,
-`ui-payload-smoke.rkt`, 43 frontend tests, lint (three existing hook warnings),
-and the frontend build. Commands and gate scope are in
-[TEST-LANES.md](../../tests/TEST-LANES.md).
 
 ## Next correspondence and application boundary
 
-Hold the selected Search/rail behavior and machine fixed. Bring E into
-correspondence with S, then N, checking the independent direct S→N map as well
-as composition. Extract further shared operations only after their agreement
-is demonstrated. Broaden feature and downstream coordinates afterward.
-Relation calls, productive infinite behavior, retained-scope Big, and compact
-κ/Q/π rail compression remain outside the demonstrated selected account.
+Hold the selected Search/rail behavior and machine fixed while turning the
+checked S/E/N configuration diagrams into general correspondence and domain
+preservation arguments. The native E/N machines now connect to the selected
+S functional machine; separate E/N direct/CPS/defunctionalized/register
+programs remain to be derived. Relation calls, productive infinite behavior,
+and compact κ/Q/π rail compression remain outside the demonstrated account.
 
 The GUI still runs the live online policy through
 [search-runtime.rkt](../../src/search-runtime.rkt) and

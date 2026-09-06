@@ -2,8 +2,7 @@
 
 This directory retains finite Big presentations for the twelve matrix
 coordinates: Core, Delay, Disjunction, and Search/rail, each in S, E, and N.
-Its source uses the matrix's explicit-prefix factoring. Big for the selected
-retained-scope account is not established; see the
+Its source uses retained scope, matching the selected S source; see the
 [research inventory](../../README.md#sen-coordinate-inventory).
 There is no dormant-right policy or strict-to-online fusion in these artifacts.
 
@@ -14,11 +13,13 @@ ownership, and the original four-field logical state. An explicit ordered
 support parameter records the enclosing active Owner path. Both operands of
 strict `mplus`, an eager `Yield` tail, and recursive bind residuals inherit the
 appropriate shared prefix. Answer-local owners do not enter the residual.
-Internal forcing evaluates a strict `prefix(Owners,c)` premise. Its saved
-Owners supply allocation ancestry while `c` evaluates; the returned mature
-Search receives those Owners only after that premise finishes. The native
-E/N equations retain unary `prefix(c)` and its `prefix-value` contraction,
-preserving the same premise tree and exact labels after ownership erasure.
+Internal forcing retains saved Owners on the active computation before its
+body premise evaluates. The independent `retain-owners` operation prepends
+them to the root's Owner field, traversing only a transparent `force` wrapper.
+It neither enters a delayed body nor distributes common Owners to siblings.
+The native E/N equations resume the stored computation directly; those rows
+already carry the corresponding allocation support in their states. There
+is no syntactic `prefix` computation or `prefix-value` contraction in any row.
 
 `ownerless.rkt` specializes the equations separately for E and N at macro
 expansion. E retains named variables and ordered `Support`; N retains
@@ -73,19 +74,21 @@ unbounded fixed-point evaluator, not a call to judgment search.
 The strict premises evaluate the left operand, evaluate the right operand,
 and then merge. Bind over `Yield` evaluates the continuation result and the
 recursive residual before merging. A `Delay` is a value without a premise
-for its body. Internal forcing enters the body through pending `prefix`;
-public consumers resume the stored computation directly. Observations retain exact
+for its body. Internal forcing resumes a computation with its saved Owners
+already retained at the active root; public consumers retain those Owners
+on the enclosing `Forced` node and resume the stored computation directly.
+Observations retain exact
 `Emit`, `Forced`, `Last`, and `Done` structure and all native state fields.
 An exposed advancement records `advance-delay`, then the resumed computation's
 strict search labels, then its `commit-*` labels. It introduces no synthetic
-`force-delay` or `prefix-value` event. Collection additionally
+`force-delay` event. Collection additionally
 performs the recursive `collect-*` premises. Existing `Forced` prefixes are
 retained through `advance-forced` or `collect-forced`; merely constructing
 unary `More(Delay(...))` records no forcing event.
 Delayed bind likewise stores the computation directly under the pending
 bind. Its public resumption does not reconstruct and force an empty-owner
-`Delay`. A genuine delayed merge still uses internal force, retaining both
-the force boundary and the final attachment of its saved owners.
+`Delay`. A genuine delayed merge still uses internal force and retains its
+saved Owners before resumed computation starts.
 
 ## Finite certificates and vertical maps
 
@@ -150,14 +153,17 @@ maps. Further cases assert exact forcing labels and exercise public operations
 throughout the feature/row instances. Complete results are also compared with
 the legacy render operation.
 
-Prefix regressions check allocation and attachment order, the full
-internal-force/prefix certificate subtree, direct resumption in delayed bind
-and public render, and exclusion of prefix control from Core and Disjunction.
-Delay and Search exercise this phase in all three native rows.
+Retained-scope regressions check allocation and attachment order and inspect
+the internal-force certificate's exact active body premise. Bind, choice,
+and nested-force roots retain the saved common Owner group without placing
+it on siblings. Other cases check direct resumption in delayed bind and
+public render, and reject obsolete `prefix` computations in every feature
+and row. Delay and Search exercise internal forcing in all three native rows.
 
 The unbounded inductive presentations are not bounded interpreters. Their
 finite witness gate is evidence for the stated correspondence contracts, not
 a general mechanized preservation, adequacy, productivity, or coinductive
-stream proof. Relcalls, strict-to-online fusion, and retained-scope Big remain
-outside these coordinates. The retired numeric Big/proof-search results are
+stream proof. Relcalls and strict-to-online fusion remain outside these
+coordinates. These finite Big certificates do not derive new E/N functional
+or register machines. The retired numeric Big/proof-search results are
 recorded separately in the [correction log](../../CORRECTIONS.md#retired-and-deferred-results).

@@ -70,46 +70,54 @@
     (check-equal? (map first (s-trace `(advance (More ,delayed))))
                   '("advance-delay" "eval-atom" "commit-one")))
 
-  (test-case "internal force waits for Search before attaching its pending owners"
+  (test-case "nested internal forces retain owners on the running root"
     (define outer '(Owners (Owner (u:9) (label "outer"))))
     (define saved '(Owners (Owner (u:0) (label "saved"))))
     (define fresh '(∃ (x:new) (succeed (label "fresh-body")) (label "fresh")))
     (define body `(eval (Owners) ,fresh ,state))
-    (define pending `(prefix ,outer (force (Delay ,saved ,body))))
+    (define combined '(Owners (Owner (u:9) (label "outer"))
+                              (Owner (u:0) (label "saved"))))
+    (define pending `(force (Delay ,outer (force (Delay ,saved ,body)))))
     (define steps (s-trace pending))
-    (check-equal? (first steps) `("force-delay" (prefix ,outer (prefix ,saved ,body))))
+    (check-equal? (first steps) `("force-delay" (force (Delay ,combined ,body))))
     (check-equal? (second steps)
+                  `("force-delay" (eval ,combined ,fresh ,state)))
+    (check-equal? (third steps)
                   `("allocate-fresh"
-                    (prefix ,outer
-                            (prefix ,saved
-                                    (eval (Owners (Owner (u:1) (label "fresh")))
-                                          (succeed (label "fresh-body")) ,state)))))
+                    (eval (Owners (Owner (u:9) (label "outer"))
+                                  (Owner (u:0) (label "saved"))
+                                  (Owner (u:1) (label "fresh")))
+                          (succeed (label "fresh-body")) ,state)))
     (check-equal? (map first steps)
-                  '("force-delay" "allocate-fresh" "eval-atom" "prefix-value" "prefix-value"))
+                  '("force-delay" "force-delay" "allocate-fresh" "eval-atom"))
     (check-equal? (check-source-square pending)
                   `(One (Owners (Owner (u:9) (label "outer"))
                                 (Owner (u:0) (label "saved"))
                                 (Owner (u:1) (label "fresh"))) ,state))
-    (check-exn exn:fail:contract? (lambda () (prefix/s saved body)))
-    (check-exn exn:fail:contract? (lambda () (prefix/s saved '(Done (Owners)))))
+    (check-equal? (lift-owners/s saved body) `(eval ,saved ,fresh ,state))
+    (check-exn exn:fail:contract? (lambda () (lift-owners/s saved '(Done (Owners)))))
     (check-exn exn:fail:contract?
-               (lambda () (prefix/s saved `(More (Delay (Owners) ,body))))))
+               (lambda () (lift-owners/s saved `(More (Delay (Owners) ,body))))))
 
-  (test-case "pending prefix ancestry excludes sibling-private allocations"
+  (test-case "root-owned running computation excludes sibling-private allocations"
     (define outer '(Owners (Owner (u:9) (label "outer"))))
     (define shared '(Owners (Owner (u:0) (label "shared"))))
     (define private '(Owners (Owner (u:1) (label "private"))))
     (define fresh '(∃ (x:new) (succeed (label "fresh-body")) (label "fresh")))
     (define initial
-      `(prefix ,outer
-               (mplus ,shared (One ,private ,state) (eval (Owners) ,fresh ,state))))
+      (lift-owners/s outer
+                     `(mplus ,shared (One ,private ,state) (eval (Owners) ,fresh ,state))))
+    (check-equal? initial
+                  `(mplus (Owners (Owner (u:9) (label "outer"))
+                                  (Owner (u:0) (label "shared")))
+                          (One ,private ,state) (eval (Owners) ,fresh ,state)))
     (check-equal? (check-source-square initial)
                   `(Yield (Owners (Owner (u:9) (label "outer"))
                                  (Owner (u:0) (label "shared")))
                          (Answer ,private ,state)
                          (One (Owners (Owner (u:1) (label "fresh"))) ,state)))
-    (check-false (wf-s? `(prefix ,outer (One ,outer ,state))))
-    (check-false (wf-s? `(prefix (Owners) (eval (Owners) (u:1 =? (sym "x") (label "bad")) ,state)))))
+    (check-false (wf-s? `(mplus ,outer (One ,outer ,state) (Empty (Owners)))))
+    (check-false (wf-s? `(eval (Owners) (u:1 =? (sym "x") (label "bad")) ,state))))
 
   (test-case "commit is a native stopping boundary, including raw work beneath Delay"
     (define start (s-query-initial nested-delay))

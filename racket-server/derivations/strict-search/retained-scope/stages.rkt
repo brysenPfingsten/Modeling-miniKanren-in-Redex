@@ -8,9 +8,8 @@
 
 (provide RetainedS retained-view)
 
-;; The constructor decomposition is the existing strict S decomposition.
-;; The smaller source language excludes a pending prefix, so no prefix frame
-;; can arise. Root Owners are retained by the ordinary merge/bind/yield frames.
+;; The shared strict S grammar retains scope on active roots. No pending
+;; prefix frame exists; ordinary merge/bind/yield frames retain root Owners.
 ;; D, Z, M and B are constructed by the unchanged generic stage definitions.
 (define-S-view retained-view ScopeS retained-value? retained-frontier?)
 

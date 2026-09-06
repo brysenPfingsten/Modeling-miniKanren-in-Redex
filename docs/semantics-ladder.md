@@ -5,8 +5,8 @@ The preferred current account is the
 `Yield` has an eager Search tail; only `Delay` suspends computation. Introductions
 remain on the active computation, and commitment separates Search from settled
 Frontier. The [strict-search guide](../racket-server/derivations/strict-search/README.md)
-is the authoritative inventory of its derivations and the S/E/N matrix still
-awaiting retained-scope alignment. It also records the remaining adequacy and
+is the authoritative inventory of its derivations and the aligned retained-scope
+S/E/N source, stage, and finite Big matrix. It also records the remaining adequacy and
 machine-correspondence obligations.
 
 The active app runtime remains the decorated search lattice under

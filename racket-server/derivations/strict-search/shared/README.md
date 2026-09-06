@@ -26,11 +26,13 @@ The `core/` providers are required by current execution and validation. Their
 historical origin records provenance, not archival status; removing a retired
 route does not make these shared dependencies disposable.
 
-The shared grammar admits `prefix` for the matrix's current source equations.
-The retained-scope source restricts its own computation/context
-grammar and instantiates a view over that grammar. Sharing syntax and stage
-construction does not select a source's ownership operation: the respective
-source modules still state their contractions independently.
+The shared grammars and stage views contain no syntactic `prefix` operation
+or frame. Internal S force retains Owners on the running body; E/N force
+enters the stored body directly. The selected source and the native matrix
+state their contractions independently over this common syntax and stage
+construction. The functional interpreter's `prefix` helper only attaches
+Owners to an already mature Search; it is not a pending source computation
+or a continuation waiting for a resumed body.
 
 `current-atomic-observer` in the kernel equations is an optional work-trace
 hook. Execution does not use it to recover configurations, closures, or scope.

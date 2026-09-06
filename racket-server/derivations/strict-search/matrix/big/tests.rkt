@@ -193,35 +193,62 @@
                   '("collect-delay" "eval-atom" "commit-one" "collect-last"))
     (void (check-three `(collect (advance ,query)))))
 
-  (test-case "internal force evaluates under pending owners then prefixes returned Search"
+  (test-case "internal force retains saved owners on the active root before allocation"
     (define owners '(Owners (Owner (u:0 u:9) (label "saved"))))
     (define body
       '(eval (Owners) (∃ (x:q) (suspend (x:q =? (sym "fresh") (label "use"))
                                          (label "inner-delay")) (label "fresh"))
                      (state () () () (label "initial"))))
-    (define pending `(prefix ,owners ,body))
+    (match-define `(eval (Owners) ,goal ,state) body)
+    (define pending `(eval ,owners ,goal ,state))
     (define forced `(force (Delay ,owners ,body)))
     (for ([rows (in-list (list delay-rows search-rows))])
       (void (check-three pending rows))
       (void (check-three forced rows))
       (void (check-three `(collect (commit ,forced)) rows)))
     (match-define (list result labels) (evaluate/s forced))
-    (check-equal? labels '("force-delay" "allocate-fresh" "eval-suspend" "prefix-value"))
-    ;; Owners are inherited while allocating, then attached to the mature
-    ;; suspension. Returning that suspension never enters its delayed body.
+    (check-equal? labels '("force-delay" "allocate-fresh" "eval-suspend"))
+    ;; Saved and newly allocated Owners remain on the running eval and then
+    ;; its suspension. Returning that suspension never enters its body.
     (check-equal? result
                   '(Delay (Owners (Owner (u:0 u:9) (label "saved"))
                                   (Owner (u:1) (label "fresh")))
                           (eval (Owners) (u:1 =? (sym "fresh") (label "use"))
                                 (state () () () (label "initial")))))
     (define proof (certify/raw raw-derivations/s forced))
-    (match-define (list operand-proof prefix-proof) (BigCertificate-premises proof))
-    (check-equal? (BigCertificate-input prefix-proof) pending)
+    (match-define (list operand-proof body-proof) (BigCertificate-premises proof))
     (check-equal? (BigCertificate-labels operand-proof) '())
-    (match-define (list body-proof) (BigCertificate-premises prefix-proof))
-    (check-equal? (BigCertificate-prefix body-proof) '(u:0 u:9))
-    (check-equal? (BigCertificate-input body-proof) body)
+    (check-equal? (BigCertificate-prefix body-proof) '())
+    (check-equal? (BigCertificate-input body-proof) pending)
     (check-equal? (BigCertificate-labels body-proof) '("allocate-fresh" "eval-suspend")))
+
+  (test-case "force certificate retains common scope across bind, choice, and nested force roots"
+    (define saved '(Owners (Owner (u:0 u:9) (label "saved"))))
+    (define local '(Owners (Owner (u:2) (label "local"))))
+    (define combined
+      '(Owners (Owner (u:0 u:9) (label "saved")) (Owner (u:2) (label "local"))))
+    (define state '(state () () () (label "initial")))
+    (define goal '(∃ (x:q) (succeed (label "unused")) (label "fresh")))
+    (define pending `(eval (Owners) ,goal ,state))
+    (define roots
+      (list
+       (list `(bind ,local (One (Owners) ,state) ,goal)
+             `(bind ,combined (One (Owners) ,state) ,goal))
+       (list `(mplus ,local ,pending ,pending)
+             `(mplus ,combined ,pending ,pending))
+       (list `(force (Delay ,local ,pending))
+             `(force (Delay ,combined ,pending)))))
+    (for ([pair (in-list roots)])
+      (match-define (list body retained) pair)
+      (define query `(force (Delay ,saved ,body)))
+      (void (check-three query))
+      (void (check-three `(collect (commit ,query))))
+      (define proof (certify/raw raw-derivations/s query))
+      (match-define (list _ body-proof) (BigCertificate-premises proof))
+      (check-equal? (BigCertificate-input body-proof) retained)
+      (check-equal? (BigCertificate-prefix body-proof) '())
+      (check-equal? (apply-reduction-relation/tag-with-names strict-s-red query)
+                    (list (list "force-delay" retained)))))
 
   (test-case "delayed bind and public render resume stored computation directly"
     (define state '(state () () () (label "initial")))
@@ -238,12 +265,14 @@
                   '("bind-delay" "render-delay" "eval-atom" "bind-one"
                                   "eval-atom" "render-one")))
 
-  (test-case "prefix control is absent from Core and Disjunction Big instances"
-    (define input
-      '(prefix (Owners) (One (Owners) (state () () () (label "initial")))))
-    (for ([rows (in-list (list core-rows disjunction-rows))])
+  (test-case "obsolete prefix control is absent from every Big feature instance"
+    (define inputs
+      '((prefix (Owners) (One (Owners) (state () () () (label "initial"))))
+        (prefix (One (state (Support) () () () (label "initial"))))
+        (prefix (One (state 0 () () () (label "initial"))))))
+    (for ([rows (in-list (list core-rows delay-rows disjunction-rows search-rows))])
       (for ([row (in-list rows)]
-            [query (in-list (list input (Q-SE input) (Q-SN input)))])
+            [query (in-list inputs)])
         (match-define (list _ evaluate promote raw _) row)
         (for ([run (in-list (list evaluate promote raw))])
           (check-exn exn:fail? (lambda () (run query)))))))

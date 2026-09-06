@@ -1,7 +1,7 @@
 # Strict downstream matrix stages
 
-These stages use the matrix's explicit-prefix source equations. They are
-maintained native coordinates pending retained-scope alignment; see the
+These stages use the matrix's retained-scope source equations across all
+twelve native S/E/N feature coordinates; see the
 [research inventory](../../README.md#sen-coordinate-inventory).
 
 `instances.rkt` instantiates the common construction in
@@ -55,14 +55,14 @@ similarly produces `emit` frames. Public `advance` and `collect` have their
 own source contexts and frame kinds. These views operate on native source
 syntax and do not import the functional machine.
 
-Internal force exposes the pending source computation `prefix Owners c`
-in S, and `prefix c` in E/N. Its strict source context derives a `prefix`
-Frame and therefore a `K` constructor through the same native view. S keeps
-the saved Owners on that frame as allocation ancestry while the resumption
-runs; `prefix-value` attaches them to the returned Search. E/N retain the
-unary phase so every vertical square still compares exact labeled steps.
-Public resumption and delayed bind instead enter the stored computation
-directly, without reconstructing an empty-owner Delay to force.
+Internal S force lifts the removed Delay's Owners onto its stored computation
+before that computation runs. Ordinary eval, mplus, and bind controls and
+frames retain that ancestry; there is no separate prefix Frame or K
+constructor. E/N force enters the stored computation directly, retaining
+the same labeled force operation because their state supply already records
+the allocation world. Public resumption retains S Owners on Forced and
+enters the unprefixed body, while delayed bind also enters its stored
+computation directly. Neither reconstructs an empty-owner Delay to force.
 
 `More(Delay)` is a native Frontier normal form in every feature that admits
 Delay. D returns DFinal, Z/M finish with empty continuations, and B returns
@@ -113,9 +113,17 @@ is still evaluating, in both Mtree and B.
 The commitment gate runs commit/advance/collect through R/D/Z/M/B and all
 three direct representation maps, including every boundary of the named
 validation witnesses. Partial results must terminate by each stage's own
-rules. The gate also checks independently derived pending-prefix frames, sparse
-allocation beneath them, and the separation of force, resumed evaluation,
-prefix return, and commitment at every stage and in all three carriers.
+rules. The gate also checks the absence of prefix frames, sparse allocation
+beneath retained active Owners, and the separation of force,
+resumed evaluation, and commitment at every stage and in all three carriers.
+
+[The checkpoint gate](../retained-scope-tests.rkt) additionally compares the
+matrix S stages to the selected source's independently instantiated stages,
+then checks the selected functional machine against actual native S/E/N M
+steps through its structural configuration maps. Its administrative spans
+cannot skip source work, and its native B steps must report and replay the
+same exact M spans. No separate E/N functional or register derivation
+is implied by this native machine connection.
 
 These check executable correspondence over the supplied corpora. They are not
 a general adequacy, guardedness, or coinductive productivity proof.

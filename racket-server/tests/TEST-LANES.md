@@ -130,9 +130,14 @@ and Search/rail, with direct intermediate representation maps, feature
 inclusions, native data kernel outcomes, exact compression spans, and finite
 Big proof certificates. Run it with
 `raco test racket-server/derivations/strict-search/matrix/all.rkt`.
-These matrix cells still use their explicit-prefix scope operation; the
-selected S machine's structural E/N maps do not establish aligned E/N
-transition systems. Exact native S/E/N work-order checks cover empty and
+These matrix cells use retained scope: S force puts Owners on the active
+body, while E/N force enters the body directly with state-local supply.
+There is no source prefix phase or derived prefix frame. The
+[checkpoint gate](../derivations/strict-search/matrix/retained-scope-tests.rkt)
+checks the independently stated S sources/stages and connects the selected
+functional machine to actually stepped native S/E/N M configurations through
+prescribed source and administrative spans. It does not derive separate E/N
+functional interpreters or register programs. Exact native S/E/N work-order checks cover empty and
 sparse supply, lexical fresh, shadowing, nested rail, and eager bind.
 
 One current strict-versus-online witness preserves the application policy

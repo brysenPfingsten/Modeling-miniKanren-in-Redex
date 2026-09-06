@@ -89,9 +89,8 @@
                 "independent whole-tree and constructor translations agree")
   (check-true (wf-s? whole))
   (check-native-shape mapped)
-  ;; These are representation squares, not a claim that the checkpoint's
-  ;; E/N machines share the retained-S force granularity. Those ownerless
-  ;; source machines still have their unary prefix-value transition.
+  ;; These local checks establish structural readback squares. The matrix's
+  ;; retained-scope-tests.rkt independently checks the mapped E/N transitions.
   (define mapped-e (maps:M-SE mapped))
   (define mapped-n (maps:M-SN mapped))
   (check-equal? (maps:M-EN mapped-e) mapped-n)
@@ -224,8 +223,7 @@
     (check-equal?
      (sort (filter values (hash-keys observed-labels)) string<?)
      (sort (filter (lambda (label)
-                     (and (not (string-prefix? label "render-"))
-                          (not (equal? label "prefix-value"))))
+                     (not (string-prefix? label "render-")))
                    (feature-labels search))
            string<?)))
 

@@ -15,5 +15,7 @@ suites that call them.
 The [retained-scope aggregate](../retained-scope/all.rkt) and
 [matrix aggregate](../matrix/all.rkt) own the actual checks. Each supplies its
 source and stage to the reusable checker; these helpers do not select a
-semantic policy. The [correction log](../CORRECTIONS.md) connects the named
-witnesses to the distinctions they protect.
+semantic policy. The [matrix checkpoint gate](../matrix/retained-scope-tests.rkt)
+also uses the named witnesses to connect the selected S machine to actual
+native S/E/N transitions. The [correction log](../CORRECTIONS.md) connects
+those witnesses to the distinctions they protect.

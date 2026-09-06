@@ -7,16 +7,18 @@
 
 (provide StrictS strict-s-red s-control-raw make-s-raw
          s-contract s-value? s-observation? s-frontier? s-initial s-query-initial s-run s-trace
-         prefix/s context-support/s define-s-control)
+         lift-owners/s context-support/s define-s-control)
 
-;; Owner attachment consumes a mature active Search. The strict prefix
-;; computation retains the pending owners while its resumption evaluates.
-(define (prefix/s prefix value)
-  (unless (redex-match? StrictS SV value)
-    (raise-argument-error 'prefix/s "mature S Search value" value))
-  (match value
-    [`(,constructor ,owners ,rest ...)
-     `(,constructor ,(owners-append prefix owners) ,@rest)]))
+;; Retain a removed Delay's introductions on the active root before its body
+;; runs. Only force is transparent; common Owners are never copied to siblings
+;; or moved through the Search/Frontier commitment boundary.
+(define (lift-owners/s owners computation)
+  (unless (redex-match? StrictS c computation)
+    (raise-argument-error 'lift-owners/s "active S computation" computation))
+  (match computation
+    [`(force ,inner) `(force ,(lift-owners/s owners inner))]
+    [`(,constructor ,local ,rest ...)
+     `(,constructor ,(owners-append owners local) ,@rest)]))
 
 (define (atomic-search/s owners goal state)
   (match (atomic/s goal state)
@@ -36,13 +38,13 @@
    [--> (eval owners (suspend g tag) σ)
         (Delay owners (eval (Owners) g σ)) eval-suspend]
    [--> (mplus owners (Empty owners_1) SV)
-        ,(prefix/s (term owners) (term SV)) mplus-empty]
+        ,(lift-owners/s (term owners) (term SV)) mplus-empty]
    [--> (mplus owners (One owners_1 σ) SV)
         (Yield owners (Answer owners_1 σ) SV) mplus-one]
    [--> (mplus owners (Yield owners_1 (Answer owners_2 σ) SV_1) SV_2)
         (Yield owners
               (Answer ,(owners-append (term owners_1) (term owners_2)) σ)
-              (mplus (Owners) ,(prefix/s (term owners_1) (term SV_1)) SV_2))
+              (mplus (Owners) ,(lift-owners/s (term owners_1) (term SV_1)) SV_2))
         mplus-yield]
    [--> (mplus owners (Delay owners_1 c) SV)
         (Delay owners (mplus (Owners) SV (force (Delay owners_1 c)))) mplus-delay]
@@ -56,8 +58,7 @@
    [--> (bind owners (Delay owners_1 c) g)
         (Delay ,(owners-append (term owners) (term owners_1))
                (bind (Owners) c g)) bind-delay]
-   [--> (force (Delay owners c)) (prefix owners c) force-delay]
-   [--> (prefix owners SV) ,(prefix/s (term owners) (term SV)) prefix-value]
+   [--> (force (Delay owners c)) ,(lift-owners/s (term owners) (term c)) force-delay]
    [--> (render (Empty owners)) (Done owners) render-empty]
    [--> (render (One owners σ)) (Last (Owners) (Answer owners σ)) render-one]
    [--> (render (Yield owners A SV)) (Emit owners A (render SV)) render-yield]

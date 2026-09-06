@@ -29,10 +29,6 @@
         (Descend tail (Frame 'yield `(Yield ,owners ,answer) '() owners))]
        [`(force ,search)
         (if (value? search) (Local) (Descend search (Frame 'force '(force) '() #f)))]
-       [`(prefix ,owners ,search)
-        (if (value? search)
-            (Local)
-            (Descend search (Frame 'prefix `(prefix ,owners) '() owners)))]
        [`(render ,search)
         (if (value? search) (Local) (Descend search (Frame 'render '(render) '() #f)))]
        [`(commit ,search)
@@ -65,8 +61,6 @@
          [`(Yield ,state ,tail) (Descend tail (Frame 'yield `(Yield ,state) '() #f))]
          [`(force ,search)
           (if (value? search) (Local) (Descend search (Frame 'force '(force) '() #f)))]
-         [`(prefix ,search)
-          (if (value? search) (Local) (Descend search (Frame 'prefix '(prefix) '() #f)))]
          [`(render ,search)
           (if (value? search) (Local) (Descend search (Frame 'render '(render) '() #f)))]
          [`(commit ,search)
