@@ -1,8 +1,9 @@
 # Test lanes
 
-The lanes keep source semantics, compiler/runtime composition, app
-serialization, and frontend behavior distinct. The Racket commands use an
-isolated package home and compiled root.
+The lanes cover source semantics, compiler/runtime composition, app
+serialization, frontend behavior, and interpreter-rooted derivations.
+Production Racket commands below use an isolated package home and compiled
+root; the strict derivation gate runs in the installed repository environment.
 
 ## Lane A: comprehensive headless production tests
 
@@ -109,7 +110,54 @@ WF checks, model-backed initialization, named stepping, and terminal
 observations. The same suite retains direct and API-flow coverage over the
 frontend example corpus.
 
-## Contract boundaries
+## Lane E: strict interpreter derivation and representation matrix
+
+```sh
+raco test racket-server/derivations/strict-search/all.rkt
+```
+
+The preferred current route is retained scope. This aggregate includes its
+source/interpreter correspondence, configuration-level machine and register
+checks, and prescribed compression spans, including intermediate Frontiers,
+actual work order, and allocation scope. Run it alone with
+`raco test racket-server/derivations/strict-search/retained-scope/all.rkt`.
+The aggregate also checks the shared-module dependency boundary.
+Constructor checks enforce active `Yield` and unfinished Frontier `More`,
+including rejection of the obsolete active spelling and alias exports.
+
+The earlier comparison routes follow strict left-to-right operand evaluation, eager `Yield` tails,
+and explicit `Delay` barriers through R/D/Z/Mtree/B/Big. It also checks the
+independent CPS/defunctionalized derivation and its numeric register machine.
+The functional denotational predecessor and numbered ANF/CPS/defunctionalized
+sequence are included, with generated-machine/register checks and native
+functional kernel-outcome witnesses for the older numeric experiment.
+The earlier explicit-prefix S functional route is included through its own aggregate: distinct
+program/Search/Frontier roles, explicit commitment, full outcome/continuation/
+resumption defunctionalization, procedure-free machine configurations, and
+incremental prefix preservation. Native commit/advance/collect rules derive
+the corresponding observation frames on the syntactic side. Strict prefix
+derives the pending ownership frame; raw public/bind resumptions no longer
+introduce synthetic force steps. Direct configuration comparisons prescribe
+zero or one named source contraction per functional transition, verify native
+administrative alignment, and check matching terminal partial frontiers. It can also be run directly with
+`raco test racket-server/derivations/strict-search/s-functional/all.rkt`.
+The native representation matrix has S/E/N cells for Core, Delay, Disjunction,
+and Search/rail, with direct intermediate representation maps, feature
+inclusions, native data kernel outcomes, exact compression spans, and finite
+Big proof certificates.
+
+It includes exact frontier and atomic-work comparisons with the direct
+interpreter, empty and sparse supply fixtures, lexical fresh and shadowing,
+nested rail, eager bind residuals, and bounded divergence witnesses. The
+online fusion comparisons are explicitly separate evidence; Lane E does not
+establish a general guarded fusion or productive-stream theorem. See
+[`strict-search/PIPELINE.md`](../derivations/strict-search/PIPELINE.md).
+
+## Production contract boundaries
+
+These boundaries describe the dormant-right / online production family.
+Strict Search/rail has an explicit `mplus-delay` interaction beyond its child
+rule inventories; its distinct contract is documented by Lane E.
 
 - Delay and disjunction are additive feature extensions. Search is exactly
   their semilattice join: the literal language/relation union with one shared

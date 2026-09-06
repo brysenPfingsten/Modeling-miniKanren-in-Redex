@@ -1,12 +1,34 @@
 # Semantics organization
 
-The active runtime is the decorated search lattice under
-`racket-server/src/search-lattice/`. It is the modular family that production
-keeps: delay and disjunction extend core additively; search is their literal
-union; one factored source supplies control; and scheduler fibers select answer
-order, with the right-active carrier local to rail.
+The preferred current account is the
+[retained-scope source and interpreter](../racket-server/derivations/strict-search/retained-scope/README.md).
+`Yield` has an eager Search tail; only `Delay` suspends computation. Introductions
+remain on the active computation, and commitment separates Search from settled
+Frontier. The [strict-search guide](../racket-server/derivations/strict-search/README.md)
+distinguishes this route from the earlier numeric and explicit-prefix S/E/N
+checkpoints. Their adequacy and machine-correspondence obligations are distinct
+from the existing whole-tree pipeline.
+
+The active app runtime remains the decorated search lattice under
+`racket-server/src/search-lattice/`. Its disjunction-and-higher coordinates use
+the **dormant-right / online** branch-evaluation policy. They are retained as
+an online implementation and comparison family. Correspondence with the strict
+interpreter requires a separate guarded fusion theorem; exact derivation from
+this online source does not establish that theorem.
+
+Within the online family, delay and disjunction extend core additively; search
+is their literal union; one factored source supplies control; and scheduler
+fibers select answer order, with the right-active carrier local to rail.
+The [semantic-policy matrix](semantic-policy-matrix.md) records the additional
+policy coordinate, the preserved pipeline, and the scope of sibling-branch
+artifacts.
 
 ## Additive features and scheduler fibers
+
+This diagram describes the existing online family. Its additive Search join is
+neutral between scheduler fibers, but already inherits dormant-right operand
+evaluation from disjunction. Scheduler neutrality is not strict-round
+evaluation.
 
 ```mermaid
 flowchart TD
@@ -112,8 +134,15 @@ present.
 
 ## Factored source and scheduler fibers
 
-The primary source is the factored source. It continues down the active work
-path. Ordinary search resumes a settled left-active choice through
+The source for this online family is the factored source. It continues down the
+active work path. Expanding disjunction creates two `Work` children while
+`WorkPath` visits only the active child; the right goal can remain unevaluated
+when a left answer is committed. Strict Racket evaluates both `mplus` operands
+before the merge starts. Strict `bind` also evaluates its continuation result
+and recursive eager tail before merging. Changing only `WorkPath` or the
+answer-commit rule therefore does not supply the strict Search semantics.
+
+Ordinary search resumes a settled left-active choice through
 `resume-left-choice-success`; rail's right-active closure includes
 `resume-right-choice-success`. Literal named Redex rules are closed under the
 compositional focus grammar; host Racket performs kernel operations but does
@@ -169,14 +198,34 @@ deterministic raw allocation proof.
 
 ## Semantic boundary
 
-The production claims in this tree stop at the factored source, its feature
-composition, scheduler fibers, and the finite operational traces exercised by
-the current tests. Relcall recursion, divergence or infinite observations, Q
-representations, continuation or stream interpretations, and any vertical
-derivation beyond this source calculus remain later work.
+The production claims in this tree concern the online factored source, its
+feature composition, scheduler fibers, and the finite operational traces
+exercised by its tests. Its earlier source-relative correspondence results
+remain applicable to that policy; they do not establish strict-interpreter
+adequacy. The separately preserved matrix and marked pipeline have the exact
+artifact and evidence boundaries recorded in the
+[semantic-policy matrix](semantic-policy-matrix.md).
+
+The strict derivation must preserve left-to-right operand evaluation, eager
+`Yield` construction, and the absence of reduction below an unforced `Delay`.
+The proposed strict-to-online bridge may reorder finite pure work relative to
+answer commitment. It therefore requires an explicit guardedness hypothesis,
+a pure deterministic kernel, and a stated observation. Full work traces are
+unequal. Guarded completed-frontier witnesses are evidence for a future bridge,
+not its proof; productive infinite streams require a separate theorem.
+
+Without guardedness, `success(A) ∨ Ω` distinguishes even answer prefixes:
+strict evaluation never returns its first Search value, whereas the online
+source can commit `A` before entering the diverging sibling. Registerization
+and host trampolining must not silently introduce this semantic change.
 
 ## Reading order
 
+- [Semantic-policy matrix](semantic-policy-matrix.md): interpreter authority,
+  strict-round versus dormant-right, preserved branch artifacts, and theorem
+  boundaries;
+- [`strict-search/`](../racket-server/derivations/strict-search/): the separate
+  strict Search source and its correspondence checkpoint;
 - `racket-server/src/search-lattice/SEMILATTICE.md`: carrier, recursive focus
   grammar, feature ownership, and rule composition;
 - `racket-server/src/search-lattice/wf/LAYERING-NOTES.md`: direct WF schemas and

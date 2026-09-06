@@ -77,6 +77,18 @@ PLTUSERHOME=/tmp/decorated-lattice-plt \
   raco test racket-server/tests/model-example-matrix-tests.rkt
 ```
 
+### **5) Strict interpreter derivation and representation matrix**
+
+```sh
+raco test racket-server/derivations/strict-search/all.rkt
+```
+
+Covers the current retained-scope interpreter, corresponding machines,
+registerization and first compression, plus the earlier numeric and S/E/N
+comparison checkpoints. Start with the
+[strict derivation guide](racket-server/derivations/strict-search/README.md)
+for directory roles, finite correspondence evidence, and theorem boundaries.
+
 ## **Backend Init Contract**
 
 The GUI/API boundary selects each run structurally.
@@ -94,8 +106,8 @@ Default surfaced strategy:
 Execution notes:
 - `compileProfile` controls source-to-micro compilation choices such as
   conjunction associativity, disjunction associativity, and delay placement.
-- `searchStrategy` selects only the scheduler; the primary source relation is
-  the factored source.
+- `searchStrategy` selects only the scheduler; the app uses the factored
+  dormant-right / online source relation.
 - The canonicalizing compiler emits the W/F-stratified `(Γ F)` production
   configuration directly, rooted at `More(Work(...))`. The backend checks the
   production language/WF judgment and then steps the selected scheduler's named
@@ -197,7 +209,19 @@ The active runtime path is the feature-based search lattice:
 
 The app/API boundary runs through that lattice directly.
 
-The primary source semantics is the factored source. Delay and disjunction are
+The preferred current semantic account is the
+[retained-scope source and interpreter](racket-server/derivations/strict-search/retained-scope/README.md),
+with eager `Yield` tails, suspension only at `Delay`, and an explicit commitment
+boundary. The [strict derivation guide](racket-server/derivations/strict-search/README.md)
+distinguishes its corresponding machines and register stages from the earlier
+numeric and S/E/N comparison checkpoints. The
+[semantic-policy matrix](docs/semantic-policy-matrix.md) records the implemented
+coordinates and correspondence boundaries.
+
+The app's factored source retains the dormant-right / online policy: it can
+commit a left answer before evaluating the right operand's eager work. Its
+existing pipeline remains source-relative; the strict-to-online fusion theorem
+is separate. Within this online family, delay and disjunction are
 additive feature extensions, and search is their literal language/relation
 union. DFS and flip operate on that search carrier. Rail remains a scheduler
 fiber, but extends search with the right-active `DisjR` carrier and the rules

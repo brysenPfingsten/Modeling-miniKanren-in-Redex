@@ -1,0 +1,11 @@
+#lang racket
+(require "../features.rkt" "../../shared/kernel.rkt" "ownerless.rkt" "s-schema.rkt")
+(define-s-big s-core StrictBigSCore StrictSCore s-core-value? s-core-observation? core)
+(define-ownerless-big e-core StrictBigECore StrictECore e-core-value? e-core-observation? atomic/e allocate/e core)
+(define-ownerless-big n-core StrictBigNCore StrictNCore n-core-value? n-core-observation? atomic/n allocate/n core)
+(define-s-big s-delay StrictBigSDelay StrictSDelay s-delay-value? s-delay-observation? delay)
+(define-ownerless-big e-delay StrictBigEDelay StrictEDelay e-delay-value? e-delay-observation? atomic/e allocate/e delay)
+(define-ownerless-big n-delay StrictBigNDelay StrictNDelay n-delay-value? n-delay-observation? atomic/n allocate/n delay)
+(define-s-big s-disjunction StrictBigSDisjunction StrictSDisjunction s-disjunction-value? s-disjunction-observation? disjunction)
+(define-ownerless-big e-disjunction StrictBigEDisjunction StrictEDisjunction e-disjunction-value? e-disjunction-observation? atomic/e allocate/e disjunction)
+(define-ownerless-big n-disjunction StrictBigNDisjunction StrictNDisjunction n-disjunction-value? n-disjunction-observation? atomic/n allocate/n disjunction)

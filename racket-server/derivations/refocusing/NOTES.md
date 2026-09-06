@@ -14,6 +14,11 @@ derivation instead of the starting point.
 This note documents the experiment itself. It is not the primary description of
 the active runtime in the main repo.
 
+The interpreter-rooted strict Search derivation now lives in
+[`strict-search/`](../strict-search/README.md). This earlier playground retains
+its original endpoint and evidence scope; it does not establish the new
+strict-to-online guarded fusion theorem.
+
 ## Artifact Map
 
 There are four executable artifacts.
