@@ -3,7 +3,7 @@
 (require rackunit redex/reduction-semantics
          "s.rkt" "e.rkt" "n.rkt" "features.rkt" "../features.rkt" "maps.rkt"
          "../source-s.rkt" "../source-e.rkt" "../source-n.rkt"
-         "../../shared/maps.rkt" "../../test-support/corpus.rkt" "../interpreter-oracle.rkt"
+         "../../shared/maps.rkt" "../../test-support/corpus.rkt"
          (prefix-in w: "../../test-support/witnesses.rkt")
          "../../shared/stages/schema.rkt" "../stages/instances.rkt")
 
@@ -81,8 +81,7 @@
     (match-define (list feature goals rows) coordinate)
     (for ([goal (in-list goals)] [index (in-naturals)])
       (test-case (format "~a S/E/N Big, fixed point, finite B witness ~a" feature index)
-        (define n-final (check-three `(render ,(s-initial goal)) rows))
-        (check-equal? (observation->direct n-final) (direct-observation goal))
+        (void (check-three `(render ,(s-initial goal)) rows))
         (void (check-three (s-initial goal) rows)))))
 
   (test-case "lower-coordinate Big domains reject absent goals and control constructors"

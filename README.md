@@ -84,8 +84,8 @@ raco test racket-server/derivations/strict-search/all.rkt
 ```
 
 Covers the current retained-scope interpreter, corresponding machines,
-registerization and first compression, plus the earlier numeric and S/E/N
-comparison checkpoints. Start with the
+registerization and first compression, plus the live S/E/N matrix awaiting
+retained-scope alignment. Start with the
 [strict derivation guide](racket-server/derivations/strict-search/README.md)
 for directory roles, finite correspondence evidence, and theorem boundaries.
 
@@ -213,10 +213,10 @@ The preferred current semantic account is the
 [retained-scope source and interpreter](racket-server/derivations/strict-search/retained-scope/README.md),
 with eager `Yield` tails, suspension only at `Delay`, and an explicit commitment
 boundary. The [strict derivation guide](racket-server/derivations/strict-search/README.md)
-distinguishes its corresponding machines and register stages from the earlier
-numeric and S/E/N comparison checkpoints. The
-[semantic-policy matrix](docs/semantic-policy-matrix.md) records the implemented
-coordinates and correspondence boundaries.
+is the authoritative inventory of its corresponding machines, register
+stages, and the S/E/N coordinates still awaiting alignment. The
+[policy boundary](docs/semantic-policy-matrix.md) explains the separate live
+application runtime.
 
 The app's factored source retains the dormant-right / online policy: it can
 commit a left answer before evaluating the right operand's eager work. Its

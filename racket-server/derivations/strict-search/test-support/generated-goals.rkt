@@ -52,4 +52,3 @@
                     [5 `(,(goal (sub1 depth) variables) ∨
                           ,(goal (sub1 depth) variables) (label "disj"))])))]
       (for/list ([i (in-range 120)]) (goal (if (< i 80) 4 5))))))
-

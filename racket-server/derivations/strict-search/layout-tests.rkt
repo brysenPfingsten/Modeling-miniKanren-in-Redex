@@ -7,6 +7,7 @@
 (define retained (build-path directory "retained-scope"))
 (define shared (build-path directory "shared"))
 (define support (build-path directory "test-support"))
+(define matrix (build-path directory "matrix"))
 
 (define (inside? path directory)
   (define path-parts (explode-path (simplify-path path)))
@@ -93,14 +94,29 @@
                      (and (or (inside? path shared) (inside? path support))
                           (not (suite? path))))))
 
-  (test-case "retained tests import helpers and semantic oracles, not other test suites"
+  (test-case "retained tests and examples depend only on selected code and shared evidence"
     (check-closure (filter (lambda (path)
-                             (and (suite? path)
+                             (and (or (suite? path) (demonstration? path))
                                   (not (equal? (file-name-from-path path) (string->path "all.rkt")))))
                            (source-files retained))
-                   (lambda (path) (not (suite? path)))))
+                   (lambda (path)
+                     (and (or (inside? path retained) (inside? path shared)
+                              (inside? path support))
+                          (not (suite? path))))))
 
-  (test-case "the strict aggregate includes the preferred retained aggregate"
+  (test-case "matrix execution depends only on its concrete sources and shared machinery"
+    (define (runtime? path)
+      (and (or (inside? path matrix) (inside? path shared))
+           (not (suite? path))))
+    (check-closure (filter runtime? (source-files matrix)) runtime?))
+
+  (test-case "matrix checks use native rows and independent shared evidence"
+    (check-closure (source-files matrix)
+                   (lambda (path)
+                     (or (inside? path matrix) (inside? path shared)
+                         (inside? path support)))))
+
+  (test-case "the strict aggregate includes both maintained derivation accounts"
     ;; Parse the actual direct require, without loading the broad aggregate
     ;; recursively from its own layout test.
     (define module-datum
@@ -109,8 +125,9 @@
           (parameterize ([read-accept-reader #t])
             (syntax->datum (read-syntax "all.rkt" input))))))
     (match-define `(module ,_ ,_ (#%module-begin ,forms ...)) module-datum)
-    (check-not-false
-     (for/or ([form (in-list forms)])
-       (match form
-         [`(require ,specifications ...) (member "retained-scope/all.rkt" specifications)]
-         [_ #f])))))
+    (for ([aggregate (in-list '("retained-scope/all.rkt" "matrix/all.rkt"))])
+      (check-not-false
+       (for/or ([form (in-list forms)])
+         (match form
+           [`(require ,specifications ...) (member aggregate specifications)]
+           [_ #f]))))))

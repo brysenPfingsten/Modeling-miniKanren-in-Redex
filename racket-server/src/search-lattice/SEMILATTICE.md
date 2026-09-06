@@ -4,7 +4,7 @@ The decorated lattice is the production modular family. Its source uses the
 **dormant-right / online** branch-evaluation policy: disjunction leaves the
 right goal unevaluated while the active left path runs. It is preserved as an
 online implementation and comparison family. The authoritative strict Search
-interpreter instead evaluates both merge operands and every `More` tail
+interpreter instead evaluates both merge operands and every `Yield` tail
 eagerly; only `Delay` suspends. The separate strict derivation and the guarded
 fusion obligation are recorded in the
 [semantic-policy matrix](../../../docs/semantic-policy-matrix.md).

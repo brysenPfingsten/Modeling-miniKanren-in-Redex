@@ -7,37 +7,10 @@
          (only-in "../shared/kernel.rkt" owners-append)
          (only-in "../shared/wf.rkt" wf-s?)
          (prefix-in q: "../shared/maps.rkt")
-         (prefix-in s: "../matrix/source-s.rkt")
          (prefix-in corpus: "../test-support/corpus.rkt")
          (only-in "../test-support/witnesses.rkt"
-                  validation-witnesses witness-name witness-initial)
+                  validation-witnesses witness-initial)
          (only-in "../test-support/frontiers.rkt" pending?))
-
-;; These tests compare every intermediate source state and its unique labelled
-;; edge. The only permitted stutter is the old prefix-value contraction;
-;; matching final answers alone would miss changes to allocation or strictness.
-(define (check-source-bridge initial)
-  (define source-edges (s:s-trace initial))
-  (define source-states (cons initial (map second source-edges)))
-  (for ([state (in-list source-states)])
-    (check-true (wf-s? state))
-    (check-true (redex-match? ScopeS q (erase-prefixes state)))
-    (check-true (wf-s? (erase-prefixes state))))
-  (for ([before (in-list source-states)] [edge (in-list source-edges)])
-    (match-define (list label after) edge)
-    (if (equal? label "prefix-value")
-        (check-equal? (erase-prefixes before) (erase-prefixes after))
-        (check-equal?
-         (apply-reduction-relation/tag-with-names retained-red (erase-prefixes before))
-         (list (list label (erase-prefixes after))))))
-  (define expected-edges
-    (for/list ([edge (in-list source-edges)]
-               #:unless (equal? (first edge) "prefix-value"))
-      (list (first edge) (erase-prefixes (second edge)))))
-  (check-equal? (retained-trace (erase-prefixes initial)) expected-edges)
-  (define final (erase-prefixes (last source-states)))
-  (check-equal? (retained-run (erase-prefixes initial)) final)
-  final)
 
 (define (check-no-prefix-frames computation)
   (define initial (initial-Z RetainedS computation))
@@ -48,23 +21,19 @@
       (check-not-equal? (Frame-kind frame) 'prefix))
     (check-true (wf-s? (readback-Z configuration)))
     (check-equal? (frame-support RetainedS frames)
-                  (s:context-support/s (plug-frames (term hole) frames)))))
+                  (retained-context-support (plug-frames (term hole) frames)))))
 
-(define (check-boundaries source-frontier retained-frontier completed [fuel 100])
+(define (check-boundaries frontier completed [fuel 100])
   (when (zero? fuel) (error 'check-boundaries "public advancement exhausted fuel"))
-  ;; Ordinary goal roots agree literally, including suspended computation
-  ;; syntax, Owner grouping and tags, complete stores, and Forced markers.
-  (check-equal? retained-frontier source-frontier)
-  (check-equal? (check-source-bridge `(collect ,source-frontier)) completed)
-  (check-equal? (retained-run `(collect ,retained-frontier)) completed)
-  (define source-next (s:s-run `(advance ,source-frontier)))
-  (define retained-next (check-source-bridge `(advance ,source-frontier)))
-  (check-equal? (retained-run `(advance ,retained-frontier)) retained-next)
-  (if (pending? source-frontier)
-      (check-boundaries source-next retained-next completed (sub1 fuel))
+  (check-true (retained-frontier? frontier))
+  (check-true (wf-s? frontier))
+  (check-equal? (retained-run `(collect ,frontier)) completed)
+  (define next (retained-run `(advance ,frontier)))
+  (if (pending? frontier)
+      (check-boundaries next completed (sub1 fuel))
       (begin
-        (check-equal? retained-next retained-frontier)
-        (check-equal? retained-frontier completed))))
+        (check-equal? next frontier)
+        (check-equal? frontier completed))))
 
 (define state '(state () () () (label "initial")))
 (define success '(succeed (label "success")))
@@ -124,20 +93,14 @@
     (remove-duplicates
      (append (map witness-initial validation-witnesses)
              (for/list ([goal (in-list (append corpus:search-corpus allocation-goals))])
-               (s:s-initial goal)))))
-  (for ([evaluation (in-list ordinary-inputs)] [index (in-naturals)])
-    (test-case (format "retained scope exact source/public boundary correspondence ~a" index)
-      (define frontier (check-source-bridge `(commit ,evaluation)))
-      (define completed (check-source-bridge `(render ,evaluation)))
-      (check-equal? completed (s:s-run `(render ,evaluation)))
-      (check-boundaries (s:s-run `(commit ,evaluation)) frontier completed)))
+               (retained-initial goal)))))
 
-  ;; Existing generic derivations operate on this source directly. No stage
-  ;; transition invokes the pending-prefix machine or its translation.
+  ;; Check each native derivation edge and the public completion boundary.
   (for ([evaluation (in-list ordinary-inputs)] [index (in-naturals)])
     (test-case (format "retained R-D-Z-M-B native stage squares ~a" index)
       (define query `(commit ,evaluation))
       (define frontier (retained-run query))
+      (check-boundaries frontier (retained-run `(render ,evaluation)))
       (for ([operation (in-list (list query `(advance ,frontier) `(collect ,frontier)))])
         (check-row RetainedS retained-red operation)
         (check-no-prefix-frames operation))))
@@ -148,17 +111,23 @@
     (define body `(eval (Owners) ,fresh ,state))
     (define input `(Forced (Owners (Owner (u:9) (label "ancestor")))
                            (commit (force (Delay ,saved ,body)))))
-    (check-source-bridge input)
     (check-equal?
      (map first (retained-trace input))
      '("force-delay" "allocate-fresh" "eval-atom" "commit-one"))
-    (check-equal?
-     (map first (s:s-trace input))
-     '("force-delay" "allocate-fresh" "eval-atom" "prefix-value" "commit-one"))
     (match-define (list "force-delay" after-force) (first (retained-trace input)))
     (check-equal? after-force
                   `(Forced (Owners (Owner (u:9) (label "ancestor")))
                            (commit (eval ,saved ,fresh ,state))))
+    (check-equal?
+     (retained-run input)
+     '(Forced (Owners (Owner (u:9) (label "ancestor")))
+              (Last (Owners)
+                    (Answer (Owners (Owner (u:2 u:0) (label "saved"))
+                                    (Owner () (label "empty-saved"))
+                                    (Owner (u:1) (label "fresh")))
+                            (state ((u:1 (sym "new"))) ()
+                                   ((u:1 =? (sym "new") (label "new-value")))
+                                   (label "initial"))))))
     (check-no-prefix-frames input))
 
   (test-case "root scope transport preserves support, allocation and every Search constructor"
@@ -186,14 +155,17 @@
       (define raw (mature-under computation inherited))
       (define lifted (lift-owners prefix computation))
       (define result (mature-under lifted ancestor))
-      (check-equal? result (s:prefix/s prefix raw))
+      (match-define `(,constructor ,result-owners ,rest ...) result)
+      (match-define `(,raw-constructor ,raw-owners ,raw-rest ...) raw)
+      (check-equal? constructor raw-constructor)
+      (check-equal? result-owners (owners-append prefix raw-owners))
+      (check-equal? rest raw-rest)
       (define prefix-names
         (match prefix [`(Owners ,groups ...) (append-map second groups)]))
       (check-equal? (q:Q-SE result '(u:9))
                     (q:Q-SE raw (append '(u:9) prefix-names)))
       (check-equal? (q:Q-SN result '(u:9))
-                    (q:Q-SN raw (append '(u:9) prefix-names)))
-      (check-source-bridge `(Forced ,ancestor (commit (prefix ,prefix ,computation)))))
+                    (q:Q-SN raw (append '(u:9) prefix-names))))
     ;; The head's private u:1 does not occupy the residual's allocation world.
     (match-define `(Yield ,_ ,_ (One ,tail-owners ,_))
       (mature-under (lift-owners saved `(Yield ,local ,answer ,goal-work)) ancestor))

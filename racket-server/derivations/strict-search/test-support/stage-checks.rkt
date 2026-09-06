@@ -65,4 +65,3 @@
   (check-equal? (run-Z stage computation) expected)
   (check-equal? (run-M stage computation) expected)
   (check-equal? (run-B stage computation) expected))
-

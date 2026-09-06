@@ -10,4 +10,3 @@
     [`(Emit ,_ ,_ ,rest) (pending? rest)]
     [`(Forced ,_ ,rest) (pending? rest)]
     [`(More (Delay ,_ ,_)) #t]))
-

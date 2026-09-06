@@ -7,12 +7,11 @@
 (provide ScopeS retained-red retained-contract
          retained-value? retained-frontier? retained-observation?
          retained-initial retained-query-initial retained-run retained-trace
-         lift-owners erase-prefixes
+         lift-owners
          (rename-out [context-support/s retained-context-support]))
 
-;; The checkpoint's strict Search/Frontier distinction is unchanged. This
-;; variant has no pending prefix computation: internal force retains a
-;; removed Delay's introductions on the root of its running computation.
+;; Internal force retains a removed Delay's introductions on the root of its
+;; running computation. Active Search and committed Frontier remain distinct.
 (define-extended-language ScopeS StrictS
   [c SV (eval owners g σ) (mplus owners c c) (bind owners c g)
      (Yield owners A c) (force c)]
@@ -30,37 +29,12 @@
     [`(,constructor ,local ,rest ...)
      `(,constructor ,(owners-append owners local) ,@rest)]))
 
-;; A structural bridge from the checkpoint, not an evaluator. Translating a
-;; suspended body traverses its syntax without executing its computation.
-;; Each checkpoint prefix-value step maps to identity; the other control
-;; steps have the corresponding retained-source operation label.
-(define (erase-prefixes computation)
-  (match computation
-    [`(prefix ,owners ,inner)
-     (lift-owners owners (erase-prefixes inner))]
-    [`(mplus ,owners ,left ,right)
-     `(mplus ,owners ,(erase-prefixes left) ,(erase-prefixes right))]
-    [`(bind ,owners ,inner ,goal)
-     `(bind ,owners ,(erase-prefixes inner) ,goal)]
-    [`(,(and constructor (or 'Yield 'Emit)) ,owners ,answer ,tail)
-     `(,constructor ,owners ,answer ,(erase-prefixes tail))]
-    [`(,(and constructor (or 'Delay 'Forced)) ,owners ,inner)
-     `(,constructor ,owners ,(erase-prefixes inner))]
-    [`(,(and constructor (or 'force 'render 'commit 'advance 'collect 'More)) ,inner)
-     `(,constructor ,(erase-prefixes inner))]
-    [`(eval ,_ ,_ ,_) computation]
-    [`(,(or 'Empty 'Done) ,_) computation]
-    [`(,(or 'One 'Last) ,_ ,_) computation]
-    [_ (raise-argument-error 'erase-prefixes "strict S computation or Frontier" computation)]))
-
 (define (atomic-search owners goal state)
   (match (atomic/s goal state)
     [(Failure) `(Empty ,owners)]
     [(Success next) `(One ,owners ,next)]))
 
-;; These are the checkpoint's strict S control equations, with its value-only
-;; prefix helper replaced by active root attachment. The sole changed source
-;; contraction is force-delay; prefix-value has no counterpart here.
+;; Strict S control equations attach saved scope before resumption work.
 (define retained-control-raw
   (reduction-relation
    ScopeS #:domain q
@@ -114,8 +88,7 @@
    [--> (collect (More (Delay owners c)))
         (Forced owners (collect (commit c))) collect-delay]))
 
-;; ScopeS contexts are a subset of the checkpoint's contexts. Its support
-;; fold already reads exactly their ancestor Owner fields and never siblings.
+;; The shared support fold reads ancestor Owner fields and never siblings.
 (define retained-allocation-red
   (reduction-relation
    ScopeS #:domain q

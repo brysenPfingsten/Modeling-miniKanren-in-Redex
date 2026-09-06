@@ -5,9 +5,9 @@ The preferred current account is the
 `Yield` has an eager Search tail; only `Delay` suspends computation. Introductions
 remain on the active computation, and commitment separates Search from settled
 Frontier. The [strict-search guide](../racket-server/derivations/strict-search/README.md)
-distinguishes this route from the earlier numeric and explicit-prefix S/E/N
-checkpoints. Their adequacy and machine-correspondence obligations are distinct
-from the existing whole-tree pipeline.
+is the authoritative inventory of its derivations and the S/E/N matrix still
+awaiting retained-scope alignment. It also records the remaining adequacy and
+machine-correspondence obligations.
 
 The active app runtime remains the decorated search lattice under
 `racket-server/src/search-lattice/`. Its disjunction-and-higher coordinates use
@@ -19,9 +19,8 @@ this online source does not establish that theorem.
 Within the online family, delay and disjunction extend core additively; search
 is their literal union; one factored source supplies control; and scheduler
 fibers select answer order, with the right-active carrier local to rail.
-The [semantic-policy matrix](semantic-policy-matrix.md) records the additional
-policy coordinate, the preserved pipeline, and the scope of sibling-branch
-artifacts.
+The [policy boundary](semantic-policy-matrix.md) distinguishes this live
+runtime from the selected research account.
 
 ## Additive features and scheduler fibers
 
@@ -202,9 +201,8 @@ The production claims in this tree concern the online factored source, its
 feature composition, scheduler fibers, and the finite operational traces
 exercised by its tests. Its earlier source-relative correspondence results
 remain applicable to that policy; they do not establish strict-interpreter
-adequacy. The separately preserved matrix and marked pipeline have the exact
-artifact and evidence boundaries recorded in the
-[semantic-policy matrix](semantic-policy-matrix.md).
+adequacy. The [research inventory](../racket-server/derivations/strict-search/README.md)
+records maintained artifacts and deferred results separately.
 
 The strict derivation must preserve left-to-right operand evaluation, eager
 `Yield` construction, and the absence of reduction below an unforced `Delay`.

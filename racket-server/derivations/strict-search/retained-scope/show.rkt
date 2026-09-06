@@ -3,7 +3,6 @@
 (require racket/pretty
          "source.rkt" "stages.rkt" "inspection.rkt"
          "../shared/stages/schema.rkt"
-         (prefix-in checkpoint: "../matrix/source-s.rkt")
          (prefix-in direct: "interpreter.rkt"))
 
 ;; The outer disjunction requires internal force. Its suspended conjunction
@@ -31,9 +30,7 @@
        [(list "force-delay" next)
         (match-define (M control continuation) machine)
         (define inherited (continuation-support RetainedS continuation))
-        (displayln "Checkpoint internal-force contraction:")
-        (pretty-write (checkpoint:s-contract control inherited))
-        (displayln "Retained-scope internal-force contraction:")
+        (displayln "Internal force attaches saved introductions before resumption work:")
         (pretty-write (retained-contract control inherited))
         (show-owned-frame next (sub1 fuel))]
        [(list _ next) (show-owned-frame next (sub1 fuel))]

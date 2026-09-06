@@ -1,8 +1,8 @@
 # Shared validation support
 
-These fixtures and assertions are used by several derivation routes. They
-are independent of historical evaluators and of the test suites that call
-them.
+These fixtures and assertions are used by the retained-scope account and
+S/E/N matrix. They are independent of historical evaluators and of the test
+suites that call them.
 
 | Module | Contents |
 | --- | --- |
@@ -12,7 +12,8 @@ them.
 | `frontiers.rkt` | Structural pending-frontier predicate |
 | `stage-checks.rkt` | Reusable source/D/Z/M/B transition and map checks, parameterized by the source relation and stage |
 
-Cross-checks against an earlier semantics remain in the calling test suite.
-For example, retained-scope `source-tests.rkt` explicitly imports the older
-matrix S source to compare ownership factoring. Running the retained-scope
-interpreter or its generated machines does not load that source.
+The [retained-scope aggregate](../retained-scope/all.rkt) and
+[matrix aggregate](../matrix/all.rkt) own the actual checks. Each supplies its
+source and stage to the reusable checker; these helpers do not select a
+semantic policy. The [correction log](../CORRECTIONS.md) connects the named
+witnesses to the distinctions they protect.

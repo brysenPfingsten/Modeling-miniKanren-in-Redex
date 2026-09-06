@@ -82,7 +82,9 @@
       (displayln "#lang racket")
       (displayln ";; Generated from defunc.rkt by derive.rkt. Regenerate; do not edit.")
       (parameterize ([pretty-print-columns 96])
-        (for ([form (in-list forms)]) (pretty-write form) (newline))))))
+        (for ([form (in-list forms)] [index (in-naturals)])
+          (unless (zero? index) (newline))
+          (pretty-write form))))))
 
 (define (generate!)
   (call-with-output-file (build-path directory "machine.rkt")

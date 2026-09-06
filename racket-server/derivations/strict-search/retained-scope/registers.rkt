@@ -401,4 +401,3 @@
         (jump! bank 'collect/d value here (KCollectForced owners rest)))
        ((KCollectForced owners rest) (jump! bank 'return/d `(Forced ,owners ,value) rest)))))
    (other (raise-argument-error 'dispatch! "active program counter" other))))
-

@@ -127,7 +127,9 @@
       (displayln "#lang racket")
       (displayln (format ";; Generated from ~a. Regenerate; do not edit." source-description))
       (parameterize ([pretty-print-columns 96])
-        (for ([form (in-list forms)]) (pretty-write form) (newline))))))
+        (for ([form (in-list forms)] [index (in-naturals)])
+          (unless (zero? index) (newline))
+          (pretty-write form))))))
 
 (define (generated-text)
   (register-module-text (control-definitions) "defunc.rkt by register-derive.rkt"))

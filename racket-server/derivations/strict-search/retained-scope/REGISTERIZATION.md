@@ -1,10 +1,10 @@
 # Registers and bounded atomic-outcome compression
 
-The checkpoint is the retained-scope `machine.rkt`: the thirteen-control
+The reference is the retained-scope `machine.rkt`: the thirteen-control
 functional machine generated from `defunc.rkt`, whose configurations correspond
 to the independently refocused `RetainedS` machine through `functional->M`.
-The source, direct/CPS interpreters, data definitions, defunctionalized program,
-checkpoint generator and checkpoint machine are unchanged by this extension.
+The [research guide](../README.md) owns the inventory and reproduction
+commands; this document states the register decoder and compression contracts.
 
 ```text
 defunc.rkt ── derive.rkt ─────────────────────> machine.rkt
@@ -17,7 +17,7 @@ registers  ── decode ──> machine ── functional->M ──> refocused 
 ```
 
 The representation maps are structural; generation arrows transform
-program syntax. Neither register dispatcher calls the checkpoint transition
+program syntax. Neither register dispatcher calls the functional transition
 function, a reduction relation, or an observer table to execute the program.
 
 ## Registerization
@@ -42,7 +42,7 @@ PC. For example:
 
 The other three PCs dispatch the data kernel outcome and its failure/success
 handler. All continuations and `REval`, `RMerge`, `RBind` resumptions remain the
-checkpoint's data records. No suspended body is evaluated by decoding.
+functional machine's data records. No suspended body is evaluated by decoding.
 
 Every dispatch first binds its incoming operands from the bank. Every outgoing
 `jump!` evaluates its arguments left to right before assigning any register;
@@ -69,7 +69,7 @@ Here `step-R(r)` denotes the bank after one successful `step!`. At halt,
 `step!` returns `#f` and leaves the bank unchanged, matching F's lack of a
 successor. The decoder ignores the diagnostic counter. It validates the
 register layout; semantic ancestry and Search/Frontier phase are additionally
-checked through the checkpoint's structural maps.
+checked through the functional machine's structural maps.
 
 Registerization adds no abstract-machine transition. It retains the original
 administrative controls and their classification by `functional-step-label`.
@@ -107,7 +107,7 @@ This reduces thirteen PCs to ten and three atomic dispatch transitions to one.
 It also avoids constructing the transient FEmpty/SOne handler records at that
 site. The kernel still produces native Failure/Success data; no functional
 outcome adapter is introduced. Shared `data.rkt` retains all its definitions
-for the uncompressed checkpoint.
+for the uncompressed machine.
 
 All eighteen continuation constructors and all three resumption constructors
 remain. In particular, the resulting `return/d` still has the same k: it has
@@ -181,14 +181,6 @@ both cases, including the still-pending KCommit and final Frontier.
 
 ## Validation and proof scope
 
-The final retained-scope aggregate passed **582 test cases** on 2026-09-06:
-490 existing checkpoint cases, 7 register cases, and 85 register/compression
-cases. All three generated artifacts pass freshness checks. The executable
-success/failure demonstration also passed, including its sparse and empty
-introduction groups and six-versus-four transition count. The 133-file
-checkpoint comparison found changes only in README and the aggregate test
-entry point; all prior executable and semantic artifacts are unchanged.
-
 `register-tests.rkt` checks generation, decoding, register-update order and
 runner boundaries. `register-compression-tests.rkt` checks the original
 transition and the prescribed compressed spans at every reached configuration.
@@ -202,20 +194,8 @@ For every checked public operation, the gate also verifies the exact count
 equation `register dispatches - compressed dispatches = 2 × atomic evaluations`.
 All other original transitions remain represented individually.
 
-```sh
-PLTCOMPILEDROOTS=/private/tmp/strict-factoring-cache: \
-  racket -y -l raco -- test \
-  racket-server/derivations/strict-search/retained-scope/all.rkt
-
-PLTCOMPILEDROOTS=/private/tmp/strict-factoring-cache: \
-  racket -y racket-server/derivations/strict-search/retained-scope/register-derive.rkt --check
-
-PLTCOMPILEDROOTS=/private/tmp/strict-factoring-cache: \
-  racket -y racket-server/derivations/strict-search/retained-scope/compression-derive.rkt --check
-
-PLTCOMPILEDROOTS=/private/tmp/strict-factoring-cache: \
-  racket -y racket-server/derivations/strict-search/retained-scope/show-register-compression.rkt
-```
+Run the aggregate, freshness checks, and demonstration listed in the
+[parent guide](../README.md#generated-artifacts-and-reproduction).
 
 The local justification is a syntactic transformation with explicit decoder
 and span equations. The finite gates are evidence for, rather than a universal

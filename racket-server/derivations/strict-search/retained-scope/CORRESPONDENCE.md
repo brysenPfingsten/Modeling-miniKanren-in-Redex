@@ -1,8 +1,9 @@
 # The retained-scope functional and refocused machines
 
-The preferred S interpreter now has an explicit data machine and a structural
+The selected S interpreter has an explicit data machine and a structural
 configuration map to the machine obtained by decomposition/refocusing of its
-source. The checkpoint source, interpreter, and machines remain unchanged.
+source. The [research guide](../README.md) owns the artifact inventory and
+current coordinate status; this document states the machine relation.
 
 ## Functional derivation artifacts
 
@@ -81,7 +82,7 @@ readback-M(Φ(f)) = readback-F(f).
 This equality checks two separately stated maps; the whole-tree map is not
 used to implement Φ. Existing fieldwise S→E/N maps also agree with translating
 the reconstructed source, including every pending computation and state.
-These are structural representation squares. The checkpoint E/N transition
+These are structural representation squares. The matrix's E/N transition
 systems still retain a unary prefix phase and are not asserted to have the
 new S machine's operation granularity.
 
@@ -181,14 +182,15 @@ is evidence for those obligations, not a machine-checked proof of them.
 
 ## Scope of the result
 
-The new executable comparison concerns complete machine configurations at
+The executable comparison concerns complete machine configurations at
 every transition, not only final answers or public boundaries. Separate tests
 also compare direct, CPS, defunctionalized, and generated machine executions
 at every public boundary, including exact suspended bodies and actual atomic
 work with incoming states. No observation is weakened to answer sets.
 
-The source account and the direct/CPS interpreter have not been adjusted to
-make the data machine match. The experiment's existing strictness, eager bind,
-commitment, and retained introduction placement are the common specification.
-Registerization, productive infinite behavior, relation calls, and the compact
-rail machine remain outside this particular extension.
+Strictness, eager bind, commitment, and retained introduction placement are
+the common specification. [Machine checks](machine-correspondence-tests.rkt)
+exercise the diagrams and domain conditions above. The subsequent
+[registerization and compression](REGISTERIZATION.md) compose with this
+relation under their own contracts. Retained-scope E/N transitions, productive
+infinite behavior, relation calls, and the compact rail machine remain open.

@@ -255,4 +255,3 @@
        ((KCollectForced owners rest) (Call 'return/d (list `(Forced ,owners ,value) rest))))))
    ((Halted _) #f)
    (_ (raise-argument-error 'step "derived retained-scope configuration" current))))
-

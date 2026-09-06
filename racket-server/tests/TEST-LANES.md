@@ -116,42 +116,33 @@ frontend example corpus.
 raco test racket-server/derivations/strict-search/all.rkt
 ```
 
-The preferred current route is retained scope. This aggregate includes its
+The selected account is retained scope. This aggregate includes its
 source/interpreter correspondence, configuration-level machine and register
 checks, and prescribed compression spans, including intermediate Frontiers,
 actual work order, and allocation scope. Run it alone with
 `raco test racket-server/derivations/strict-search/retained-scope/all.rkt`.
 The aggregate also checks the shared-module dependency boundary.
-Constructor checks enforce active `Yield` and unfinished Frontier `More`,
-including rejection of the obsolete active spelling and alias exports.
+Constructor checks enforce active `Yield`, unfinished Frontier `More`, and
+distinct terminal `Done`/`Last` forms.
 
-The earlier comparison routes follow strict left-to-right operand evaluation, eager `Yield` tails,
-and explicit `Delay` barriers through R/D/Z/Mtree/B/Big. It also checks the
-independent CPS/defunctionalized derivation and its numeric register machine.
-The functional denotational predecessor and numbered ANF/CPS/defunctionalized
-sequence are included, with generated-machine/register checks and native
-functional kernel-outcome witnesses for the older numeric experiment.
-The earlier explicit-prefix S functional route is included through its own aggregate: distinct
-program/Search/Frontier roles, explicit commitment, full outcome/continuation/
-resumption defunctionalization, procedure-free machine configurations, and
-incremental prefix preservation. Native commit/advance/collect rules derive
-the corresponding observation frames on the syntactic side. Strict prefix
-derives the pending ownership frame; raw public/bind resumptions no longer
-introduce synthetic force steps. Direct configuration comparisons prescribe
-zero or one named source contraction per functional transition, verify native
-administrative alignment, and check matching terminal partial frontiers. It can also be run directly with
-`raco test racket-server/derivations/strict-search/s-functional/all.rkt`.
 The native representation matrix has S/E/N cells for Core, Delay, Disjunction,
 and Search/rail, with direct intermediate representation maps, feature
 inclusions, native data kernel outcomes, exact compression spans, and finite
-Big proof certificates.
+Big proof certificates. Run it with
+`raco test racket-server/derivations/strict-search/matrix/all.rkt`.
+These matrix cells still use their explicit-prefix scope operation; the
+selected S machine's structural E/N maps do not establish aligned E/N
+transition systems. Exact native S/E/N work-order checks cover empty and
+sparse supply, lexical fresh, shadowing, nested rail, and eager bind.
 
-It includes exact frontier and atomic-work comparisons with the direct
-interpreter, empty and sparse supply fixtures, lexical fresh and shadowing,
-nested rail, eager bind residuals, and bounded divergence witnesses. The
-online fusion comparisons are explicitly separate evidence; Lane E does not
-establish a general guarded fusion or productive-stream theorem. See
-[`strict-search/PIPELINE.md`](../derivations/strict-search/PIPELINE.md).
+One current strict-versus-online witness preserves the application policy
+boundary. The retired numeric, explicit-prefix functional, and denotational
+pipelines are no longer test requirements. Their host-recursion and
+machine-specific Big results are not included in this gate. The
+[research inventory](../derivations/strict-search/README.md) records maintained
+commands and the [correction log](../derivations/strict-search/CORRECTIONS.md)
+records transferred evidence and deferred results. This finite gate does not
+establish universal correspondence, guarded fusion, or productive streams.
 
 ## Production contract boundaries
 

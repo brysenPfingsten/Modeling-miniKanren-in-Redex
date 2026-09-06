@@ -1,7 +1,7 @@
 # Shared strict-search machinery
 
 This directory contains implementations used by the current retained-scope
-route and the earlier comparison routes. It contains no route's evaluator,
+route and the native S/E/N matrix. It contains no route's evaluator,
 contraction relation, or generated program. Consumers import these modules
 directly; the old utility locations have no forwarding stubs.
 
@@ -23,11 +23,11 @@ rejected forms, eager-tail contexts, and the unchanged commitment boundary.
 | `runtime.rkt` | Budget validation and exhaustion data for machine drivers |
 
 The `core/` providers are required by current execution and validation. Their
-historical origin records provenance, not archival status; removing an earlier
-comparison route does not make these shared dependencies disposable.
+historical origin records provenance, not archival status; removing a retired
+route does not make these shared dependencies disposable.
 
-The shared grammar admits the earlier `prefix` form because that checkpoint
-still uses it. The retained-scope source restricts its own computation/context
+The shared grammar admits `prefix` for the matrix's current source equations.
+The retained-scope source restricts its own computation/context
 grammar and instantiates a view over that grammar. Sharing syntax and stage
 construction does not select a source's ownership operation: the respective
 source modules still state their contractions independently.
@@ -39,4 +39,4 @@ Test fixtures and reusable assertions live in [test-support/](../test-support/RE
 [layout-tests.rkt](../layout-tests.rkt) checks the module dependency boundary:
 retained-scope execution and derivation depend only on retained-scope and
 shared modules within this derivation tree. Shared and test-support modules
-cannot depend on older routes or their test suites.
+cannot depend on retired routes or their test suites.

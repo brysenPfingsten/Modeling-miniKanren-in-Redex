@@ -2,7 +2,7 @@
 
 (require rackunit redex/reduction-semantics
          "source-s.rkt" "source-e.rkt" "source-n.rkt"
-         "../shared/maps.rkt" "../test-support/corpus.rkt" "interpreter-oracle.rkt" "../shared/wf.rkt")
+         "../shared/maps.rkt" "../test-support/corpus.rkt" "../shared/wf.rkt")
 
 (module+ test
   (require (submod "kernel-tests.rkt" test))
@@ -40,8 +40,7 @@
       (define e-final (e-run e0))
       (define n-final (n-run n0))
       (check-equal? (Q-SE s-final) e-final)
-      (check-equal? (Q-SN s-final) n-final)
-      (check-equal? (observation->direct n-final) (direct-observation goal))))
+      (check-equal? (Q-SN s-final) n-final)))
 
   (test-case "sparse support addresses order and unused allocations"
     (define e

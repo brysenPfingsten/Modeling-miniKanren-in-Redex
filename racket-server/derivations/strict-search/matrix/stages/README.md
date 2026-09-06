@@ -1,5 +1,9 @@
 # Strict downstream matrix stages
 
+These stages use the matrix's explicit-prefix source equations. They are
+maintained native coordinates pending retained-scope alignment; see the
+[research inventory](../../README.md#sen-coordinate-inventory).
+
 `instances.rkt` instantiates the common construction in
 [`shared/stages/schema.rkt`](../../shared/stages/schema.rkt) directly
 over the native strict S, E, and N sources. S retains grouped Owner provenance
@@ -51,7 +55,7 @@ similarly produces `emit` frames. Public `advance` and `collect` have their
 own source contexts and frame kinds. These views operate on native source
 syntax and do not import the functional machine.
 
-Internal force now exposes the pending source computation `prefix Owners c`
+Internal force exposes the pending source computation `prefix Owners c`
 in S, and `prefix c` in E/N. Its strict source context derives a `prefix`
 Frame and therefore a `K` constructor through the same native view. S keeps
 the saved Owners on that frame as allocation ancestry while the resumption
@@ -98,7 +102,7 @@ raco test racket-server/derivations/strict-search/matrix/stages/commit-tests.rkt
 The checks cover every intermediate labeled successor, source readback,
 Z/M inverse and transition equation, B direct/specification/exact replay
 square, direct vertical map composition, and tampered compression
-certificates. The expanded gate also uses 120 independently generated,
+certificates. The gate also uses independently generated,
 scope-aware mixed goals at depth four/five, each from both empty and sparse
 ordered initial support with aliasing and disequalities. Every generated
 path checks native intermediate states and all three direct vertical maps.
@@ -107,19 +111,15 @@ terminal states and the retained mature left chunk while the right operand
 is still evaluating, in both Mtree and B.
 
 The commitment gate runs commit/advance/collect through R/D/Z/M/B and all
-three direct representation maps, including every boundary of the 20 named
-functional witnesses. Partial results must terminate by each stage's own
-rules. The separate [machine correspondence](../../s-functional/machine-correspondence.rkt)
-maps functional control and continuation fields directly to M controls and
-Frame/K fields; its tests align administrative phases without using source
-readback and decomposition as the machine map.
-The same gate checks independently derived pending-prefix frames, sparse
+three direct representation maps, including every boundary of the named
+validation witnesses. Partial results must terminate by each stage's own
+rules. The gate also checks independently derived pending-prefix frames, sparse
 allocation beneath them, and the separation of force, resumed evaluation,
 prefix return, and commitment at every stage and in all three carriers.
 
-These establish an executable correspondence checkpoint over the supplied
-corpora. They are not a general adequacy, guardedness, or
-coinductive productivity proof. Administrative normalization is defined over
+These check executable correspondence over the supplied corpora. They are not
+a general adequacy, guardedness, or coinductive productivity proof.
+Administrative normalization is defined over
 finite, well-formed reachable controls and contexts; forged frame metadata is
 outside that domain.
 

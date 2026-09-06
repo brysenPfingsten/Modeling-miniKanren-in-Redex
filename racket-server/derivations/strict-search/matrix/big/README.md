@@ -1,9 +1,11 @@
 # Strict Big and fixed-point stages in the representation matrix
 
-This directory completes the finite Big presentation for the twelve current
+This directory retains finite Big presentations for the twelve matrix
 coordinates: Core, Delay, Disjunction, and Search/rail, each in S, E, and N.
-The source is the strict Search semantics. There is no dormant-right policy
-or strict-to-online fusion in these artifacts.
+Its source uses the matrix's explicit-prefix factoring. Big for the selected
+retained-scope account is not established; see the
+[research inventory](../../README.md#sen-coordinate-inventory).
+There is no dormant-right policy or strict-to-online fusion in these artifacts.
 
 ## Native equations and feature instances
 
@@ -41,7 +43,7 @@ boundary. Both the syntactic and functional presentations use Yield for the
 active Search cell; unary Frontier More holds unfinished Delay work.
 
 Legacy `render-big` retains its existing collect-all behavior; its `render-*`
-labels distinguish the constructor cases. The general `observe-big` judgment now concludes partial
+labels distinguish the constructor cases. The general `observe-big` judgment concludes partial
 `F`, including complete `O`, and accepts native `commit`, `advance`, and
 `collect` query contexts as well as legacy `render`. Its value clause admits
 partial frontiers without evaluating their suspended tips.
@@ -133,32 +135,29 @@ the same finite run.
 raco test racket-server/derivations/strict-search/matrix/big/tests.rkt
 ```
 
-The full gate contains **138 test cases**. Its preserved original 113 cases
-comprise 108 feature-corpus cases and five
-targeted cases. Each corpus case checks both mature Search and complete
-observation in all three native rows, exact source/B labels, M span replay,
-fixed-point agreement, raw proof uniqueness, the direct interpreter oracle,
-and recursive QBig squares/composition. Additional cases cover intermediate
-nested-rail states, inherited and sparse support, shared versus answer-local
-ownership, constructor overlaps, and rejection of absent features.
+The gate checks mature Search and complete observations across the native
+feature rows, exact source/B labels, M span replay, fixed-point agreement,
+raw proof uniqueness, and recursive QBig squares/composition. Targeted cases
+cover intermediate nested-rail states, inherited and sparse support, shared
+versus answer-local ownership, constructor overlaps, and absent-feature
+rejection.
 
-The native-frontier extension adds the 20 pure allocation/settlement witnesses
-from `../../test-support/witnesses.rkt`. At every exposed boundary it checks
-partial value proofs, commit, advancement, and explicit collection against
-exact R/B results and label traces, fixed-point equations, unique raw proofs,
-and full recursive S/E/N certificate maps. Further cases assert exact forcing
-labels and exercise the new operations in all twelve feature/row instances.
-Complete results are also compared with the preserved legacy render result.
-Three source-factoring regressions check pending-prefix allocation and
-attachment order, the full internal-force/prefix certificate subtree, direct
-resumption in delayed bind and public render, and exclusion of prefix control
-from Core and Disjunction. Delay and Search both exercise the new phase in
-all three native rows.
+The [named validation witnesses](../../test-support/witnesses.rkt) exercise
+partial value proofs, commit, advancement, and explicit collection at every
+exposed boundary. These are compared with exact R/B results and label traces,
+fixed-point equations, unique raw proofs, and full recursive S/E/N certificate
+maps. Further cases assert exact forcing labels and exercise public operations
+throughout the feature/row instances. Complete results are also compared with
+the legacy render operation.
 
-This is an executable finite derivation and correspondence checkpoint.
-The unbounded inductive presentations are not bounded interpreters; the
-finite witness gate is not a general mechanized preservation, adequacy,
-productivity, or coinductive stream proof. Relcalls and strict-to-online
-fusion are outside these coordinates. The direct strict Big checkpoint in
-`../../big-step-spec.rkt` separately distinguishes bounded proof-search exhaustion
-from a semantic result and checks unguarded divergence witnesses.
+Prefix regressions check allocation and attachment order, the full
+internal-force/prefix certificate subtree, direct resumption in delayed bind
+and public render, and exclusion of prefix control from Core and Disjunction.
+Delay and Search exercise this phase in all three native rows.
+
+The unbounded inductive presentations are not bounded interpreters. Their
+finite witness gate is evidence for the stated correspondence contracts, not
+a general mechanized preservation, adequacy, productivity, or coinductive
+stream proof. Relcalls, strict-to-online fusion, and retained-scope Big remain
+outside these coordinates. The retired numeric Big/proof-search results are
+recorded separately in the [correction log](../../CORRECTIONS.md#retired-and-deferred-results).

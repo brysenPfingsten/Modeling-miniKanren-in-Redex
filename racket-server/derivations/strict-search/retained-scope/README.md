@@ -1,34 +1,32 @@
 # Retained-scope interpreter and corresponding machines
 
-This is the preferred S interpreter candidate. It preserves the previous
-strict S correspondence as a checkpoint and develops the source factoring
-where a removed Delay's introductions are placed on the running computation
-before its body evaluates.
+This is the selected S, Search/rail account. When internal force removes a
+Delay, its introductions remain on the running computation before the body
+evaluates. The parent [research guide](../README.md) owns the artifact
+inventory, current coordinate status, generation commands, and reading order.
 
 Both derivations use `Yield(O,A,S)` for the eager active Search cell and
 reserve `More(Delay(O,R))` for unfinished Frontier work. The eager-tail frame
 is `KMergeYield`/`yield`; the corresponding source cases are `mplus-yield`,
 `bind-yield`, `render-yield`, and `commit-yield`. These names identify the same
-operations and stopping boundaries as before the constructor rename.
+operations and stopping boundaries in both presentations.
 
-Both presentations preserve scope while work runs. In the checkpoint, a
-dedicated `prefix(O,c)` context carries O and attaches it to mature Search on
-return. Here, the existing owner field of `eval`, `mplus`, or `bind` carries O.
-No checkpoint file or matrix coordinate is replaced by this experiment.
+Both presentations preserve scope while work runs. The existing owner field
+of `eval`, `mplus`, or `bind` carries O; there is no pending `prefix` context.
 
 The parent [strict-search guide](../README.md) selects this route as the main
 entry point, and its aggregate includes this directory's `all.rkt`. Common
 grammars, kernels, stage construction and control transformation live in
 [shared/](../shared/README.md); fixtures and reusable checks live in
 [test-support/](../test-support/README.md). Runtime and derivation modules
-depend on those shared implementations directly. Only the explicit source
-comparison tests and demo import the earlier matrix source as an oracle.
+depend on those shared implementations directly. The matrix's source
+factoring is a separate coordinate pending alignment, not an execution oracle.
 
 ## Inspectable path from syntax to interpreter
 
 The source-guided reconstruction can be inspected in this order:
 
-1. [source.rkt](source.rkt): the strict source equations and structural bridge.
+1. [source.rkt](source.rkt): the strict source equations and owner lifting.
 2. [stages.rkt](stages.rkt): the source instantiated in the existing
    decomposition/refocusing construction, giving D, Z, M, and B.
 3. [cps.rkt](cps.rkt): the specialized functional continuations corresponding
@@ -66,16 +64,16 @@ proof of domain preservation and correspondence remains an obligation.
 
 ## Registerization and first compression
 
-The corresponding functional machine is now the preserved checkpoint for two
-further executable stages:
+The corresponding functional machine is the reference for two further
+executable stages:
 
 ```text
 machine.rkt ← decode ← registers.rkt ← structural embedding ← compressed.rkt
 ```
 
 [register-derive.rkt](register-derive.rkt) generates the explicit PC/register
-dispatcher in [registers.rkt](registers.rkt) from the unchanged defunctionalized
-program. Each register step decodes to one checkpoint step. The host dispatch
+dispatcher in [registers.rkt](registers.rkt) from the defunctionalized
+program. Each register step decodes to one functional-machine step. The host dispatch
 loop and object-language Delay remain separate.
 
 [compression-derive.rkt](compression-derive.rkt) checks and rewrites one
@@ -94,7 +92,7 @@ argument, concrete before/after example, reproduction commands, and remaining
 proof obligations. [show-register-compression.rkt](show-register-compression.rkt)
 prints the paired atomic traces with commitment still pending.
 
-## The changed source operation
+## Retaining introductions on active computation
 
 Let `O ++ L` concatenate introduction groups, preserving their names, order,
 group boundaries, and tags. `lift_O` prepends O to the root owner field of an
@@ -120,7 +118,7 @@ ordinary equations. Common introductions are never distributed individually
 onto the two operands or mixed with answer-private introductions.
 
 Strict left-then-right disjunction, eager Yield tails, eager bind, and the
-Search/Frontier commitment boundary retain their checkpoint rules. No context
+Search/Frontier commitment boundary are explicit source rules. No context
 descends beneath Delay. Public advancement still crosses only the exposed tip:
 
 ```text
@@ -177,99 +175,62 @@ computations. Only Delay suspends search work. They do not cache an inherited
 `here` value. Public consumers instead reconstruct inherited support by
 following common Owners through Emit and Forced, excluding answer-private
 Owners. Ordinary evaluator calls still use a derived support list and the
-existing fresh-name kernel; this experiment does not eliminate those.
+existing fresh-name kernel.
 
-## Relationship with the checkpoint and E/N
+## Representation maps and remaining domain argument
 
-The structural map `T = erase-prefixes` makes the comparison concrete:
-
-```text
-T(prefix(O,c)) = lift_O(T(c))
-T(other constructors) = the same constructor with translated computations
-```
-
-It does not evaluate anything, including suspended syntax. The intended local
-simulation is:
-
-```text
-checkpoint q --prefix-value--> q'   implies T(q) = T(q')
-checkpoint q --other label--> q'    implies T(q) --same label--> T(q')
-```
-
-The source tests check this prescribed square for every reached edge; they do
-not search forward through arbitrary target work. The tested finite ordinary-goal
-Frontiers are literally equal, including their unforced bodies. For arbitrary
-source terms containing pending prefixes beneath Delay, compare via T rather
-than asserting literal equality of those suspended bodies.
-
-The key active-computation lemma is ownership equivariance. If c steps at
+The active-computation obligation is ownership equivariance. If c steps at
 inherited support `P ++ names(O)`, `lift_O(c)` should step with the same label
-at P to the lifted successor. Fresh sees the same ordered support, and the
-other active rule cases use associativity of owner concatenation. The
-force case uses `lift_O(lift_L(c)) = lift_(O ++ L)(c)`. The rule argument and
-finite checks support the lemma; they are not a mechanized universal proof.
-Consecutive erased `prefix-value` steps terminate because each removes a
-pending prefix node and none creates another.
+at P to the lifted successor. Fresh sees the same ordered support; the other
+active cases use associativity of owner concatenation. Internal force uses
+`lift_O(lift_L(c)) = lift_(O ++ L)(c)`. The rule argument and finite allocation
+checks support this lemma; they are not a mechanized universal proof.
 
-Restrict this lemma to active computations. Moving ownership naively through
-commitment changes S's exact placement: `commit(One(O,σ))` places O on its
-terminal Answer, rather than on the Last node. Public commitment rules are
-therefore preserved explicitly.
+Restrict this argument to active computations. Moving ownership naively
+through commitment changes S's exact placement: `commit(One(O,σ))` places O
+on its terminal Answer rather than on Last. Public commitment rules therefore
+remain explicit.
 
-The existing S→E/N maps still account for allocation along owner paths. At the
-same caller support, the basic identity is
-`Q(lift_O(V),P) = Q(V,P ++ names(O))` for mature Search. The retained source is
-an experimental S column, not a replacement for current E/N reduction rules:
-those retain unary prefix-value phases for their exact checkpoint squares.
-Matching a compressed E/N source is a separate next extension.
+The existing S→E/N maps account for allocation along owner paths. At the same
+caller support the basic identity is
+`Q(lift_O(V),P) = Q(V,P ++ names(O))` for mature Search.
+[machine-correspondence-tests.rkt](machine-correspondence-tests.rkt) checks
+structural squares for complete configurations. The matrix's E/N sources
+still retain unary prefix phases. Their transition correspondence with this
+S machine, including a direct S→N check, remains future work.
 
-## Reproduce and inspect
+## Examples and validation
 
-The expanded aggregate passed **582 test cases** on 2026-09-06: the existing
-490 source/interpreter/machine cases, 7 register-generation/decoder cases, and
-85 register/compression correspondence cases. Generation freshness checks for
-the checkpoint, registerized and compressed artifacts are included. The
-before/after register demonstration also passed for success and failure,
-including sparse and empty introduction groups.
+[show.rkt](show.rkt) displays internal force and the native bind frame that
+retains an introduction while its operand runs; the later fresh variable
+must account for that allocation. [show-machines.rkt](show-machines.rkt)
+displays corresponding functional and refocused configurations and checks
+their prescribed transition diagram.
+[show-register-compression.rkt](show-register-compression.rkt) prints paired
+atomic success/failure traces with commitment still pending.
 
-Checkpoint coverage requires every continuation, resumption, and outcome
-family to be applied, as well as every program counter and applicable source
-label to be exercised. The new gate checks every admitted register PC and each
-prescribed compression span, with exact endpoints and actual work order.
+[source-tests.rkt](source-tests.rkt) checks native R/D/Z/M/B transitions,
+allocation support, owner lifting, and exact incremental Frontiers.
+[interpreter-tests.rkt](interpreter-tests.rkt) compares direct/CPS boundaries,
+suspended bodies, and actual atomic work. Its test observer records real
+closure captures without executing a Delay.
+[defunc-tests.rkt](defunc-tests.rkt) extends those checks to first-order data
+and generated machine execution.
+[machine-correspondence-tests.rkt](machine-correspondence-tests.rkt) checks
+every reached configuration, prescribed source labels, administrative rank,
+constructor coverage, and invalid ancestry/phase rejection.
+The [register tests](register-tests.rkt) and
+[compression tests](register-compression-tests.rkt) check decoding, update
+order, exact one/three-step spans, and work preservation.
 
-```sh
-PLTCOMPILEDROOTS=/private/tmp/strict-factoring-cache: \
-  racket -y -l raco -- test \
-  racket-server/derivations/strict-search/retained-scope/all.rkt
+The [shared witnesses](../test-support/witnesses.rkt) cover empty and unused
+introductions, sparse ancestry, fresh across Delay, existing variables,
+saved-right reuse, eager bind, terminal structure, and nested rail
+orientation. [all.rkt](all.rkt) aggregates this account's checks, including
+freshness of its three generated programs; commands are in the
+[parent guide](../README.md#generated-artifacts-and-reproduction).
 
-PLTCOMPILEDROOTS=/private/tmp/strict-factoring-cache: \
-  racket -y racket-server/derivations/strict-search/retained-scope/show.rkt
-
-PLTCOMPILEDROOTS=/private/tmp/strict-factoring-cache: \
-  racket -y racket-server/derivations/strict-search/retained-scope/derive.rkt --check
-
-PLTCOMPILEDROOTS=/private/tmp/strict-factoring-cache: \
-  racket -y racket-server/derivations/strict-search/retained-scope/show-machines.rkt
-```
-
-The original example prints both force contractions, the refocused bind frame that
-retains the introduction while its operand runs, and the final direct result
-where the earlier x remains allocated and the later y is u:1. The paired-machine
-example checks the transition diagram while displaying corresponding functional
-and refocused states, including their ordinary bind frames and final Frontiers.
-
-Tests compare the source bridge, well-formedness, intermediate D/Z/M/B
-transitions, exact incremental Frontiers, and the actual atomic work of the
-direct and CPS interpreters. Their test readback records actual closure captures
-through an observer without executing a Delay. Defunctionalized and generated
-machine configurations instead contain only first-order data and are inspected
-directly. Tests exercise every control, continuation, resumption, outcome and
-applicable source operation, check the S/E/N structural squares, reject malformed
-ancestry/phase inputs, and verify the administrative rank decreases.
-
-The corpus includes empty/unused introductions, sparse ancestry, fresh before
-and after suspension, previously allocated variables, nested Delay, saved
-right-operand reuse, eager bind, and nested rail orientation. This is finite
-evidence for this factoring and its downstream transformations. It does not
-establish a general productive-stream theorem or a derivation of the compact
-κ/Q/π rail machine.
+These are finite checks of the selected account and its downstream
+transformations. General domain preservation, administrative progress on the
+native side, retained-scope E/N correspondence, productive streams, Big, and
+compact κ/Q/π rail compression remain obligations.

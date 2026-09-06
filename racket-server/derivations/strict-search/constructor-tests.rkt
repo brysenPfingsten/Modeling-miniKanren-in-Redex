@@ -1,13 +1,10 @@
 #lang racket
 
-(require rackunit redex/reduction-semantics racket/runtime-path
+(require rackunit redex/reduction-semantics
          "shared/grammar-s.rkt" "shared/grammar-e.rkt" "shared/grammar-n.rkt"
          (prefix-in q: "shared/maps.rkt")
          (only-in "retained-scope/source.rkt" ScopeS)
-         (prefix-in i: "retained-scope/interpreter.rkt")
-         (prefix-in numeric: "source.rkt"))
-
-(define-runtime-path numeric-interpreter "../functional-search/direct-interpreter.rkt")
+         (prefix-in i: "retained-scope/interpreter.rkt"))
 
 (define state '(state () () () (label "initial")))
 (define goal '(succeed (label "next")))
@@ -76,9 +73,10 @@
     (check-equal? frontier `(More ,search))
     (check-match (i:resume-once frontier) `(Forced (Owners) (Last (Owners) ,_))))
 
-  (test-case "the numeric comparison source uses Yield without a More alias"
-    (check-true (numeric:search-value? '(Yield state (Empty 0))))
-    (check-false (numeric:search-value? '(More state (Empty 0))))
-    (check-true (procedure? (dynamic-require numeric-interpreter 'Yield)))
-    (for ([name (in-list '(More More? More-state More-rest))])
-      (check-equal? (dynamic-require numeric-interpreter name (lambda () 'absent)) 'absent))))
+  (test-case "terminal success and failure retain Last and Done"
+    (define answer `(Answer (Owners) ,state))
+    (check-equal? (i:commit/s '(Empty (Owners))) '(Done (Owners)))
+    (check-equal? (i:commit/s `(One (Owners) ,state)) `(Last (Owners) ,answer))
+    ;; An existing eager cell followed by failure has different structure
+    ;; from terminal success; commitment does not normalize them together.
+    (check-equal? (i:commit/s active) `(Emit (Owners) ,answer (Done (Owners))))))

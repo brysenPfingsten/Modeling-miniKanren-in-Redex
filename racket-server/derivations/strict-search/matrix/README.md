@@ -1,10 +1,14 @@
 # Strict representation and feature matrix
 
-These are the earlier strict S/E/N feature instances, including the explicit
-`prefix` ownership operation. The preferred S source and interpreter are in
+These maintained native S/E/N feature instances use the explicit
+`prefix` ownership operation. The selected S source and interpreter are in
 [retained-scope/](../retained-scope/README.md). Common grammars, kernels,
 representation maps, and stage construction live in [shared/](../shared/README.md);
 this directory owns the matrix's source and Big rules and their instances.
+The [research guide](../README.md#sen-coordinate-inventory) owns the complete
+coordinate inventory and remaining obligations. These source and downstream
+equations still need retained-scope alignment; their existing correspondence
+checks do not establish that extension.
 
 This matrix adds the `strict-round` branch-evaluation coordinate to the
 preserved S/E/N representation contract. Each row evaluates both operands of
@@ -18,10 +22,8 @@ Each row's atomic kernel directly returns first-order `Failure()` or
 `Success(state)` data. Source and Big-step equations match that result to
 construct their native Search values. Kernel work is eager; no callback is
 stored in an outcome and no result adapter is involved. Primitive unifiers
-retain their existing internal results. The test-only numeric interpreter
-oracle statically specializes the same equations with its own State carrier
-and functional producers. It does not run a matrix kernel and convert its
-result, and no operational matrix module imports the functional interpreter.
+retain their existing internal results. Native source, stage, and Big checks
+obtain results independently within these matrix presentations.
 
 ## Program, active Search, and settled frontier
 
@@ -66,7 +68,8 @@ operation: `force(Delay(O,c)) → prefix(O,c)`. The context `prefix(O,E)` suppli
 allocation ancestry while the body runs; `prefix-value` attaches O only after
 Search matures. Refocusing independently derives the analogue of KPrefix.
 E/N retain unary prefix and its identity contraction, keeping their labelled
-step correspondence with S exact. See the [factoring audit](../COMMITMENT.md).
+step correspondence with S exact. The selected [retained-scope equations](../retained-scope/README.md) instead
+retain these introductions directly on the active computation.
 
 The older `render c` operation remains an explicit full-consumption observer
 for comparison. It can resume repeatedly and is not the partial public query.
@@ -161,8 +164,8 @@ failure. Feature corpora add independent sibling allocation, shared outer
 variables, eager bind tails, Delay-only behavior, and nested oriented rail.
 The source suite checks exact named successor multiplicities, complete label
 traces, all three vertical maps and direct composition at every reached state.
-It separately compares completed numeric observations with the earlier numeric
-direct interpreter under the preserved first-order numeric kernel.
+[property-tests.rkt](property-tests.rkt) extends those checks over generated
+lexical goals using the native S/E/N rows.
 
 These are bounded executable correspondence checks. They do not constitute
 universal adequacy, naturality, guarded fusion, or productive-stream proofs.
@@ -182,8 +185,8 @@ trace. Relation calls are outside this matrix's current source language.
 - `stages/`: decomposition, refocusing, machine, compression, and stage maps;
   its README records the stage-specific construction and evidence.
 - `big/`: direct finite Big equations over the actual row carriers.
-- `interpreter-oracle.rkt`: test-only connection to the earlier numeric direct
-  interpreter; no operational matrix module imports it.
+- `property-tests.rkt`: generated-goal representation and source checks.
+- `all.rkt`: aggregate source, feature, property, stage, and Big checks.
 
 Each source exposes its own named relation, `contract`, Search-value,
 complete-observation, and partial-frontier predicates. `initial` constructs
@@ -194,13 +197,13 @@ their actual Owner-bearing frames. E/N contracts accept the same optional
 argument and read supply from their own focused state. Public source run/trace
 budgets reject negative values; exhaustion is an error, not a terminal value.
 
-The focused source and feature gates are:
+Run the full matrix aggregate from the repository root:
 
 ```sh
-raco test racket-server/derivations/strict-search/matrix/tests.rkt \
-          racket-server/derivations/strict-search/matrix/feature-tests.rkt
+raco test racket-server/derivations/strict-search/matrix/all.rkt
 ```
 
-Matrix descendants have their own focused suites. A source-only gate does not
-establish a complete horizontal pipeline; report the actual aggregate run and
-the implemented coordinate coverage when handing off a checkpoint.
+The focused source/feature, [stage](stages/README.md), and [Big](big/README.md)
+suites remain independently runnable. A source-only run does not establish
+the complete horizontal pipeline. The gate's finite native correspondences
+do not establish retained-scope E/N, relation calls, or productive streams.
