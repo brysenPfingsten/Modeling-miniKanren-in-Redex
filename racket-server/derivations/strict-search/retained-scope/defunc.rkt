@@ -2,25 +2,30 @@
 
 (require (only-in "../shared/kernel.rkt"
                   owners-support owners-append fresh-names substitute-goal)
-         "data.rkt")
+         "data.rkt" "relations.rkt")
 (provide (all-defined-out))
 
 ;; Literal defunctionalization of cps.rkt. Every /d call is a tail transfer;
 ;; derive.rkt reifies those transfers as inspected first-order machine states.
 (define (eval/d goal state owners inherited k)
-  (match goal
+  (define relations (goal-relations goal))
+  (match (goal-body goal)
     [`(∃ ,binders ,body ,tag)
      (define intro (fresh-names (owners-support owners inherited) (length binders)))
-     (eval/d (substitute-goal body (map list binders intro)) state
+     (eval/d (retain-goal relations (substitute-goal body (map list binders intro))) state
              (owners-append owners `(Owners (Owner ,intro ,tag))) inherited k)]
     [`(,left ∧ ,right ,_)
      (define here (owners-support owners inherited))
-     (eval/d left state '(Owners) here (KConj right owners inherited k))]
+     (eval/d (retain-goal relations left) state '(Owners) here
+             (KConj (retain-goal relations right) owners inherited k))]
     [`(,left ∨ ,right ,_)
      (define here (owners-support owners inherited))
-     (eval/d left state '(Owners) here (KDisjLeft right state owners inherited k))]
+     (eval/d (retain-goal relations left) state '(Owners) here
+             (KDisjLeft (retain-goal relations right) state owners inherited k))]
     [`(suspend ,body ,_)
-     (return/d `(Delay ,owners ,(REval body state)) k)]
+     (return/d `(Delay ,owners ,(REval (retain-goal relations body) state)) k)]
+    [(? relation-call? call)
+     (eval/d (retain-goal relations (expand-call relations call)) state owners inherited k)]
     [atom
      (define outcome (atomic/data atom state))
      (outcome/d outcome (FEmpty owners k) (SOne owners k))]))
@@ -112,6 +117,7 @@
 (define (return/d value k)
   (match k
     [(KDone) value]
+    [(KProgram relations rest) (return/d `(program ,relations ,value) rest)]
     [(KConj right owners inherited rest)
      (bind/d value (GRight right) owners inherited rest)]
     [(KDisjLeft right state owners inherited rest)
@@ -138,7 +144,15 @@
     [(KCollectForced owners rest) (return/d `(Forced ,owners ,value) rest)]))
 
 (define (run goal #:owners [owners '(Owners)]
-             #:state [state '(state () () () (label "initial"))])
-  (eval/d goal state owners '() (KCommit (KDone))))
-(define (resume-once frontier) (advance/d frontier '() (KDone)))
-(define (collect-all frontier) (collect/d frontier '() (KDone)))
+             #:state [state '(state () () () (label "initial"))]
+             #:relations [relations #f])
+  (eval/d (retain-goal relations goal) state owners '()
+          (KCommit (if relations (KProgram relations (KDone)) (KDone)))))
+(define (resume-once frontier)
+  (match frontier
+    [`(program ,relations ,body) (advance/d body '() (KProgram relations (KDone)))]
+    [_ (advance/d frontier '() (KDone))]))
+(define (collect-all frontier)
+  (match frontier
+    [`(program ,relations ,body) (collect/d body '() (KProgram relations (KDone)))]
+    [_ (collect/d frontier '() (KDone))]))

@@ -16,18 +16,23 @@
   (match-define (cons name arguments) (derivation-term proof))
   (match-define
     (list _ kind-text row-text feature-text)
-    (regexp-match #rx"^(search|merge|bind|render|commit|advance|collect|observe)-big/([sen])(-core|-delay|-disjunction)?$"
+    (regexp-match #rx"^(program|search|merge|bind|render|commit|advance|collect|observe)-big/([sen])(-core|-delay|-disjunction|-rel)?$"
                   (symbol->string name)))
   (define kind (string->symbol kind-text))
   (define coordinate (string->symbol (string-append row-text (or feature-text ""))))
   (define row-s? (equal? row-text "s"))
-  (define prefix (if row-s? (first arguments) '()))
-  (define local-arguments (if row-s? (rest arguments) arguments))
+  (define program? (eq? kind 'program))
+  (define full-premise? (and (equal? feature-text "-rel") (not program?)))
+  (define definitions (and full-premise? (first arguments)))
+  (define row-arguments (if full-premise? (rest arguments) arguments))
+  (define prefix (if (and row-s? (not program?)) (first row-arguments) '()))
+  (define local-arguments (if (and row-s? (not program?)) (rest row-arguments) row-arguments))
   (match-define (list output labels) (take-right local-arguments 2))
   (define inputs (drop-right local-arguments 2))
   (define input
     (match* (kind inputs)
       [('search (list computation)) computation]
+      [('program (list computation)) computation]
       [('observe (list computation)) computation]
       [('render (list search)) `(render ,search)]
       [('commit (list search)) `(commit ,search)]
@@ -35,7 +40,12 @@
       [('collect (list frontier)) `(collect ,frontier)]
       [('merge _) `(mplus ,@inputs)]
       [('bind _) `(bind ,@inputs)]))
-  (BigCertificate kind coordinate prefix input output labels
+  ;; Full premises retain their own Γ, rather than relying on the certificate
+  ;; root or a closure to recover recursive-call meaning. The shared vertical
+  ;; maps preserve the lexical definition syntax and map each native body.
+  (BigCertificate kind coordinate prefix
+                  (if full-premise? `(program ,definitions ,input) input)
+                  (if full-premise? `(program ,definitions ,output) output) labels
                   (map derivation->certificate (derivation-subs proof))))
 
 (define (certify/raw raw computation)

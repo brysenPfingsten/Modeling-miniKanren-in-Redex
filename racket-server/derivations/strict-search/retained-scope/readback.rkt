@@ -1,12 +1,63 @@
 #lang racket
 
-(require "data.rkt"
+(require "data.rkt" "relations.rkt"
          (only-in "../shared/kernel.rkt" owners-support valid-support?)
-         (only-in "../shared/wf.rkt" wf-s?))
+         (only-in "../shared/wf.rkt" wf-s? wf-s-rel?))
 
 (provide reify-search reify-frontier reify-resumption reify-value
          reify-continuation continuation-prefix continuation-input-kind
-         source-kind readback-call readback-halted valid-call?)
+         source-kind readback-call readback-halted valid-call? validate-program-data!)
+
+;; Environments are checked from explicit control/continuation data. This is
+;; a structural invariant check, not dynamic scope or an evaluator parameter.
+(define (validate-program-data! datum [active-goal #f])
+  (define boundaries '())
+  (define pending '())
+  (define (inventory value)
+    (match value
+      [(ProgramGoal relations _)
+       (set! pending (cons relations pending))]
+      [(KProgram relations rest)
+       (set! boundaries (cons relations boundaries))
+       (inventory rest)]
+      [`(program ,relations ,body)
+       (set! boundaries (cons relations boundaries))
+       (inventory body)]
+      [(cons first rest) (inventory first) (inventory rest)]
+      [(? struct?)
+       (for ([field (in-vector (struct->vector value))] [index (in-naturals)]
+             #:unless (zero? index))
+         (inventory field))]
+      [_ (void)]))
+  (inventory datum)
+  (define expected (and (pair? boundaries) (first boundaries)))
+  (unless (and (or (null? pending) expected)
+               (andmap (lambda (relations) (equal? relations expected))
+                       (append boundaries pending)))
+    (error 'readback "pending relation environments disagree with their program boundary"))
+  (define (check-goal goal)
+    (unless (if expected
+                (and (ProgramGoal? goal) (equal? (ProgramGoal-relations goal) expected))
+                (not (ProgramGoal? goal)))
+      (error 'readback "pending goal lost or changed its explicit relation environment: ~e" goal)))
+  (define (check-sites value)
+    (match value
+      [(or (REval goal _) (GRight goal) (KConj goal _ _ _) (KDisjLeft goal _ _ _ _))
+       (check-goal goal)
+       (for ([field (in-vector (struct->vector value))] [index (in-naturals)]
+             #:unless (zero? index))
+         (check-sites field))]
+      [(ProgramGoal _ _) (void)]
+      [`(program ,_ ,body) (check-sites body)]
+      [(cons first rest) (check-sites first) (check-sites rest)]
+      [(? struct?)
+       (for ([field (in-vector (struct->vector value))] [index (in-naturals)]
+             #:unless (zero? index))
+         (check-sites field))]
+      [_ (void)]))
+  (when active-goal (check-goal active-goal))
+  (check-sites datum)
+  expected)
 
 ;; Structural readback only: no reduction, decomposition, observer lookup, or
 ;; resumption execution occurs here. Resumptions receive their allocation
@@ -24,7 +75,7 @@
 
 (define (continuation-goal continue)
   (match continue
-    [(GRight goal) goal]
+    [(GRight goal) (goal-body goal)]
     [_ (raise-argument-error 'continuation-goal "GRight continuation" continue)]))
 
 (define (reify-search search [inherited '()])
@@ -48,7 +99,7 @@
 (define (reify-resumption resume [owners '(Owners)] [inherited '()])
   (define here (extend owners inherited))
   (match resume
-    [(REval goal state) `(eval ,owners ,goal ,state)]
+    [(REval goal state) `(eval ,owners ,(goal-body goal) ,state)]
     [(RMerge right left)
      `(mplus ,owners ,(reify-search right here)
              (force ,(reify-search left here)))]
@@ -59,6 +110,7 @@
 
 (define (reify-frontier frontier [inherited '()])
   (match frontier
+    [`(program ,relations ,body) `(program ,relations ,(reify-frontier body inherited))]
     [`(Done ,owners)
      (extend owners inherited)
      frontier]
@@ -77,6 +129,7 @@
 
 (define (reify-value value [inherited '()])
   (match value
+    [`(program ,_ ,_) (reify-frontier value inherited)]
     [`(More (Delay ,_ ,_)) (reify-frontier value inherited)]
     [`(,(or 'Empty 'One 'Yield 'Delay) ,_ ...) (reify-search value inherited)]
     [`(,(or 'Done 'Last 'Emit 'Forced) ,_ ...) (reify-frontier value inherited)]
@@ -89,6 +142,7 @@
     [(KDone)
      (check-prefix 'KDone root root)
      root]
+    [(KProgram _ rest) (continuation-prefix rest root)]
     [(or (KConj _ owners inherited rest)
          (KDisjLeft _ _ owners inherited rest)
          (KDisjRight _ owners inherited rest)
@@ -117,7 +171,7 @@
 
 (define (continuation-input-kind k)
   (match k
-    [(or (KDone) (KCommitEmit _ _ _)
+    [(or (KDone) (KProgram _ _) (KCommitEmit _ _ _)
          (KAdvanceEmit _ _ _) (KAdvanceHistory _ _) (KAdvanceForced _ _)
          (KCollectEmit _ _ _) (KCollectHistory _ _) (KCollectResume _ _ _)
          (KCollectForced _ _))
@@ -131,6 +185,7 @@
 
 (define (source-kind computation)
   (match computation
+    [`(program ,_ ,body) (source-kind body)]
     [`(More (Delay ,_ ,_)) 'frontier]
     [`(,(or 'eval 'mplus 'bind 'force 'Empty 'One 'Yield 'Delay) ,_ ...) 'search]
     [`(,(or 'commit 'advance 'collect 'render 'Done 'Last 'Emit 'Forced) ,_ ...) 'frontier]
@@ -144,11 +199,13 @@
            k (continuation-input-kind k) (source-kind computation)))
   (match k
     [(KDone) computation]
+    [(KProgram relations rest)
+     (reify-continuation `(program ,relations ,computation) rest root)]
     [(KConj right owners _ rest)
-     (reify-continuation `(bind ,owners ,computation ,right) rest root)]
+     (reify-continuation `(bind ,owners ,computation ,(goal-body right)) rest root)]
     [(KDisjLeft right state owners _ rest)
      (reify-continuation
-      `(mplus ,owners ,computation (eval (Owners) ,right ,state)) rest root)]
+      `(mplus ,owners ,computation (eval (Owners) ,(goal-body right) ,state)) rest root)]
     [(KDisjRight left owners _ rest)
      (define here (extend owners (continuation-prefix rest root)))
      (reify-continuation `(mplus ,owners ,(reify-search left here) ,computation) rest root)]
@@ -179,7 +236,9 @@
      (reify-continuation `(Forced ,owners ,computation) rest root)]))
 
 (define (checked-readback computation)
-  (unless (wf-s? computation)
+  (unless (match computation
+            [`(program ,_ ,_) (wf-s-rel? computation)]
+            [_ (wf-s? computation)])
     (error 'readback "reification violates the S allocation contract: ~e" computation))
   computation)
 
@@ -187,11 +246,13 @@
 ;; machine. Atomic outcome/handler states represent the already computed
 ;; result; dispatch does not evaluate the atomic goal a second time.
 (define (readback-call pc operands)
+  (validate-program-data! operands
+                          (match (cons pc operands) [(list 'eval/d goal _ ...) goal] [_ #f]))
   (checked-readback
    (match (cons pc operands)
      [(list 'eval/d goal state owners inherited k)
       (check-prefix 'eval/d inherited (continuation-prefix k))
-      (reify-continuation `(eval ,owners ,goal ,state) k)]
+      (reify-continuation `(eval ,owners ,(goal-body goal) ,state) k)]
      [(list 'merge/d left right owners inherited k)
       (check-prefix 'merge/d inherited (continuation-prefix k))
       (define here (extend owners inherited))
@@ -234,6 +295,7 @@
                                "pc" pc "operands" operands)])))
 
 (define (readback-halted value)
+  (validate-program-data! value)
   (checked-readback (reify-frontier value)))
 
 (define (valid-call? pc operands)

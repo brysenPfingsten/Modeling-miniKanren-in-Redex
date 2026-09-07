@@ -7,6 +7,7 @@
           fresh-names
           substitute-goal)
          "data.rkt"
+         "relations.rkt"
          "../shared/runtime.rkt")
 
 (provide (all-defined-out))
@@ -35,8 +36,17 @@
          #:owners
          (owners '(Owners))
          #:state
-         (state '(state () () () (label "initial"))))
-  (Call 'eval/d (list goal state owners '() (KCommit (KDone)))))
+         (state '(state () () () (label "initial")))
+         #:relations
+         (relations #f))
+  (Call
+   'eval/d
+   (list
+    (retain-goal relations goal)
+    state
+    owners
+    '()
+    (KCommit (if relations (KProgram relations (KDone)) (KDone))))))
 
 (define (drive/steps current fuel)
   (match
@@ -54,42 +64,70 @@
          (owners '(Owners))
          #:state
          (state '(state () () () (label "initial")))
+         #:relations
+         (relations #f)
          #:fuel
          (fuel 100000))
-  (drive (initial goal #:owners owners #:state state) #:fuel fuel))
+  (drive (initial goal #:owners owners #:state state #:relations relations) #:fuel fuel))
 
 (define (resume-once frontier #:fuel (fuel 100000))
-  (drive (Call 'advance/d (list frontier '() (KDone))) #:fuel fuel))
+  (match
+   frontier
+   (`(program ,relations ,body)
+    (drive (Call 'advance/d (list body '() (KProgram relations (KDone)))) #:fuel fuel))
+   (_ (drive (Call 'advance/d (list frontier '() (KDone))) #:fuel fuel))))
 
 (define (collect-all frontier #:fuel (fuel 100000))
-  (drive (Call 'collect/d (list frontier '() (KDone))) #:fuel fuel))
+  (match
+   frontier
+   (`(program ,relations ,body)
+    (drive (Call 'collect/d (list body '() (KProgram relations (KDone)))) #:fuel fuel))
+   (_ (drive (Call 'collect/d (list frontier '() (KDone))) #:fuel fuel))))
 
 (define (step current)
   (match
    current
    ((Call 'eval/d (list goal state owners inherited k))
     (begin
+      (define relations (goal-relations goal))
       (match
-       goal
+       (goal-body goal)
        (`(∃ ,binders ,body ,tag)
         (define intro (fresh-names (owners-support owners inherited) (length binders)))
         (Call
          'eval/d
          (list
-          (substitute-goal body (map list binders intro))
+          (retain-goal relations (substitute-goal body (map list binders intro)))
           state
           (owners-append owners `(Owners (Owner ,intro ,tag)))
           inherited
           k)))
        (`(,left ∧ ,right ,_)
         (define here (owners-support owners inherited))
-        (Call 'eval/d (list left state '(Owners) here (KConj right owners inherited k))))
+        (Call
+         'eval/d
+         (list
+          (retain-goal relations left)
+          state
+          '(Owners)
+          here
+          (KConj (retain-goal relations right) owners inherited k))))
        (`(,left ∨ ,right ,_)
         (define here (owners-support owners inherited))
         (Call
          'eval/d
-         (list left state '(Owners) here (KDisjLeft right state owners inherited k))))
-       (`(suspend ,body ,_) (Call 'return/d (list `(Delay ,owners ,(REval body state)) k)))
+         (list
+          (retain-goal relations left)
+          state
+          '(Owners)
+          here
+          (KDisjLeft (retain-goal relations right) state owners inherited k))))
+       (`(suspend ,body ,_)
+        (Call 'return/d (list `(Delay ,owners ,(REval (retain-goal relations body) state)) k)))
+       ((? relation-call? call)
+        (Call
+         'eval/d
+         (list (retain-goal relations (expand-call relations call)) state owners inherited k)))
        (atom
         (define outcome (atomic/data atom state))
         (Call 'outcome/d (list outcome (FEmpty owners k) (SOne owners k)))))))
@@ -218,6 +256,7 @@
       (match
        k
        ((KDone) (Halted value))
+       ((KProgram relations rest) (Call 'return/d (list `(program ,relations ,value) rest)))
        ((KConj right owners inherited rest)
         (Call 'bind/d (list value (GRight right) owners inherited rest)))
        ((KDisjLeft right state owners inherited rest)

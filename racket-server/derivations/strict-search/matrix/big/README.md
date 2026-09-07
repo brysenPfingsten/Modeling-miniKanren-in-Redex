@@ -2,6 +2,8 @@
 
 This directory retains finite Big presentations for the twelve matrix
 coordinates: Core, Delay, Disjunction, and Search/rail, each in S, E, and N.
+The full Search/rail language additionally has three native relation-call
+instances over explicit `(program Γ q)` configurations.
 Its source uses retained scope, matching the selected S source; see the
 [research inventory](../../README.md#sen-coordinate-inventory).
 There is no dormant-right policy or strict-to-online fusion in these artifacts.
@@ -55,6 +57,36 @@ restricted source grammar. `feature-schema.rkt` removes unavailable literal
 judgment rules and fixed-point constructor cases during macro expansion.
 Smaller coordinates have no runtime feature switch. Public fixed-point
 entries check their actual feature domain, including control constructors.
+
+## Full programs and recursive calls
+
+[full.rkt](full.rkt) instantiates the same S and ownerless equation schemas
+with an explicit `Γ` argument on every judgment and fixed-point call. This
+optional schema argument leaves the twelve call-free signatures and rules
+unchanged. The full instances add one `eval-call` premise: instantiate the
+named definition with its actual terms, then evaluate that body in the same
+state, Owners, and relation environment. There is no automatic suspension.
+
+`program-big/s-rel`, `/e-rel`, and `/n-rel` retain `Γ` around the complete
+native result, including paused Frontiers. The callable boundaries are
+`evaluate-full/s`, `/e`, `/n`, `promote-full/s`, `/e`, `/n`, and
+`raw-derivations-full/s`, `/e`, `/n`; they consume `(program Γ q)`. Their
+recursive operation judgments have names such as `search-big/s-rel`, with
+`Γ` preceding the ordinary arguments. S still receives its inherited support
+argument separately.
+
+Each full `BigCertificate` node keeps its own `(program Γ input)` and
+`(program Γ output)`. This preserves the meaning of calls inside every
+premise without consulting the root or a dynamic environment. The existing
+direct S→E, E→N, and S→N certificate maps preserve closed lexical definitions
+while mapping that premise's native body and allocation ancestry.
+
+These are finite inductive derivations. They cover terminating recursive and
+mutually recursive programs and individual finite rounds of explicitly
+suspended productive programs. Full collection of an infinite stream and
+unguarded recursive proof search are not validation operations. The focused
+gate checks unguarded recursion only through a bounded native reduction run;
+it asserts that strict right-operand work prevents earlier commitment.
 
 The operation judgments are `search-big/<coordinate>`,
 `merge-big/<coordinate>` where disjunction exists, `bind-big/<coordinate>`,
@@ -136,6 +168,7 @@ the same finite run.
 
 ```sh
 raco test racket-server/derivations/strict-search/matrix/big/tests.rkt
+raco test racket-server/derivations/strict-search/matrix/big/full-tests.rkt
 ```
 
 The gate checks mature Search and complete observations across the native
@@ -160,10 +193,17 @@ it on siblings. Other cases check direct resumption in delayed bind and
 public render, and reject obsolete `prefix` computations in every feature
 and row. Delay and Search exercise internal forcing in all three native rows.
 
+The full gate additionally compares native recursive Big proofs, fixed-point
+results, source labels, and R/D/Z/M/B stages at public boundaries. Its cases
+cover direct and mutual recursion, lexical shadowing, relation bodies that
+allocate before and after Delay, nested rails with pending bind, sparse
+ancestry, unused introductions, and finite productive rounds. Every recursive
+certificate retains and maps the explicit relation environment.
+
 The unbounded inductive presentations are not bounded interpreters. Their
 finite witness gate is evidence for the stated correspondence contracts, not
 a general mechanized preservation, adequacy, productivity, or coinductive
-stream proof. Relcalls and strict-to-online fusion remain outside these
-coordinates. These finite Big certificates do not derive new E/N functional
+stream proof. Strict-to-online fusion remains outside these coordinates.
+These finite Big certificates do not derive new E/N functional
 or register machines. The retired numeric Big/proof-search results are
 recorded separately in the [correction log](../../CORRECTIONS.md#retired-and-deferred-results).

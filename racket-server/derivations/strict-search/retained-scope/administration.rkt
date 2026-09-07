@@ -10,7 +10,7 @@
 ;; again. Every other continuation enters a named semantic operation or halts.
 (define (return-rank k)
   (match k
-    [(or (KMergeYield _ _ rest) (KCommitEmit _ _ rest)
+    [(or (KProgram _ rest) (KMergeYield _ _ rest) (KCommitEmit _ _ rest)
          (KAdvanceEmit _ _ rest) (KAdvanceHistory _ rest)
          (KAdvanceForced _ rest) (KCollectEmit _ _ rest)
          (KCollectHistory _ rest) (KCollectForced _ rest))

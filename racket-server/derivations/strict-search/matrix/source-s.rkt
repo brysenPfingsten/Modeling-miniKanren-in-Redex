@@ -2,6 +2,7 @@
 
 (require redex/reduction-semantics
          (only-in "../shared/grammar-s.rkt" StrictS context-support/s)
+         (only-in "../shared/relation-grammar.rkt" StrictSRel)
          "../shared/feature-schema.rkt"
          "../shared/kernel.rkt")
 
@@ -13,7 +14,7 @@
 ;; runs. Only force is transparent; common Owners are never copied to siblings
 ;; or moved through the Search/Frontier commitment boundary.
 (define (lift-owners/s owners computation)
-  (unless (redex-match? StrictS c computation)
+  (unless (redex-match? StrictSRel c computation)
     (raise-argument-error 'lift-owners/s "active S computation" computation))
   (match computation
     [`(force ,inner) `(force ,(lift-owners/s owners inner))]

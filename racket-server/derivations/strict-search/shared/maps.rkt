@@ -23,6 +23,7 @@
 ;; never enter the residual branch, and failures retain just their Support.
 (define (Q-SE computation [prefix '()])
   (match computation
+    [`(program ,definitions ,body) `(program ,definitions ,(Q-SE body prefix))]
     [`(eval ,owners ,goal ,state)
      `(eval ,goal ,(state-SE state (owners-support owners prefix)))]
     [`(mplus ,owners ,left ,right)
@@ -50,6 +51,7 @@
 
 (define (world-supports computation)
   (match computation
+    [`(program ,_ ,body) (world-supports body)]
     [`(eval ,_ ,state) (list (state-support state))]
     [`(mplus ,left ,right) (append (world-supports left) (world-supports right))]
     [`(bind ,search ,_) (world-supports search)]
@@ -76,6 +78,7 @@
 ;; rejects a reference outside that prefix, rather than guessing an address.
 (define (Q-EN computation)
   (match computation
+    [`(program ,definitions ,body) `(program ,definitions ,(Q-EN body))]
     [`(eval ,goal ,state)
      (define support (state-support state))
      `(eval ,(address-goal goal support) ,(address-state state support))]
@@ -102,6 +105,7 @@
 ;; so composition tests compare distinct implementations of the vertical edge.
 (define (Q-SN computation [prefix '()])
   (match computation
+    [`(program ,definitions ,body) `(program ,definitions ,(Q-SN body prefix))]
     [`(eval ,owners ,goal ,state)
      (define here (owners-support owners prefix))
      `(eval ,(address-goal goal here) ,(state-SN state here))]

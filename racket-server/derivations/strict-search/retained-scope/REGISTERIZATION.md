@@ -210,8 +210,13 @@ of the well-formed reachable domain, correctness of the restricted generation
 pass and mutation protocol, all-configuration span correspondence, and the
 earlier functional/refocused domain and native-administration arguments.
 Step budgets count transitions of the selected machine; equal numeric fuel
-is not an observation preserved by compression. Infinite productive behavior
-and relation calls are not established by this finite witness corpus.
+is not an observation preserved by compression. The full relation extension
+retains Γ explicitly in `ProgramGoal` captures and `KProgram`, keeps the same
+five-register layout, and is covered by `relation-tests.rkt`. Calls and
+program-boundary returns each retain their original single-step span; the
+only three-step span remains the atomic handler sequence. Recursive finite
+runs and bounded productive prefixes are checked. A universal productive
+stream theorem remains open.
 
 ## How compact is the result?
 

@@ -7,6 +7,7 @@
 ;; Every semantic lambda family in cps.rkt has a data constructor. Scope is
 ;; supplied when a resumption is entered, never cached inside the resumption.
 (struct KDone () #:transparent)
+(struct KProgram (relations k) #:transparent)
 (struct KConj (right owners inherited k) #:transparent)
 (struct KDisjLeft (right state owners inherited k) #:transparent)
 (struct KDisjRight (left owners inherited k) #:transparent)

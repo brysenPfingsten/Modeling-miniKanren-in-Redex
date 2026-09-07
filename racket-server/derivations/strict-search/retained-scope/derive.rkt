@@ -30,8 +30,11 @@
   '((struct Call (pc operands) #:transparent)
     (struct Halted (value) #:transparent)
     (define (initial goal #:owners [owners '(Owners)]
-                     #:state [state '(state () () () (label "initial"))])
-      (Call 'eval/d (list goal state owners '() (KCommit (KDone)))))
+                     #:state [state '(state () () () (label "initial"))]
+                     #:relations [relations #f])
+      (Call 'eval/d
+            (list (retain-goal relations goal) state owners '()
+                  (KCommit (if relations (KProgram relations (KDone)) (KDone))))))
     (define (drive/steps current fuel)
       (match current
         [(Halted value) value]
@@ -42,12 +45,19 @@
       (drive/steps current fuel))
     (define (run goal #:owners [owners '(Owners)]
                  #:state [state '(state () () () (label "initial"))]
+                 #:relations [relations #f]
                  #:fuel [fuel 100000])
-      (drive (initial goal #:owners owners #:state state) #:fuel fuel))
+      (drive (initial goal #:owners owners #:state state #:relations relations) #:fuel fuel))
     (define (resume-once frontier #:fuel [fuel 100000])
-      (drive (Call 'advance/d (list frontier '() (KDone))) #:fuel fuel))
+      (match frontier
+        [`(program ,relations ,body)
+         (drive (Call 'advance/d (list body '() (KProgram relations (KDone)))) #:fuel fuel)]
+        [_ (drive (Call 'advance/d (list frontier '() (KDone))) #:fuel fuel)]))
     (define (collect-all frontier #:fuel [fuel 100000])
-      (drive (Call 'collect/d (list frontier '() (KDone))) #:fuel fuel))))
+      (match frontier
+        [`(program ,relations ,body)
+         (drive (Call 'collect/d (list body '() (KProgram relations (KDone)))) #:fuel fuel)]
+        [_ (drive (Call 'collect/d (list frontier '() (KDone))) #:fuel fuel)]))))
 
 (define (generated-text)
   (define definitions (control-definitions))
@@ -68,7 +78,7 @@
     (append
      (list '(require (only-in "../shared/kernel.rkt"
                              owners-support owners-append fresh-names substitute-goal)
-                     "data.rkt" "../shared/runtime.rkt")
+                     "data.rkt" "relations.rkt" "../shared/runtime.rkt")
            '(provide (all-defined-out))
            `(define signatures ',signatures))
      machine-runtime

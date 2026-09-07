@@ -14,11 +14,13 @@
     (define delay '(Delay force Forced suspend "eval-suspend" "bind-delay"
                          "force-delay" "render-delay" "commit-delay"
                          "advance-delay" "advance-forced" "collect-delay" "collect-forced"))
+    (define relations '(call relation-name? instantiate-relation "eval-call"))
     (case feature
-      [(core) (append choice delay '("mplus-delay"))]
-      [(delay) (append choice '("mplus-delay"))]
-      [(disjunction) (append delay '("mplus-delay"))]
-      [(search) '()]
+      [(core) (append choice delay relations '("mplus-delay"))]
+      [(delay) (append choice relations '("mplus-delay"))]
+      [(disjunction) (append delay relations '("mplus-delay"))]
+      [(search) relations]
+      [(full) '()]
       [else (raise-argument-error 'feature-specialize "strict feature" feature)]))
   (define (contains-disabled? tree symbols)
     (cond

@@ -2,19 +2,22 @@
 
 (require redex/reduction-semantics
          (only-in "../shared/grammar-s.rkt" [StrictS ScopeS] context-support/s)
+         (only-in "../shared/relation-grammar.rkt" [StrictSRel ScopeSRel])
          "../shared/kernel.rkt")
 
 (provide ScopeS retained-red retained-contract
          retained-value? retained-frontier? retained-observation?
          retained-initial retained-query-initial retained-run retained-trace
          lift-owners
+         ScopeSRel retained-rel-red retained-rel-contract
+         retained-rel-value? retained-rel-frontier? retained-rel-observation?
          (rename-out [context-support/s retained-context-support]))
 
 ;; Attach at the active root, passing only through the transparent force
 ;; wrapper. In particular this neither descends beneath Delay nor distributes
 ;; common introductions onto sibling subtrees. It is not a Frontier operation.
 (define (lift-owners owners computation)
-  (unless (redex-match? ScopeS c computation)
+  (unless (redex-match? ScopeSRel c computation)
     (raise-argument-error 'lift-owners "retained-scope active computation" computation))
   (match computation
     [`(force ,inner) `(force ,(lift-owners owners inner))]
@@ -141,3 +144,47 @@
      (match (apply-reduction-relation retained-red computation)
        [(list next) (retained-run next (sub1 fuel))]
        [results (error 'retained-run "stuck or nonunique source proof: ~e" results)])]))
+
+;; This extension instantiates the functional derivation's own source
+;; equations. Γ remains syntax around all pending work and halted Frontiers.
+(define retained-rel-control
+  (extend-reduction-relation retained-control-raw ScopeSRel))
+
+(define retained-rel-red
+  (union-reduction-relations
+   (context-closure retained-rel-control ScopeSRel C)
+   (reduction-relation
+    ScopeSRel #:domain q
+    [--> (in-hole C (eval owners (∃ (x ...) g tag) σ))
+         (in-hole C ,(allocate/s (term owners) (term (x ...)) (term g) (term tag)
+                                 (term σ) (context-support/s (term C)))) allocate-fresh]
+    [--> (program Γ (in-hole C (eval owners call σ)))
+         (program Γ (in-hole C (eval owners g σ)))
+         (where g ,(instantiate-relation (term Γ) (term call))) eval-call])))
+
+(define (retained-rel-contract computation [inherited '()] [definitions '()])
+  (define raw
+    (extend-reduction-relation
+     retained-rel-control ScopeSRel
+     [--> (eval owners (∃ (x ...) g tag) σ)
+          ,(allocate/s (term owners) (term (x ...)) (term g) (term tag) (term σ) inherited)
+          allocate-fresh]
+     [--> (eval owners call σ) (eval owners g σ)
+          (where g ,(instantiate-relation definitions (term call))) eval-call]))
+  (match (apply-reduction-relation/tag-with-names raw computation)
+    ['() #f]
+    [(list edge) edge]
+    [edges (error 'retained-rel-contract "nonunique source proof: ~e" edges)]))
+
+(define (retained-rel-value? value)
+  (match value
+    [`(program ,_ ,body) (redex-match? ScopeSRel SV body)]
+    [_ (redex-match? ScopeSRel SV value)]))
+(define (retained-rel-frontier? value)
+  (match value
+    [`(program ,_ ,body) (redex-match? ScopeSRel F body)]
+    [_ (redex-match? ScopeSRel F value)]))
+(define (retained-rel-observation? value)
+  (match value
+    [`(program ,_ ,body) (redex-match? ScopeSRel O body)]
+    [_ (redex-match? ScopeSRel O value)]))

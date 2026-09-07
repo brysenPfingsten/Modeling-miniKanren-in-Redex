@@ -64,6 +64,43 @@ continuation mapping, labelled diagrams and administrative progress measure.
 The checks now cover complete intermediate machine configurations. A universal
 proof of domain preservation and correspondence remains an obligation.
 
+## Relation definitions and calls
+
+The maintained extension accepts relation environments
+`Γ = ((r:name (x:parameter ...) goal) ...)` and calls
+`(r:name argument ... tag)`. Calling `run` with `#:relations Γ` selects this
+full language and returns `(program Γ Frontier)`, including when Γ is empty.
+Omitting that keyword retains the existing call-free interface. Public
+`resume-once` and `collect-all` recognize and preserve the program boundary.
+
+Calls substitute the actual arguments into the named body and immediately
+evaluate that body under the same Owners and state. Their source label is
+`eval-call`. They do not create a Delay: recursive productivity depends on
+explicit suspension in the program produced by the compiler.
+
+[relations.rkt](relations.rkt) supplies the explicit `ProgramGoal(Γ,goal)`
+capture used by pending evaluations, right operands, `GRight`, and `REval`.
+The direct and CPS interpreters capture that data lexically. At the data
+stages `KProgram(Γ,k)` keeps the environment present while eager merge/bind
+or commitment runs and reconstructs `(program Γ Frontier)` on return.
+It maps directly to the syntactic machine's program frame. Environment data
+does not use dynamic parameters or an evaluator hidden behind readback.
+Structural configuration validation checks every pending capture against
+its program boundary and rejects missing or changed environments.
+
+The original generator still derives thirteen machine controls and five
+register operands. The same atomic-handler transformation still reduces
+thirteen controls to ten; `eval-call` and the program-boundary return each
+retain their original single-step span. No relation-specific compression or
+separate E/N functional pipeline is introduced.
+
+[relation-tests.rkt](relation-tests.rkt) checks exact source operations,
+native S/E/N configuration maps, direct/CPS atomic work and paused Frontiers,
+generated-machine/register transitions, and prescribed compressed spans.
+Its witnesses include named calls, parameter shadowing, mutual recursion,
+bounded explicit-delay recursion, deliberately unguarded right recursion,
+nested rails, retained unused allocations, sparse ancestry, and eager bind.
+
 ## Registerization and first compression
 
 The corresponding functional machine is the reference for two further
@@ -230,6 +267,8 @@ constructor coverage, and invalid ancestry/phase rejection.
 The [register tests](register-tests.rkt) and
 [compression tests](register-compression-tests.rkt) check decoding, update
 order, exact one/three-step spans, and work preservation.
+[relation-tests.rkt](relation-tests.rkt) extends those checks to explicit
+program environments and recursive calls without weakening observations.
 
 The [shared witnesses](../test-support/witnesses.rkt) cover empty and unused
 introductions, sparse ancestry, fresh across Delay, existing variables,

@@ -16,6 +16,8 @@
     [(or (value? computation) (frontier? computation)) (Value)]
     [else
      (match computation
+       [`(program ,definitions ,body)
+        (Descend body (Frame 'program `(program ,definitions) '() #f))]
        [`(eval ,_ ,_ ,_) (Local)]
        [`(mplus ,owners ,left ,right)
         (if (and (value? left) (value? right))
@@ -51,6 +53,8 @@
       [(or (value? computation) (frontier? computation)) (Value)]
       [else
        (match computation
+         [`(program ,definitions ,body)
+          (Descend body (Frame 'program `(program ,definitions) '() #f))]
          [`(eval ,_ ,_) (Local)]
          [`(mplus ,left ,right)
           (if (and (value? left) (value? right))

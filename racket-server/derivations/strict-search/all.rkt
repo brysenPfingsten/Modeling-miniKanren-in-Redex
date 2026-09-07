@@ -1,7 +1,8 @@
 #lang racket/base
 
-;; Selected S correspondence, the live S/E/N matrix awaiting scope alignment,
-;; and the explicit boundary with the application's online semantics.
+;; Selected retained-scope S correspondence and aligned native S/E/N matrix,
+;; including full relation programs. The policy witness records the older
+;; online source's different work order.
 (require (submod "constructor-tests.rkt" test)
          "retained-scope/all.rkt"
          "matrix/all.rkt"

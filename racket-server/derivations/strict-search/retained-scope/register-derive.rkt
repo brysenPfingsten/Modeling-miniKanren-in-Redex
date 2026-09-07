@@ -58,8 +58,10 @@
          bank]
         [_ (raise-argument-error 'from-machine "Call or Halted" current)]))
     (define (initial goal #:owners [owners '(Owners)]
-                     #:state [state '(state () () () (label "initial"))])
-      (Registers 'eval/d goal state owners '() (KCommit (KDone)) 0))
+                     #:state [state '(state () () () (label "initial"))]
+                     #:relations [relations #f])
+      (Registers 'eval/d (retain-goal relations goal) state owners '()
+                 (KCommit (if relations (KProgram relations (KDone)) (KDone))) 0))
     (define (step! bank)
       (validate-bank! bank)
       (match (Registers-pc bank)
@@ -79,12 +81,19 @@
       (drive/steps! bank fuel))
     (define (run goal #:owners [owners '(Owners)]
                  #:state [state '(state () () () (label "initial"))]
+                 #:relations [relations #f]
                  #:fuel [fuel 100000])
-      (drive! (initial goal #:owners owners #:state state) #:fuel fuel))
+      (drive! (initial goal #:owners owners #:state state #:relations relations) #:fuel fuel))
     (define (resume-once frontier #:fuel [fuel 100000])
-      (drive! (Registers 'advance/d frontier '() (KDone) #f #f 0) #:fuel fuel))
+      (match frontier
+        [`(program ,relations ,body)
+         (drive! (Registers 'advance/d body '() (KProgram relations (KDone)) #f #f 0) #:fuel fuel)]
+        [_ (drive! (Registers 'advance/d frontier '() (KDone) #f #f 0) #:fuel fuel)]))
     (define (collect-all frontier #:fuel [fuel 100000])
-      (drive! (Registers 'collect/d frontier '() (KDone) #f #f 0) #:fuel fuel))))
+      (match frontier
+        [`(program ,relations ,body)
+         (drive! (Registers 'collect/d body '() (KProgram relations (KDone)) #f #f 0) #:fuel fuel)]
+        [_ (drive! (Registers 'collect/d frontier '() (KDone) #f #f 0) #:fuel fuel)]))))
 
 ;; Compression reuses this compiler on an explicitly transformed list of
 ;; control definitions. The emitted instructions never execute machine:step.
@@ -113,7 +122,7 @@
     (append
      (list '(require (only-in "../shared/kernel.rkt"
                              owners-support owners-append fresh-names substitute-goal)
-                     "data.rkt" "../shared/runtime.rkt")
+                     "data.rkt" "relations.rkt" "../shared/runtime.rkt")
            `(require (prefix-in m: ,machine-path))
            '(provide (all-defined-out))
            `(define signatures ',signatures))

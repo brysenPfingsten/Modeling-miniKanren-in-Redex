@@ -1,12 +1,12 @@
 #lang racket
 
-(require "data.rkt"
+(require "data.rkt" "relations.rkt"
          (prefix-in f: "machine.rkt")
          (prefix-in a: "../shared/stages/schema.rkt")
          (only-in "../shared/kernel.rkt" owners-support)
          (only-in "readback.rkt"
                   reify-search reify-frontier reify-resumption reify-value
-                  continuation-prefix continuation-input-kind source-kind))
+                  continuation-prefix continuation-input-kind source-kind validate-program-data!))
 
 (provide functional->M functional-step-label)
 
@@ -14,7 +14,7 @@
 ;; a whole tree, decompose it, normalize a state, invoke a transition, or run a
 ;; resumption. Structural leaf maps only expose data saved in individual fields.
 (define (goal-of continue)
-  (match continue [(GRight goal) goal]))
+  (match continue [(GRight goal) (goal-body goal)]))
 
 (define (check-inherited who inherited k)
   (define structural (continuation-prefix k))
@@ -34,13 +34,15 @@
            k (continuation-input-kind k) kind))
   (match k
     [(KDone) (a:M control (foldl a:K 'halt frames))]
+    [(KProgram relations rest)
+     (attach control (cons (frame 'program `(program ,relations)) frames) rest 'frontier)]
     [(KConj right owners _ rest)
-     (attach control (cons (frame 'bind `(bind ,owners) (list right) owners) frames)
+     (attach control (cons (frame 'bind `(bind ,owners) (list (goal-body right)) owners) frames)
              rest 'search)]
     [(KDisjLeft right state owners _ rest)
      (attach control
              (cons (frame 'merge-left `(mplus ,owners)
-                          (list `(eval (Owners) ,right ,state)) owners) frames)
+                          (list `(eval (Owners) ,(goal-body right) ,state)) owners) frames)
              rest 'search)]
     [(KDisjRight left owners _ rest)
      (define here (owners-support owners (continuation-prefix rest)))
@@ -100,11 +102,12 @@
 (define (functional-step-label configuration)
   (match configuration
     [(f:Call 'eval/d (list goal _ _ _ _))
-     (match goal
+     (match (goal-body goal)
        [`(∃ ,_ ,_ ,_) "allocate-fresh"]
        [`(,_ ∧ ,_ ,_) "eval-conj"]
        [`(,_ ∨ ,_ ,_) "eval-disj"]
        [`(suspend ,_ ,_) "eval-suspend"]
+       [(? relation-call?) "eval-call"]
        [_ "eval-atom"])]
     [(f:Call 'merge/d (list search _ _ _ _))
      (match search
@@ -145,10 +148,14 @@
 
 (define (functional->M configuration)
   (match configuration
+    [(f:Call 'eval/d (list goal _ ...))
+     (validate-program-data! configuration goal)]
+    [_ (validate-program-data! configuration)])
+  (match configuration
     [(f:Halted value) (a:M (reify-frontier value) 'halt)]
     [(f:Call 'eval/d (list goal state owners inherited k))
      (check-inherited 'eval/d inherited k)
-     (with-continuation `(eval ,owners ,goal ,state) k)]
+     (with-continuation `(eval ,owners ,(goal-body goal) ,state) k)]
     [(f:Call 'merge/d (list left right owners inherited k))
      (check-inherited 'merge/d inherited k)
      (define here (owners-support owners inherited))

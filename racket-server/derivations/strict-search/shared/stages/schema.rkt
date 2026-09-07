@@ -5,7 +5,7 @@
          (struct-out D) (struct-out DFinal) (struct-out Z)
          (struct-out M) (struct-out K) (struct-out BRun) (struct-out BFinal)
          (struct-out Span)
-         plug-frame plug-frames frame-support continuation-support
+         plug-frame plug-frames frame-support continuation-support frame-environment
          decompose readback-D d-step initial-Z z-step readback-Z
          encode-ZM decode-MZ initial-M m-step m-admin? m-final? readback-M
          initial-B b-step decode-BM readback-B b-step/spec replay-span
@@ -51,6 +51,21 @@
     ['() control]
     [(cons frame rest) (plug-frames (plug-frame control frame) rest)]))
 
+;; The full-language extension retains its relation environment as ordinary
+;; program-frame data. Empty Γ is distinct from an absent program frame.
+(define (frame-environment frames)
+  (match frames
+    ['() #f]
+    [(cons (Frame 'program (list 'program definitions) '() #f) _) definitions]
+    [(cons _ rest) (frame-environment rest)]))
+
+(define (contract/frames stage control frames)
+  (define support (frame-support stage frames))
+  (define definitions (frame-environment frames))
+  (if definitions
+      ((Stage-contract stage) control support definitions)
+      ((Stage-contract stage) control support)))
+
 (define (frame-support stage frames)
   (match frames
     ['() '()]
@@ -93,7 +108,7 @@
        (raise-argument-error 'd-step "DFinal containing an admitted value" configuration))
      #f]
     [(D redex frames)
-     (match ((Stage-contract stage) redex (frame-support stage frames))
+     (match (contract/frames stage redex frames)
        [(list label next) (list label (decompose stage (plug-frames next frames)))]
        [#f (error 'd-step "stuck ~a decomposition: ~e" (Stage-name stage) configuration)])]))
 
@@ -112,7 +127,7 @@
   (match-define (Z control frames) configuration)
   (match ((Stage-view stage) control)
     [(Local)
-     (match ((Stage-contract stage) control (frame-support stage frames))
+     (match (contract/frames stage control frames)
        [(list label next) (list label (Z next frames))]
        [#f (error 'z-step "stuck ~a local control: ~e" (Stage-name stage) control)])]
     [(Descend child frame) (list "admin" (Z child (cons frame frames)))]
@@ -179,7 +194,7 @@
                           rest)))]
        [(K frame rest) (list "admin" (M (plug-frame control frame) rest))])]
     [(Local)
-     (match ((Stage-contract stage) control (continuation-support stage continuation))
+     (match (contract/frames stage control (decode-frames continuation))
        [(list label next) (list label (M next continuation))]
        [#f (error 'm-step "stuck ~a machine: ~e" (Stage-name stage) configuration)])]))
 
@@ -222,7 +237,7 @@
     [(BRun control continuation)
      (unless (Local? ((Stage-view stage) control))
        (error 'b-step "not a canonical ~a residual: ~e" (Stage-name stage) configuration))
-     (match ((Stage-contract stage) control (continuation-support stage continuation))
+     (match (contract/frames stage control (decode-frames continuation))
        [(list label next) (residual stage next continuation (list label))]
        [#f (error 'b-step "stuck ~a residual: ~e" (Stage-name stage) configuration)])]))
 

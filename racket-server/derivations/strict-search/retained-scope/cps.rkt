@@ -2,7 +2,8 @@
 
 (require (only-in "../shared/kernel.rkt"
                   owners-support owners-append fresh-names substitute-goal)
-         (only-in "interpreter.rkt" atomic prefix observe-closure))
+         (only-in "interpreter.rkt" atomic prefix observe-closure)
+         "relations.rkt")
 (provide eval/k merge/k bind/k force/k commit/k advance/k collect/k
          run resume-once collect-all)
 
@@ -10,27 +11,28 @@
 ;; of eval/mplus/bind/commit and the public consumers. Resumptions receive root
 ;; Owners O, inherited support P, and k. No continuation attaches O on return.
 (define (eval/k goal state owners inherited k)
-  (match goal
+  (define relations (goal-relations goal))
+  (match (goal-body goal)
     [`(∃ ,binders ,body ,tag)
      (define intro (fresh-names (owners-support owners inherited) (length binders)))
-     (eval/k (substitute-goal body (map list binders intro)) state
+     (eval/k (retain-goal relations (substitute-goal body (map list binders intro))) state
              (owners-append owners `(Owners (Owner ,intro ,tag))) inherited k)]
     [`(,left ∧ ,right ,_)
      (define here (owners-support owners inherited))
-     (eval/k left state '(Owners) here
+     (eval/k (retain-goal relations left) state '(Owners) here
              (lambda (search) ; KConj
                (bind/k search
                        (observe-closure
                         'continue-goal
                         (lambda (state* owners* inherited* k*)
-                          (eval/k right state* owners* inherited* k*))
-                        (list right))
+                          (eval/k (retain-goal relations right) state* owners* inherited* k*))
+                        (list (retain-goal relations right)))
                        owners inherited k)))]
     [`(,left ∨ ,right ,_)
      (define here (owners-support owners inherited))
-     (eval/k left state '(Owners) here
+     (eval/k (retain-goal relations left) state '(Owners) here
              (lambda (left*) ; KDisjLeft
-               (eval/k right state '(Owners) here
+               (eval/k (retain-goal relations right) state '(Owners) here
                        (lambda (right*) ; KDisjRight
                          (merge/k left* right* owners inherited k)))))]
     [`(suspend ,body ,_)
@@ -38,8 +40,10 @@
                 ,(observe-closure
                   'resume-eval
                   (lambda (owners* inherited* k*)
-                    (eval/k body state owners* inherited* k*))
-                  (list body state))))]
+                    (eval/k (retain-goal relations body) state owners* inherited* k*))
+                  (list (retain-goal relations body) state))))]
+    [(? relation-call? call)
+     (eval/k (retain-goal relations (expand-call relations call)) state owners inherited k)]
     [atom
      (define outcome (atomic atom state))
      (outcome (lambda () (k `(Empty ,owners)))
@@ -143,10 +147,21 @@
              (lambda (search) (commit/k search committed)))])) ; KCommit
 
 (define (run goal #:owners [owners '(Owners)]
-             #:state [state '(state () () () (label "initial"))])
-  (eval/k goal state owners '()
-          (lambda (search) (commit/k search (lambda (value) value)))))
+             #:state [state '(state () () () (label "initial"))]
+             #:relations [relations #f])
+  (define done
+    (if relations
+        (lambda (value) `(program ,relations ,value)) ; KProgram
+        (lambda (value) value)))
+  (eval/k (retain-goal relations goal) state owners '()
+          (lambda (search) (commit/k search done))))
 (define (resume-once frontier)
-  (advance/k frontier '() (lambda (value) value)))
+  (match frontier
+    [`(program ,relations ,body)
+     (advance/k body '() (lambda (value) `(program ,relations ,value)))]
+    [_ (advance/k frontier '() (lambda (value) value))]))
 (define (collect-all frontier)
-  (collect/k frontier '() (lambda (value) value)))
+  (match frontier
+    [`(program ,relations ,body)
+     (collect/k body '() (lambda (value) `(program ,relations ,value)))]
+    [_ (collect/k frontier '() (lambda (value) value))]))

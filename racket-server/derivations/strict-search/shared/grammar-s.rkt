@@ -33,7 +33,7 @@
     [(? (lambda (value) (equal? value (term hole)))) support]
     [`(mplus ,owners ,left ,right)
      (define prefix (owners-support owners support))
-     (if (redex-match? StrictS C left)
+     (if (context-hole? left)
          (context-support/s left prefix)
          (context-support/s right prefix))]
     [`(bind ,owners ,inner ,_) (context-support/s inner (owners-support owners support))]
@@ -43,4 +43,11 @@
      (context-support/s inner (owners-support owners support))]
     [`(,(or 'force 'render 'commit 'advance 'collect) ,inner)
      (context-support/s inner support)]
+    [`(program ,_ ,inner) (context-support/s inner support)]
     [_ (raise-argument-error 'context-support/s "S evaluation context" context)]))
+
+(define (context-hole? datum)
+  (match datum
+    [(? (lambda (value) (equal? value (term hole)))) #t]
+    [(cons first rest) (or (context-hole? first) (context-hole? rest))]
+    [_ #f]))

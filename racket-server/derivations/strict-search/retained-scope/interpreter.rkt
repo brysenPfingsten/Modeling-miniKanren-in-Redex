@@ -2,7 +2,8 @@
 
 (require (only-in "../shared/kernel.rkt"
                   owners-support owners-append fresh-names substitute-goal)
-         "../shared/kernel-equations.rkt")
+         "../shared/kernel-equations.rkt"
+         "relations.rkt")
 (provide (all-defined-out))
 
 ;; This interpreter reconstructs the source's eager root attachment. A delayed
@@ -34,22 +35,23 @@
     [`(Delay ,local ,resume) `(Delay ,(owners-append owners local) ,resume)]))
 
 (define (eval/s goal state owners inherited)
-  (match goal
+  (define relations (goal-relations goal))
+  (match (goal-body goal)
     [`(∃ ,binders ,body ,tag)
      (define intro (fresh-names (owners-support owners inherited) (length binders)))
-     (eval/s (substitute-goal body (map list binders intro)) state
+     (eval/s (retain-goal relations (substitute-goal body (map list binders intro))) state
              (owners-append owners `(Owners (Owner ,intro ,tag))) inherited)]
     [`(,left ∧ ,right ,_)
-     (bind/s (eval/s left state '(Owners) (owners-support owners inherited))
+     (bind/s (eval/s (retain-goal relations left) state '(Owners) (owners-support owners inherited))
              (observe-closure
               'continue-goal
               (lambda (state* owners* inherited*)
-                (eval/s right state* owners* inherited*))
-              (list right))
+                (eval/s (retain-goal relations right) state* owners* inherited*))
+              (list (retain-goal relations right)))
              owners inherited)]
     [`(,left ∨ ,right ,_)
-     (merge/s (eval/s left state '(Owners) (owners-support owners inherited))
-              (eval/s right state '(Owners) (owners-support owners inherited))
+     (merge/s (eval/s (retain-goal relations left) state '(Owners) (owners-support owners inherited))
+              (eval/s (retain-goal relations right) state '(Owners) (owners-support owners inherited))
               owners inherited)]
     [`(suspend ,body ,_)
      ;; Source body: eval(Owners(), body, state). Root attachment replaces its
@@ -58,8 +60,11 @@
              ,(observe-closure
                'resume-eval
                (lambda (owners* inherited*)
-                 (eval/s body state owners* inherited*))
-               (list body state)))]
+                 (eval/s (retain-goal relations body) state owners* inherited*))
+               (list (retain-goal relations body) state)))]
+    [(? relation-call? call)
+     ;; Expansion is eager. Only explicit suspend produces a resumption.
+     (eval/s (retain-goal relations (expand-call relations call)) state owners inherited)]
     [atom ((atomic atom state)
            (lambda () `(Empty ,owners))
            (lambda (next) `(One ,owners ,next)))]))
@@ -149,7 +154,15 @@
      `(Forced ,owners ,(collect/s (commit/s (resume '(Owners) here)) here))]))
 
 (define (run goal #:owners [owners '(Owners)]
-             #:state [state '(state () () () (label "initial"))])
-  (commit/s (eval/s goal state owners '())))
-(define (resume-once frontier) (advance/s frontier '()))
-(define (collect-all frontier) (collect/s frontier '()))
+             #:state [state '(state () () () (label "initial"))]
+             #:relations [relations #f])
+  (define frontier (commit/s (eval/s (retain-goal relations goal) state owners '())))
+  (if relations `(program ,relations ,frontier) frontier))
+(define (resume-once frontier)
+  (match frontier
+    [`(program ,relations ,body) `(program ,relations ,(advance/s body '()))]
+    [_ (advance/s frontier '())]))
+(define (collect-all frontier)
+  (match frontier
+    [`(program ,relations ,body) `(program ,relations ,(collect/s body '()))]
+    [_ (collect/s frontier '())]))

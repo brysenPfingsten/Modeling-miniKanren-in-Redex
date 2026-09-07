@@ -94,14 +94,14 @@
                      (and (or (inside? path shared) (inside? path support))
                           (not (suite? path))))))
 
-  (test-case "retained tests and examples depend only on selected code and shared evidence"
+  (test-case "retained checks may compare native matrix providers without importing other suites"
     (check-closure (filter (lambda (path)
                              (and (or (suite? path) (demonstration? path))
                                   (not (equal? (file-name-from-path path) (string->path "all.rkt")))))
                            (source-files retained))
                    (lambda (path)
                      (and (or (inside? path retained) (inside? path shared)
-                              (inside? path support))
+                              (inside? path support) (inside? path matrix))
                           (not (suite? path))))))
 
   (test-case "matrix execution depends only on its concrete sources and shared machinery"

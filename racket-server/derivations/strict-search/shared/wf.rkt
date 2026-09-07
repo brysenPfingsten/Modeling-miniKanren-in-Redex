@@ -1,12 +1,13 @@
 #lang racket
 
 (require redex/reduction-semantics "grammar-s.rkt" "grammar-e.rkt" "grammar-n.rkt"
+         "relation-grammar.rkt"
          "kernel.rkt" "maps.rkt"
          (prefix-in s: "core/s/language.rkt")
          (prefix-in e: "core/e/language.rkt")
          (prefix-in n: "core/n/language.rkt"))
 
-(provide wf-s? wf-e? wf-n?)
+(provide wf-s? wf-e? wf-n? wf-s-rel? wf-e-rel? wf-n-rel?)
 
 (define (term-valid? value variable? allocated? [lexical '()])
   (match value
@@ -30,6 +31,8 @@
      (and (= (length binders) (length (remove-duplicates binders)))
           (goal-valid? body variable? allocated? (append binders lexical)))]
     [`(suspend ,body ,_) (goal-valid? body variable? allocated? lexical)]
+    [`(,(? relation-name?) ,operands ... ,_)
+     (andmap (lambda (value) (term-valid? value variable? allocated? lexical)) operands)]
     [_ #f]))
 
 (define (term-dependencies value variable?)
@@ -193,3 +196,48 @@
 (define (wf-n? computation)
   (with-handlers ([exn:fail? (lambda (_) #f)])
     (and (redex-match? StrictN q computation) (n-valid? computation))))
+
+;; Definition bodies may reference their lexical formals and fresh binders,
+;; never allocation belonging to a particular query world. Calls are checked
+;; against the complete environment, so mutual recursion is permitted.
+(define (calls-valid? datum definitions)
+  (match datum
+    [`(program ,_ ,_) #f]
+    [`(,(? relation-name? name) ,arguments ... ,_)
+     (match (assoc name definitions)
+       [(list _ formals _) (= (length arguments) (length formals))]
+       [#f #f])]
+    [(cons first rest) (and (calls-valid? first definitions) (calls-valid? rest definitions))]
+    [_ #t]))
+
+(define (definitions-valid? definitions variable?)
+  (and (= (length definitions) (length (remove-duplicates (map first definitions))))
+       (for/and ([definition (in-list definitions)])
+         (match-define (list _ formals body) definition)
+         (and (= (length formals) (length (remove-duplicates formals)))
+              (goal-valid? body variable? (lambda (_) #f) formals)
+              (calls-valid? body definitions)))))
+
+(define (wf-s-rel? computation)
+  (with-handlers ([exn:fail? (lambda (_) #f)])
+    (and (redex-match? StrictSRel p computation)
+         (match computation
+           [`(program ,definitions ,body)
+            (and (definitions-valid? definitions named-variable?)
+                 (s-valid? body '()) (calls-valid? body definitions))]))))
+
+(define (wf-e-rel? computation)
+  (with-handlers ([exn:fail? (lambda (_) #f)])
+    (and (redex-match? StrictERel p computation)
+         (match computation
+           [`(program ,definitions ,body)
+            (and (definitions-valid? definitions named-variable?)
+                 (e-valid? body) (calls-valid? body definitions))]))))
+
+(define (wf-n-rel? computation)
+  (with-handlers ([exn:fail? (lambda (_) #f)])
+    (and (redex-match? StrictNRel p computation)
+         (match computation
+           [`(program ,definitions ,body)
+            (and (definitions-valid? definitions exact-nonnegative-integer?)
+                 (n-valid? body) (calls-valid? body definitions))]))))

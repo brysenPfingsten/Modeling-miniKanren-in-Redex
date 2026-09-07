@@ -1,5 +1,7 @@
 #lang racket
 
+(require "relations.rkt")
+
 (provide record-closure! reify-search reify-frontier reify-resumption)
 
 ;; Test/readback support only. Actual interpreters retain procedures, not these
@@ -14,12 +16,12 @@
 
 (define (reify-continuation-goal descriptions continue)
   (match (description descriptions continue)
-    [(list 'continue-goal goal) goal]
+    [(list 'continue-goal goal) (goal-body goal)]
     [other (error 'readback "expected a goal continuation, received ~e" other)]))
 
 (define (reify-resumption descriptions resume [owners '(Owners)])
   (match (description descriptions resume)
-    [(list 'resume-eval goal state) `(eval ,owners ,goal ,state)]
+    [(list 'resume-eval goal state) `(eval ,owners ,(goal-body goal) ,state)]
     [(list 'resume-merge right left)
      `(mplus ,owners ,(reify-search descriptions right)
              (force ,(reify-search descriptions left)))]
@@ -40,6 +42,8 @@
 
 (define (reify-frontier descriptions frontier)
   (match frontier
+    [`(program ,relations ,body)
+     `(program ,relations ,(reify-frontier descriptions body))]
     [`(Done ,_) frontier]
     [`(Last ,_ ,_) frontier]
     [`(Emit ,owners ,answer ,tail)

@@ -42,6 +42,20 @@ captured allocation-support field. `GRight(goal)` is the separate pending
 conjunction continuation. Ordinary continuation records still retain the
 operands, root Owners, and inherited support needed by their pending operation.
 
+For the full language, a pending goal is `ProgramGoal(Γ,g)`. The same explicit
+environment occurs in the outer `KProgram(Γ,k)` continuation, which maps to
+the source/native program frame and returns `(program Γ Frontier)` at halt.
+The `goal` fields above and in pending right operands therefore retain Γ
+without adding hidden state or introducing new resumption families. The
+configuration checker requires all captured environments to agree with that
+boundary. An empty explicit Γ remains distinct from the call-free API.
+
+`eval-call` substitutes a relation body and enters its evaluation under the
+unchanged state and Owners. This is one named semantic edge. `KProgram`
+reconstruction is administrative and adds one to the existing structural
+return rank. Both facts are checked in `relation-tests.rkt`, including
+recursive and mutually recursive definitions.
+
 ## Structural configuration relation
 
 Let F be the generated functional machine and M the native refocused machine.
@@ -200,6 +214,8 @@ exercise the diagrams and domain conditions above. The subsequent
 [registerization and compression](REGISTERIZATION.md) compose with this
 relation under their own contracts. The S/E/N connection extends through
 mapped configurations and actual native machine transitions; it does not
-derive separate E/N functional interpreters or register dispatchers. General
-correspondence, productive infinite behavior, relation calls, and the compact
-rail machine remain open.
+derive separate E/N functional interpreters or register dispatchers. The full
+relation extension is exercised by `relation-tests.rkt`, including exact
+intermediate program configurations and bounded recursive prefixes. General
+correspondence, a productive-infinite-behavior theorem, and the compact rail
+machine remain open.

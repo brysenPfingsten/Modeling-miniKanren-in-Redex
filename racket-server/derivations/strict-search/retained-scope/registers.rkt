@@ -7,6 +7,7 @@
           fresh-names
           substitute-goal)
          "data.rkt"
+         "relations.rkt"
          "../shared/runtime.rkt")
 
 (require (prefix-in m: "machine.rkt"))
@@ -91,8 +92,17 @@
          #:owners
          (owners '(Owners))
          #:state
-         (state '(state () () () (label "initial"))))
-  (Registers 'eval/d goal state owners '() (KCommit (KDone)) 0))
+         (state '(state () () () (label "initial")))
+         #:relations
+         (relations #f))
+  (Registers
+   'eval/d
+   (retain-goal relations goal)
+   state
+   owners
+   '()
+   (KCommit (if relations (KProgram relations (KDone)) (KDone)))
+   0))
 
 (define (step! bank)
   (validate-bank! bank)
@@ -121,15 +131,25 @@
          (owners '(Owners))
          #:state
          (state '(state () () () (label "initial")))
+         #:relations
+         (relations #f)
          #:fuel
          (fuel 100000))
-  (drive! (initial goal #:owners owners #:state state) #:fuel fuel))
+  (drive! (initial goal #:owners owners #:state state #:relations relations) #:fuel fuel))
 
 (define (resume-once frontier #:fuel (fuel 100000))
-  (drive! (Registers 'advance/d frontier '() (KDone) #f #f 0) #:fuel fuel))
+  (match
+   frontier
+   (`(program ,relations ,body)
+    (drive! (Registers 'advance/d body '() (KProgram relations (KDone)) #f #f 0) #:fuel fuel))
+   (_ (drive! (Registers 'advance/d frontier '() (KDone) #f #f 0) #:fuel fuel))))
 
 (define (collect-all frontier #:fuel (fuel 100000))
-  (drive! (Registers 'collect/d frontier '() (KDone) #f #f 0) #:fuel fuel))
+  (match
+   frontier
+   (`(program ,relations ,body)
+    (drive! (Registers 'collect/d body '() (KProgram relations (KDone)) #f #f 0) #:fuel fuel))
+   (_ (drive! (Registers 'collect/d frontier '() (KDone) #f #f 0) #:fuel fuel))))
 
 (define (dispatch! bank)
   (match
@@ -141,32 +161,50 @@
     (define inherited (Registers-r3 bank))
     (define k (Registers-r4 bank))
     (begin
+      (define relations (goal-relations goal))
       (match
-       goal
+       (goal-body goal)
        (`(∃ ,binders ,body ,tag)
         (define intro (fresh-names (owners-support owners inherited) (length binders)))
         (jump!
          bank
          'eval/d
-         (substitute-goal body (map list binders intro))
+         (retain-goal relations (substitute-goal body (map list binders intro)))
          state
          (owners-append owners `(Owners (Owner ,intro ,tag)))
          inherited
          k))
        (`(,left ∧ ,right ,_)
         (define here (owners-support owners inherited))
-        (jump! bank 'eval/d left state '(Owners) here (KConj right owners inherited k)))
+        (jump!
+         bank
+         'eval/d
+         (retain-goal relations left)
+         state
+         '(Owners)
+         here
+         (KConj (retain-goal relations right) owners inherited k)))
        (`(,left ∨ ,right ,_)
         (define here (owners-support owners inherited))
         (jump!
          bank
          'eval/d
-         left
+         (retain-goal relations left)
          state
          '(Owners)
          here
-         (KDisjLeft right state owners inherited k)))
-       (`(suspend ,body ,_) (jump! bank 'return/d `(Delay ,owners ,(REval body state)) k))
+         (KDisjLeft (retain-goal relations right) state owners inherited k)))
+       (`(suspend ,body ,_)
+        (jump! bank 'return/d `(Delay ,owners ,(REval (retain-goal relations body) state)) k))
+       ((? relation-call? call)
+        (jump!
+         bank
+         'eval/d
+         (retain-goal relations (expand-call relations call))
+         state
+         owners
+         inherited
+         k))
        (atom
         (define outcome (atomic/data atom state))
         (jump! bank 'outcome/d outcome (FEmpty owners k) (SOne owners k))))))
@@ -355,6 +393,7 @@
       (match
        k
        ((KDone) (halt! bank value))
+       ((KProgram relations rest) (jump! bank 'return/d `(program ,relations ,value) rest))
        ((KConj right owners inherited rest)
         (jump! bank 'bind/d value (GRight right) owners inherited rest))
        ((KDisjLeft right state owners inherited rest)

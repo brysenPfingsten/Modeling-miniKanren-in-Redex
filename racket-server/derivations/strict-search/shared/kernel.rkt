@@ -1,6 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
+         (only-in "kernel-equations.rkt" current-atomic-observer)
          (prefix-in s: "core/s/language.rkt")
          (prefix-in e: "core/e/language.rkt")
          (prefix-in n: "core/n/language.rkt"))
@@ -9,7 +10,7 @@
          owners-support owners-append fresh-names substitute-goal
          define-atomic atomic/s atomic/e atomic/n allocate/s allocate/e allocate/n
          address-term address-goal address-state
-         valid-support? named-variable? lexical-variable?)
+         valid-support? named-variable? lexical-variable? relation-name? instantiate-relation)
 
 ;; State and kernel equations are the preserved selected representation
 ;; kernels. The host functions below expose only structural allocation,
@@ -19,6 +20,9 @@
 
 (define (lexical-variable? v)
   (and (symbol? v) (regexp-match? #rx"^x:" (symbol->string v))))
+
+(define (relation-name? value)
+  (and (symbol? value) (regexp-match? #rx"^r:" (symbol->string value))))
 
 (define (valid-support? support)
   (and (list? support) (andmap named-variable? support)
@@ -67,7 +71,22 @@
                    body (filter (lambda (entry) (not (member (first entry) binders)))
                                 replacements)) ,tag)]
     [`(suspend ,body ,tag) `(suspend ,(substitute-goal body replacements) ,tag)]
+    [`(,(? relation-name? name) ,operands ... ,tag)
+     `(,name ,@(map (lambda (value) (substitute-term value replacements)) operands) ,tag)]
     [_ (raise-argument-error 'substitute-goal "first-order matrix goal" goal)]))
+
+;; Runtime actuals already have their lexical query binders allocated. Call
+;; substitution introduces no allocation or suspension; fresh binders in a
+;; relation body continue to shadow formal parameters.
+(define (instantiate-relation definitions call)
+  (match call
+    [`(,(? relation-name? name) ,arguments ... ,_)
+     (match (assoc name definitions)
+       [(list _ formals body)
+        (and (= (length formals) (length arguments))
+             (substitute-goal body (map list formals arguments)))]
+       [#f #f])]
+    [_ #f]))
 
 (define (allocate/s owners binders body tag state prefix)
   (define intro (fresh-names (owners-support owners prefix) (length binders)))
@@ -98,6 +117,7 @@
 (define-syntax-rule (define-atomic name failure success walk unify invalid (sub dis trail tag)
                      state-pattern state-result)
   (define (name goal state)
+    ((current-atomic-observer) goal state)
     (match-define state-pattern state)
     (match goal
       [`(succeed ,_) (success state)]
@@ -142,6 +162,8 @@
      `(,(address-goal left support) ,operator ,(address-goal right support) ,tag)]
     [`(∃ ,binders ,body ,tag) `(∃ ,binders ,(address-goal body support) ,tag)]
     [`(suspend ,body ,tag) `(suspend ,(address-goal body support) ,tag)]
+    [`(,(? relation-name? name) ,operands ... ,tag)
+     `(,name ,@(map (lambda (value) (address-term value support)) operands) ,tag)]
     [_ (raise-argument-error 'address-goal "matrix goal" goal)]))
 
 (define (address-state state support)

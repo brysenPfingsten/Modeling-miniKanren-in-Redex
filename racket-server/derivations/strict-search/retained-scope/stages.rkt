@@ -6,7 +6,7 @@
          "../shared/stages/schema.rkt"
          "../shared/stages/views.rkt")
 
-(provide RetainedS retained-view)
+(provide RetainedS retained-view RetainedSRel retained-rel-view)
 
 ;; The shared strict S grammar retains scope on active roots. No pending
 ;; prefix frame exists; ordinary merge/bind/yield frames retain root Owners.
@@ -18,3 +18,7 @@
 
 (define RetainedS
   (Stage 'RetainedScope/S retained-contract retained-view extend-support))
+
+(define-S-view retained-rel-view ScopeSRel retained-rel-value? retained-rel-frontier?)
+(define RetainedSRel
+  (Stage 'RetainedScope+Relations/S retained-rel-contract retained-rel-view extend-support))

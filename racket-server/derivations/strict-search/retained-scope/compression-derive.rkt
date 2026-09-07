@@ -56,14 +56,16 @@
                #:unless (member definition eliminated-definitions))
       (match definition
         [`(define (eval/d goal state owners inherited k)
-            (match goal ,clauses ...))
+            (define relations (goal-relations goal))
+            (match (goal-body goal) ,clauses ...))
          (unless (and (pair? clauses)
                       (equal? (last clauses) atomic-arm)
                       (= 1 (count (lambda (clause) (equal? clause atomic-arm)) clauses)))
            (error 'compress-control-definitions
                   "eval/d atomic site changed; compression needs review"))
          `(define (eval/d goal state owners inherited k)
-            (match goal ,@(drop-right clauses 1) ,compressed-atomic-arm))]
+            (define relations (goal-relations goal))
+            (match (goal-body goal) ,@(drop-right clauses 1) ,compressed-atomic-arm))]
         [`(define (eval/d ,_ ...) ,_ ...)
          (error 'compress-control-definitions "eval/d shape changed; compression needs review")]
         [_ definition])))
