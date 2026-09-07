@@ -13,7 +13,7 @@
          (prefix-in wf:
                     "../../../src/search-lattice/wf/all.rkt")
          (prefix-in distributed:
-                    "../../../src/search-lattice/experiments/distributed/all.rkt")
+                    "../../../derivations/distributed-search/all.rkt")
          "../../../src/search-runtime.rkt"
          "../../../src/search-strategy.rkt"
          "../../../src/sexpr-read.rkt"

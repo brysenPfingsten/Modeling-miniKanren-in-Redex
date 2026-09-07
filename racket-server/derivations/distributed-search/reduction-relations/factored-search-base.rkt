@@ -1,8 +1,8 @@
 #lang racket
 
 (require redex/reduction-semantics
-         (prefix-in delay: "./delay-red.rkt")
-         (prefix-in disj: "./disj-base-red.rkt"))
+         (prefix-in delay: "../../../src/search-lattice/reduction-relations/delay-red.rkt")
+         (prefix-in disj: "../../../src/search-lattice/reduction-relations/disj-base-red.rkt"))
 
 (provide work/nonchoice/raw
          work/choice/raw
@@ -14,10 +14,11 @@
 
 (check-redundancy #t)
 
-(require "../languages/search-lang.rkt")
+(require "../../../src/search-lattice/languages/search-lang.rkt")
 
-;; The disjunction seam supplies the single inherited core copy. Delay adds
-;; only its deltas, so this module is the honest additive relation union.
+;; Experiment-only assembly of the old factored raw rules. The disjunction
+;; seam supplies one inherited core copy; Delay adds only its deltas. The
+;; distributed relations re-close these rules under their Early* contexts.
 (define work/nonchoice/raw
   (union-reduction-relations
    (extend-reduction-relation disj:work/nonchoice/raw search-lang)

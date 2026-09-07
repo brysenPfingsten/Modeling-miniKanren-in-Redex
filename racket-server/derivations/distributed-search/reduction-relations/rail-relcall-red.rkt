@@ -2,8 +2,8 @@
 
 (require redex/reduction-semantics
          "../languages/search-relcall-lang.rkt"
-         "../../../reduction-relations/private/context-pipeline.rkt"
-         "../../../reduction-relations/private/step-utils.rkt"
+         "../../../src/search-lattice/reduction-relations/private/context-pipeline.rkt"
+         "../../../src/search-lattice/reduction-relations/private/step-utils.rkt"
          (prefix-in rail: "./rail-red.rkt")
          (only-in "./search-relcall-red.rkt"
                   search-distributed-relcall-expand/raw))

@@ -15,7 +15,8 @@
   (simplify-path SERVER-ROOT))
 (define ACTIVE-SOURCE-ROOTS
   (list (build-path ACTIVE-ROOT "src")
-        (build-path ACTIVE-ROOT "tests")))
+        (build-path ACTIVE-ROOT "tests")
+        (build-path ACTIVE-ROOT "derivations" "distributed-search")))
 (define PRIMARY-LANGUAGE-ROOT
   (build-path ACTIVE-ROOT "src" "search-lattice" "languages"))
 (define SCAN-TEST-PATH "tests/retired-work-syntax-tests.rkt")
@@ -27,16 +28,17 @@
     "src/search-lattice/reduction-relations/rail-relcall-red.rkt"))
 
 (define RETAINED-JOIN-SEAM-CONSUMERS
-  '("src/search-lattice/experiments/distributed/reduction-relations/rail-red.rkt"
-    "src/search-lattice/experiments/distributed/reduction-relations/search-join-base-red.rkt"
-    "src/search-lattice/experiments/distributed/reduction-relations/search-red.rkt"))
+  '("derivations/distributed-search/reduction-relations/rail-red.rkt"
+    "derivations/distributed-search/reduction-relations/search-join-base-red.rkt"))
+
+(define RETAINED-JOIN-SEAM-PATH
+  "derivations/distributed-search/reduction-relations/factored-search-base.rkt")
 
 (define DISJR-FORBIDDEN-RELATIVE-PATHS
   '("src/search-lattice/languages/search-lang.rkt"
     "src/search-lattice/languages/search-relcall-lang.rkt"
     "src/search-lattice/wf/search-wf.rkt"
     "src/search-lattice/wf/search-relcall-wf.rkt"
-    "src/search-lattice/reduction-relations/search-join-base-red.rkt"
     "src/search-lattice/reduction-relations/search-red.rkt"
     "src/search-lattice/reduction-relations/search-relcall-red.rkt"
     "src/search-lattice/reduction-relations/search-dfs-red.rkt"
@@ -62,19 +64,19 @@
     "src/search-lattice/reduction-relations"))
 
 (define DISTRIBUTED-DISJR-SEMANTIC-RELATIVE-ROOTS
-  '("src/search-lattice/experiments/distributed/languages"
-    "src/search-lattice/experiments/distributed/reduction-relations"))
+  '("derivations/distributed-search/languages"
+    "derivations/distributed-search/reduction-relations"))
 
 (define DISTRIBUTED-DISJR-REQUIRED-RELATIVE-PATHS
-  '("src/search-lattice/experiments/distributed/languages/search-lang.rkt"
-    "src/search-lattice/experiments/distributed/reduction-relations/search-join-base-red.rkt"
-    "src/search-lattice/experiments/distributed/reduction-relations/search-red.rkt"))
+  '("derivations/distributed-search/languages/search-lang.rkt"
+    "derivations/distributed-search/reduction-relations/search-join-base-red.rkt"
+    "derivations/distributed-search/reduction-relations/search-red.rkt"))
 
 (define DISTRIBUTED-DISJR-SCHEDULER-RELATION-PATHS
-  '("src/search-lattice/experiments/distributed/reduction-relations/rail-red.rkt"))
+  '("derivations/distributed-search/reduction-relations/rail-red.rkt"))
 
 (define DISTRIBUTED-RAIL-RELATIVE-PATH
-  "src/search-lattice/experiments/distributed/reduction-relations/rail-red.rkt")
+  "derivations/distributed-search/reduction-relations/rail-red.rkt")
 
 (define DISJR-PATTERN
   #px"(?:^|[^A-Za-z0-9_-])DisjR(?=$|[^A-Za-z0-9_-])")
@@ -95,7 +97,7 @@
 
 (define retired-cache-wf-patterns
   (list
-   (cons "WF forwarding kernel" #px"(?:^|[/\"]|\\./)kernel\\.rkt")
+   (cons "WF forwarding kernel" #px"(?:^|[/\"])wf/kernel\\.rkt")
    (cons "summary kernel" #rx"summary-kernel\\.rkt")
    (cons "summary-producing WF schema" #rx"phase-wf-schema\\.rkt")
    (cons "summary-producing relcall WF schema" #rx"relcall-phase-wf-schema\\.rkt")
@@ -313,6 +315,17 @@
     (check-no-violations!
      "retired cache/WF-summary module or API references remain"
      (scan-sources retired-cache-wf-patterns))
+    ;; The retired forwarding module was wf/kernel.rkt. A local import from
+    ;; that directory needs the same check, but strict-search/shared/kernel.rkt
+    ;; is a live provider and must not be rejected for sharing its basename.
+    (check-false
+     (file-exists?
+      (build-path ACTIVE-ROOT "src" "search-lattice" "wf" "kernel.rkt")))
+    (check-no-violations!
+     "a WF module imports the retired local forwarding kernel"
+     (scan-files
+      (semantic-racket-files '("src/search-lattice/wf"))
+      (list (cons "WF forwarding kernel" #px"\"(?:\\./)?kernel\\.rkt\""))))
     (check-no-violations!
      "retired fresh-marker constructor, rule, or observation API remains"
      (scan-sources retired-owner-marker-patterns))
@@ -430,11 +443,16 @@
     ;; The retained raw join seam is an implementation dependency of the
     ;; isolated distributed presentation only; it is not a production node or
     ;; a predecessor of production search.
+    (define seam-path (build-path ACTIVE-ROOT RETAINED-JOIN-SEAM-PATH))
+    (check-true (file-exists? seam-path)
+                "the experiment's factored base must remain inspectable")
+    (check-false (file-pattern-present? seam-path DISJR-PATTERN)
+                 "the factored base must not acquire distributed DisjR")
     (define seam-consumers
       (sort
        (for/list ([path (in-list (racket-source-files))]
                   #:when
-                  (file-pattern-present? path #rx"search-join-base-red\\.rkt"))
+                  (file-pattern-present? path #rx"factored-search-base\\.rkt"))
          (relative-source-path path))
        string<?))
     (check-equal? seam-consumers RETAINED-JOIN-SEAM-CONSUMERS))

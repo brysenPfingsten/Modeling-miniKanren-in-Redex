@@ -5,20 +5,19 @@
          rackunit/text-ui
          redex/reduction-semantics
          (prefix-in lang:
-                    "../../../src/search-lattice/languages/all.rkt")
+                    "../../src/search-lattice/languages/all.rkt")
          (prefix-in distributed:
-                    "../../../src/search-lattice/experiments/distributed/all.rkt")
+                    "all.rkt")
          (prefix-in factored:
-                    "../../../src/search-lattice/reduction-relations/all.rkt")
+                    "../../src/search-lattice/reduction-relations/all.rkt")
          (prefix-in wf:
-                    "../../../src/search-lattice/wf/all.rkt")
-         "../../../src/search-lattice/reduction-relations/private/common.rkt"
-         "../../../src/search-lattice/structural-observations.rkt"
-         "../../../src/sexpr-read.rkt"
-         "../../../src/transpiler.rkt"
-         "../../example-compat-tests.rkt"
-         "../../frontier-observable-support.rkt"
-         "../../search-lattice-support.rkt")
+                    "../../src/search-lattice/wf/all.rkt")
+         "../../src/search-lattice/reduction-relations/private/common.rkt"
+         "../../src/search-lattice/structural-observations.rkt"
+         (prefix-in strict: "../strict-search/retained-scope/source.rkt")
+         (only-in "../strict-search/shared/wf.rkt" wf-s?)
+         "../../tests/frontier-observable-support.rkt"
+         "../../tests/search-lattice-support.rkt")
 
 (provide DISTRIBUTED-PRESENTATION)
 
@@ -119,26 +118,38 @@
   (check-true (shape? target))
   (check-true (produced-answer-spine-only? target)))
 
-(define (example-src label)
-  (for/first ([pr (in-list (frontend-example-programs))]
-              #:do [(match-define (cons example-label src) pr)]
-              #:when (equal? example-label label))
-    src))
+;; These are source fixtures for this experiment's own Work grammar. Keeping
+;; the allocation examples here avoids making an alternate scheduling policy
+;; depend on the application's strict compiler or a syntax conversion.
+(define shared-fresh-frontier
+  `(More
+    (Work (Owners)
+          (∃ (x:q)
+             (∃ (x:x)
+                (((x:x =? (sym "left") (label "left-x")) ∧
+                  (x:q =? (sym "left") (label "left-q")) (label "left")) ∨
+                 ((x:x =? (sym "right") (label "right-x")) ∧
+                  (x:q =? (sym "right") (label "right-q")) (label "right"))
+                 (label "choice"))
+                (label "shared-fresh"))
+             (label "query"))
+          ,sigma-s)))
 
-(define (example-frontier label)
-  (define src
-    (example-src label))
-  (unless src
-    (error 'example-frontier "missing example label: ~a" label))
-  (define-values (cfg _html)
-    (parse-prog/canonical (read-all-sexprs (open-input-string src))))
-  (match cfg
-    [`(() ,frontier) frontier]
-    [_
-     (error 'example-frontier
-            "expected an empty-Γ config for ~a, got ~s"
-            label
-            cfg)]))
+(define branch-fresh-frontier
+  `(More
+    (Work (Owners)
+          (∃ (x:q)
+             ((∃ (x:x)
+                 ((x:x =? (sym "left") (label "left-x")) ∧
+                  (x:q =? (sym "left") (label "left-q")) (label "left"))
+                 (label "left-fresh")) ∨
+              (∃ (x:x)
+                 ((x:x =? (sym "right") (label "right-x")) ∧
+                  (x:q =? (sym "right") (label "right-q")) (label "right"))
+                 (label "right-fresh"))
+              (label "choice"))
+             (label "query"))
+          ,sigma-s)))
 
 (define (wf-disjunction? cfg)
   (judgment-holds (wf:wf-cfg/disj? ,cfg)))
@@ -168,6 +179,35 @@
        [(list (list _ cfg^))
         (trace-locked? relation wf? shape? cfg^ (sub1 remaining))]
        [_ #f])]))
+
+;; Inspect every exact named edge, including configurations that have not yet
+;; produced an answer. No deduplication or forward search masks ambiguity.
+(define (checked-trace relation cfg valid?
+                       [remaining TRACE-CAP] [steps '()] [configurations '()])
+  (check-true (valid? cfg) (format "invalid reached configuration: ~s" cfg))
+  (match (apply-reduction-relation/tag-with-names relation cfg)
+    ['() (values (reverse steps) (reverse (cons cfg configurations)))]
+    [(list (list name next))
+     (when (zero? remaining) (error 'checked-trace "step bound exhausted"))
+     (checked-trace relation next valid? (sub1 remaining)
+                    (cons name steps) (cons cfg configurations))]
+    [successors (error 'checked-trace "nonunique named successors: ~s" successors)]))
+
+;; Observation for the ground-equality witness below. Read only the completed
+;; answer spine: pending Search, Work, and commit contain no public answers.
+(define (ground-witness-events cfg)
+  (match cfg
+    [`(collect ,inner) (ground-witness-events inner)]
+    [`(Forced ,_ ,inner) (cons 'force (ground-witness-events inner))]
+    [`(Emit ,_ ,answer ,rest)
+     (cons (ground-witness-answer-label answer) (ground-witness-events rest))]
+    [`(Last ,_ ,answer) (list (ground-witness-answer-label answer))]
+    [_ '()]))
+
+(define (ground-witness-answer-label answer)
+  (match answer
+    [`(Answer ,_ (state ,_ ,_ ((,_ =? ,_ (label ,label))) ,_)) label]
+    [_ (error 'ground-witness-answer-label "unexpected answer: ~s" answer)]))
 
 (define pending-left-choice
   (term
@@ -470,9 +510,13 @@
     (for ([relation (in-list (list distributed:disj-distributed-red
                                     factored:disj-red))])
       (define-values (shared-steps shared-final shared-status)
-        (trace-deterministic relation (example-frontier "fresh shared disj")))
+        (trace-deterministic relation shared-fresh-frontier))
       (define-values (branch-steps branch-final branch-status)
-        (trace-deterministic relation (example-frontier "fresh branch disj")))
+        (trace-deterministic relation branch-fresh-frontier))
+      (check-true (trace-locked? relation wf-disjunction? disjunction-shape?
+                                 shared-fresh-frontier))
+      (check-true (trace-locked? relation wf-disjunction? disjunction-shape?
+                                 branch-fresh-frontier))
       (check-equal? shared-status 'done)
       (check-equal? branch-status 'done)
       (check-true (wf-disjunction? shared-final))
@@ -487,6 +531,87 @@
       (check-equal? (count-step-name branch-steps "allocate-fresh") 3)
       (check-equal? (term (structural-answer-count ,shared-final)) 2)
       (check-equal? (term (structural-answer-count ,branch-final)) 2)))
+
+  (test-case "distributing pending bind over nested choices changes ordered Delay observations"
+    ;; A finite source goal, with ground equalities distinguishing answer
+    ;; trails. No allocation, relation calls, divergence, or input conversion
+    ;; accounts for the difference: only the placement of pending conjunction.
+    (define goal
+      '(((((sym "A") =? (sym "A") (label "A")) ∨
+          ((sym "B") =? (sym "B") (label "B")) (label "inner")) ∨
+         ((sym "C") =? (sym "C") (label "C")) (label "outer")) ∧
+        (suspend (succeed (label "k")) (label "suspend-k"))
+        (label "conjunction")))
+    (define initial `(More (Work (Owners) ,goal ,sigma-s)))
+    (define (old-valid? cfg)
+      (and (search-shape? cfg) (wf-search? cfg)
+           (produced-answer-spine-only? cfg)))
+    (define-values (factored-steps factored-configs)
+      (checked-trace factored:rail-red initial old-valid?))
+    (define-values (distributed-steps distributed-configs)
+      (checked-trace distributed:rail-distributed-red initial old-valid?))
+    (define strict-initial (strict:retained-query-initial goal #:state sigma-s))
+    (define-values (strict-steps strict-configs)
+      (checked-trace strict:retained-red `(collect ,strict-initial)
+                     (lambda (cfg)
+                       (and (redex-match? strict:ScopeS q cfg) (wf-s? cfg)))))
+    (define (answer label)
+      `(Answer (Owners)
+               (state () () (((sym ,label) =? (sym ,label) (label ,label)))
+                      (label "s"))))
+    (define factored-final
+      `(Forced (Owners)
+               (Forced (Owners)
+                       (Emit (Owners) ,(answer "A")
+                             (Forced (Owners)
+                                     (Emit (Owners) ,(answer "B")
+                                           (Last (Owners) ,(answer "C"))))))))
+    (define distributed-final
+      `(Forced (Owners)
+               (Forced (Owners)
+                       (Forced (Owners)
+                               (Emit (Owners) ,(answer "C")
+                                     (Emit (Owners) ,(answer "A")
+                                           (Last (Owners) ,(answer "B"))))))))
+    (check-equal? (last factored-configs) factored-final)
+    (check-equal? (last strict-configs) factored-final)
+    (check-equal? (last distributed-configs) distributed-final)
+    (check-equal? (length factored-steps) 26)
+    (check-equal? (length distributed-steps) 28)
+    (check-equal? (count-step-name distributed-steps "distribute-choice") 2)
+    (check-equal? (count-step-name factored-steps "reassociate-left-result") 1)
+    (check-equal? (count-step-name strict-steps "advance-delay") 0)
+    (check-equal? (count-step-name strict-steps "collect-delay") 3)
+    (define factored-prefixes
+      '(() (force) (force force) (force force "A")
+           (force force "A" force) (force force "A" force "B")
+           (force force "A" force "B" "C")))
+    (define distributed-prefixes
+      '(() (force) (force force) (force force force)
+           (force force force "C") (force force force "C" "A")
+           (force force force "C" "A" "B")))
+    (check-equal? (remove-duplicates (map ground-witness-events factored-configs))
+                  factored-prefixes)
+    (check-equal? (remove-duplicates (map ground-witness-events strict-configs))
+                  factored-prefixes)
+    (check-equal? (remove-duplicates (map ground-witness-events distributed-configs))
+                  distributed-prefixes)
+    ;; Public advance stops at each Delay; internal force transitions in the
+    ;; strict mplus resumptions do not themselves add a Forced observation.
+    (define strict-round-0 (strict:retained-run strict-initial TRACE-CAP))
+    (define strict-round-1
+      (strict:retained-run `(advance ,strict-round-0) TRACE-CAP))
+    (define strict-round-2
+      (strict:retained-run `(advance ,strict-round-1) TRACE-CAP))
+    (define strict-round-3
+      (strict:retained-run `(advance ,strict-round-2) TRACE-CAP))
+    (check-equal? (map ground-witness-events
+                       (list strict-round-0 strict-round-1 strict-round-2 strict-round-3))
+                  '(() (force) (force force "A") (force force "A" force "B" "C")))
+    (for ([frontier (in-list (list strict-round-0 strict-round-1 strict-round-2))])
+      (check-true (strict:retained-frontier? frontier))
+      (check-false (final-program? frontier)))
+    (check-equal? strict-round-3 factored-final))
 
   (test-case "distributed search reassociates and commits through a Forced spine"
     (define forced-branch
@@ -768,4 +893,4 @@
       cfg-call-branch))))
 
 (module+ test
-  (run-tests DISTRIBUTED-PRESENTATION))
+  (exit (run-tests DISTRIBUTED-PRESENTATION)))

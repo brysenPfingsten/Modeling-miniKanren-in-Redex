@@ -6,7 +6,7 @@
          (prefix-in red:
                     "../../../src/search-lattice/reduction-relations/all.rkt")
          (prefix-in distributed:
-                    "../../../src/search-lattice/experiments/distributed/all.rkt")
+                    "../../../derivations/distributed-search/all.rkt")
          (prefix-in lang:
                     "../../../src/search-lattice/languages/all.rkt")
          (prefix-in wf:

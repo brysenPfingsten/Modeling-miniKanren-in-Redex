@@ -2,12 +2,12 @@
 
 (require redex/reduction-semantics
          "../languages/search-lang.rkt"
-         (only-in "../../../languages/core-lang.rkt" owners-append)
-         "../../../reduction-relations/private/step-utils.rkt"
-         (prefix-in rail: "../../../reduction-relations/rail-red.rkt")
+         (only-in "../../../src/search-lattice/languages/core-lang.rkt" owners-append)
+         "../../../src/search-lattice/reduction-relations/private/step-utils.rkt"
+         (prefix-in rail: "../../../src/search-lattice/reduction-relations/rail-red.rkt")
          (prefix-in distributed-base: "./search-join-base-red.rkt")
          (prefix-in search-base:
-                    "../../../reduction-relations/search-join-base-red.rkt")
+                    "factored-search-base.rkt")
          (prefix-in disj: "./disj-red.rkt")
          (prefix-in search: "./search-red.rkt"))
 

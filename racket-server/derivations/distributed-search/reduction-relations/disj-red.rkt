@@ -2,11 +2,11 @@
 
 (require redex/reduction-semantics
          "../languages/disj-lang.rkt"
-         (only-in "../../../languages/core-lang.rkt" owners-append)
-         (prefix-in disj: "../../../reduction-relations/disj-base-red.rkt")
-         (only-in "../../../reduction-relations/private/common.rkt"
+         (only-in "../../../src/search-lattice/languages/core-lang.rkt" owners-append)
+         (prefix-in disj: "../../../src/search-lattice/reduction-relations/disj-base-red.rkt")
+         (only-in "../../../src/search-lattice/reduction-relations/private/common.rkt"
                   subst-goal-host)
-         "../../../reduction-relations/private/step-utils.rkt")
+         "../../../src/search-lattice/reduction-relations/private/step-utils.rkt")
 
 (provide allocate/base
          disj-distributed-red

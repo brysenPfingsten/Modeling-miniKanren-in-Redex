@@ -2,9 +2,9 @@
 
 (require redex/reduction-semantics
          "../languages/search-relcall-lang.rkt"
-         "../../../reduction-relations/private/common.rkt"
-         "../../../reduction-relations/private/context-pipeline.rkt"
-         "../../../reduction-relations/private/step-utils.rkt"
+         "../../../src/search-lattice/reduction-relations/private/common.rkt"
+         "../../../src/search-lattice/reduction-relations/private/context-pipeline.rkt"
+         "../../../src/search-lattice/reduction-relations/private/step-utils.rkt"
          "./search-red.rkt")
 
 (provide search-distributed-relcall-expand/raw

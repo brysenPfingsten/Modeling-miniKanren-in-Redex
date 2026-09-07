@@ -2,9 +2,9 @@
 
 (require redex/reduction-semantics
          "../languages/search-lang.rkt"
-         (only-in "../../../languages/core-lang.rkt" owners-append)
+         (only-in "../../../src/search-lattice/languages/core-lang.rkt" owners-append)
          "./search-join-base-red.rkt"
-         "../../../reduction-relations/private/step-utils.rkt")
+         "../../../src/search-lattice/reduction-relations/private/step-utils.rkt")
 
 (provide distribute-choice/raw
          search-distributed-red

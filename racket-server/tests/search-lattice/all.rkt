@@ -21,7 +21,7 @@
          "./laws/wf-preservation-tests.rkt"
          "./laws/structural-allocation-tests.rkt"
          "./laws/frontier-observation-tests.rkt"
-         "./experiments/distributed-tests.rkt")
+         "../../derivations/distributed-search/tests.rkt")
 
 (provide SEARCH-LATTICE-SEMANTICS)
 

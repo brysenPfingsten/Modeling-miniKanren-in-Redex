@@ -26,9 +26,11 @@ exports `SEARCH-LATTICE-SEMANTICS` to the comprehensive headless runner.
 - `laws/` owns crosscutting determinism, raw-proof uniqueness, WF
   preservation, tagged structural owner stacks, whole-frontier allocation, and
   frontier-observation laws.
-- `experiments/` owns the isolated distributed presentation. It is executable
-  evidence, not a production policy or scheduler fiber. Its retained common
-  carrier includes `DisjR`; distributed rail adds only scheduling.
+- [The distributed-source tests](../../derivations/distributed-search/tests.rkt)
+  live with their source under `derivations/distributed-search/`. This aggregate
+  still references that existing comparison gate. The experiment distributes
+  conjunction before machine derivation in the older online source, retains
+  common `DisjR` syntax, and lets distributed rail add only scheduling.
 
 `support.rkt` contains only helpers shared by multiple semantic owners. Expected
 rule inventories and feature-specific witnesses remain visible in the suites
@@ -45,8 +47,8 @@ the rail fiber.
 Static topology evidence also checks the implementation arrows: production
 search consumes assembled disjunction plus the delay delta, rail lifts assembled
 search plus its local delta, and rail-relcall lifts assembled search-relcall
-plus that delta under `Γ`. The retained raw join seam is consumed only by the
-isolated distributed presentation.
+plus that delta under `Γ`. The experiment-only raw seam is now local to
+[`distributed-search/reduction-relations/factored-search-base.rkt`](../../derivations/distributed-search/reduction-relations/factored-search-base.rkt).
 
 Source-level edge suites establish embedding, conservativity, and provenance.
 They are not naturality tests. Naturality would require a second derivation
@@ -68,9 +70,11 @@ Keep these claims separate:
   core-rooted feature;
 - law suites state their own generated domains and check raw Redex proofs where
   uniqueness is claimed;
-- the distributed presentation remains separate from the factored source.
-  Its common right-active carrier is an explicit experiment-local exception,
-  not evidence that production search/DFS/flip admit `DisjR`.
+- the distributed source remains a separate semantic alternative: nested
+  rails exhibit an observable answer-order difference. Its common right-active
+  carrier is experiment-local, not evidence that ordinary search/DFS/flip
+  admit `DisjR`. Keeping its existing gate is not strict correspondence or
+  GUI, matrix, or A7/A9 integration.
 
 ## Running the tests
 
@@ -86,3 +90,9 @@ Every leaf suite also has a `module+ test` entrypoint, so its documented path is
 a focused gate. The full production, compiler, runtime, HTTP, renderer, and
 frontend lanes remain outside this subtree and are listed in
 [`../TEST-LANES.md`](../TEST-LANES.md).
+
+Run the relocated distribution comparison directly with:
+
+```sh
+racket -y -l raco -- test racket-server/derivations/distributed-search/tests.rkt
+```

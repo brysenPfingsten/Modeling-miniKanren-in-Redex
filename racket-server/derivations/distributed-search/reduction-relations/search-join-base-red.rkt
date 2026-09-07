@@ -2,9 +2,9 @@
 
 (require redex/reduction-semantics
          "../languages/search-lang.rkt"
-         (only-in "../../../languages/core-lang.rkt" owners-append)
+         (only-in "../../../src/search-lattice/languages/core-lang.rkt" owners-append)
          (prefix-in disj: "./disj-red.rkt")
-         (prefix-in search: "../../../reduction-relations/search-join-base-red.rkt"))
+         (prefix-in search: "factored-search-base.rkt"))
 
 (provide right-active/work/raw
          right-active/frontier/raw

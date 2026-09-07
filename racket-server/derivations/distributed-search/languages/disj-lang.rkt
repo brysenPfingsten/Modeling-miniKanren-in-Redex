@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../../../languages/disj-lang.rkt")
+         "../../../src/search-lattice/languages/disj-lang.rkt")
 
 (provide distributed-disj-lang)
 

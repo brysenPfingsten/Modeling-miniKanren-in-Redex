@@ -84,10 +84,14 @@ production search and search-relcall WF exclude `DisjR`; the rail judgments exte
 domains with the right-active carrier while preserving the same inherited
 visible-introduction discipline.
 
-The isolated distributed presentation intentionally retains its older common
-right-active carrier. Its tests use the larger right-active WF domain for
-distributed search, DFS, flip, and rail terms without widening the production
-search judgments.
+The [distributed-source experiment](../../../derivations/distributed-search/README.md)
+retains its older common right-active carrier. Its
+[tests](../../../derivations/distributed-search/tests.rkt) use the larger
+right-active WF domain for distributed search, DFS, flip, and rail terms
+without widening these search judgments. This is an alternative conjunction
+distribution policy before machine derivation; nested rails can change
+observable answer order. These WF checks do not establish correspondence to
+strict retained scope, or integration with the GUI, matrix, or A7/A9 machines.
 
 ## Independent observations
 

@@ -2,17 +2,17 @@
 
 (require redex/reduction-semantics
          "../languages/search-lang.rkt"
-         (only-in "../../../languages/core-lang.rkt" owners-append)
-         "../../../reduction-relations/private/step-utils.rkt"
+         (only-in "../../../src/search-lattice/languages/core-lang.rkt" owners-append)
+         "../../../src/search-lattice/reduction-relations/private/step-utils.rkt"
          "./search-red.rkt")
 
-(provide search-dfs-distributed-extra
-         search-dfs-distributed-red
+(provide search-flip-distributed-extra
+         search-flip-distributed-red
          step-once)
 
 (check-redundancy #t)
 
-(define search-dfs-distributed-extra
+(define search-flip-distributed-extra
   (let ([raw
          (reduction-relation
           distributed-search-lang
@@ -25,20 +25,20 @@
                (PendingDelay
                 (Owners)
                 (DisjL owners_choice
+                       W_2
                        (in-hole WorkOwnerSlot_1
-                                owners_delayed)
-                       W_2))
+                                owners_delayed)))
                (where owners_delayed
                       (owners-append owners_delay owners_payload))
-               "dfs-delay-left"])])
+               "flip-delay-left"])])
     (context-closure raw distributed-search-lang EarlyChoiceWF)))
 
-(define search-dfs-distributed-red
+(define search-flip-distributed-red
   (extend-reduction-relation
    (union-reduction-relations search-distributed-red
-                              search-dfs-distributed-extra)
+                              search-flip-distributed-extra)
    distributed-search-lang
    #:domain F))
 
 (define (step-once prog)
-  (step-once/deterministic search-dfs-distributed-red prog))
+  (step-once/deterministic search-flip-distributed-red prog))

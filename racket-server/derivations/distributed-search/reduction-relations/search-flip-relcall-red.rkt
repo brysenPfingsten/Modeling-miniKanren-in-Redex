@@ -2,27 +2,27 @@
 
 (require redex/reduction-semantics
          "../languages/search-relcall-lang.rkt"
-         (only-in "./search-dfs-red.rkt"
-                  search-dfs-distributed-extra)
+         (only-in "./search-flip-red.rkt"
+                  search-flip-distributed-extra)
          "./search-relcall-red.rkt"
-         "../../../reduction-relations/private/context-pipeline.rkt"
-         "../../../reduction-relations/private/step-utils.rkt"
+         "../../../src/search-lattice/reduction-relations/private/context-pipeline.rkt"
+         "../../../src/search-lattice/reduction-relations/private/step-utils.rkt"
          )
 
-(provide search-dfs-distributed-relcall-red
+(provide search-flip-distributed-relcall-red
          step-once)
 
 (check-redundancy #t)
 
 (define-lift-search-to-relcall under-Gamma
-  search-dfs-distributed-extra
+  search-flip-distributed-extra
   distributed-search-relcall-lang)
 
-(define search-dfs-distributed-relcall-red
+(define search-flip-distributed-relcall-red
   (extend-reduction-relation
    (union-reduction-relations search-distributed-relcall-red under-Gamma)
    distributed-search-relcall-lang
    #:domain config))
 
 (define (step-once prog)
-  (step-once/deterministic search-dfs-distributed-relcall-red prog))
+  (step-once/deterministic search-flip-distributed-relcall-red prog))

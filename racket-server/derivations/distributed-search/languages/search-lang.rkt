@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex/reduction-semantics
-         "../../../languages/search-lang.rkt")
+         "../../../src/search-lattice/languages/search-lang.rkt")
 
 (provide distributed-search-lang)
 
