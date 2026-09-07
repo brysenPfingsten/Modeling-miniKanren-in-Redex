@@ -153,4 +153,4 @@
   (define normalized-ast
     (prog (map parse-relation-def/micro defrels)
           (parse-run/micro run-expr)))
-  (values normalized-ast normalized-ast))
+  (values normalized-ast normalized-ast (source-occurrence-ids normalized-ast)))

@@ -2,9 +2,15 @@
 
 (require "./ast.rkt"
          "./profile.rkt"
-         "./program.rkt")
+         "./program.rkt"
+         "../search-strategy.rkt")
 
-(provide parse-prog/canonical)
+(provide parse-prog/canonical (struct-out query-info))
+
+;; Query identity belongs to compilation, not to a scan of a changing search
+;; tree. The initial fresh runs in the empty world and allocates these names
+;; in binder order. Keep the surface names and source tag for inspection too.
+(struct query-info (names variables tag limit) #:transparent)
 
 (define (id->label id)
   `(label ,id))
@@ -24,197 +30,130 @@
     [_ (error who "expected symbol-like value, got ~a" v)]))
 
 (define (next-hidden-id counter)
-  (values (string-append "y" (number->string counter)) (add1 counter)))
+  (values (string-append "hidden:y" (number->string counter)) (add1 counter)))
 
-(define (flatten-guid-groups reversed-guid-groups [acc '()])
-  (match reversed-guid-groups
-    ['() acc]
-    [(cons guid-group rest)
-     (flatten-guid-groups rest (foldr cons acc guid-group))]))
-
-(define (transpile-canonical/list exprs count hidden-count [acc '()] [reversed-guid-groups '()])
+(define (transpile-canonical/list exprs source-ids hidden-count [acc '()])
   (match exprs
-    ['()
-     (values (reverse acc)
-             count
-             hidden-count
-             (flatten-guid-groups reversed-guid-groups))]
+    ['() (values (reverse acc) hidden-count)]
     [(cons expr rest)
-     (define-values (t-expr count^ hidden^ expr-guids)
-       (transpile-canonical expr count hidden-count))
-     (transpile-canonical/list rest
-                               count^
-                               hidden^
-                               (cons t-expr acc)
-                               (cons expr-guids reversed-guid-groups))]))
+     (define-values (compiled next-hidden)
+       (transpile-canonical expr source-ids hidden-count))
+     (transpile-canonical/list rest source-ids next-hidden (cons compiled acc))]))
 
-(define (transpile-canonical expr count hidden-count)
+(define (transpile-canonical expr source-ids hidden-count)
   (match expr
-    [(struct prog (rels q))
-     (define-values (trs count1 hidden1 guids1)
-       (transpile-canonical/list rels count hidden-count))
-     (define-values (tq count2 hidden2 guids2)
-       (transpile-canonical q count1 hidden1))
-     (values `(,trs ,tq) count2 hidden2 (append guids1 guids2))]
+    [(fresh vars goal)
+     (define-values (compiled-vars next-hidden)
+       (transpile-canonical/list vars source-ids hidden-count))
+     (define-values (compiled-goal final-hidden)
+       (transpile-canonical goal source-ids next-hidden))
+     (values `(∃ ,compiled-vars ,compiled-goal ,(id->label (hash-ref source-ids expr)))
+             final-hidden)]
+    [(or (conj left right) (disj left right))
+     (define-values (compiled-left next-hidden)
+       (transpile-canonical left source-ids hidden-count))
+     (define-values (compiled-right final-hidden)
+       (transpile-canonical right source-ids next-hidden))
+     (values `(,compiled-left ,(if (conj? expr) '∧ '∨) ,compiled-right
+                              ,(id->label (hash-ref source-ids expr)))
+             final-hidden)]
+    [(or (unify left right) (diseq left right))
+     (define-values (compiled-left next-hidden)
+       (transpile-canonical left source-ids hidden-count))
+     (define-values (compiled-right final-hidden)
+       (transpile-canonical right source-ids next-hidden))
+     (values `(,compiled-left ,(if (unify? expr) '=? '!=) ,compiled-right
+                              ,(id->label (hash-ref source-ids expr)))
+             final-hidden)]
+    [(or (succeed) (fail))
+     (values `(,(if (succeed? expr) 'succeed 'fail) ,(id->label (hash-ref source-ids expr)))
+             hidden-count)]
+    [(delay-goal goal)
+     (define-values (compiled next-hidden)
+       (transpile-canonical goal source-ids hidden-count))
+     (values `(suspend ,compiled ,(id->label (hash-ref source-ids expr))) next-hidden)]
+    [(compiled-delay-goal goal)
+     (define-values (id next-hidden) (next-hidden-id hidden-count))
+     (define-values (compiled final-hidden)
+       (transpile-canonical goal source-ids next-hidden))
+     (values `(suspend ,compiled ,(id->label id)) final-hidden)]
+    [(relcall name arguments)
+     (define-values (compiled-name next-hidden)
+       (transpile-canonical name source-ids hidden-count))
+     (define-values (compiled-arguments final-hidden)
+       (transpile-canonical/list arguments source-ids next-hidden))
+     (values `(,compiled-name ,@compiled-arguments ,(id->label (hash-ref source-ids expr)))
+             final-hidden)]
+    [(nil) (values 'empty hidden-count)]
+    [(konst _) (values (konst->canonical-term expr) hidden-count)]
+    [(kons left right)
+     (define-values (compiled-left next-hidden)
+       (transpile-canonical left source-ids hidden-count))
+     (define-values (compiled-right final-hidden)
+       (transpile-canonical right source-ids next-hidden))
+     (values `(,compiled-left : ,compiled-right) final-hidden)]
+    [(struct var (name))
+     (values (string->symbol
+              (string-append "x:" (symbol->string (unwrap-symbolish name 'transpile-canonical))))
+             hidden-count)]
+    [(relname name)
+     (values (string->symbol
+              (string-append "r:" (symbol->string (unwrap-symbolish name 'transpile-canonical))))
+             hidden-count)]
+    [(defrel name vars goal)
+     (define-values (compiled-name next-hidden)
+       (transpile-canonical name source-ids hidden-count))
+     (define-values (compiled-vars body-hidden)
+       (transpile-canonical/list vars source-ids next-hidden))
+     (define-values (compiled-goal final-hidden)
+       (transpile-canonical goal source-ids body-hidden))
+     (values `(,compiled-name ,compiled-vars ,compiled-goal) final-hidden)]
+    [(run _ vars goal)
+     (define-values (compiled-vars next-hidden)
+       (transpile-canonical/list vars source-ids hidden-count))
+     (define-values (compiled-goal final-hidden)
+       (transpile-canonical goal source-ids next-hidden))
+     (values `(∃ ,compiled-vars ,compiled-goal ,(id->label (hash-ref source-ids expr)))
+             final-hidden)]))
 
-    [(struct fresh (vars goal))
-     (define-values (id count1) (next-g-id "f" count))
-     (define-values (tvars count2 hidden1 guids1)
-       (transpile-canonical/list vars count1 hidden-count))
-     (define-values (tgoal count3 hidden2 guids2)
-       (transpile-canonical goal count2 hidden1))
-     (values `(∃ ,tvars ,tgoal ,(id->label id))
-             count3 hidden2
-             (cons id (append guids1 guids2)))]
-
-    [(struct conde (clauses))
-     (define-values (id count1) (next-g-id "d" count))
-     (struct acc (expr count hidden guids))
-     (define final-acc
-       (foldr
-        (lambda (clause accum)
-          (define-values (t-clause new-count new-hidden new-guids)
-            (transpile-canonical clause
-                                 (acc-count accum)
-                                 (acc-hidden accum)))
-          (acc (if (null? (acc-expr accum))
-                   t-clause
-                   `(,t-clause ∨ ,(acc-expr accum) ,(id->label id)))
-               new-count
-               new-hidden
-               (append new-guids (acc-guids accum))))
-        (acc '() count1 hidden-count '())
-        clauses))
-     (values (acc-expr final-acc)
-             (acc-count final-acc)
-             (acc-hidden final-acc)
-             (cons id (acc-guids final-acc)))]
-
-    [(struct conj (g1 g2))
-     (define-values (id count1) (next-g-id "c" count))
-     (define-values (tg1 count2 hidden1 guids1)
-       (transpile-canonical g1 count1 hidden-count))
-     (define-values (tg2 count3 hidden2 guids2)
-       (transpile-canonical g2 count2 hidden1))
-     (values `(,tg1 ∧ ,tg2 ,(id->label id))
-             count3 hidden2
-             (cons id (append guids1 guids2)))]
-
-    [(struct disj (g1 g2))
-     (define-values (id count1) (next-g-id "d" count))
-     (define-values (tg1 count2 hidden1 guids1)
-       (transpile-canonical g1 count1 hidden-count))
-     (define-values (tg2 count3 hidden2 guids2)
-       (transpile-canonical g2 count2 hidden1))
-     (values `(,tg1 ∨ ,tg2 ,(id->label id))
-             count3 hidden2
-             (cons id (append guids1 guids2)))]
-
-    [(struct unify (t1 t2))
-     (define-values (id count1) (next-g-id "u" count))
-     (define-values (tt1 count2 hidden1 guids1)
-       (transpile-canonical t1 count1 hidden-count))
-     (define-values (tt2 count3 hidden2 guids2)
-       (transpile-canonical t2 count2 hidden1))
-     (values `(,tt1 =? ,tt2 ,(id->label id))
-             count3 hidden2
-             (cons id (append guids1 guids2)))]
-
-    [(struct diseq (t1 t2))
-     (define-values (id count1) (next-g-id "n" count))
-     (define-values (tt1 count2 hidden1 guids1)
-       (transpile-canonical t1 count1 hidden-count))
-     (define-values (tt2 count3 hidden2 guids2)
-       (transpile-canonical t2 count2 hidden1))
-     (values `(,tt1 != ,tt2 ,(id->label id))
-             count3 hidden2
-             (cons id (append guids1 guids2)))]
-
-    [(struct succeed ())
-     (values `(succeed (label "succeed")) count hidden-count '())]
-
-    [(struct fail ())
-     (values `(fail (label "fail")) count hidden-count '())]
-
-    [(struct delay-goal (goal))
-     (define-values (id count1) (next-g-id "y" count))
-     (define-values (tg count2 hidden1 guids1)
-       (transpile-canonical goal count1 hidden-count))
-     (values `(suspend ,tg ,(id->label id))
-             count2 hidden1
-             (cons id guids1))]
-
-    [(struct compiled-delay-goal (goal))
-     (define-values (id hidden1) (next-hidden-id hidden-count))
-     (define-values (tg count1 hidden2 guids1)
-       (transpile-canonical goal count hidden1))
-     (values `(suspend ,tg ,(id->label id))
-             count1 hidden2
-             guids1)]
-
-    [(struct relcall (name terms))
-     (define-values (id count1) (next-g-id "r" count))
-     (define-values (tname count2 hidden1 guids1)
-       (transpile-canonical name count1 hidden-count))
-     (define-values (tterms count3 hidden2 guids2)
-       (transpile-canonical/list terms count2 hidden1))
-     (values `(,tname ,@tterms ,(id->label id))
-             count3 hidden2
-             (cons id (append guids1 guids2)))]
-
-    [(struct nil ())
-     (values 'empty count hidden-count '())]
-
-    [(struct konst (_))
-     (values (konst->canonical-term expr) count hidden-count '())]
-
-    [(struct kons (a d))
-     (define-values (ta count1 hidden1 guids1)
-       (transpile-canonical a count hidden-count))
-     (define-values (td count2 hidden2 guids2)
-       (transpile-canonical d count1 hidden1))
-     (values `(,ta : ,td) count2 hidden2 (append guids1 guids2))]
-
-    [(struct var (v))
-     (define v* (unwrap-symbolish v 'transpile-canonical))
-     (values (string->symbol (string-append "x:" (symbol->string v*)))
-             count hidden-count '())]
-
-    [(struct relname (name))
-     (define name* (unwrap-symbolish name 'transpile-canonical))
-     (values (string->symbol (string-append "r:" (symbol->string name*)))
-             count hidden-count '())]
-
-    [(struct defrel (name lop goal))
-     (define-values (tname count1 hidden1 guids1)
-       (transpile-canonical name count hidden-count))
-     (define-values (tlop count2 hidden2 guids2)
-       (transpile-canonical/list lop count1 hidden1))
-     (define-values (tgoal count3 hidden3 guids3)
-       (transpile-canonical goal count2 hidden2))
-     (values `(,tname ,tlop ,tgoal)
-             count3 hidden3
-             (append guids1 guids2 guids3))]
-
-    [(struct run (_n qs goal))
-     (define-values (id count1) (next-g-id "f" count))
-     (define-values (tq count2 hidden1 guids1)
-       (transpile-canonical/list qs count1 hidden-count))
-     (define-values (tg count3 hidden2 guids2)
-       (transpile-canonical goal count2 hidden1))
-     (values `(More
-               (Work (Owners)
-                     (∃ ,tq ,tg ,(id->label id))
-                     (state () () () (label "s"))))
-             count3 hidden2
-             (cons id (append guids1 guids2)))]))
+;; Folded-away source syntax has no target goal to select. The remaining
+;; labels come from the identity map; this only filters unused display tags.
+(define (configuration-labels configuration [acc '()])
+  (match configuration
+    [`(label ,id) (if (member id acc) acc (cons id acc))]
+    [(cons left right) (configuration-labels right (configuration-labels left acc))]
+    [_ acc]))
 
 (define (parse-prog/canonical lst
                               #:source-mode [source-mode default-source-mode]
-                              #:compile-profile [compile-profile #f])
-  (define-values (ast display-ast _profile)
+                              #:compile-profile [compile-profile #f]
+                              #:search-strategy [strategy default-search-strategy])
+  (define-values (ast display-ast _profile source-ids)
     (prepare-program lst source-mode compile-profile))
-  (define-values (compiled-config _counter _hidden guid-list)
-    (transpile-canonical ast 0 0))
-  (define-values (html-prog _rest) (add-guids display-ast 0 guid-list))
-  (values compiled-config html-prog))
+  (match-define (prog relations (and query (run limit names _))) ast)
+  (define-values (compiled-relations hidden-count)
+    (transpile-canonical/list relations source-ids 0))
+  (define-values (compiled-goal _hidden)
+    (transpile-canonical query source-ids hidden-count))
+  (define initial-state '(state () () () (label "s")))
+  ;; Both models start from the same lowered source. Only initialization
+  ;; chooses a carrier; no running configuration is translated between them.
+  (define compiled-config
+    (match (normalize-search-strategy strategy)
+      [(strict-search)
+       `(program ,compiled-relations (commit (eval (Owners) ,compiled-goal ,initial-state)))]
+      [(search-strategy _)
+       `(,compiled-relations (More (Work (Owners) ,compiled-goal ,initial-state)))]))
+  (define used-labels (configuration-labels compiled-config))
+  (define display-ids
+    (for/hasheq ([(source id) (in-hash source-ids)] #:when (member id used-labels))
+      (values source id)))
+  (define html-prog
+    (add-guids display-ast 0 display-ids (normalize-source-mode source-mode)))
+  (match-define `(∃ ,binders ,_ ,tag) compiled-goal)
+  (values compiled-config html-prog
+          (query-info (map (lambda (name) (unwrap-symbolish name 'query-info)) names)
+                      (for/list ([index (in-range (length binders))])
+                        (string->symbol (format "u:~a" index)))
+                      tag
+                      (and (exact-nonnegative-integer? limit) limit))))

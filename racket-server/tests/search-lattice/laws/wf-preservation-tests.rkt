@@ -44,8 +44,9 @@
   (define src (example-src label))
   (unless src
     (error 'example-cfg "missing example label: ~a" label))
-  (define-values (config _html)
-    (parse-prog/canonical (read-all-sexprs (open-input-string src))))
+  (define-values (config _html _query)
+    (parse-prog/canonical (read-all-sexprs (open-input-string src))
+                          #:search-strategy (search-strategy "rail")))
   config)
 
 (define (example-frontier label)

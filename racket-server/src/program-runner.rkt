@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/string
-         "search-lattice/picture.rkt"
+         "search-picture.rkt"
          "search-runtime.rkt"
          "search-strategy.rkt"
          "sexpr-read.rkt"
@@ -11,35 +11,26 @@
 
 (provide open-source
          open-forms
-         run-source
-         run-forms
-         run-result-host-answers
-         run-source->answers
-         run-forms->answers
-         run-source->host-answers
-         run-forms->host-answers
-         run-source->answer-nodes
-         run-forms->answer-nodes
-         run-source->picture
-         run-forms->picture
+         open-compiled
          answer-json->host-value
-         picture->answer-nodes
          (struct-out model-step)
          (struct-out model-session)
          model-session-current-step
          model-session-current-step-name
+         model-session-current-step-kind
          model-session-current-config
          model-session-current-picture
          model-session-current-answer-nodes
          model-session-current-answers
          model-session-current-host-answers
          model-session-step-index
+         model-session-status
          model-session-done?
          model-session-step
          model-session-back
          model-session-reset
-         (struct-out run-result)
          (struct-out search-strategy)
+         (struct-out strict-search)
          default-search-strategy
          all-surfaced-search-strategies
          search-strategy->jsexpr
@@ -54,17 +45,8 @@
 
 (struct model-step (name config) #:transparent)
 
-(struct model-session (zipper step-once nqv search-strategy) #:transparent)
+(struct model-session (zipper step-once query search-strategy) #:transparent)
 
-(struct run-result (initial-config
-                    final-config
-                    step-count
-                    answer-nodes
-                    answers
-                    picture)
-  #:transparent)
-
-(define default-step-cap 2048)
 (define reified-var-rx #px"^_\\.[0-9]+$")
 
 (define (normalize-form-datum form)
@@ -89,43 +71,14 @@
     (void (check-syntax-capture-error raw-prog)))
   (define sexpr-prog
     (read-all-sexprs (open-input-string raw-prog)))
-  (define-values (initial-config _html)
+  (define-values (initial-config _html query)
     (parse-prog/canonical sexpr-prog
                           #:source-mode source-mode*
-                          #:compile-profile compile-profile*))
-  (check-search-config strategy* initial-config)
+                          #:compile-profile compile-profile*
+                          #:search-strategy strategy*))
   (values initial-config
-          (program-query-var-count initial-config)
+          query
           strategy*))
-
-(define (final-frontier? frontier)
-  (match frontier
-    [(list 'Done (list 'Owners (list 'Owner _ _) ...)) #t]
-    [(list 'Last (list 'Owners (list 'Owner _ _) ...) _) #t]
-    [(list 'Forced (list 'Owners (list 'Owner _ _) ...) inner)
-     (final-frontier? inner)]
-    [(list 'Emit (list 'Owners (list 'Owner _ _) ...) _ rest)
-     (final-frontier? rest)]
-    [_ #f]))
-
-(define (final-config? cfg)
-  (match cfg
-    [`(,(? list?) ,frontier)
-     (final-frontier? frontier)]
-    [frontier
-     (final-frontier? frontier)]))
-
-(define (picture->answer-nodes node [acc '()])
-  (match node
-    [(? hash? h)
-     (define acc^
-       (if (equal? (hash-ref h 'renderRole #f) "answer-node")
-           (cons h acc)
-           acc))
-     (for/fold ([acc acc^])
-               ([child (in-list (hash-ref h 'children '()))])
-       (picture->answer-nodes child acc))]
-    [_ acc]))
 
 (define (answer-json->host-value datum)
   (match datum
@@ -135,6 +88,8 @@
         (string->symbol (hash-ref h 'sym))]
        [(hash-has-key? h 'num)
         (hash-ref h 'num)]
+       [(hash-has-key? h 'str)
+        (hash-ref h 'str)]
        [(hash-has-key? h 'var)
         (string->symbol (hash-ref h 'var))]
        [(hash-has-key? h 'pair)
@@ -160,24 +115,25 @@
   (for/list ([answer-node (in-list answer-nodes)])
     (answer-json->host-value (hash-ref answer-node 'reified '()))))
 
-(define (run-result-host-answers result)
-  (answer-nodes->host-values (run-result-answer-nodes result)))
-
-(define (make-initial-session initial-config nqv strategy)
+(define (open-compiled initial-config query [strategy default-search-strategy])
+  (define normalized (normalize-search-strategy strategy))
+  (check-search-config normalized initial-config)
+  (unless (query-info? query)
+    (raise-argument-error 'open-compiled "query-info?" query))
   (model-session
    (zipper-add (make-empty-zipper)
                (model-step "Initialize Program" initial-config))
-   (lookup-search-step-once strategy)
-   nqv
-   strategy))
+   (lookup-search-step-once normalized)
+   query
+   normalized))
 
 (define (open-source raw-prog
                      #:source-mode [source-mode default-source-mode]
                      #:compile-profile [compile-profile #f]
                      #:search-strategy [strategy default-search-strategy])
-  (define-values (initial-config nqv strategy*)
+  (define-values (initial-config query strategy*)
     (prepare-source raw-prog source-mode compile-profile strategy))
-  (make-initial-session initial-config nqv strategy*))
+  (open-compiled initial-config query strategy*))
 
 (define (open-forms forms
                     #:source-mode [source-mode default-source-mode]
@@ -195,15 +151,26 @@
 (define (model-session-current-step-name session)
   (model-step-name (model-session-current-step session)))
 
+(define (model-session-current-step-kind session)
+  (match (model-session-current-step-name session)
+    ["Initialize Program" 'initialization]
+    ["advance" 'public-operation]
+    ["force-delay"
+     (if (search-strategy? (model-session-search-strategy session))
+         'public-operation
+         'reduction)]
+    [_ 'reduction]))
+
 (define (model-session-current-config session)
   (model-step-config (model-session-current-step session)))
 
 (define (model-session-current-picture session)
   (cfg->operational-picture (model-session-current-config session)
-                            (model-session-nqv session)))
+                            (query-info-variables (model-session-query session))))
 
 (define (model-session-current-answer-nodes session)
-  (reverse (picture->answer-nodes (model-session-current-picture session))))
+  (committed-answer-nodes (model-session-current-config session)
+                         (query-info-variables (model-session-query session))))
 
 (define (model-session-current-answers session)
   (answer-nodes->reified (model-session-current-answer-nodes session)))
@@ -214,22 +181,36 @@
 (define (model-session-step-index session)
   (zipper-idx (model-session-zipper session)))
 
+(define (model-session-status session)
+  (configuration-status (model-session-current-config session)))
+
 (define (model-session-done? session)
-  (match-define (model-session (zipper _ _ next _) step-once _ _) session)
-  (and (null? next)
-       (null? (step-once (model-session-current-config session)))))
+  (match-define (model-session (zipper _ _ next _) _ _ _) session)
+  (and (null? next) (eq? (model-session-status session) 'complete)))
 
 (define (model-session-step session)
-  (match-define (model-session zipper step-once nqv _) session)
+  (match-define (model-session zipper step-once _ strategy) session)
   (define-values (maybe-next zipper^)
     (zipper-forward zipper))
   (cond
     [(model-step? maybe-next)
      (struct-copy model-session session [zipper zipper^])]
     [else
-     (match (step-once (model-step-config (zipper-curr zipper)))
-       ['()
-        session]
+     (define current (model-step-config (zipper-curr zipper)))
+     (define status (configuration-status current))
+     (define successors
+       (match status
+         ['paused
+          (if (strict-search? strategy)
+              (list (list "advance" (advance-configuration current)))
+              (step-once current))]
+         ['complete '()]
+         ['running (step-once current)]
+         ['stuck (error 'model-session-step "stuck ~a configuration: ~e"
+                        (if (strict-search? strategy) "matrix" "lattice") current)]))
+     (match successors
+       ['() #:when (eq? status 'complete) session]
+       ['() (error 'model-session-step "no successor for ~a configuration: ~e" status current)]
        [(list (list name new-config))
         (struct-copy model-session session
                      [zipper (zipper-add zipper
@@ -259,202 +240,3 @@
            "session has no initial program to reset to"))
   (struct-copy model-session session
                [zipper (zipper-add (make-empty-zipper) init-step)]))
-
-(define (normalize-answer-limit answer-limit)
-  (cond
-    [(false? answer-limit) #f]
-    [(exact-nonnegative-integer? answer-limit) answer-limit]
-    [else
-     (error 'run-source
-            "answer-limit must be #f or an exact nonnegative integer, got ~e"
-            answer-limit)]))
-
-(define (answer-limit-reached? session answer-limit)
-  (and answer-limit
-       (>= (length (model-session-current-answer-nodes session))
-           answer-limit)))
-
-(define (run-until-limit session step-cap answer-limit [steps 0])
-  (cond
-    [(answer-limit-reached? session answer-limit)
-     (values session steps)]
-    [(model-session-done? session)
-     (if (final-config? (model-session-current-config session))
-         (values session steps)
-         (error 'run-source
-                "execution got stuck after ~a steps under search strategy ~e"
-                steps
-                (search-strategy->jsexpr
-                 (model-session-search-strategy session))))]
-    [(>= steps step-cap)
-     (error 'run-source
-            "step cap ~a reached before completion under search strategy ~e"
-            step-cap
-            (search-strategy->jsexpr
-             (model-session-search-strategy session)))]
-    [else
-     (run-until-limit (model-session-step session)
-                      step-cap
-                      answer-limit
-                      (add1 steps))]))
-
-(define (session->run-result session step-count)
-  (define answer-nodes
-    (model-session-current-answer-nodes session))
-  (run-result (model-step-config
-               (let ([zip (model-session-zipper session)])
-                 (cond
-                   [(pair? (zipper-prev zip))
-                    (car (reverse (zipper-prev zip)))]
-                   [else (zipper-curr zip)])))
-              (model-session-current-config session)
-              step-count
-              answer-nodes
-              (answer-nodes->reified answer-nodes)
-              (model-session-current-picture session)))
-
-(define (run-source raw-prog
-                    #:source-mode [source-mode default-source-mode]
-                    #:compile-profile [compile-profile #f]
-                    #:search-strategy [strategy default-search-strategy]
-                    #:answer-limit [answer-limit #f]
-                    #:step-cap [step-cap default-step-cap])
-  (unless (exact-positive-integer? step-cap)
-    (error 'run-source
-           "step-cap must be an exact positive integer, got ~e"
-           step-cap))
-  (define session
-    (open-source raw-prog
-                 #:source-mode source-mode
-                 #:compile-profile compile-profile
-                 #:search-strategy strategy))
-  (define answer-limit*
-    (normalize-answer-limit answer-limit))
-  (define-values (final-session step-count)
-    (run-until-limit session step-cap answer-limit*))
-  (session->run-result final-session step-count))
-
-(define (run-forms forms
-                   #:source-mode [source-mode default-source-mode]
-                   #:compile-profile [compile-profile #f]
-                   #:search-strategy [strategy default-search-strategy]
-                   #:answer-limit [answer-limit #f]
-                   #:step-cap [step-cap default-step-cap])
-  (run-source (forms->source-string forms)
-              #:source-mode source-mode
-              #:compile-profile compile-profile
-              #:search-strategy strategy
-              #:answer-limit answer-limit
-              #:step-cap step-cap))
-
-(define (run-source->answers raw-prog
-                             #:source-mode [source-mode default-source-mode]
-                             #:compile-profile [compile-profile #f]
-                             #:search-strategy [strategy default-search-strategy]
-                             #:answer-limit [answer-limit #f]
-                             #:step-cap [step-cap default-step-cap])
-  (run-result-answers
-   (run-source raw-prog
-               #:source-mode source-mode
-               #:compile-profile compile-profile
-               #:search-strategy strategy
-               #:answer-limit answer-limit
-               #:step-cap step-cap)))
-
-(define (run-forms->answers forms
-                            #:source-mode [source-mode default-source-mode]
-                            #:compile-profile [compile-profile #f]
-                            #:search-strategy [strategy default-search-strategy]
-                            #:answer-limit [answer-limit #f]
-                            #:step-cap [step-cap default-step-cap])
-  (run-result-answers
-   (run-forms forms
-              #:source-mode source-mode
-              #:compile-profile compile-profile
-              #:search-strategy strategy
-              #:answer-limit answer-limit
-              #:step-cap step-cap)))
-
-(define (run-source->host-answers raw-prog
-                                  #:source-mode [source-mode default-source-mode]
-                                  #:compile-profile [compile-profile #f]
-                                  #:search-strategy [strategy default-search-strategy]
-                                  #:answer-limit [answer-limit #f]
-                                  #:step-cap [step-cap default-step-cap])
-  (run-result-host-answers
-   (run-source raw-prog
-               #:source-mode source-mode
-               #:compile-profile compile-profile
-               #:search-strategy strategy
-               #:answer-limit answer-limit
-               #:step-cap step-cap)))
-
-(define (run-forms->host-answers forms
-                                 #:source-mode [source-mode default-source-mode]
-                                 #:compile-profile [compile-profile #f]
-                                 #:search-strategy [strategy default-search-strategy]
-                                 #:answer-limit [answer-limit #f]
-                                 #:step-cap [step-cap default-step-cap])
-  (run-result-host-answers
-   (run-forms forms
-              #:source-mode source-mode
-              #:compile-profile compile-profile
-              #:search-strategy strategy
-              #:answer-limit answer-limit
-              #:step-cap step-cap)))
-
-(define (run-source->answer-nodes raw-prog
-                                  #:source-mode [source-mode default-source-mode]
-                                  #:compile-profile [compile-profile #f]
-                                  #:search-strategy [strategy default-search-strategy]
-                                  #:answer-limit [answer-limit #f]
-                                  #:step-cap [step-cap default-step-cap])
-  (run-result-answer-nodes
-   (run-source raw-prog
-               #:source-mode source-mode
-               #:compile-profile compile-profile
-               #:search-strategy strategy
-               #:answer-limit answer-limit
-               #:step-cap step-cap)))
-
-(define (run-forms->answer-nodes forms
-                                 #:source-mode [source-mode default-source-mode]
-                                 #:compile-profile [compile-profile #f]
-                                 #:search-strategy [strategy default-search-strategy]
-                                 #:answer-limit [answer-limit #f]
-                                 #:step-cap [step-cap default-step-cap])
-  (run-result-answer-nodes
-   (run-forms forms
-              #:source-mode source-mode
-              #:compile-profile compile-profile
-              #:search-strategy strategy
-              #:answer-limit answer-limit
-              #:step-cap step-cap)))
-
-(define (run-source->picture raw-prog
-                             #:source-mode [source-mode default-source-mode]
-                             #:compile-profile [compile-profile #f]
-                             #:search-strategy [strategy default-search-strategy]
-                             #:answer-limit [answer-limit #f]
-                             #:step-cap [step-cap default-step-cap])
-  (run-result-picture
-   (run-source raw-prog
-               #:source-mode source-mode
-               #:compile-profile compile-profile
-               #:search-strategy strategy
-               #:answer-limit answer-limit
-               #:step-cap step-cap)))
-
-(define (run-forms->picture forms
-                            #:source-mode [source-mode default-source-mode]
-                            #:compile-profile [compile-profile #f]
-                            #:search-strategy [strategy default-search-strategy]
-                            #:answer-limit [answer-limit #f]
-                            #:step-cap [step-cap default-step-cap])
-  (run-result-picture
-   (run-forms forms
-              #:source-mode source-mode
-              #:compile-profile compile-profile
-              #:search-strategy strategy
-              #:answer-limit answer-limit
-              #:step-cap step-cap)))

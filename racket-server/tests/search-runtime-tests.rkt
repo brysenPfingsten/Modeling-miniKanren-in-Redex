@@ -1,130 +1,81 @@
 #lang racket
 
-(require rackunit
-         rackunit/text-ui
-         "../src/search-runtime.rkt"
-         "../src/search-strategy.rkt"
-         "../src/sexpr-read.rkt"
-         "../src/transpiler.rkt"
-         "./example-compat-tests.rkt")
+(require rackunit rackunit/text-ui redex/reduction-semantics
+         "../src/search-runtime.rkt" "../src/search-strategy.rkt"
+         "../src/sexpr-read.rkt" "../src/transpiler.rkt"
+         "./example-compat-tests.rkt"
+         (prefix-in matrix: "../derivations/strict-search/matrix/full-source.rkt"))
 
 (provide SEARCH-RUNTIME)
 
-(define (example-src label)
-  (for/first ([pr (in-list (frontend-example-programs))]
-              #:do [(match-define (cons example-label src) pr)]
-              #:when (equal? example-label label))
-    src))
-
-(define (parse-src/canonical src)
-  (parse-prog/canonical (read-all-sexprs (open-input-string src))))
-
-(define factored-continuation-micro-program
-  "(run 2 (q)
-     (conj
-       (disj
-         (== q 'continuation)
-         (== q 'witness))
-       (== q q)))")
-
-(define right-active-rail-cfg
-  '(()
-    (More
-     (DisjR (Owners)
-            (Dead (Owners))
-            (Returned (Owners)
-                      (state () () () (label "right")))))))
-
-(define right-active-rail-next
-  '(()
-    (Emit (Owners)
-          (Answer (Owners)
-                  (state () () () (label "right")))
-          (More (Dead (Owners))))))
-
-(define (collect-step-names stepper cfg [remaining 8])
-  (cond
-    [(zero? remaining) '()]
-    [else
-     (match (stepper cfg)
-       ['() '()]
-       [(list (list name next))
-        (cons name
-              (collect-step-names stepper next (sub1 remaining)))])]))
+(define (compile-source source [mode "mini"])
+  (parse-prog/canonical (read-all-sexprs (open-input-string source)) #:source-mode mode))
 
 (define/provide-test-suite SEARCH-RUNTIME
-  (test-case "search strategy is scheduler-only and rejects retired hoist data"
-    (check-equal? default-search-strategy (search-strategy "rail"))
-    (check-equal? (search-strategy->jsexpr (search-strategy "flip"))
-                  (hasheq 'scheduler "flip"))
-    (check-equal? (normalize-search-strategy (hasheq 'scheduler "dfs"))
-                  (search-strategy "dfs"))
+  (test-case "default API selects strict Search separately from the lattice schedulers"
+    (check-equal? default-search-strategy (strict-search))
+    (check-equal? (normalize-search-strategy #f) default-search-strategy)
     (check-exn exn:fail?
-               (lambda ()
-                 (normalize-search-strategy
-                  (hasheq 'hoist "late" 'scheduler "rail"))))
+               (lambda () (normalize-search-strategy
+                           (hasheq 'hoist "late" 'scheduler "rail"))))
     (check-exn exn:fail?
-               (lambda ()
-                 (normalize-search-strategy (search-strategy "zigzag")))))
+               (lambda () (normalize-search-strategy (search-strategy "zigzag")))))
 
-  (test-case "strategy registry covers every surfaced structured strategy"
-    (define-values (cfg0 _html) (parse-src/canonical (example-src "fives/fours")))
-    (for ([strategy (in-list all-surfaced-search-strategies)])
-      (match-define (strategy-spec spec-strategy _ in-domain? well-formed?)
-        (lookup-strategy-spec strategy))
-      (check-equal? spec-strategy
-                    strategy)
-      (check-equal? (in-domain? cfg0)
-                    (search-config-in-domain? strategy cfg0))
-      (check-equal? (well-formed? cfg0)
-                    (search-config-well-formed? strategy cfg0))))
+  (test-case "every frontend example enters the actual full matrix relation"
+    (define spec (lookup-strategy-spec default-search-strategy))
+    (for ([example (in-list (frontend-example-programs))])
+      (match-define (cons name source) example)
+      (define-values (configuration html query) (compile-source source))
+      (check-match configuration `(program ,_ (commit (eval (Owners) ,_ ,_))))
+      (check-true (query-info? query) name)
+      (check-true (search-config-in-domain? default-search-strategy configuration) name)
+      (check-true (search-config-well-formed? default-search-strategy configuration) name)
+      (check-equal? ((strategy-spec-step-once spec) configuration)
+                    (apply-reduction-relation/tag-with-names matrix:strict-s-rel-red configuration)
+                    name)))
 
-  (test-case "strategy lookup returns the same internal stepper as the registry"
-    (define-values (cfg0 _html) (parse-src/canonical (example-src "fives/fours")))
-    (for ([strategy (in-list all-surfaced-search-strategies)])
-      (match-define (strategy-spec _ step-once _ _) (lookup-strategy-spec strategy))
-      (check-equal? (step-once cfg0)
-                    ((lookup-search-step-once strategy) cfg0))))
+  (test-case "relation calls expand eagerly with no implicit suspension"
+    (define-values (initial html query)
+      (compile-source "(defrel (same x y) (== x y)) (run* (q) (same q 'cat))" "micro"))
+    (define step (lookup-search-step-once default-search-strategy))
+    (define (trace configuration [labels '()])
+      (match (step configuration)
+        ['()
+         (check-equal? (configuration-status configuration) 'complete)
+         (reverse labels)]
+        [(list (list name next)) (trace next (cons name labels))]))
+    (check-equal? (trace initial) '("allocate-fresh" "eval-call" "eval-atom" "commit-one")))
 
-  (test-case "right-active search is rail-only in the runtime domain"
-    (for ([strategy (in-list (list (search-strategy "dfs")
-                                   (search-strategy "flip")))])
-      (check-false (search-config-in-domain? strategy right-active-rail-cfg))
-      (check-exn exn:fail?
-                 (lambda ()
-                   (check-search-config strategy right-active-rail-cfg)))
-      (check-exn exn:fail?
-                 (lambda ()
-                   ((lookup-search-step-once strategy)
-                    right-active-rail-cfg))))
+  (test-case "paused Frontiers require an explicit public advance"
+    (define state '(state () () () (label "initial")))
+    (define paused `(program () (More (Delay (Owners) (eval (Owners) (succeed (label "A")) ,state)))))
+    (define step (lookup-search-step-once default-search-strategy))
+    (check-equal? (configuration-status paused) 'paused)
+    (check-equal? (step paused) '())
+    (define resumed (advance-configuration paused))
+    (check-equal? resumed `(program () (advance ,(third paused))))
+    (check-equal? (configuration-status resumed) 'running)
+    (check-match (step resumed) (list (list "advance-delay" _)))
+    (define unfinished `(program () (Emit (Owners) (Answer (Owners) ,state) (commit (Empty (Owners))))))
+    (check-equal? (configuration-status unfinished) 'running)
+    (check-exn exn:fail? (lambda () (advance-configuration unfinished)))
+    (for ([frontier (in-list `((Done (Owners)) (Last (Owners) (Answer (Owners) ,state))))])
+      (define completed `(program () ,frontier))
+      (check-equal? (configuration-status completed) 'complete)
+      (check-equal? (step completed) '())
+      (check-exn exn:fail? (lambda () (advance-configuration completed))))
+    (check-equal? (configuration-status '(program () (force (Empty (Owners))))) 'stuck))
 
-    (define rail (search-strategy "rail"))
-    (check-true (search-config-in-domain? rail right-active-rail-cfg))
-    (check-true (search-config-well-formed? rail right-active-rail-cfg))
-    (check-not-exn
-     (lambda ()
-       (check-search-config rail right-active-rail-cfg)))
-    (check-equal?
-     ((lookup-search-step-once rail) right-active-rail-cfg)
-     (list (list "commit-right-choice-answer"
-                 right-active-rail-next))))
-
-  (test-case "factored flip witness continues past expand-disjunction"
-    (define-values (cfg0 _html)
-      (parse-prog/canonical
-       (read-all-sexprs (open-input-string factored-continuation-micro-program))
-       #:source-mode "micro"))
-    (define names
-      (collect-step-names
-       (lookup-search-step-once (search-strategy "flip"))
-       cfg0
-       6))
-    (check-equal? (take names 5)
-                  '("allocate-fresh"
-                    "expand-conjunction"
-                    "expand-disjunction"
-                    "unify-success"
-                    "resume-left-choice-success"))))
+  (test-case "unguarded recursion remains available for bounded named stepping"
+    (define-values (initial html query)
+      (compile-source "(defrel (loopo q) (loopo q)) (run* (q) (loopo q))" "micro"))
+    (define step (lookup-search-step-once default-search-strategy))
+    (for/fold ([configuration initial]) ([index (in-range 24)])
+      (check-equal? (configuration-status configuration) 'running)
+      (check-true (search-config-well-formed? default-search-strategy configuration))
+      (match-define (list (list name next)) (step configuration))
+      (check-equal? name (if (zero? index) "allocate-fresh" "eval-call"))
+      next)))
 
 (module+ test
   (run-tests SEARCH-RUNTIME))

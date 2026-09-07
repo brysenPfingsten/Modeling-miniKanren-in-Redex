@@ -1,5 +1,7 @@
 #lang racket
 
+(require (only-in "../src/search-runtime.rkt" configuration-status))
+
 (provide final-config?
          tagged-successor-name
          tagged-successor-cfg
@@ -7,20 +9,8 @@
          overlap-kind
          overlap-event)
 
-(define (final-frontier? f)
-  (match f
-    [(list 'Done (list 'Owners (list 'Owner _ _) ...)) #t]
-    [(list 'Last (list 'Owners (list 'Owner _ _) ...) _) #t]
-    [(list 'Forced (list 'Owners (list 'Owner _ _) ...) inner)
-     (final-frontier? inner)]
-    [(list 'Emit (list 'Owners (list 'Owner _ _) ...) _ rest)
-     (final-frontier? rest)]
-    [_ #f]))
-
-(define (final-config? cfg)
-  (match cfg
-    [`(,(? list?) ,f) (final-frontier? f)]
-    [f (final-frontier? f)]))
+(define (final-config? configuration)
+  (eq? (configuration-status configuration) 'complete))
 
 (define (tagged-successor-name succ)
   (match succ
@@ -57,3 +47,17 @@
         'next-terms
         (for/list ([succ (in-list tagged-next*)])
           (canonical-term (tagged-successor-cfg succ)))))
+
+(module+ test
+  (require rackunit)
+  (test-case "complete observation is distinct from a halted delayed Frontier"
+    (define state '(state () () () (label "initial")))
+    (define paused `(More (Delay (Owners) (eval (Owners) (succeed (label "ready")) ,state))))
+    (for ([frontier (list '(Done (Owners))
+                         `(Last (Owners) (Answer (Owners) ,state)))])
+      (check-true (final-config? `(program () ,frontier)))
+      (check-true (final-config? `(() ,frontier))))
+    (check-false (final-config? `(program () ,paused)))
+    (check-false (final-config? `(program () (Forced (Owners) ,paused))))
+    (check-false (final-config? `(() (More (PendingDelay (Owners)
+                                          (Work (Owners) (succeed (label "ready")) ,state))))))))

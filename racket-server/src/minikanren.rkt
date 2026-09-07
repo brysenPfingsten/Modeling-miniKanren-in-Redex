@@ -17,7 +17,230 @@
          minikanren-eval-source!
          clear-minikanren-evaluator!
          (struct-out minikanren-evaluator)
+         run-source
+         run-forms
+         run-result-host-answers
+         run-source->answers
+         run-forms->answers
+         run-source->host-answers
+         run-forms->host-answers
+         run-source->answer-nodes
+         run-forms->answer-nodes
+         run-source->picture
+         run-forms->picture
+         (struct-out run-result)
          (all-from-out "program-runner.rkt"))
+
+(struct run-result (initial-config
+                    final-config
+                    step-count
+                    answer-nodes
+                    answers
+                    picture)
+  #:transparent)
+
+(define default-step-cap 2048)
+
+;; Automatic consumption belongs to this adapter. Session stepping remains
+;; independent of answer limits and retains the actual matrix configuration.
+(define (run-result-host-answers result)
+  (for/list ([answer-node (in-list (run-result-answer-nodes result))])
+    (answer-json->host-value (hash-ref answer-node 'reified '()))))
+
+(define (normalize-answer-limit answer-limit)
+  (cond
+    [(false? answer-limit) #f]
+    [(exact-nonnegative-integer? answer-limit) answer-limit]
+    [else
+     (error 'run-source
+            "answer-limit must be #f or an exact nonnegative integer, got ~e"
+            answer-limit)]))
+
+(define (answer-limit-reached? session answer-limit)
+  (match answer-limit
+    [#f #f]
+    [0 #t]
+    [limit
+     ;; Finish the eager round and its whole commitment before counting.
+     ;; In particular Emit(A, commit(S)) is still running. Stop at More(Delay)
+     ;; before another public advance; terminal Frontiers stop below as well.
+     (and (eq? (model-session-status session) 'paused)
+          (>= (length (model-session-current-answer-nodes session)) limit))]))
+
+(define (run-until-limit session step-cap answer-limit [steps 0])
+  (cond
+    [(answer-limit-reached? session answer-limit)
+     (values session steps)]
+    [(model-session-done? session)
+     (values session steps)]
+    [(>= steps step-cap)
+     (error 'run-source
+            "step cap ~a reached before completion under search strategy ~e"
+            step-cap
+            (search-strategy->jsexpr
+             (model-session-search-strategy session)))]
+    [else
+     (run-until-limit (model-session-step session)
+                      step-cap
+                      answer-limit
+                      (add1 steps))]))
+
+(define (run-session initial-session step-cap answer-limit)
+  (unless (exact-positive-integer? step-cap)
+    (error 'run-source
+           "step-cap must be an exact positive integer, got ~e"
+           step-cap))
+  (define answer-limit* (normalize-answer-limit answer-limit))
+  (define initial-config (model-session-current-config initial-session))
+  (define-values (session step-count)
+    (run-until-limit initial-session step-cap answer-limit*))
+  (define available (model-session-current-answer-nodes session))
+  (define answer-nodes
+    (if answer-limit* (take available (min answer-limit* (length available))) available))
+  ;; Return the requested prefix while retaining the whole completed Frontier
+  ;; in the saved configuration and picture, including surplus answers.
+  (run-result initial-config
+              (model-session-current-config session)
+              step-count
+              answer-nodes
+              (map (lambda (answer) (hash-ref answer 'reified '())) answer-nodes)
+              (model-session-current-picture session)))
+
+(define (run-source raw-prog
+                    #:source-mode [source-mode default-source-mode]
+                    #:compile-profile [compile-profile #f]
+                    #:search-strategy [strategy default-search-strategy]
+                    #:answer-limit [answer-limit #f]
+                    #:step-cap [step-cap default-step-cap])
+  (run-session (open-source raw-prog
+                            #:source-mode source-mode
+                            #:compile-profile compile-profile
+                            #:search-strategy strategy)
+               step-cap answer-limit))
+
+(define (run-forms forms
+                   #:source-mode [source-mode default-source-mode]
+                   #:compile-profile [compile-profile #f]
+                   #:search-strategy [strategy default-search-strategy]
+                   #:answer-limit [answer-limit #f]
+                   #:step-cap [step-cap default-step-cap])
+  (run-session (open-forms forms
+                           #:source-mode source-mode
+                           #:compile-profile compile-profile
+                           #:search-strategy strategy)
+               step-cap answer-limit))
+
+(define (run-source->answers raw-prog
+                             #:source-mode [source-mode default-source-mode]
+                             #:compile-profile [compile-profile #f]
+                             #:search-strategy [strategy default-search-strategy]
+                             #:answer-limit [answer-limit #f]
+                             #:step-cap [step-cap default-step-cap])
+  (run-result-answers
+   (run-source raw-prog
+               #:source-mode source-mode
+               #:compile-profile compile-profile
+               #:search-strategy strategy
+               #:answer-limit answer-limit
+               #:step-cap step-cap)))
+
+(define (run-forms->answers forms
+                            #:source-mode [source-mode default-source-mode]
+                            #:compile-profile [compile-profile #f]
+                            #:search-strategy [strategy default-search-strategy]
+                            #:answer-limit [answer-limit #f]
+                            #:step-cap [step-cap default-step-cap])
+  (run-result-answers
+   (run-forms forms
+              #:source-mode source-mode
+              #:compile-profile compile-profile
+              #:search-strategy strategy
+              #:answer-limit answer-limit
+              #:step-cap step-cap)))
+
+(define (run-source->host-answers raw-prog
+                                  #:source-mode [source-mode default-source-mode]
+                                  #:compile-profile [compile-profile #f]
+                                  #:search-strategy [strategy default-search-strategy]
+                                  #:answer-limit [answer-limit #f]
+                                  #:step-cap [step-cap default-step-cap])
+  (run-result-host-answers
+   (run-source raw-prog
+               #:source-mode source-mode
+               #:compile-profile compile-profile
+               #:search-strategy strategy
+               #:answer-limit answer-limit
+               #:step-cap step-cap)))
+
+(define (run-forms->host-answers forms
+                                 #:source-mode [source-mode default-source-mode]
+                                 #:compile-profile [compile-profile #f]
+                                 #:search-strategy [strategy default-search-strategy]
+                                 #:answer-limit [answer-limit #f]
+                                 #:step-cap [step-cap default-step-cap])
+  (run-result-host-answers
+   (run-forms forms
+              #:source-mode source-mode
+              #:compile-profile compile-profile
+              #:search-strategy strategy
+              #:answer-limit answer-limit
+              #:step-cap step-cap)))
+
+(define (run-source->answer-nodes raw-prog
+                                  #:source-mode [source-mode default-source-mode]
+                                  #:compile-profile [compile-profile #f]
+                                  #:search-strategy [strategy default-search-strategy]
+                                  #:answer-limit [answer-limit #f]
+                                  #:step-cap [step-cap default-step-cap])
+  (run-result-answer-nodes
+   (run-source raw-prog
+               #:source-mode source-mode
+               #:compile-profile compile-profile
+               #:search-strategy strategy
+               #:answer-limit answer-limit
+               #:step-cap step-cap)))
+
+(define (run-forms->answer-nodes forms
+                                 #:source-mode [source-mode default-source-mode]
+                                 #:compile-profile [compile-profile #f]
+                                 #:search-strategy [strategy default-search-strategy]
+                                 #:answer-limit [answer-limit #f]
+                                 #:step-cap [step-cap default-step-cap])
+  (run-result-answer-nodes
+   (run-forms forms
+              #:source-mode source-mode
+              #:compile-profile compile-profile
+              #:search-strategy strategy
+              #:answer-limit answer-limit
+              #:step-cap step-cap)))
+
+(define (run-source->picture raw-prog
+                             #:source-mode [source-mode default-source-mode]
+                             #:compile-profile [compile-profile #f]
+                             #:search-strategy [strategy default-search-strategy]
+                             #:answer-limit [answer-limit #f]
+                             #:step-cap [step-cap default-step-cap])
+  (run-result-picture
+   (run-source raw-prog
+               #:source-mode source-mode
+               #:compile-profile compile-profile
+               #:search-strategy strategy
+               #:answer-limit answer-limit
+               #:step-cap step-cap)))
+
+(define (run-forms->picture forms
+                            #:source-mode [source-mode default-source-mode]
+                            #:compile-profile [compile-profile #f]
+                            #:search-strategy [strategy default-search-strategy]
+                            #:answer-limit [answer-limit #f]
+                            #:step-cap [step-cap default-step-cap])
+  (run-result-picture
+   (run-forms forms
+              #:source-mode source-mode
+              #:compile-profile compile-profile
+              #:search-strategy strategy
+              #:answer-limit answer-limit
+              #:step-cap step-cap)))
 
 (struct minikanren-evaluator (definitions search-strategy compile-profile)
   #:mutable

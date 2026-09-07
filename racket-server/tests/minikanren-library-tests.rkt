@@ -17,7 +17,7 @@
     (run* (q)
       (same q 'cat)))
 
-  (define wrapper-flip-session
+  (define (wrapper-flip-session)
     (parameterize ([current-minikanren-search-strategy
                     (search-strategy "flip")])
       (run* (q)
@@ -38,7 +38,7 @@
                   '(cat)))
 
   (test-case "wrapper respects the current search-strategy parameter"
-    (check-equal? wrapper-flip-session
+    (check-equal? (wrapper-flip-session)
                   '(dog)))
 
   (test-case "run stops after the requested number of answers"

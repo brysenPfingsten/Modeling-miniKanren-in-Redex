@@ -1,91 +1,147 @@
 # Test lanes
 
-The lanes cover source semantics, compiler/runtime composition, app
-serialization, frontend behavior, and interpreter-rooted derivations.
-Production Racket commands below use an isolated package home and compiled
-root; the strict derivation gate runs in the installed repository environment.
-
-## Lane A: comprehensive headless production tests
+Run commands from the repository root, using the installed Racket dependencies.
+An isolated compiled root avoids mixing cached artifacts from concurrent edits:
 
 ```sh
-PLTUSERHOME=/tmp/decorated-lattice-plt \
-PLTCOMPILEDROOTS=/tmp/decorated-lattice-compiled \
-  raco test racket-server/tests/test-all-headless.rkt
+export PLTCOMPILEDROOTS=/private/tmp/full-strict-checks:
 ```
 
-Lane A imports one semantic aggregate from
-`racket-server/tests/search-lattice/all.rkt`. That aggregate mirrors the
-architecture:
+The trailing colon retains the normal compiled-root fallback. The aggregate
+status below records the integration run on 2026-09-07; rerun the affected
+gates after subsequent changes.
 
-- node suites for core, delay, disjunction, and search;
-- edge suites for the four claimed conservative feature embeddings;
-- a search-join suite proving that the semilattice join is exactly the inherited
-  delay/disjunction union, with one shared core copy and no new carrier syntax
-  or rules;
-- compositional focus-grammar evidence;
-- DFS, flip, and rail scheduler-fiber suites, including rail's right-active
-  carrier closure and fiber-specific progress;
-- the delayed-rooted relcall overlay;
-- crosscutting determinism, raw-proof uniqueness, WF preservation, structural
-  ownership, whole-frontier allocation, and frontier-observation laws; and
-- the isolated distributed presentation.
-
-The same headless lane separately imports compiler, runtime, program-runner,
-HTTP-independent API, renderer-contract, example, and library integration
-suites. `APP` and `ui-payload-smoke.rkt` are not part of Lane A.
-
-Run the complete semantic subtree without the integration suites with:
+## Strict source, derivations and representation matrix
 
 ```sh
-PLTUSERHOME=/tmp/decorated-lattice-plt \
-PLTCOMPILEDROOTS=/tmp/decorated-lattice-compiled \
-  raco test racket-server/tests/search-lattice/all.rkt
+racket -y -l raco -- test racket-server/derivations/strict-search/all.rkt
 ```
 
-Representative focused semantic gates are:
+This aggregate includes the selected retained-scope S derivation, the native
+S/E/N matrix, full relation-program checks, generated-artifact freshness, and
+constructor/dependency contracts. It also retains a strict/online work-order
+witness. That witness is not an application
+runtime adequacy check.
+
+Focused gates:
 
 ```sh
-PLTUSERHOME=/tmp/decorated-lattice-plt \
-  raco test racket-server/tests/search-lattice/nodes/core-tests.rkt
-PLTUSERHOME=/tmp/decorated-lattice-plt \
-  raco test racket-server/tests/search-lattice/edges/core-delay-tests.rkt
-PLTUSERHOME=/tmp/decorated-lattice-plt \
-  raco test racket-server/tests/search-lattice/join/search-join-tests.rkt
-PLTUSERHOME=/tmp/decorated-lattice-plt \
-  raco test racket-server/tests/search-lattice/grammar/frame-grammar-tests.rkt
-PLTUSERHOME=/tmp/decorated-lattice-plt \
-  raco test racket-server/tests/search-lattice/fibers/scheduler-progress-tests.rkt
-PLTUSERHOME=/tmp/decorated-lattice-plt \
-  raco test racket-server/tests/search-lattice/overlays/relcall-overlay-tests.rkt
-PLTUSERHOME=/tmp/decorated-lattice-plt \
-  raco test racket-server/tests/search-lattice/laws/determinism-tests.rkt
-PLTUSERHOME=/tmp/decorated-lattice-plt \
-  raco test racket-server/tests/search-lattice/laws/wf-preservation-tests.rkt
-PLTUSERHOME=/tmp/decorated-lattice-plt \
-  raco test racket-server/tests/search-lattice/experiments/distributed-tests.rkt
+racket -y -l raco -- test racket-server/derivations/strict-search/retained-scope/all.rkt
+racket -y -l raco -- test racket-server/derivations/strict-search/matrix/all.rkt
+racket -y -l raco -- test racket-server/derivations/strict-search/matrix/retained-scope-tests.rkt
+racket -y -l raco -- test racket-server/derivations/strict-search/matrix/full-tests.rkt
+racket -y -l raco -- test racket-server/derivations/strict-search/retained-scope/relation-tests.rkt
+racket -y -l raco -- test racket-server/derivations/strict-search/matrix/big/full-tests.rkt
 ```
 
-The manual fresh-scope trace witness remains a focused compiler-to-runtime
-module:
+| Gate | What it checks |
+| --- | --- |
+| Retained scope | Direct/CPS/data machines, functional-to-syntactic configuration maps, register decoders, and prescribed compression spans |
+| Matrix aggregate | Twelve call-free S/E/N feature cells through R/D/Z/M/B/Big, direct representation maps, generated goals, exact work and allocation scope |
+| Retained-scope checkpoint | Independently stated selected/matrix S sources and stages, and the selected functional machine mapped to actual native S/E/N transitions |
+| Full source | Three additional relation cells, explicit `(program Γ q)`, native stage/configuration maps, calls, recursion and public boundaries |
+| Functional relation extension | Explicit Γ captures and program frames through direct/CPS/data/register/compressed stages; exact connection to native full-language machines |
+| Full Big | Independent finite judgments, fixed-point results, source-label traces and direct certificate maps with Γ in recursive premises |
+
+These checks compare configurations and intermediate Frontiers, not just final
+answers. Witnesses cover strict sibling work, eager bind, nested rails,
+internal versus public forcing, fresh across Delay, unused introductions,
+sparse ancestry and lexical shadowing. Productive recursion is checked only
+for bounded prefixes; deliberately unguarded calls must not invent a Delay
+or commit a pending candidate.
+
+The [research inventory](../derivations/strict-search/README.md) gives generator
+commands and proof obligations. Universal correspondence, domain preservation,
+productive streams and further `κ / Q / π` compression remain open. No separate
+E/N functional interpreter or register derivation is implied by the matrix.
+
+## Compiler, manual session and application payloads
 
 ```sh
-PLTUSERHOME=/tmp/decorated-lattice-plt \
-  raco test racket-server/tests/redex-fresh-scope-witness.rkt
+racket -y -l raco -- test racket-server/tests/test-transpiler.rkt racket-server/tests/example-compat-tests.rkt
+racket -y -l raco -- test racket-server/tests/search-runtime-tests.rkt racket-server/tests/model-example-matrix-tests.rkt
+racket -y -l raco -- test racket-server/tests/scheduler-integration-tests.rkt racket-server/tests/search-lattice/all.rkt
+racket -y -l raco -- test racket-server/tests/test-app.rkt racket-server/tests/visible-contract-tests.rkt racket-server/tests/search-picture-tests.rkt
+racket -y -l raco -- test racket-server/tests/frontier-example-tests.rkt racket-server/tests/confidence-gates-tests.rkt racket-server/tests/runtime-test-support.rkt
+racket -y racket-server/tests/ui-payload-smoke.rkt
 ```
 
-## Lane B: app/API and serialized renderer
+`example-compat-tests` consumes every frontend example and checks both mini and
+rendered micro against the full strict grammar, WF and explicit query metadata.
+`model-example-matrix-tests` checks all twelve **compiler profiles** on a finite
+relation program: 2 conjunction associations × 2 disjunction associations ×
+3 delay placements. These are not the matrix's twelve representation/feature
+cells. The strict-view sessions must follow the exact named S source edges,
+including explicit public advancement, and agree with rendered micro.
+
+The compiler's source-attribution cases check occurrence IDs and emitted spans
+across all twelve profiles, including nested `conde`, reassociated conjunction,
+repeated identical calls, shadowing, allocation, and explicit versus inserted
+Delay. Runtime copies of a definition retain its source identity. The 2026-09-07
+repair also compared 168 compiled configurations with their saved pre-change
+targets, equal after erasing labels; seven compiler/display/JavaScript-parser
+round trips checked literal escaping. These checks concern source attribution,
+not a new semantic transformation.
+
+The application gates distinguish paused More from completed Done/Last,
+Search candidates from committed answers, and strict internal force from public
+advance. Native lattice sessions retain `(Γ F)` configurations and mark the
+source's exposed `force-delay` reduction as a public operation. The current
+picture projection reads either carrier directly. The gates check source/state highlighting, exact common/private scope,
+back/replay/reset, bounded responsiveness, and the absence of extra kernel work
+during status inspection or rendering. The visible-contract entry point remains
+part of `scripts/run_ui_smoke.sh`. The payload smoke prints actual full program
+configurations, operation labels, statuses and committed counts.
+
+Manual sessions in `src/program-runner.rkt` and the GUI do not enforce a source
+`run n` limit. Their status describes the computation. Automatic consumption
+is tested separately below. The GUI defaults to Lattice search/Railroad and
+retains No Interleave and Flip-Flop; its separate Strict Search view sends
+`{ "model": "strict" }`. API/library calls default to `(strict-search)`.
+An explicit `search-strategy` with scheduler `"dfs"`, `"flip"`, or `"rail"`
+instead selects native lattice execution. Compiler profiles and source occurrence IDs are
+shared; initial wrappers and subsequent configurations remain source-specific.
+Neither application routing nor common rendering establishes correspondence
+between those sources.
+The native lattice aggregate passed **111 cases**. The scheduler integration
+suite passed **4 cases**, covering 36 profile/scheduler traces, 15 scope
+witnesses, 4 policy witnesses, and 3 pending-bind witnesses.
+
+## Automatic consumer and miniKanren library
 
 ```sh
-PLTUSERHOME=/tmp/decorated-lattice-plt \
-  raco test racket-server/tests/test-app.rkt
-PLTUSERHOME=/tmp/decorated-lattice-plt \
-  racket racket-server/tests/ui-payload-smoke.rkt
+racket -y -l raco -- test racket-server/tests/program-runner-tests.rkt racket-server/tests/minikanren-library-tests.rkt
 ```
 
-`test-all.rkt` remains the GUI RackUnit runner and is not a headless CI entry
-point.
+The automatic `run-source`/`run-forms` driver belongs to `src/minikanren.rkt`,
+alongside run/run* and evaluator/module APIs. Limit handling stops at the first
+exposed Delay with enough answers, or at completion. For Strict Search this
+must finish the current eager round and commitment. All three lattice schedulers
+also check that an unguarded residual after a committed answer still exhausts
+the step cap if it cannot reach the next Delay.
+Returned answers can be a requested prefix while the saved configuration and
+picture retain surplus committed answers. Tests also cover zero limits, finite
+completion, step caps, source modes and host-value reification.
 
-## Lane C: frontend
+## Alternative distributed-source experiment
+
+```sh
+racket -y -l raco -- test racket-server/derivations/distributed-search/tests.rkt
+```
+
+[distributed-search/](../derivations/distributed-search/README.md) sits beside
+`strict-search/` and keeps an older online source that distributes conjunction
+over choice before machine derivation. Nested rails expose an observable
+answer-order difference from the factored source. Its experiment-only raw
+seam is local to `reduction-relations/factored-search-base.rkt`.
+
+The older `tests/search-lattice/all.rkt` still references this dedicated suite
+at its new path, preserving an existing gate. Relocation does not add a strict
+correspondence, GUI selector, matrix cell, or A7/A9 machine integration.
+The alternative and its semantic assessment remain separate from the strict
+application gates above.
+
+## Frontend and aggregate status
 
 ```sh
 npm --prefix frontend test
@@ -93,100 +149,32 @@ npm --prefix frontend run lint
 npm --prefix frontend run build
 ```
 
-The frontend contract sends `searchStrategy = { scheduler }` and exposes only
-DFS, flip, and rail.
+Frontend tests cover runtime-family requests, the three lattice schedulers,
+remembered settings, frozen controls, profile requests, source mapping, state
+inspection, and both families' visible-node contract. The latest completed
+frontend run after fixing initialization-time control freezing passed **56 tests**;
+the build passed and lint reported zero errors with three unchanged hook warnings.
+Selector behavior does not establish an interpreter correspondence.
 
-## Lane D: compiler/runtime configuration matrix
-
-```sh
-PLTUSERHOME=/tmp/decorated-lattice-plt \
-  raco test racket-server/tests/model-example-matrix-tests.rkt
-```
-
-For one bounded representative miniKanren program, this lane crosses two
-conjunction associations, two disjunction associations, three delay placements,
-and three schedulers. Its 36 cells exercise compilation, scheduler-domain and
-WF checks, model-backed initialization, named stepping, and terminal
-observations. The same suite retains direct and API-flow coverage over the
-frontend example corpus.
-
-## Lane E: strict interpreter derivation and representation matrix
+`tests/test-all-headless.rkt` now aggregates the maintained compiler, library,
+session, API, rendering and payload suites, together with the strict research
+aggregate, all 111 native lattice source cases, scheduler integration, and
+runtime/dependency checks. Native source tests do not count as an interpreter
+correspondence proof. The current headless entry point is:
 
 ```sh
-raco test racket-server/derivations/strict-search/all.rkt
+racket -y -l raco -- test racket-server/tests/test-all-headless.rkt
 ```
 
-The selected account is retained scope. This aggregate includes its
-source/interpreter correspondence, configuration-level machine and register
-checks, and prescribed compression spans, including intermediate Frontiers,
-actual work order, and allocation scope. Run it alone with
-`raco test racket-server/derivations/strict-search/retained-scope/all.rkt`.
-The aggregate also checks the shared-module dependency boundary.
-Constructor checks enforce active `Yield`, unfinished Frontier `More`, and
-distinct terminal `Done`/`Last` forms.
+The final headless run passed **3,502 tests**. Its HEADLESS suite passed all
+**205 cases**, with zero failures or errors, including the unchanged Flip
+wrapper expectation. The 3,262 strict derivation checks are included in that
+total, not additive. HEADLESS raises on nonzero failures rather than silently
+succeeding. The final live GUI checks also verified all four runtime selections,
+exact Back/Step replay, and frozen controls during a delayed initialization
+response; see the [application trace](../../docs/semantics-ladder.md#evidence-and-remaining-work).
 
-The native representation matrix has S/E/N cells for Core, Delay, Disjunction,
-and Search/rail, with direct intermediate representation maps, feature
-inclusions, native data kernel outcomes, exact compression spans, and finite
-Big proof certificates. Run it with
-`raco test racket-server/derivations/strict-search/matrix/all.rkt`.
-These matrix cells use retained scope: S force puts Owners on the active
-body, while E/N force enters the body directly with state-local supply.
-There is no source prefix phase or derived prefix frame. The
-[checkpoint gate](../derivations/strict-search/matrix/retained-scope-tests.rkt)
-checks the independently stated S sources/stages and connects the selected
-functional machine to actually stepped native S/E/N M configurations through
-prescribed source and administrative spans. It does not derive separate E/N
-functional interpreters or register programs. Exact native S/E/N work-order checks cover empty and
-sparse supply, lexical fresh, shadowing, nested rail, and eager bind.
-
-One current strict-versus-online witness preserves the application policy
-boundary. The retired numeric, explicit-prefix functional, and denotational
-pipelines are no longer test requirements. Their host-recursion and
-machine-specific Big results are not included in this gate. The
-[research inventory](../derivations/strict-search/README.md) records maintained
-commands and the [correction log](../derivations/strict-search/CORRECTIONS.md)
-records transferred evidence and deferred results. This finite gate does not
-establish universal correspondence, guarded fusion, or productive streams.
-
-## Production contract boundaries
-
-These boundaries describe the dormant-right / online production family.
-Strict Search/rail has an explicit `mplus-delay` interaction beyond its child
-rule inventories; its distinct contract is documented by Lane E.
-
-- Delay and disjunction are additive feature extensions. Search is exactly
-  their semilattice join: the literal language/relation union with one shared
-  core copy and no join-owned syntax or rules.
-- Production relation dependencies follow the same immediate-predecessor
-  arrows: search combines assembled disjunction with the delay delta, rail
-  lifts assembled search plus its local delta, and rail-relcall lifts assembled
-  search-relcall plus that delta under `Γ`. The retained raw join seam is
-  distributed-experiment support only.
-- Source edge suites prove the stated embeddings and conservativity. They are
-  not naturality tests.
-- Relcall is an overlay rooted in the delayed language independently of search;
-  search-relcall is their union, and rail-relcall is the union of relcall with
-  rail. Relcall is not a core-rooted feature node.
-- DFS, flip, and rail are scheduler fibers, not feature extensions. Rail alone
-  extends its execution carrier with `DisjR`, six right-active closure rules,
-  and two scheduling transitions.
-- The production source is factored. The distributed presentation is an
-  isolated executable experiment, not a runtime strategy.
-- The distributed experiment deliberately retains `DisjR` and right-active
-  normalization/closure on its common search carrier; distributed rail adds
-  only scheduling. This does not widen production search, DFS, or flip.
-- Each scheduler is checked against its matching grammar and WF judgment. DFS
-  and flip use ordinary search/search-relcall, which exclude `DisjR`; rail uses
-  rail/rail-relcall.
-- `parse-prog/canonical` emits production `(Γ F)` directly; there is no
-  mixed-work target or lowering module.
-- WF is expressed by direct Redex judgments over inherited visibility and
-  explicitly tagged `(Owners ...)` stacks. Allocated-name support is derived
-  from the whole live frontier rather than stored. Owner, answer, and force
-  counts are independent observations, not carrier fields.
-- Only the phase-neutral labels documented in `PICTURE-DESIGN-NOTES.md` may
-  leave the visible tree unchanged.
-
-Current pass counts belong in the checkpoint handoff, where they can be tied to
-an exact HEAD. This document intentionally does not preserve stale counts.
+`tests/test-all.rkt` is the GUI RackUnit runner, not the headless CI entry point.
+Lattice operational suites are not substitutes for the strict source
+and relation-stage checks. See the [policy boundary](../../docs/semantic-policy-matrix.md)
+and [correction log](../derivations/strict-search/CORRECTIONS.md).

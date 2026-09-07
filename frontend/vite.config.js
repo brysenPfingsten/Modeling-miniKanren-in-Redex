@@ -1,9 +1,9 @@
-// vite.config.js
+import { env } from 'node:process';
 export default {
   server: {
     proxy: {
       '/api': {
-        target: 'http://racket-server:5000',
+        target: env.VITE_API_URL || 'http://racket-server:5000',
         changeOrigin: true,
         rewrite: path => path.replace(/^\/api/, '')
       }

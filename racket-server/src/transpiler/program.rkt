@@ -31,13 +31,13 @@
     (split-program-forms lst))
   (case (string->symbol source-mode*)
     [(mini)
-     (define-values (normalized-ast display-ast)
+     (define-values (normalized-ast display-ast ids)
        (prepare-mini-program defrels run-expr compile-profile*))
-     (values normalized-ast display-ast compile-profile*)]
+     (values normalized-ast display-ast compile-profile* ids)]
     [(micro)
-     (define-values (normalized-ast display-ast)
+     (define-values (normalized-ast display-ast ids)
        (prepare-micro-program defrels run-expr))
-     (values normalized-ast display-ast compile-profile*)]
+     (values normalized-ast display-ast compile-profile* ids)]
     [else
      (error 'prepare-program
             "unsupported source mode ~e"
@@ -46,7 +46,7 @@
 (define (parse-prog->ast lst
                          #:source-mode [source-mode default-source-mode]
                          #:compile-profile [compile-profile #f])
-  (define-values (normalized-ast _display-ast _profile)
+  (define-values (normalized-ast _display-ast _profile _ids)
     (prepare-program lst source-mode compile-profile))
   normalized-ast)
 

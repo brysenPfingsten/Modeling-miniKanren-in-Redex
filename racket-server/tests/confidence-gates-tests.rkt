@@ -1,164 +1,79 @@
 #lang racket
 
-(require json
-         rackunit
-         rackunit/text-ui
-         web-server/http/response-structs
-         "../src/app.rkt"
-         "../src/search-runtime.rkt"
-         "../src/search-strategy.rkt"
-         "../src/sexpr-read.rkt"
-         "../src/transpiler.rkt"
-         "../src/zipper.rkt"
-         "./example-compat-tests.rkt"
-         "./runtime-test-support.rkt"
-         "./test-http-helpers.rkt")
+(require json rackunit rackunit/text-ui web-server/http/response-structs
+         "../src/app.rkt" "../src/program-runner.rkt" "../src/search-runtime.rkt"
+         "./example-compat-tests.rkt" "./test-http-helpers.rkt")
 
 (provide CONFIDENCE-GATES)
 
-(define TRACE-STEP-CAP 30)
-(define PAYLOAD-STEP-CAP 25)
+(define (example-source label)
+  (match (assoc label (frontend-example-programs))
+    [(cons _ source) source]
+    [_ (error 'example-source "missing frontend example: ~a" label)]))
 
-(define (example-src label)
-  (for/first ([pr (in-list (frontend-example-programs))]
-              #:do [(match-define (cons example-label src) pr)]
-              #:when (equal? example-label label))
-    src))
+(define (profile delay)
+  (hasheq 'conjAssoc "left" 'disjAssoc "right" 'delayPlacement delay))
 
-(define (example-cfg label [compile-profile #f])
-  (define src (example-src label))
-  (unless src
-    (error 'example-cfg (format "missing example label: ~a" label)))
-  (define-values (cfg _html)
-    (parse-prog/canonical (read-all-sexprs (open-input-string src))
-                          #:compile-profile compile-profile))
-  cfg)
-
-(define/match (strategy-label strategy)
-  [((search-strategy scheduler)) scheduler])
-
-(define (trace-steps strategy
-                     label
-                     [compile-profile #f]
-                     [cfg (example-cfg label compile-profile)]
-                     [step-once (lookup-search-step-once strategy)]
-                     [i 0]
-                     [acc '()])
-  (define next* (step-once cfg))
-  (match next*
-    ['()
-     (values (reverse acc) (if (final-config? cfg) 'value 'stuck) cfg)]
-    [(list _ ...) #:when (>= i TRACE-STEP-CAP)
-     (values (reverse acc) 'cap cfg)]
-    [(list (list nm cfg1) _ ...)
-     (trace-steps strategy
-                  label
-                  compile-profile
-                  cfg1
-                  step-once
-                  (add1 i)
-                  (cons nm acc))]))
-
-(define (named-step? nm)
-  (and (string? nm)
-       (> (string-length (string-trim nm)) 0)))
-
-(define (length+last steps)
-  (for/fold ([count 0]
-             [last-step "<none>"])
-            ([nm (in-list steps)])
-    (values (add1 count) nm)))
-
-(define (count-non-null-step-payloads strategy label ses [i 0] [seen 0])
+(define (trace session remaining [reversed '()])
+  (check-not-equal? (model-session-status session) 'stuck)
+  (define accumulated (cons session reversed))
   (cond
-    [(>= i PAYLOAD-STEP-CAP) seen]
-    [else
-     (define-values (step-resp next-session) (step! ses))
-     (define body (response-body->string step-resp))
-     (cond
-       [(string=? body "null")
-        (count-non-null-step-payloads strategy
-                                      label
-                                      next-session
-                                      (add1 i)
-                                      seen)]
-       [else
-        (assert-step-payload-shape (string->jsexpr body)
-                                   (format "~a / ~a step ~a"
-                                           (strategy-label strategy)
-                                           label
-                                           i))
-        (count-non-null-step-payloads strategy
-                                      label
-                                      next-session
-                                      (add1 i)
-                                      (add1 seen))])]))
+    [(or (zero? remaining) (model-session-done? session)) (reverse accumulated)]
+    [else (trace (model-session-step session) (sub1 remaining) accumulated)]))
 
-(define REPRESENTATIVE-TRACES
-  (list
-   (list (search-strategy "rail")
-         "fives/fours"
-         #f
-         "rail-enter-right")
-   (list (search-strategy "flip")
-         "fives/fours"
-         #f
-         "flip-delay-left")
-   (list (search-strategy "dfs")
-         "same"
-         (hasheq 'conjAssoc "left"
-                 'disjAssoc "right"
-                 'delayPlacement "relcall")
-         "expand-relcall")))
+(define (check-payload response session context)
+  (check-equal? (response-code response) 200 context)
+  (define payload (string->jsexpr (response-body->string response)))
+  (assert-step-payload-shape payload context)
+  (check-equal? (hash-ref payload 'executionStatus) (symbol->string (model-session-status session)) context)
+  (check-equal? (hash-ref payload 'stepKind) (symbol->string (model-session-current-step-kind session)) context)
+  (check-equal? (hash-ref payload 'answerCount) (length (model-session-current-answer-nodes session)) context)
+  (check-equal? (string->jsexpr (hash-ref payload 'program)) (model-session-current-picture session) context))
+
+(define (check-payload-trace response session remaining context)
+  (check-payload response session context)
+  (unless (or (zero? remaining) (model-session-done? session))
+    (define-values (next-response next) (step! session))
+    (check-payload-trace next-response next (sub1 remaining) context)))
 
 (define/provide-test-suite CONFIDENCE-GATES
-  (test-case "representative structured strategies stay live and produce named search-lattice rules"
-    (for ([entry (in-list REPRESENTATIVE-TRACES)])
-      (match-define (list strategy label compile-profile required-step) entry)
-      (define-values (steps status final-cfg) (trace-steps strategy label compile-profile))
-      (define-values (step-count last-step) (length+last steps))
-      (check-true (or (eq? status 'value) (eq? status 'cap))
-                  (format "~a / ~a unexpectedly ~a (steps=~a last=~a cfg=~s)"
-                          (strategy-label strategy)
-                          label
-                          status
-                          step-count
-                          last-step
-                          final-cfg))
-      (for ([nm (in-list steps)]
-            [idx (in-naturals 1)])
-        (check-true (named-step? nm)
-                    (format "~a / ~a has unnamed step at position ~a: ~v"
-                            (strategy-label strategy) label idx nm)))
-      (check-not-false (member required-step steps)
-                       (format "~a / ~a missing representative step ~a"
-                               (strategy-label strategy)
-                               label
-                               required-step))))
+  (test-case "representative compiler delay placements execute named full-matrix source operations"
+    (for ([delay '("relbody" "relcall" "disj")])
+      (define sessions (trace (open-source (example-source "same") #:compile-profile (profile delay)) 80))
+      (define labels (map model-session-current-step-name (rest sessions)))
+      (check-not-false (member "eval-call" labels) delay)
+      (check-not-false (member "eval-suspend" labels) delay)
+      (check-not-false (member "advance-delay" labels) delay)
+      (for ([before (in-list sessions)] [after (in-list (rest sessions))])
+        (define label (model-session-current-step-name after))
+        (define before-config (model-session-current-config before))
+        (define after-config (model-session-current-config after))
+        (check-true (and (string? label) (not (string=? (string-trim label) ""))))
+        (match (model-session-current-step-kind after)
+          ['public-operation
+           (check-equal? label "advance")
+           (check-equal? (configuration-status before-config) 'paused)
+           (check-equal? after-config (advance-configuration before-config))]
+          ['reduction
+           (check-equal? ((lookup-search-step-once default-search-strategy) before-config)
+                         (list (list label after-config)))]))))
 
-  (test-case "init/step payloads satisfy UI contract for structured search strategies"
-    (define pairs
-      (list (list (search-strategy "rail") "appendoh 1")
-            (list (search-strategy "flip") "fives/fours")
-            (list (search-strategy "dfs") "same")))
-    (for ([pr (in-list pairs)])
-      (match-define (list strategy label) pr)
-      (define src (example-src label))
-      (define ses (make-empty-session))
-      (define-values (init-resp ses^) (init! ses (make-post-init-request src #:strategy strategy) 'shape-id))
-      (check-equal? (response-code init-resp) 200
-                    (format "init failed for ~a / ~a" (strategy-label strategy) label))
-      (check-equal? (session-search-strategy ses^) strategy
-                    (format "session strategy binding drifted for ~a / ~a"
-                            (strategy-label strategy)
-                            label))
-      (assert-step-payload-shape (string->jsexpr (response-body->string init-resp))
-                                 (format "~a / ~a init" (strategy-label strategy) label))
-      (define seen (count-non-null-step-payloads strategy label ses^))
-      (check-true (> seen 0)
-                  (format "~a / ~a produced no non-null steps"
-                          (strategy-label strategy)
-                          label)))))
+  (test-case "recursive examples remain responsive through a bounded manual trace"
+    (for ([label '("fives/fours" "appendoh 1")])
+      (define sessions (trace (open-source (example-source label)) 30))
+      (check-true (> (length sessions) 1) label)
+      (check-not-false (member "eval-call" (map model-session-current-step-name sessions)) label)))
 
-(module+ test
-  (run-tests CONFIDENCE-GATES))
+  (test-case "init and step payloads agree with their actual strict sessions across profiles"
+    (for* ([label '("appendoh 1" "fives/fours" "same")]
+           [delay '("relbody" "relcall" "disj")])
+      (define source (example-source label))
+      (define-values (response session)
+        (init! #f
+               (make-post-init-request source
+                 (hasheq 'text source 'sourceMode "mini" 'compileProfile (profile delay)))
+               'shape-id))
+      (check-equal? (model-session-search-strategy session) default-search-strategy)
+      (check-payload-trace response session 25 (format "~a / ~a" label delay)))))
+
+(module+ test (run-tests CONFIDENCE-GATES))

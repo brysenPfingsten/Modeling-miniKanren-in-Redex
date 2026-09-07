@@ -191,11 +191,41 @@ These are bounded executable correspondence checks. They do not constitute
 universal adequacy, naturality, guarded fusion, or productive-stream proofs.
 The source's `eval-atom` label is its strict atomic contraction; preserved
 kernel operations do not imply identity with the old online source's work
-trace. Relation calls are outside this matrix's current source language.
+trace.
+
+## Full relation programs
+
+[full-source.rkt](full-source.rkt) extends Search/rail in all three allocation
+representations with named relations, recursive and mutually recursive calls,
+and an explicit `(program Γ q)` environment. Call expansion is a named
+`eval-call` step. It substitutes actual arguments without adding a Delay;
+suspension comes from the program or the selected compilation profile.
+
+[stages/full.rkt](stages/full.rkt) supplies SRel/ERel/NRel through D/Z/M/B.
+Their program frames retain Γ as data. Its status predicates inspect the next
+syntactic phase without performing kernel work: `running`, `paused` at a
+Frontier ending in More/Delay, `complete`, or `stuck`.
+[big/full.rkt](big/full.rkt) gives independent finite equations and certificates
+whose recursive premises retain the same environment.
+
+[full-tests.rkt](full-tests.rkt) checks exact source and stage edges, S/E/N
+maps, well-formedness, finite and mutual recursion, bounded productive rounds,
+unguarded calls, lexical shadowing, fresh across Delay, sparse ancestry, nested
+rails, and pending bind. [big/full-tests.rkt](big/full-tests.rkt) checks the
+finite judgments and direct certificate maps. The selected functional route's
+[relation checks](../retained-scope/relation-tests.rkt) connect its independently
+derived machine to these actual native configurations. This adds three full
+language instances above the twelve call-free representation/feature cells;
+it does not introduce separate E/N functional pipelines.
+
+The compiler and GUI execute `strict-s-rel-red` from this module directly.
+The twelve compiler profiles (associativity and delay placement) are distinct
+from the matrix's twelve call-free representation/feature cells.
 
 ## Files and interfaces
 
-- `source-s.rkt`, `source-e.rkt`, `source-n.rkt`: full Search/rail source rows.
+- `source-s.rkt`, `source-e.rkt`, `source-n.rkt`: call-free Search/rail source rows.
+- `full-source.rkt`, `full-tests.rkt`: full relation-program extension and checks.
 - `features.rkt`: separately generated Core, Delay and Disjunction rows.
 - `../shared/maps.rkt` and `../shared/wf.rkt`: direct source maps and executable domain checks.
 - `kernel-tests.rkt`: native data outcomes, complete State preservation,
@@ -229,4 +259,5 @@ The focused source/feature, [stage](stages/README.md), and [Big](big/README.md)
 suites remain independently runnable. A source-only run does not establish
 the complete horizontal pipeline. The gate checks the retained-scope S/E/N
 connection over finite witnesses; it does not establish a universal machine
-correspondence, relation calls, or productive streams.
+correspondence or productive streams. Relation programs have the separate
+finite and bounded checks described above; these are not universal proofs.

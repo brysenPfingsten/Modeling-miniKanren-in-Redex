@@ -13,22 +13,24 @@
       (cons (conj goal next) more))]
     [_ (error 'conj-goals/left "expected a non-empty goal sequence")]))
 
-(define (combine-conj goals assoc)
+(define (combine-conj goals assoc source ids)
   (match goals
     [(list goal) goal]
     [(cons goal (cons next more))
      (if (equal? assoc "left")
-         (combine-conj (cons (conj goal next) more) assoc)
-         (conj goal (combine-conj (cons next more) assoc)))]
+         (combine-conj (cons (inherit-source-id! ids source (conj goal next)) more) assoc source ids)
+         (inherit-source-id! ids source
+                             (conj goal (combine-conj (cons next more) assoc source ids))))]
     [_ (error 'combine-conj "expected a non-empty goal sequence")]))
 
-(define (combine-disj goals assoc)
+(define (combine-disj goals assoc source ids)
   (match goals
     [(list goal) goal]
     [(cons goal (cons next more))
      (if (equal? assoc "left")
-         (combine-disj (cons (disj goal next) more) assoc)
-         (disj goal (combine-disj (cons next more) assoc)))]
+         (combine-disj (cons (inherit-source-id! ids source (disj goal next)) more) assoc source ids)
+         (inherit-source-id! ids source
+                             (disj goal (combine-disj (cons next more) assoc source ids))))]
     [_ (error 'combine-disj "expected a non-empty clause sequence")]))
 
 (define (flatten-conj-tree goal [acc '()])
@@ -53,85 +55,88 @@
          (contains-delay-goal? g2 seen))]
     [_ seen]))
 
-(define (wrap-relcalls goal [wrapper delay-goal])
+(define (wrap-relcalls goal ids [wrapper delay-goal])
   (match goal
     [(fresh vars g)
-     (fresh vars (wrap-relcalls g wrapper))]
+     (inherit-source-id! ids goal (fresh vars (wrap-relcalls g ids wrapper)))]
     [(conj g1 g2)
-     (conj (wrap-relcalls g1 wrapper) (wrap-relcalls g2 wrapper))]
+     (inherit-source-id! ids goal (conj (wrap-relcalls g1 ids wrapper) (wrap-relcalls g2 ids wrapper)))]
     [(disj g1 g2)
-     (disj (wrap-relcalls g1 wrapper) (wrap-relcalls g2 wrapper))]
+     (inherit-source-id! ids goal (disj (wrap-relcalls g1 ids wrapper) (wrap-relcalls g2 ids wrapper)))]
     [(delay-goal g)
-     (delay-goal (wrap-relcalls g wrapper))]
+     (inherit-source-id! ids goal (delay-goal (wrap-relcalls g ids wrapper)))]
     [(compiled-delay-goal g)
-     (compiled-delay-goal (wrap-relcalls g wrapper))]
+     (compiled-delay-goal (wrap-relcalls g ids wrapper))]
     [(relcall _ _)
      (wrapper goal)]
     [_ goal]))
 
-(define (wrap-disjs goal [wrapper delay-goal])
+(define (wrap-disjs goal ids [wrapper delay-goal])
   (match goal
     [(fresh vars g)
-     (fresh vars (wrap-disjs g wrapper))]
+     (inherit-source-id! ids goal (fresh vars (wrap-disjs g ids wrapper)))]
     [(conj g1 g2)
-     (conj (wrap-disjs g1 wrapper) (wrap-disjs g2 wrapper))]
+     (inherit-source-id! ids goal (conj (wrap-disjs g1 ids wrapper) (wrap-disjs g2 ids wrapper)))]
     [(disj g1 g2)
-     (wrapper (disj (wrap-disjs g1 wrapper) (wrap-disjs g2 wrapper)))]
+     (wrapper (inherit-source-id! ids goal
+                                 (disj (wrap-disjs g1 ids wrapper) (wrap-disjs g2 ids wrapper))))]
     [(delay-goal g)
-     (delay-goal (wrap-disjs g wrapper))]
+     (inherit-source-id! ids goal (delay-goal (wrap-disjs g ids wrapper)))]
     [(compiled-delay-goal g)
-     (compiled-delay-goal (wrap-disjs g wrapper))]
+     (compiled-delay-goal (wrap-disjs g ids wrapper))]
     [_ goal]))
 
-(define/match (surface-goal->micro goal profile)
-  [(goal (and profile (compile-profile conj-assoc disj-assoc _)))
+(define/match (surface-goal->micro goal profile ids)
+  [(goal (and profile (compile-profile conj-assoc disj-assoc _)) ids)
    (match goal
      [(fresh vars g)
-      (fresh vars (surface-goal->micro g profile))]
+      (inherit-source-id! ids goal (fresh vars (surface-goal->micro g profile ids)))]
      [(conde clauses)
       (combine-disj
        (for/list ([clause (in-list clauses)])
-         (surface-goal->micro clause profile))
-       disj-assoc)]
+         (surface-goal->micro clause profile ids))
+       disj-assoc goal ids)]
      [(conj _ _)
       (combine-conj
        (for/list ([piece (in-list (flatten-conj-tree goal))])
-         (surface-goal->micro piece profile))
-       conj-assoc)]
+         (surface-goal->micro piece profile ids))
+       conj-assoc goal ids)]
      [(disj g1 g2)
-      (disj (surface-goal->micro g1 profile)
-            (surface-goal->micro g2 profile))]
+      (inherit-source-id! ids goal
+                          (disj (surface-goal->micro g1 profile ids)
+                                (surface-goal->micro g2 profile ids)))]
      [(delay-goal g)
-      (delay-goal (surface-goal->micro g profile))]
+      (inherit-source-id! ids goal (delay-goal (surface-goal->micro g profile ids)))]
      [_ goal])])
 
-(define (apply-delay-placement goal placement [wrapper delay-goal])
+(define (apply-delay-placement goal placement ids [wrapper delay-goal])
   (case (string->symbol placement)
-    [(relcall) (wrap-relcalls goal wrapper)]
-    [(disj) (wrap-disjs goal wrapper)]
+    [(relcall) (wrap-relcalls goal ids wrapper)]
+    [(disj) (wrap-disjs goal ids wrapper)]
     [else goal]))
 
-(define/match (mini-ast->normalized-micro ast profile)
-  [((prog rels (run n q goal))
-    (and profile (compile-profile _ _ delay-placement)))
+(define/match (mini-ast->normalized-micro ast profile ids)
+  [((prog rels (and query (run n q goal)))
+    (and profile (compile-profile _ _ delay-placement)) ids)
    (define normalized-rels
      (for/list ([rel (in-list rels)])
        (match-define (defrel name lop rel-goal) rel)
-       (define normalized-goal (surface-goal->micro rel-goal profile))
+       (define normalized-goal (surface-goal->micro rel-goal profile ids))
        (defrel name
                lop
                (if (equal? delay-placement "relbody")
                    (compiled-delay-goal normalized-goal)
                    (apply-delay-placement normalized-goal
                                           delay-placement
+                                          ids
                                           compiled-delay-goal)))))
    (prog normalized-rels
-         (run n
-              q
-              (apply-delay-placement (surface-goal->micro goal profile)
-                                     delay-placement
-                                     compiled-delay-goal)))]
-  [(ast _)
+         (inherit-source-id!
+          ids query
+          (run n q
+               (apply-delay-placement (surface-goal->micro goal profile ids)
+                                      delay-placement ids compiled-delay-goal))))]
+  [(ast _ _)
    (error 'mini-ast->normalized-micro
           "unexpected source AST shape: ~e"
           ast)])
@@ -262,8 +267,9 @@
   (define display-ast
     (prog (map parse-relation-def/surface-mini defrels)
           (parse-run/surface-mini run-expr)))
+  (define ids (source-occurrence-ids display-ast))
   (define normalized-ast
     (certify-guarded-mini-program
-     (mini-ast->normalized-micro display-ast profile)
+     (mini-ast->normalized-micro display-ast profile ids)
      profile))
-  (values normalized-ast display-ast))
+  (values normalized-ast display-ast ids))

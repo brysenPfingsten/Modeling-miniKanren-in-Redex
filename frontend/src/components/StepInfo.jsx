@@ -1,13 +1,21 @@
 import React from 'react';
 import ToggleSwitch from './toggleSwitch.jsx';
 
-export default function StepInfo({ step, stepName, darkMode, setDarkMode }) {
+const statusText = {
+  idle: 'Ready', running: 'Running', paused: 'Paused at Delay',
+  complete: 'Completed', stuck: 'Stuck',
+};
+
+export default function StepInfo({ step, stepName, executionStatus, answerCount,
+  darkMode, setDarkMode }) {
   return (
     <div id="step-info" className="step-info-container">
       <div className="step-info-header">
         <div>
           Step: {step}<br/>
-          Reduction Step: {stepName}
+          Operation: {stepName}<br/>
+          {statusText[executionStatus] ?? 'Ready'}
+          {Number.isInteger(answerCount) && <> · {answerCount} committed answers</>}
         </div>
         <div style={{ marginRight: '50px' }}>
         <ToggleSwitch checked={darkMode} onChange={setDarkMode} />

@@ -4,10 +4,8 @@
          rackunit
          rackunit/text-ui
          redex/reduction-semantics
-         (prefix-in production:
-                    "../src/search-lattice/languages/search-relcall-lang.rkt")
-         (prefix-in wf:
-                    "../src/search-lattice/wf/search-relcall-wf.rkt")
+         (only-in "../derivations/strict-search/matrix/full-source.rkt" StrictSRel)
+         (only-in "../derivations/strict-search/shared/wf.rkt" wf-s-rel?)
          "../src/sexpr-read.rkt"
          "../src/transpiler.rkt")
 
@@ -55,22 +53,31 @@
                      label)))
     (cons label maybe-src)))
 
-(define (parse-src/production src)
-  (parse-prog/canonical (read-all-sexprs (open-input-string src))))
-
 (define (render-src/micro src)
   (render-micro-source (read-all-sexprs (open-input-string src))))
 
-(define (assert-example-compat! name src)
-  (define-values (compiled-config html) (parse-src/production src))
+(define (assert-example-compat! name src [mode "mini"])
+  (define-values (compiled-config html query)
+    (parse-prog/canonical (read-all-sexprs (open-input-string src))
+                          #:source-mode mode))
   (check-true (string? html) (format "~a should produce html-guid source" name))
-  (check-true (redex-match? production:search-relcall-lang config compiled-config)
-              (format "~a should compile into production W/F syntax" name))
-  (check-true (judgment-holds (wf:wf-config/search-relcall? ,compiled-config))
-              (format "~a should satisfy production search-relcall WF" name)))
+  (check-true (redex-match? StrictSRel p compiled-config)
+              (format "~a (~a) should compile into full strict S syntax" name mode))
+  (check-true (wf-s-rel? compiled-config)
+              (format "~a (~a) should satisfy full strict S well-formedness" name mode))
+  (check-true (query-info? query))
+  (check-equal? (query-info-variables query)
+                (for/list ([index (in-range (length (query-info-names query)))])
+                  (string->symbol (format "u:~a" index))))
+  (match-define `(program ,_ (commit (eval (Owners) (∃ ,binders ,_ ,tag) ,_)))
+    compiled-config)
+  (check-equal? (length binders) (length (query-info-names query)))
+  (check-equal? tag (query-info-tag query))
+  (check-true (or (not (query-info-limit query))
+                  (exact-nonnegative-integer? (query-info-limit query)))))
 
 (define/provide-test-suite EXAMPLE-COMPAT
-  (test-case "frontend examples compile directly to production W/F"
+  (test-case "frontend examples compile to full strict S with explicit query metadata"
     (define examples (frontend-example-programs))
     (check-true (pair? examples)
                 "frontend/src/utils/example_programs.js did not yield runnable examples")
@@ -78,19 +85,11 @@
       (match-define (cons label src) pr)
       (assert-example-compat! label src)))
 
-  (test-case "frontend examples render to direct micro source and lift through micro parser"
+  (test-case "frontend examples render to micro and compile to full strict S"
     (for ([pr (in-list (frontend-example-programs))])
       (match-define (cons label src) pr)
       (define micro-src (render-src/micro src))
-      (define-values (compiled-config html)
-        (parse-prog/canonical (read-all-sexprs (open-input-string micro-src))
-                              #:source-mode "micro"))
-      (check-true (string? html)
-                  (format "~a rendered micro should produce html-guid source" label))
-      (check-true (redex-match? production:search-relcall-lang config compiled-config)
-                  (format "~a rendered micro should compile into production W/F syntax" label))
-      (check-true (judgment-holds (wf:wf-config/search-relcall? ,compiled-config))
-                  (format "~a rendered micro should satisfy production WF" label)))))
+      (assert-example-compat! label micro-src "micro"))))
 
 (module+ test
   (run-tests EXAMPLE-COMPAT))

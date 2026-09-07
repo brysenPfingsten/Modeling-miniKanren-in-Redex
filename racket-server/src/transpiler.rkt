@@ -5,6 +5,7 @@
          "./transpiler/canonical.rkt")
 
 (provide parse-prog/canonical
+         (struct-out query-info)
          parse-prog->ast
          render-micro-source
          default-source-mode

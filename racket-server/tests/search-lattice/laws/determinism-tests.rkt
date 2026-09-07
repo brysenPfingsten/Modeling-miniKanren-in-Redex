@@ -44,7 +44,8 @@
        (not (regexp-match? #rx"/archive/" (path->string p)))))
 
 (define (parse-src/canonical src)
-  (parse-prog/canonical (read-all-sexprs (open-input-string src))))
+  (parse-prog/canonical (read-all-sexprs (open-input-string src))
+                        #:search-strategy (search-strategy "rail")))
 
 (define/match (strategy-label strategy)
   [((search-strategy scheduler)) scheduler])
@@ -138,7 +139,7 @@
   (for*/list ([strategy (in-list strategies)]
               [ex (in-list examples)])
     (match-define (cons _label src) ex)
-    (define-values (cfg0 _html) (parse-src/canonical src))
+    (define-values (cfg0 _html _query) (parse-src/canonical src))
     (and (search-config-in-domain? strategy cfg0)
          (search-config-well-formed? strategy cfg0)
          (hash 'strategy strategy

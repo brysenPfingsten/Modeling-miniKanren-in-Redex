@@ -18,6 +18,8 @@ function arrayToString(arr) {
 }
 
 export function termToString(term) {
+    if (typeof term === "boolean") { return term ? "#t" : "#f"; }
+    if (term != null && typeof term === "object" && "str" in term) { return JSON.stringify(term.str); }
     if (term.var) { return `${term.var}`; }   
     if (term.pair) { return `(${termToString(term.pair[0])} . ${termToString(term.pair[1])})`; }
     if (term.sym) { return `'${term.sym}`; } 
@@ -49,5 +51,5 @@ function reificationToString(reification) {
 }
 
 export function toString(sub, trail, reification, disequalities = []) {
-    return `Substitutions:\n${subToString(sub)}\nTrail:\n${trailToString(trail)}\nDisequalities:\n${disequalitiesToString(disequalities)}\nCurrent Answer:\n${reificationToString(reification)}`
+    return `Substitutions:\n${subToString(sub)}\nTrail:\n${trailToString(trail)}\nDisequalities:\n${disequalitiesToString(disequalities)}\nQuery Values:\n${reificationToString(reification)}`
 }

@@ -117,7 +117,7 @@ const CodeEditor = ({
   useEffect(() => {
       updateDecorations()
     },
-    [goalId, plain, isFrozen]);
+    [goalId, plain, segments, isFrozen]);
 
   useEffect(() => {
     return () => {
@@ -140,7 +140,12 @@ const CodeEditor = ({
             pendingProgrammaticValue.current = null;
             return;
           }
-          if (!isFrozen) {
+          // Monaco can invoke the previous editable callback after switching
+          // to read-only, before replacing its change subscription.
+          const editor = editorRef.current;
+          const monaco = monacoRef.current;
+          if (!isFrozen && editor && monaco
+              && !editor.getOption(monaco.editor.EditorOption.readOnly)) {
             setCodeText(nextValue);
           }
         }}

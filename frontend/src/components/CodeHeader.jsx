@@ -14,6 +14,9 @@ export default function CodeHeader({
   disjAssocOptions = [],
   delayPlacementOptions = [],
   onCompileProfileChange,
+  searchModelValue,
+  searchModelOptions = [],
+  onSearchModelChange,
   schedulerValue,
   schedulerOptions = [],
   onSchedulerChange,
@@ -124,6 +127,13 @@ export default function CodeHeader({
           <div className="control-section-title">Search</div>
           <div className="control-section-body">
             {renderRadioGroup(
+              "Runtime",
+              "search-model",
+              searchModelValue,
+              searchModelOptions,
+              onSearchModelChange,
+            )}
+            {searchModelValue === "lattice" && renderRadioGroup(
               "Scheduler",
               "search-scheduler",
               schedulerValue,

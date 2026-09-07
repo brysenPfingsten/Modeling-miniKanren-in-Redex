@@ -10,6 +10,19 @@ through R/D/Z/M/B/Big in twelve native feature cells. Its Search/rail S row
 is checked against this checkpoint, and configuration-level transition
 checks connect the checkpoint machine to the native E/N machines.
 
+The [full relation-program extension](matrix/full-source.rkt) adds explicit Γ
+environments, named calls, recursive calls, and mutual recursion in all three
+rows. It is the source relation used by the GUI's separate **Strict Search**
+view and the default API/library selection.
+The selected functional derivation carries the same environment explicitly
+through its data machines, generated registers, and existing compression.
+
+The GUI defaults to native **Lattice search**, with No Interleave, Flip-Flop,
+and oriented Railroad schedulers. Those sources remain separate. The
+historical phrase “Search/rail” in this derivation names its strict Search
+feature; it is not a claim that the strict source implements Railroad's
+`DisjL`/`DisjR` grammar.
+
 Both accounts preserve strict left-to-right disjunction, eager `Yield` tails
 and bind, exact allocation ancestry, and the Search/Frontier commitment
 boundary. Only object-language `Delay` suspends computation:
@@ -46,6 +59,11 @@ structure. Observations compare exact Frontiers, including suspended bodies.
 | [matrix/](matrix/README.md) | Native retained-scope S/E/N feature instances through R/D/Z/M/B/Big and their connection to the selected S checkpoint |
 | [test-support/](test-support/README.md) | Named witnesses, generated lexical goals, and reusable structural/transition assertions |
 | [all.rkt](all.rkt) | Maintained aggregate: retained scope, matrix, constructor/dependency contracts, and the online-policy witness |
+
+The neighboring [distributed-search experiment](../distributed-search/README.md)
+investigates a different conjunction/scheduling policy. It is kept outside
+this matrix and derivation pipeline; its standalone checks exhibit different
+ordered Frontiers, so it is not a strict-machine compression stage.
 
 ## Selected S derivation and evidence
 
@@ -94,6 +112,7 @@ or prefix continuation in these cells.
 | Delay | [StrictSDelay](matrix/features.rkt) | [StrictEDelay](matrix/features.rkt) | [StrictNDelay](matrix/features.rkt) | [features](matrix/feature-tests.rkt), [stages](matrix/stages/tests.rkt), [Big](matrix/big/tests.rkt) |
 | Disjunction | [StrictSDisjunction](matrix/features.rkt) | [StrictEDisjunction](matrix/features.rkt) | [StrictNDisjunction](matrix/features.rkt) | [features](matrix/feature-tests.rkt), [stages](matrix/stages/tests.rkt), [Big](matrix/big/tests.rkt) |
 | Search/rail | [S](matrix/source-s.rkt) | [E](matrix/source-e.rkt) | [N](matrix/source-n.rkt) | [source maps](matrix/tests.rkt), [generated goals](matrix/property-tests.rkt), [stages](matrix/stages/tests.rkt), [Big](matrix/big/tests.rkt) |
+| Search/rail + relations | [StrictSRel](matrix/full-source.rkt) | [StrictERel](matrix/full-source.rkt) | [StrictNRel](matrix/full-source.rkt) | [source/stage maps](matrix/full-tests.rkt), [functional machine](retained-scope/relation-tests.rkt), [Big](matrix/big/full-tests.rkt) |
 
 [Stage instances](matrix/stages/instances.rkt) instantiate all twelve cells.
 Big uses [S](matrix/big/s.rkt), [E](matrix/big/e.rkt), and [N](matrix/big/n.rkt)
@@ -162,19 +181,20 @@ checks and their separate scope are described in
 
 ### Current validation
 
-The test runs used `PLTCOMPILEDROOTS=/private/tmp/matrix-retained-cache:` and
-`racket -y -l raco -- test`. These separately run gates overlap; their counts
-are not additive.
+The most recent completed [strict aggregate](all.rkt) reports **3,262 checks passed**
+using an isolated `PLTCOMPILEDROOTS` and `racket -y -l raco -- test`. It includes
+the retained-scope derivation, native S/E/N stages and finite Big certificates,
+full relation programs, generated-artifact freshness, and layout contracts.
+The relation corpus includes fresh allocation after a public Delay resumes.
+Focused gates overlap this aggregate; their counts are not additive.
 
-| Gate | Result |
-| --- | --- |
-| [Full aggregate](all.rkt) | 3,214 tests passed |
-| [Selected S aggregate](retained-scope/all.rkt) | 510 tests passed |
-| Focused source, feature, and stage suites | 308 tests passed |
-| [Selected checkpoint to S/E/N](matrix/retained-scope-tests.rkt) | 31 tests passed |
-| [Big judgments and certificates](matrix/big/tests.rkt) | 139 tests passed |
-| Three generator `--check` commands above | Passed; generated artifacts unchanged |
-| Three `show` demonstrations above | Passed |
+This is finite executable evidence, including bounded productive and
+unguarded recursive runs. It does not establish universal correspondence,
+preservation, or productive-stream theorems. The final headless integration
+run passed **3,502 tests**, including these 3,262 strict checks, native lattice
+sources, and application gates. Its HEADLESS suite passed all 205 cases with
+zero failures or errors. These overlapping counts are not additive; see
+[TEST-LANES.md](../../tests/TEST-LANES.md#frontend-and-aggregate-status).
 
 ## Next correspondence and application boundary
 
@@ -182,14 +202,31 @@ Hold the selected Search/rail behavior and machine fixed while turning the
 checked S/E/N configuration diagrams into general correspondence and domain
 preservation arguments. The native E/N machines now connect to the selected
 S functional machine; separate E/N direct/CPS/defunctionalized/register
-programs remain to be derived. Relation calls, productive infinite behavior,
-and compact κ/Q/π rail compression remain outside the demonstrated account.
+programs remain to be derived. Full relation programs now have exact finite
+and bounded configuration checks on both sides, including explicit environments
+and pending calls in resumptions. General recursive-program adequacy,
+productive infinite behavior, and compact κ/Q/π rail compression remain open.
 
-The GUI still runs the live online policy through
+The GUI's Strict Search view runs the full strict S matrix through
 [search-runtime.rkt](../../src/search-runtime.rkt) and
-[app.rkt](../../src/app.rkt). Its dormant-right work order differs from strict
-evaluation. Connecting the selected account to the GUI is a separate task
-requiring an explicit operation and observation interface. A fusion argument
-is needed only to claim that the online policy is an equivalent optimization;
-neither GUI integration nor S/E/N alignment depends on that claim. See the
+[app.rkt](../../src/app.rkt). Session history contains actual `(program Γ q)`
+configurations. Paused Frontiers require an explicit public advance before
+further named reductions. The [renderer](../../src/search-picture.rkt) reads
+that structure directly and distinguishes candidates from committed answers.
+The separate Lattice search view uses native `(Γ F)` configurations and
+its DFS, Flip, or oriented Railroad source relation. At an exposed delayed
+Frontier it takes the native public `force-delay` reduction. Both views share
+compiled goals, source IDs, query metadata, and the current renderer; their
+initialization wrappers and subsequent histories remain native. All twelve
+compilation profiles remain independent of runtime scheduling.
+
+Automatic answer consumption belongs to [minikanren.rkt](../../src/minikanren.rkt);
+the GUI shares the single-step/session operations in
+[program-runner.rkt](../../src/program-runner.rkt). The `run n` adapter finishes
+the current eager round and commitment before checking the limit; manual GUI
+stepping remains independent of that policy. The API/library default is
+`(strict-search)`; an explicit `search-strategy` selects the lattice family
+with scheduler `"dfs"`, `"flip"`, or `"rail"`. Partial interpreter correspondence is accepted
+for the application; native lattice execution does not supply an equivalence
+theorem with this strict derivation. See the
 [semantic policy matrix](../../../docs/semantic-policy-matrix.md).

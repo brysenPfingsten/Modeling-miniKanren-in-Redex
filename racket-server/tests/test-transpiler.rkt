@@ -3,11 +3,15 @@
          rackunit/text-ui
          redex/reduction-semantics
          (prefix-in production:
-                    "../src/search-lattice/languages/search-relcall-lang.rkt")
+                    "../derivations/strict-search/shared/relation-grammar.rkt")
          (prefix-in wf:
-                    "../src/search-lattice/wf/search-relcall-wf.rkt")
+                    "../derivations/strict-search/shared/wf.rkt")
          "../src/sexpr-read.rkt"
-         "../src/transpiler.rkt")
+         "../src/transpiler.rkt"
+         (prefix-in ast: "../src/transpiler/ast.rkt")
+         (only-in "../src/transpiler/program.rkt" prepare-program)
+         (only-in "../derivations/strict-search/shared/kernel.rkt"
+                  instantiate-relation allocate/s))
 
 (define (parse-src/canonical src
                              #:source-mode [source-mode default-source-mode]
@@ -25,12 +29,12 @@
 
 (define (query-goal-of cfg)
   (match cfg
-    [`(,_ (More (Work (Owners) (∃ ,_ ,goal ,_) ,_))) goal]
+    [`(program ,_ (commit (eval (Owners) (∃ ,_ ,goal ,_) ,_))) goal]
     [_ (error 'query-goal-of "unexpected production cfg shape: ~e" cfg)]))
 
 (define (relation-goal-of cfg rel-name)
   (match cfg
-    [`(,rels ,_)
+    [`(program ,rels ,_)
      (define maybe-goal
        (for/first ([rel (in-list rels)]
                    #:when (match rel
@@ -97,6 +101,113 @@
     [(cons a d) (cons (strip-labels a) (strip-labels d))]
     [_ x]))
 
+;; These attribution fixtures contain no marker text in literals (the literal
+;; escaping tests below cover that separately). Inspect the actual emitted
+;; spans, independently of the compiler's source-identity map.
+(define (display-spans markup)
+  (define marker #px"\\[\\[(/?)([a-z]+[0-9]+)\\]\\]")
+  (define-values (plain stack spans last-index)
+    (for/fold ([plain ""] [stack '()] [spans '()] [last-index 0])
+              ([position (in-list (regexp-match-positions* marker markup))])
+      (match-define (cons start end) position)
+      (match-define (list _ close id) (regexp-match marker (substring markup start end)))
+      (define next-plain (string-append plain (substring markup last-index start)))
+      (if (equal? close "")
+          (values next-plain (cons (list id (string-length next-plain)) stack) spans end)
+          (match stack
+            [(cons (list (== id) beginning) rest)
+             (values next-plain rest (cons (list id beginning (string-length next-plain)) spans) end)]))))
+  (check-equal? stack '())
+  (values (string-append plain (substring markup last-index)) (reverse spans)))
+
+(define (source-goals ast [acc '()])
+  (match ast
+    [(ast:prog rels query) (foldr source-goals (source-goals query acc) rels)]
+    [(ast:defrel _ _ goal) (source-goals goal acc)]
+    [(or (ast:run _ _ goal) (ast:fresh _ goal) (ast:delay-goal goal))
+     (cons ast (source-goals goal acc))]
+    [(ast:conde clauses) (cons ast (foldr source-goals acc clauses))]
+    [(or (ast:conj left right) (ast:disj left right))
+     (cons ast (source-goals left (source-goals right acc)))]
+    [_ (cons ast acc)]))
+
+(define (source-leaf? goal)
+  (or (ast:unify? goal) (ast:diseq? goal) (ast:relcall? goal)
+      (ast:succeed? goal) (ast:fail? goal)))
+
+(define (compiled-goals goal [acc '()])
+  (match goal
+    [`(∃ ,_ ,body ,_) (cons goal (compiled-goals body acc))]
+    [`(suspend ,body ,_) (cons goal (compiled-goals body acc))]
+    [`(,left ,(or '∧ '∨) ,right ,_)
+     (cons goal (compiled-goals left (compiled-goals right acc)))]
+    [_ (cons goal acc)]))
+
+(define (compiled-leaf? goal)
+  (match goal
+    [(or `(∃ ,_ ,_ ,_) `(suspend ,_ ,_) `(,_ ,(or '∧ '∨) ,_ ,_)) #f]
+    [_ #t]))
+
+(define (compiled-term->source term)
+  (match term
+    [`(sym ,name) `(quote ,(string->symbol name))]
+    [`(str ,value) value]
+    [`(nat ,value) value]
+    [(? boolean?) term]
+    ['empty '(quote ())]
+    [`(,left : ,right) `(cons ,(compiled-term->source left) ,(compiled-term->source right))]
+    [(? symbol?) (string->symbol (substring (symbol->string term) 2))]))
+
+(define (compiled-leaf->source goal)
+  (match goal
+    [`(,left ,(and op (or '=? '!=)) ,right ,_)
+     `(,(if (eq? op '=?) '== '=/=) ,(compiled-term->source left) ,(compiled-term->source right))]
+    [`(,(and op (or 'succeed 'fail)) ,_) op]
+    [`(,name ,arguments ... ,_)
+     `(,(compiled-term->source name) ,@(map compiled-term->source arguments))]))
+
+(define (assert-source-attribution! forms [mode "mini"] [profile #f])
+  (define-values (_normalized original _profile ids) (prepare-program forms mode profile))
+  (define-values (cfg markup _query)
+    (parse-prog/canonical forms #:source-mode mode #:compile-profile profile))
+  (define-values (plain spans) (display-spans markup))
+  (match-define `(program ,definitions (commit (eval ,_ ,query-goal ,_))) cfg)
+  (define goals
+    (foldr (lambda (definition rest) (compiled-goals (third definition) rest))
+           (compiled-goals query-goal) definitions))
+  (define originals (source-goals original))
+  (define original-leaves (filter source-leaf? originals))
+  (define expected
+    (for/list ([leaf (in-list original-leaves)])
+      (list (read (open-input-string (ast:add-guids leaf 0 #hasheq() mode))) (hash-ref ids leaf))))
+  (check-equal? (length (remove-duplicates (map second expected))) (length expected))
+  (check-equal?
+   (for/list ([leaf (in-list (filter compiled-leaf? goals))])
+     (list (compiled-leaf->source leaf) (second (last leaf))))
+   expected)
+  (for ([source (in-list originals)]
+        #:when (or (source-leaf? source) (ast:fresh? source) (ast:delay-goal? source)))
+    (check-not-false (assoc (hash-ref ids source) spans)))
+  (for ([entry (in-list expected)])
+    (match-define (list source id) entry)
+    (match-define (list _ start end) (assoc id spans))
+    (check-equal? (read (open-input-string (substring plain start end))) source))
+  ;; Every visible compiled operation owns one actual source span; all of its
+  ;; descendant leaves lie inside that span, including generated binary nodes.
+  (for ([goal (in-list goals)])
+    (define id (second (last goal)))
+    (cond
+      [(string-prefix? id "hidden:") (check-false (assoc id spans))]
+      [else
+       (match-define (list _ start end) (assoc id spans))
+       (for ([leaf (in-list (filter compiled-leaf? (compiled-goals goal)))])
+         (match-define (list _ leaf-start leaf-end) (assoc (second (last leaf)) spans))
+         (check-true (<= start leaf-start leaf-end end)))]))
+  (define-values (roundtrip _markup _metadata)
+    (parse-src/canonical plain #:source-mode mode #:compile-profile profile))
+  (check-equal? roundtrip cfg)
+  expected)
+
 (define conj-source
   "(run* (q) (== 1 1) (== 2 2) (== 3 3))")
 
@@ -150,9 +261,9 @@
 (define-test-suite ASSOCIATIVITY
   (test-case "Conjunctions Left Associate"
     (define PROG '((run* (q) (== 1 1) (== 2 2) (== 3 3))))
-    (define-values (cfg _) (parse-prog/canonical PROG))
+    (define-values (cfg _ _cfg-query) (parse-prog/canonical PROG))
     (define goal (query-goal-of cfg))
-    (check-true (redex-match? production:search-relcall-lang g (term ,goal)))
+    (check-true (redex-match? production:StrictSRel g (term ,goal)))
     (check-true
      (match goal
        [`((,_ ∧ ,_ ,_) ∧ ,_ ,_) #t]
@@ -166,9 +277,9 @@
                         [(same q 'cat)]
                         [(== q 'dog)])]
                       [(same q 'fish)]))))
-    (define-values (cfg _) (parse-prog/canonical PROG))
+    (define-values (cfg _ _cfg-query) (parse-prog/canonical PROG))
     (define goal (query-goal-of cfg))
-    (check-true (redex-match? production:search-relcall-lang g (term ,goal)))
+    (check-true (redex-match? production:StrictSRel g (term ,goal)))
     (check-true
      (match goal
        [`((,_ ∨ (,_ ∨ ,_ ,_) ,_) ∨ ,_ ,_) #t]
@@ -182,7 +293,7 @@
 	                          ((same q 'cat))
 	                          ((== q 'dog))))))
                             ((same q 'fish))))))
-    (define-values (cfg1 _1) (parse-prog/canonical PROG1))
+    (define-values (cfg1 _1 _cfg1-query) (parse-prog/canonical PROG1))
     (define goal1 (query-goal-of cfg1))
     (check-true
      (match goal1
@@ -195,7 +306,7 @@
                       [(same q 'cat)]
                       [(== q 'dog)]
                       [(same q 'fish)]))))
-    (define-values (cfg2 _2) (parse-prog/canonical PROG2))
+    (define-values (cfg2 _2 _cfg2-query) (parse-prog/canonical PROG2))
     (define goal2 (query-goal-of cfg2))
     (check-true
      (match goal2
@@ -211,7 +322,7 @@
       (define profile
         (profile-jsexpr conj-assoc disj-assoc delay-placement))
 
-      (define-values (conj-cfg _conj-html)
+      (define-values (conj-cfg _conj-html _conj-cfg-query)
         (parse-src/canonical conj-source #:compile-profile profile))
       (define conj-goal (query-goal-of conj-cfg))
       (cond
@@ -232,7 +343,7 @@
                   profile
                   conj-goal))])
 
-      (define-values (disj-cfg _disj-html)
+      (define-values (disj-cfg _disj-html _disj-cfg-query)
         (parse-src/canonical disj-source #:compile-profile profile))
       (define disj-goal (query-goal-of disj-cfg))
       (define disj-inner
@@ -269,7 +380,7 @@
            [delay-placement (in-list '("relbody" "relcall" "disj"))])
       (define profile
         (profile-jsexpr conj-assoc disj-assoc delay-placement))
-      (define-values (cfg _html)
+      (define-values (cfg _html _cfg-query)
         (parse-src/canonical relcall-source #:compile-profile profile))
       (define query-goal (query-goal-of cfg))
       (define wrap-goal (relation-goal-of cfg 'r:wrap))
@@ -313,10 +424,10 @@
 
 (define-test-suite MICRO-SOURCE
   (test-case "direct micro source accepts binary conj/disj, Zzz, and disequality"
-    (define-values (cfg html)
+    (define-values (cfg html _cfg-query)
       (parse-src/canonical micro-source #:source-mode "micro"))
-    (check-true (redex-match? production:search-relcall-lang config cfg))
-    (check-true (judgment-holds (wf:wf-config/search-relcall? ,cfg)))
+    (check-true (redex-match? production:StrictSRel p cfg))
+    (check-true (wf:wf-s-rel? cfg))
     (check-true (string? html)))
 
   (test-case "direct micro source rejects source-level delay spelling"
@@ -375,9 +486,9 @@
       (check-equal? (not (false? (regexp-match? #rx"Zzz" rendered)))
                     (not (equal? delay-placement "disj"))
                     (format "rendered micro delay visibility mismatch for ~e" profile))
-      (define-values (expected-cfg _expected-html)
+      (define-values (expected-cfg _expected-html _expected-cfg-query)
         (parse-src/canonical relcall-source #:compile-profile profile))
-      (define-values (rendered-cfg _rendered-html)
+      (define-values (rendered-cfg _rendered-html _rendered-cfg-query)
         (parse-src/canonical rendered #:source-mode "micro"))
       (check-equal? (strip-labels expected-cfg)
                     (strip-labels rendered-cfg)
@@ -386,20 +497,20 @@
 
 (define-test-suite DISEQUALITY-TRANSLATION
   (test-case "mini source translates disequality to production != goal"
-    (define-values (cfg _html)
+    (define-values (cfg _html _cfg-query)
       (parse-src/canonical "(run* (q) (=/= q 'cat))"))
     (define goal (query-goal-of cfg))
-    (check-true (redex-match? production:search-relcall-lang g (term ,goal)))
+    (check-true (redex-match? production:StrictSRel g (term ,goal)))
     (check-true
      (match goal
        [`(,_ != ,_ ,_) #t]
        [_ #f])))
 
   (test-case "micro source translates disequality to canonical != goal"
-    (define-values (cfg _html)
+    (define-values (cfg _html _cfg-query)
       (parse-src/canonical "(run* (q) (=/= q 'cat))" #:source-mode "micro"))
     (define goal (query-goal-of cfg))
-    (check-true (redex-match? production:search-relcall-lang g (term ,goal)))
+    (check-true (redex-match? production:StrictSRel g (term ,goal)))
     (check-true
      (match goal
        [`(,_ != ,_ ,_) #t]
@@ -407,35 +518,160 @@
 
 (define-test-suite PRODUCTION-TRANSLATION
   (test-case
-   "run*-only canonicalizing compilation produces a W/F config and is wf"
-   (define-values (cfg html)
+   "run*-only canonicalizing compilation produces a strict matrix configuration and is wf"
+   (define-values (cfg html _cfg-query)
      (parse-src/canonical "(run* (q) (== 'a 'a))"))
-   (check-match cfg `(,_ (More (Work (Owners) ,_ ,_))))
-   (check-true (redex-match? production:search-relcall-lang config cfg))
-   (check-true (judgment-holds (wf:wf-config/search-relcall? ,cfg)))
+   (check-match cfg `(program ,_ (commit (eval (Owners) ,_ ,_))))
+   (check-true (redex-match? production:StrictSRel p cfg))
+   (check-true (wf:wf-s-rel? cfg))
    (check-true (string? html)))
 
   (test-case
-   "defrel+run* canonicalizing compilation produces a W/F config and is wf"
-   (define-values (cfg html)
+   "defrel+run* canonicalizing compilation produces a strict matrix configuration and is wf"
+   (define-values (cfg html _cfg-query)
      (parse-src/canonical
       "(defrel (same x y) (== x y))
 (run* (q) (same q 'cat))"))
-   (check-match cfg `(,_ (More (Work (Owners) ,_ ,_))))
-   (check-true (redex-match? production:search-relcall-lang config cfg))
-   (check-true (judgment-holds (wf:wf-config/search-relcall? ,cfg)))
+   (check-match cfg `(program ,_ (commit (eval (Owners) ,_ ,_))))
+   (check-true (redex-match? production:StrictSRel p cfg))
+   (check-true (wf:wf-s-rel? cfg))
    (check-true (string? html)))
 
   (test-case
    "relation-call arity mismatch parses but is rejected by wf"
-   (define-values (cfg _html)
+   (define-values (cfg _html _cfg-query)
      (parse-src/canonical
       "(defrel (same x y) (== x y))
 (run* (q) (same q))"))
-   (check-true (redex-match? production:search-relcall-lang config cfg))
-   (check-false (judgment-holds (wf:wf-config/search-relcall? ,cfg))))
+   (check-true (redex-match? production:StrictSRel p cfg))
+   (check-false (wf:wf-s-rel? cfg)))
+
+  (test-case "tagged source writes strings and symbols without changing their canonical values"
+    (for* ([mode (in-list '("mini" "micro"))]
+           [literal (in-list (list "[[u0]]"
+                                   "[[/u1]]  [[u1]]"
+                                   "escaped \" [[/u1]] \\ end"
+                                   "first line\n[[u1]]  last line"
+                                   (string->symbol "[[u1]]")
+                                   (string->symbol "a\"[[/u1]]\\b")
+                                   (string->symbol "[[u1]]|")))])
+      (define datum (if (symbol? literal) `(quote ,literal) literal))
+      (define forms `((run* (q) (== q ,datum))))
+      (define-values (cfg html _query)
+        (parse-prog/canonical forms #:source-mode mode))
+      (define written
+        (if (symbol? literal) (format "'~s" literal) (format "~s" literal)))
+      (check-equal? html
+                    (format "\n\n[[f0]](run* (q) [[u1]](== q ~a)[[/u1]])[[/f0]]" written))
+      (check-equal? (query-goal-of cfg)
+                    `(x:q =? ,(if (symbol? literal)
+                                  `(sym ,(symbol->string literal))
+                                  `(str ,literal))
+                          (label "u1")))
+      ;; The displayed written atom reads back to the same source and machine.
+      (define-values (displayed-cfg _displayed-html _displayed-query)
+        (parse-src/canonical (format "(run* (q) (== q ~a))" written)
+                             #:source-mode mode))
+      (check-equal? displayed-cfg cfg)))
+
+  (test-case "conde formatting preserves literal whitespace and nested list atoms"
+    (define literal "[[u1]]  [[/u1]]\n  trailing spaces  ")
+    (define symbol-literal (string->symbol "[[u1]]|"))
+    (define forms
+      `((run* (q)
+          (conde
+            [(== q ,literal)]
+            [(== q (list ,literal (quote ,symbol-literal)))
+             (=/= q ,literal)]))))
+    (define-values (cfg html _query) (parse-prog/canonical forms))
+    (check-true (string-contains? html (format "(== q ~s)" literal)))
+    (check-true (string-contains? html (format "(=/= q ~s)" literal)))
+    (check-true
+     (string-contains? html (format "(list ~s '~s)" literal symbol-literal)))
+    (define-values (micro-cfg _micro-html _micro-query)
+      (parse-src/canonical (render-micro-source forms) #:source-mode "micro"))
+    (check-equal? (strip-labels micro-cfg) (strip-labels cfg)))
+
+  (test-case "tagged source writes delimiter-containing variable and relation names"
+    (define query-name (string->symbol "[[q]]"))
+    (define relation-name (string->symbol "some|relation"))
+    (define forms
+      `((defrel (,relation-name ,query-name) (== ,query-name ,query-name))
+        (run* (,query-name) (,relation-name ,query-name))))
+    (define-values (cfg html _query) (parse-prog/canonical forms))
+    (check-true
+     (string-contains? html (format "(defrel (~s ~s)" relation-name query-name)))
+    (check-true
+     (string-contains? html (format "(== ~s ~s)" query-name query-name)))
+    (check-true
+     (string-contains? html (format "(~s ~s)" relation-name query-name)))
+    (define-values (micro-cfg _micro-html _micro-query)
+      (parse-src/canonical (render-micro-source forms) #:source-mode "micro"))
+    (check-equal? (strip-labels micro-cfg) (strip-labels cfg)))
 
   )
+
+(define-test-suite SOURCE-ATTRIBUTION
+  (test-case "all mini profiles preserve original occurrence IDs and actual source spans"
+    (define forms
+      '((defrel (same x y) (== x y))
+        (run* (q)
+          (fresh (x)
+            (== x q)
+            (same q q)
+            (same q q)
+            (conde
+              [(conde [(same q 'turtle)] [(same q 'cat)] [(== q 'dog)])]
+              [(fresh (x) (== x 'fish) (== x q) (same x q))]
+              [(== q 'bird)]
+              [(== q 'mouse)])))))
+    (for*/fold ([reference #f])
+               ([conj (in-list '("left" "right"))]
+                [disj (in-list '("left" "right"))]
+                [delay (in-list '("relbody" "relcall" "disj"))])
+      (define actual (assert-source-attribution! forms "mini" (profile-jsexpr conj disj delay)))
+      (when reference (check-equal? actual reference))
+      actual))
+
+  (test-case "single-clause folding retains fresh and shadowed leaf source occurrences"
+    (for* ([conj (in-list '("left" "right"))]
+           [disj (in-list '("left" "right"))]
+           [delay (in-list '("relbody" "relcall" "disj"))])
+      (assert-source-attribution!
+       '((run* (q) (conde [(fresh (q) (== q 'private))])))
+       "mini" (profile-jsexpr conj disj delay))))
+
+  (test-case "micro keeps explicit conjunction, delay, repeated calls and primitive source spans"
+    (assert-source-attribution!
+     '((defrel (same x y)
+         (Zzz (conj (== x y) (fresh (x) (conj (== x 'local) (=/= x y))))))
+       (run* (q)
+         (conj (same q q)
+               (conj (Zzz (same q q)) (disj succeed (disj succeed fail))))))
+     "micro"))
+
+  (test-case "relation instantiation and fresh allocation preserve definition source identities"
+    (for* ([conj (in-list '("left" "right"))]
+           [disj (in-list '("left" "right"))]
+           [delay (in-list '("relbody" "relcall" "disj"))])
+      (define-values (cfg _markup _query)
+        (parse-prog/canonical
+         '((defrel (same x y) (fresh (x) (== x y)))
+           (run* (q) (same q q) (same q q)))
+         #:compile-profile (profile-jsexpr conj disj delay)))
+      (match-define `(program ,definitions (commit (eval ,_ ,query-goal ,_))) cfg)
+      (define calls (filter compiled-leaf? (compiled-goals query-goal)))
+      (check-not-equal? (last (first calls)) (last (second calls)))
+      (define original (strip-suspends (third (first definitions))))
+      (for ([actual (in-list '(u:8 u:9))] [call (in-list calls)])
+        (define copy
+          (strip-suspends (instantiate-relation definitions `(r:same u:7 ,actual ,(last call)))))
+        (check-equal? (map last (compiled-goals copy)) (map last (compiled-goals original)))
+        (match-define `(∃ (x:x) (x:x =? ,(== actual) ,leaf-tag) ,fresh-tag) copy)
+        (match-define `(eval ,_ ,allocated ,_)
+          (allocate/s '(Owners) '(x:x) (third copy) fresh-tag
+                      '(state () () () (label "s")) (list 'u:7 actual)))
+        (check-equal? allocated `(u:0 =? ,actual ,leaf-tag))))))
 
 (define/provide-test-suite TRANSPILER
   #:after (thunk (displayln "Finished running tests for transpiler."))
@@ -446,7 +682,8 @@
   MICRO-SOURCE
   MICRO-RENDERING
   DISEQUALITY-TRANSLATION
-  PRODUCTION-TRANSLATION)
+  PRODUCTION-TRANSLATION
+  SOURCE-ATTRIBUTION)
 
 (module+ test
   (run-tests TRANSPILER))

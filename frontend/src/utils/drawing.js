@@ -136,6 +136,10 @@ function drawSucceedNode(group)  { return drawCircle(group, "green"); }
 function drawFailNode(group)     { return drawCircle(group, "#ffdddd", "×"); }
 function drawAnswerNode(group)   { return drawCircle(group, "green", "Answer", undefined, "10px") }
 function drawEmptyNode(group)    { return drawCircle(group, "white") }
+function drawCandidateNode(group) { return drawCircle(group, "#fff2cc", "Candidate", "black", "10px"); }
+function drawOperation(group, data) { return drawTextNode(group, data.name, 12, "#edf2fa"); }
+function drawDoneNode(group) { return drawCircle(group, "white", "Done", "black", "11px"); }
+function drawLastNode(group) { return drawCircle(group, "#e3f2dd", "Last", "black", "11px"); }
 
 function drawTextNode(group, textContent, padding = 10, fill = "lightgray") {
     const textElement = group.append("text")
@@ -237,6 +241,24 @@ function drawDelayNode(group) {
 
 const nodeDrawFunctions = {
     "Answer": drawAnswerNode,
+    "Candidate": drawCandidateNode,
+    "Eval": drawOperation,
+    "Work": drawOperation,
+    "Returned": drawOperation,
+    "Dead": drawOperation,
+    "Mplus": drawOperation,
+    "Bind": drawOperation,
+    "One": drawOperation,
+    "Yield": drawOperation,
+    "Force": drawOperation,
+    "Commit": drawOperation,
+    "Advance": drawOperation,
+    "Collect": drawOperation,
+    "Render": drawOperation,
+    "More": drawOperation,
+    "Forced": drawOperation,
+    "Done": drawDoneNode,
+    "Last": drawLastNode,
     "Succeed": drawSucceedNode,
     "Fail": drawFailNode,
     "Unify": drawUnifyNode,

@@ -1,1104 +1,167 @@
 #lang racket
-(require redex/reduction-semantics
-         rackunit
-         rackunit/text-ui
-         web-server/http/response-structs
-         web-server/http/request-structs
-         json
-         "../src/app.rkt"
-         "../src/search-lattice/picture.rkt"
-         (prefix-in flip-red:
-                    "../src/search-lattice/reduction-relations/search-flip-relcall-red.rkt")
-         "../src/search-strategy.rkt"
-         "../src/zipper.rkt"
-         "../src/transpiler.rkt"
-         "./test-http-helpers.rkt"
-         "./example-compat-tests.rkt")
 
-(define sample-tree
-  '(()
-    (More
-     (Work (Owners)
-      (∃
-       (x:q)
-       ((sym "tree1") =? (sym "horse") (label "u5"))
-       (label "f0"))
-      (state () () () (label "s"))))))
-
-(define step/const-tree-output
-  (make-stepper (lambda (_) (list (list "foo" sample-tree)))))
-
-(define streamed-answer-tree
-  '(()
-    (Emit
-     (Owners)
-     (Answer (Owners) (state () () () (label "answer")))
-     (More
-      (Work (Owners)
-       (succeed (label "ok"))
-       (state () () () (label "tail")))))))
-
-(define step/streamed-answer-output
-  (make-stepper (lambda (_) (list (list "stream-step" streamed-answer-tree)))))
-
-(define sample-program-jsexpr
-  (hasheq 'activeChildIndex 0
-          'children
-          (list (hasheq 'id "u5"
-                        'left (hasheq 'sym "tree1")
-                        'name "Unify"
-                        'renderRole "goal-leaf"
-                        'right (hasheq 'sym "horse")))
-          'disequalities '()
-          'id "f0"
-          'name "Fresh"
-          'reified "_.0"
-          'renderRole "goal-fresh"
-          'stateId "s"
-          'sub '()
-          'trail '()
-          'vars (list (hasheq 'var "q"))))
-
-(define (check-sample-program-response response expected-step expected-step-name)
-  (define payload (string->jsexpr (response-body->string response)))
-  (match-define (hash* ['step step]
-                       ['stepName step-name]
-                       ['program program]
-                       #:open)
-    payload)
-  (check-equal? step expected-step)
-  (check-equal? step-name expected-step-name)
-  (check-equal? (string->jsexpr program)
-                sample-program-jsexpr))
-
-(define (json-contains-name? node target)
-  (match node
-    [(hash* ['name name]
-            ['children children]
-            #:open)
-     (or (equal? name target)
-         (json-contains-name? children target))]
-    [(hash* ['name name] #:open)
-     (equal? name target)]
-    [(list xs ...) (ormap (lambda (x) (json-contains-name? x target)) xs)]
-    [_ #f]))
-
-(define (json-contains-pair? node)
-  (match node
-    [(? hash? h)
-     (or (hash-has-key? h 'pair)
-         (for/or ([value (in-hash-values h)])
-           (json-contains-pair? value)))]
-    [(list xs ...)
-     (for/or ([x (in-list xs)])
-       (json-contains-pair? x))]
-    [_ #f]))
-
-(define (json-strip-spine node)
-  (match node
-    [(hash* ['name name]
-            ['children (list child)]
-            #:open)
-     #:when (member name '("Deferred" "Freshened"))
-     (json-strip-spine child)]
-    [_ node]))
-
-(define (json-root-name node)
-  (match-define (hash* ['name name] #:open)
-    (json-strip-spine node))
-  name)
-
-(define (json-live-search-root node)
-  (match (json-strip-spine node)
-    [(hash* ['name "Emit"]
-            ['children (list _answer rest)]
-            #:open)
-     (json-live-search-root rest)]
-    [other other]))
-
-(define (json-live-search-root-name node)
-  (match-define (hash* ['name name] #:open)
-    (json-live-search-root node))
-  name)
-
-(define (collect-json-ids node [acc '()])
-  (match node
-    [(hash* ['id id]
-            ['children children]
-            #:open)
-     (collect-json-ids children (cons id acc))]
-    [(hash* ['children children] #:open)
-     (collect-json-ids children acc)]
-    [(list xs ...)
-     (for/fold ([ids acc]) ([x (in-list xs)])
-       (collect-json-ids x ids))]
-    [_ acc]))
-
-(define (json-id-counts node [acc (hash)])
-  (match node
-    [(hash* ['id id]
-            ['children children]
-            #:open)
-     (json-id-counts children
-                     (hash-update acc id add1 0))]
-    [(hash* ['children children] #:open)
-     (json-id-counts children acc)]
-    [(list xs ...)
-     (for/fold ([counts acc]) ([x (in-list xs)])
-       (json-id-counts x counts))]
-    [_ acc]))
-
-(define (duplicate-json-ids node)
-  (for/list ([(id count) (in-dict (json-id-counts node))]
-             #:when (> count 1))
-    id))
-
-(define (json-node-names-by-id node target-id [acc '()])
-  (match node
-    [(hash* ['id id]
-            ['name name]
-            ['children children]
-            #:open)
-     (define next-acc
-       (if (equal? id target-id)
-           (cons name acc)
-           acc))
-     (json-node-names-by-id children target-id next-acc)]
-    [(hash* ['children children] #:open)
-     (json-node-names-by-id children target-id acc)]
-    [(list xs ...)
-     (for/fold ([names acc]) ([x (in-list xs)])
-       (json-node-names-by-id x target-id names))]
-    [_ acc]))
-
-(define (all-json-ids-appear-in-source? source node)
-  (for/and ([id (in-list (collect-json-ids node))])
-    (regexp-match? (regexp-quote (format "[[~a]]" id)) source)))
-
-(define disj-delay-program
-  "(defrel (same x y)
-     (== x y))
-
-   (run 2 (q)
-     (conde
-       [(same q 'cat)]
-       [(same q 'dog)]))")
-
-(define same-program
-  "(defrel (same x y)
-     (== x y))
-
-   (run* (q)
-     (conde
-       [(conde
-          [(same q 'turtle)]
-          [(same q 'cat)]
-       [(== q 'dog)])]
-      [(same q 'fish)]))")
-
-(define factored-continuation-micro-program
-  "(run 2 (q)
-     (conj
-       (disj
-         (== q 'continuation)
-         (== q 'witness))
-       (== q q)))")
-
-(define disj-relcall-program
-  "(defrel (same x y)
-     (== x y))
-
-   (defrel (wrap x)
-     (== x x)
-     (same x 'cat))
-
-   (run* (q)
-     (conde
-       [(wrap q)]
-       [(== q 'dog)]))")
-
-(define dotted-pair-program
-  "(run 1 (q r)
-     (== q (cons 'left 'right))
-     (== r 'done))")
-
-(define source-derived-names
-  '("Fresh" "Goal-Conj" "Goal-Disj" "Goal-Delay" "Rel-Call" "Unify" "Disequality"))
-
-(define MIN-DEEP-TRACE-STEPS 20)
-(define SCOPED-VISIBLE-PAIR-CAP 120)
-(define STRATEGY-WITNESS-CAP 120)
-(define PAIR-WITNESS-CAP 12)
-(define DEEP-TRACE-CAP 64)
-
-(define flip-redex-rule-names
-  (map symbol->string
-       (reduction-relation->rule-names
-        flip-red:search-flip-relcall-red)))
-
-(define (render-source->micro src)
-  (define response (source-convert! (make-post-source-convert-request src)))
-  (check-equal? (response-code response) 200)
-  (define body (string->jsexpr (response-body->string response)))
-  (match-define (hash* ['source rendered] #:open) body)
-  rendered)
-
-(define (find-source-duplicate-ids ses [remaining 80])
-  (cond
-    [(zero? remaining) #f]
-    [else
-     (define-values (step-response ses^) (step! ses))
-     (match (response-body->string step-response)
-       ["null" #f]
-       [out
-        (define payload (string->jsexpr out))
-        (match-define (hash* ['program program] #:open) payload)
-        (define program-json (string->jsexpr program))
-        (define duplicates (duplicate-json-ids program-json))
-        (define source-duplicates
-          (for/list ([id (in-list duplicates)]
-                     #:when
-                     (for/or ([name (in-list (json-node-names-by-id program-json id))])
-                       (member name source-derived-names)))
-            id))
-        (if (null? source-duplicates)
-            (find-source-duplicate-ids ses^ (sub1 remaining))
-            source-duplicates)])]))
-
-(define (collect-step-names ses remaining)
-  (cond
-    [(zero? remaining) '()]
-    [else
-     (define-values (response ses^) (step! ses))
-     (match (response-body->string response)
-       ["null" '()]
-       [out
-        (match-define (hash* ['stepName step-name] #:open) (string->jsexpr out))
-        (cons step-name
-              (collect-step-names ses^
-                                  (sub1 remaining)))])]))
-
-(define (nth-step-payload ses n)
-  (define-values (response ses^) (step! ses))
-  (match (response-body->string response)
-    ["null"
-     (values #f ses^)]
-    [out
-     (define payload (string->jsexpr out))
-     (if (zero? n)
-         (values payload ses^)
-         (nth-step-payload ses^ (sub1 n)))]))
-
-(define (collect-step-payloads ses remaining)
-  (cond
-    [(zero? remaining) '()]
-    [else
-     (define-values (response ses^) (step! ses))
-     (match (response-body->string response)
-       ["null" '()]
-       [out
-        (define payload (string->jsexpr out))
-        (cons payload
-              (collect-step-payloads ses^
-                                     (sub1 remaining)))])]))
-
-(define (find-adjacent-step-payloads payloads left-name right-name)
-  (match payloads
-    [(or '() (list _)) #f]
-    [(cons left (cons right rest))
-     (if (and (equal? (hash-ref left 'stepName) left-name)
-              (equal? (hash-ref right 'stepName) right-name))
-         (list left right)
-         (find-adjacent-step-payloads (cons right rest)
-                                      left-name
-                                      right-name))]))
-
-(define (payload->program-json payload)
-  (string->jsexpr (hash-ref payload 'program)))
-
-(define (payload-contains-name? payload target)
-  (json-contains-name? (payload->program-json payload) target))
-
-(define (scoped-visible-change? left right [left-step-name #f])
-  (define left-program (payload->program-json left))
-  (define right-program (payload->program-json right))
-  (and (or (not left-step-name)
-           (equal? (hash-ref left 'stepName) left-step-name))
-       (json-contains-name? left-program "Freshened")
-       (json-contains-name? right-program "Freshened")
-       (not (equal? left-program right-program))))
-
-(define (collect-scoped-visible-changes payloads [acc '()])
-  (match payloads
-    ['() (reverse acc)]
-    [(list _) (reverse acc)]
-    [(cons left (cons right rest))
-     (define next-acc
-       (if (scoped-visible-change? left right)
-           (cons (list left right) acc)
-           acc))
-     (collect-scoped-visible-changes (cons right rest) next-acc)]))
-
-(define (count-pair-payloads payloads [acc 0])
-  (match payloads
-    ['() acc]
-    [(cons payload rest)
-     (define next-acc
-       (if (json-contains-pair? (payload->program-json payload))
-           (add1 acc)
-           acc))
-     (count-pair-payloads rest next-acc)]))
-
-(define (example-src label)
-  (for/first ([pr (in-list (frontend-example-programs))]
-              #:do [(match-define (cons example-label src) pr)]
-              #:when (equal? example-label label))
-    src))
-
-(define-test-suite STEP!
-  #:before (thunk (displayln "Running tests for step!..."))
-  #:after  (thunk (displayln "Finished running tests for step!"))
-
-  (test-case "step! sends null reponse with header if no more reductions and does not affect zipper"
-              (define zip (zipper '() (step "foo" '(() (Done (Owners)))) '() 1))
-              (define stepper (make-stepper (λ (_) '())))
-              (define ses (session zip stepper 1 default-search-strategy))
-              (define-values (response ses^) (step! ses))
-              (check-equal? (response-code response) 200)
-              (check-equal? (response-message response) #"OK")
-              (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
-              (check-equal? (response-headers response)
-                            (list (make-header #"X-Done" #"true")))
-              (check-equal? (response-body->string response) "null")
-              (match-define (session new-zipper _ _ _) ses^)
-              (check-equal? zip new-zipper))
-
-  (test-case "step! advances via stepper when no future cache and updates state"
-              (define zip (zipper '() (step "foo" sample-tree) '() 1))
-              (define stepper step/const-tree-output)
-              (define ses (session zip stepper 1 default-search-strategy))
-              (define-values (response ses^) (step! ses))
-              (check-equal? (response-code response) 200)
-              (check-equal? (response-message response) #"OK")
-              (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
-              (check-equal? (response-headers response) '())
-              (check-sample-program-response response 2 "foo")
-              (match-define (session (zipper prev curr next idx) _ _ _) ses^)
-              (check-equal? prev (list (step "foo" sample-tree)))
-              (check-equal? (step-name curr) "foo")
-              (check-equal? next '())
-              (check-equal? idx 2))
-
-  (test-case "step! gets next tree in the state if it is cached and updates state"
-              (define zip (zipper '() (step "foo" sample-tree) (list (step "bar" sample-tree)) 1))
-              (define stepper step/const-tree-output)
-              (define ses (session zip stepper 1 default-search-strategy))
-              (define-values (response ses^) (step! ses))
-              (check-equal? (response-code response) 200)
-              (check-equal? (response-message response) #"OK")
-              (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
-              (check-equal? (response-headers response) '())
-              (check-sample-program-response response 2 "bar")
-              (match-define (session (zipper prev curr next idx) _ _ _) ses^)
-              (check-equal? prev (list (step "foo" sample-tree)))
-              (check-equal? curr (step "bar" sample-tree))
-              (check-equal? next '())
-              (check-equal? idx 2)
-              )
-
-  (test-case "step! serializes top-level answer stream ahead of remaining work"
-              (define zip (zipper '() (step "foo" sample-tree) '() 1))
-              (define ses (session zip step/streamed-answer-output 1 default-search-strategy))
-              (define-values (response _ses^) (step! ses))
-              (check-equal? (response-code response) 200)
-              (define payload (string->jsexpr (response-body->string response)))
-              (match-define (hash* ['program program] #:open) payload)
-              (define program-json (string->jsexpr program))
-              (match-define (hash* ['name name] #:open) program-json)
-              (check-equal? name "Emit")
-              (check-true (json-contains-name? program-json "Answer")))
-
-  (test-case "answer reification uses the largest visible structural introduction"
-    ;; The path intentionally skips u:1. Using the number of visible names as
-    ;; the allocation bound would omit u:2 and make the reification invalid.
-    (define picture
-      (cfg->operational-picture
-       '(Last
-         (Owners
-          (Owner (u:0) (label "outer"))
-          (Owner (u:2) (label "inner")))
-         (Answer
-          (Owners)
-          (state ((u:0 u:2) (u:2 (sym "cat")))
-                 ()
-                 ()
-                 (label "answer"))))
-       1))
-    (match-define
-      (hash* ['children
-              (list
-               (hash* ['children (list answer)] #:open))]
-             #:open)
-      picture)
-    (check-equal? (hash-ref answer 'reified)
-                  (hasheq 'sym "cat")))
-)
-
-(define-test-suite INIT!
-  #:before (thunk (displayln "Running tests for init!..."))
-  #:after (thunk (displayln "Finished running tests for init!."))
-
-  (test-case "init! parses, updates state, and sends response with json and string prog"
-              (define sample-req (make-post-init-request "(run* (q) (== 'a 'a))"))
-              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (define-values (response _ses^) (init! ses sample-req 'testid))
-              (check-equal? (response-code response) 200)
-              (check-equal? (response-message response) #"OK")
-              (check-equal? (response-mime response) 
-                            APPLICATION/JSON-MIME-TYPE)
-              (check-equal? (response-headers response) 
-                            (list (header #"Set-Cookie" #"session-id=testid; Path=/; SameSite=Lax")))
-              (define json-response (string->jsexpr (response-body->string response)))
-              (match-define (hash* ['stepName step-name]
-                                   ['step step]
-                                   ['program program]
-                                   ['htmlGuids html-guids]
-                                   #:open)
-                json-response)
-              (check-equal? step-name "Initialize Program")
-              (check-equal? step 0)
-              (check-not-false program)
-              (check-not-false html-guids))
-
-  (test-case "init! defaults missing source options to canonical mini profile"
-              (define sample-req
-                (make-post-init-request
-                 "(run* (q) (== 'a 'a))"
-                 (hasheq 'text "(run* (q) (== 'a 'a))")))
-              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (define-values (response _ses^) (init! ses sample-req 'defaultid))
-              (check-equal? (response-code response) 200)
-              (define json-response (string->jsexpr (response-body->string response)))
-              (match-define (hash* ['stepName step-name]
-                                   ['step step]
-                                   ['program program]
-                                   ['htmlGuids html-guids]
-                                   #:open)
-                json-response)
-              (check-equal? step-name "Initialize Program")
-              (check-equal? step 0)
-              (check-not-false program)
-              (check-not-false html-guids))
-
-  (test-case "init! serializes direct micro Zzz as goal delay"
-              (define sample-req
-                (make-post-init-request
-                 "(run* (q) (Zzz (== q 'cat)))"
-                 (hasheq 'text "(run* (q) (Zzz (== q 'cat)))"
-                         'sourceMode "micro")))
-              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (define-values (response _ses^) (init! ses sample-req 'goal-delay-id))
-              (check-equal? (response-code response) 200)
-              (define payload (string->jsexpr (response-body->string response)))
-              (match-define (hash* ['program program] #:open) payload)
-              (define program-json (string->jsexpr program))
-              (match-define (hash* ['name name] #:open) program-json)
-              (check-true (json-contains-name? program-json "Goal-Delay"))
-              (check-false (equal? name "Delay")))
-
-  (test-case "init! rejects compileProfile for direct micro source"
-              (define sample-req
-                (make-post-init-request
-                 factored-continuation-micro-program
-                 (hasheq 'text factored-continuation-micro-program
-                         'sourceMode "micro"
-                         'compileProfile
-                         (hasheq 'conjAssoc "right"
-                                 'disjAssoc "left"
-                                 'delayPlacement "disj"))))
-              (define ses
-                (session (make-empty-zipper)
-                         identity
-                         1
-                         default-search-strategy))
-              (check-exn
-               #rx"compileProfile is only valid when sourceMode is \"mini\""
-               (lambda ()
-                 (call-with-values
-                  (lambda ()
-                    (init! ses sample-req 'micro-compile-profile-id))
-                  list))))
-
-  (test-case "init!/step! preserve source ids across tagged source and tree JSON"
-              (define sample-req
-                (make-post-init-request same-program))
-              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (define-values (response ses^) (init! ses sample-req 'source-id-test))
-              (define init-payload (string->jsexpr (response-body->string response)))
-              (match-define (hash* ['program init-program]
-                                   ['htmlGuids html-guids]
-                                   #:open)
-                init-payload)
-              (check-true
-               (all-json-ids-appear-in-source? html-guids
-                                               (string->jsexpr init-program)))
-              (define-values (step-response _ses^^) (step! ses^))
-              (define step-payload (string->jsexpr (response-body->string step-response)))
-              (match-define (hash* ['program step-program] #:open) step-payload)
-              (check-true
-               (all-json-ids-appear-in-source? html-guids
-                                               (string->jsexpr step-program))))
-
-  (test-case "init!/step! preserve source ids across tagged source and tree JSON for direct micro source"
-              (define sample-req
-                (make-post-init-request
-                 factored-continuation-micro-program
-                 (hasheq 'text factored-continuation-micro-program
-                         'sourceMode "micro")))
-              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (define-values (response ses^) (init! ses sample-req 'micro-source-id-test))
-              (define init-payload (string->jsexpr (response-body->string response)))
-              (match-define (hash* ['program init-program]
-                                   ['htmlGuids html-guids]
-                                   #:open)
-                init-payload)
-              (check-true
-               (all-json-ids-appear-in-source? html-guids
-                                               (string->jsexpr init-program)))
-              (define-values (step-response _ses^^) (step! ses^))
-              (define step-payload (string->jsexpr (response-body->string step-response)))
-              (match-define (hash* ['program step-program] #:open) step-payload)
-              (check-true
-               (all-json-ids-appear-in-source? html-guids
-                                               (string->jsexpr step-program))))
-
-  (test-case "appendoh 2 produces repeated RHS nodes that share one source UUID"
-              (define sample-req
-                (make-post-init-request (example-src "appendoh 2")))
-              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (define-values (response ses^) (init! ses sample-req 'repeated-source-id-test))
-              (define init-payload (string->jsexpr (response-body->string response)))
-              (match-define (hash* ['htmlGuids html-guids] #:open) init-payload)
-              (define repeated-source-ids (find-source-duplicate-ids ses^))
-              (when repeated-source-ids
-                (for ([id (in-list repeated-source-ids)])
-                  (check-true
-                   (regexp-match? (regexp-quote (format "[[~a]]" id))
-                                  html-guids)))))
-
-  (test-case "rendered micro appendoh 2 produces repeated RHS nodes that share one source UUID"
-              (define micro-src
-                (render-source->micro (example-src "appendoh 2")))
-              (define sample-req
-                (make-post-init-request
-                 micro-src
-                 (hasheq 'text micro-src
-                         'sourceMode "micro")))
-              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (define-values (response ses^) (init! ses sample-req 'repeated-micro-source-id-test))
-              (define init-payload (string->jsexpr (response-body->string response)))
-              (match-define (hash* ['htmlGuids html-guids] #:open) init-payload)
-              (define repeated-source-ids (find-source-duplicate-ids ses^))
-              (when repeated-source-ids
-                (for ([id (in-list repeated-source-ids)])
-                  (check-true
-                   (regexp-match? (regexp-quote (format "[[~a]]" id))
-                                  html-guids)))))
-
-  (test-case "rail-enter and force-delay are adjacent visible UI changes"
-              (define sample-req
-                (make-post-init-request
-                 disj-delay-program
-                 #:strategy (search-strategy "rail")))
-              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (define-values (response ses^) (init! ses sample-req 'rail-delay-witness-id))
-              (check-equal? (response-code response) 200)
-              (define rail/force-pair
-                (find-adjacent-step-payloads
-                 (collect-step-payloads ses^ STRATEGY-WITNESS-CAP)
-                 "rail-enter-right"
-                 "force-delay"))
-              (check-not-false rail/force-pair)
-              (match-define (list rail-payload force-payload) rail/force-pair)
-              (match-define (hash* ['step rail-step]
-                                   ['program rail-program]
-                                   #:open)
-                rail-payload)
-              (match-define (hash* ['step force-step]
-                                   ['program force-program]
-                                   #:open)
-                force-payload)
-              (check-equal? force-step (add1 rail-step))
-              (check-true (payload-contains-name? rail-payload "Delay"))
-              (check-true (payload-contains-name? force-payload "Deferred"))
-              (check-false (equal? (string->jsexpr rail-program)
-                                   (string->jsexpr force-program))))
-
-  (test-case "fives/fours trace contains multiple scoped adjacent UI changes"
-              (define sample-req
-                (make-post-init-request (example-src "fives/fours")))
-              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (define-values (response ses^) (init! ses sample-req 'fives-fours-visible-id))
-              (check-equal? (response-code response) 200)
-              (define scoped-changes
-                (collect-scoped-visible-changes
-                 (collect-step-payloads ses^ SCOPED-VISIBLE-PAIR-CAP)))
-              (check-true (>= (length scoped-changes) 2)))
-
-  (test-case "fives/fours keeps scoped visible change across a delay boundary"
-              (define sample-req
-                (make-post-init-request (example-src "fives/fours")))
-              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (define-values (response ses^) (init! ses sample-req 'fives-fours-debug-id))
-              (check-equal? (response-code response) 200)
-              (define scoped-forced-pair
-                (for/first ([pair (in-list (collect-scoped-visible-changes
-                                            (collect-step-payloads ses^ SCOPED-VISIBLE-PAIR-CAP)))]
-                            #:do [(match-define (list left right) pair)]
-                            #:when (or (payload-contains-name? left "Deferred")
-                                       (payload-contains-name? right "Deferred")))
-                  pair))
-              (check-not-false scoped-forced-pair))
-
-  (test-case "dotted-pair witness eventually serializes dotted-pair reifications"
-              (define sample-req
-                (make-post-init-request dotted-pair-program))
-              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (define-values (response ses^) (init! ses sample-req 'dotted-pair-id))
-              (check-equal? (response-code response) 200)
-              (define pair-payload-count
-                (count-pair-payloads
-                 (collect-step-payloads ses^ PAIR-WITNESS-CAP)))
-              (check-true (positive? pair-payload-count)))
-
-  (test-case "div3o stays JSON-serializable through a deep default trace"
-              (define sample-req
-                (make-post-init-request (example-src "div3o")))
-              (define ses0 (session (make-empty-zipper) identity 1 default-search-strategy))
-              (define-values (response ses1) (init! ses0 sample-req 'div3o-deep-id))
-              (check-equal? (response-code response) 200)
-              (define (loop ses remaining [seen 0])
-                (cond
-                  [(zero? remaining)
-                   (check-true (>= seen MIN-DEEP-TRACE-STEPS))]
-                  [else
-                   (define-values (step-response ses^) (step! ses))
-                   (define out (response-body->string step-response))
-                   (cond
-                     [(equal? out "null")
-                     (check-true (>= seen MIN-DEEP-TRACE-STEPS))]
-                     [else
-                      (define payload (string->jsexpr out))
-                      (assert-step-payload-shape payload
-                                                 (format "div3o deep step ~a" seen))
-                      (loop ses^ (sub1 remaining) (add1 seen))])]))
-              (loop ses1 DEEP-TRACE-CAP))
-
-  (test-case "init! throws error if program is not syntactically correct"
-              (define sample-req (make-post-init-request "(run* (== 'a 'a))"))
-              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (check-exn exn:fail:syntax?
-                         (thunk
-                          (call-with-values
-                           (lambda () (init! ses sample-req 'testid))
-                           list))))
-
-  (test-case "init! defaults missing searchStrategy in payload"
-              (define sample-req
-                (make-post-request "init"
-                                   (hasheq 'text "(run* (q) (== q 'ok))"
-                                           'sourceMode "mini"
-                                           'compileProfile (hash-ref default-source-options 'compileProfile))))
-              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (define-values (response ses^) (init! ses sample-req 'default-strategy-id))
-              (check-equal? (response-code response) 200)
-              (check-equal? (session-search-strategy ses^) default-search-strategy))
-
-  (test-case "init! rejects searchStrategy.hoist in payload"
-              (define sample-req
-                (make-post-init-request
-                 "(run* (q) (== q 'ok))"
-                 (hasheq 'text "(run* (q) (== q 'ok))"
-                         'sourceMode "mini"
-                         'compileProfile (hash-ref default-source-options 'compileProfile)
-                         'searchStrategy (hasheq 'hoist "early"
-                                                 'scheduler "rail"))))
-              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (check-exn #rx"searchStrategy\\.hoist is not part of the factored runtime"
-                         (thunk
-                          (call-with-values
-                           (lambda () (init! ses sample-req 'invalid-hoist-id))
-                           list))))
-
-  (test-case "init! rejects invalid searchStrategy scheduler in payload"
-              (define sample-req
-                (make-post-init-request
-                 disj-delay-program
-                 (hasheq 'text disj-delay-program
-                         'sourceMode "mini"
-                         'compileProfile (hash-ref default-source-options 'compileProfile)
-                         'searchStrategy (hasheq 'scheduler "zigzag"))))
-              (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-              (check-exn exn:fail?
-                         (thunk
-                          (call-with-values
-                           (lambda () (init! ses sample-req 'invalid-scheduler-id))
-                           list))))
-
-  (test-case "init! accepts searchStrategy payload and updates session state"
-              (define ses (session (make-empty-zipper)
-                                   step/const-tree-output
-                                   1
-                                   default-search-strategy))
-              (define-values (response ses^)
-                (init!
-                 ses
-                 (make-post-init-request
-                  disj-delay-program
-                  #:strategy (search-strategy "flip"))
-                 'init-search-strategy-id))
-              (check-equal? (response-code response) 200)
-              (check-equal? (session-search-strategy ses^)
-                            (search-strategy "flip"))
-              (define names (collect-step-names ses^ STRATEGY-WITNESS-CAP))
-              (check-not-false (member "flip-delay-left" names))
-              (check-false (member "rail-enter-right" names))
-              (check-false (member "rail-return-left" names)))
-  )
-
-(define-test-suite RESET!
-  #:before (thunk (displayln "Running tests for reset!..."))
-  #:after (thunk (displayln "Finished running tests for reset."))
-
-  (test-case "reset! empties state and sends initial state when it has a prev cache"
-             (define zip (zipper (list 'a 'b 'c (step "Initialize Program" sample-tree))
-                                   'd '() 5))
-             (define stepper identity)
-             (define ses (session zip stepper 1 default-search-strategy))
-             (define-values (response ses^) (reset! ses))
-             (check-equal? (response-code response) 200)
-             (check-equal? (response-message response) #"OK")
-             (check-equal? (response-mime response) 
-                           APPLICATION/JSON-MIME-TYPE)
-             (check-equal? (response-headers response) 
-                           (list (header #"X-Is-Start" #"true")))
-             (check-sample-program-response response 0 "Initialize Program")
-             (match-define (session (zipper prev curr next idx) _ _ _) ses^)
-             (check-equal? prev '())
-             (check-equal? curr (step "Initialize Program" sample-tree))
-             (check-equal? next '())
-             (check-equal? idx 0))
-
-
-  (test-case "reset! empties state and sends current state with header when it doesn't have a prev cache"
-             (define zip (zipper '() (step "Initialize Program" sample-tree) '() 0))
-             (define stepper identity)
-             (define ses (session zip stepper 1 default-search-strategy))
-             (define-values (response ses^) (reset! ses))
-             (check-equal? (response-code response) 200)
-             (check-equal? (response-message response) #"OK")
-             (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
-             (check-equal? (response-headers response)
-                           (list (make-header #"X-Is-Start" #"true")))
-             (check-sample-program-response response 0 "Initialize Program")
-             (check-equal? (session-zipper ses^) zip))
-
-  (test-case "reset! restores the initial visible program after real search steps"
-             (define sample-req
-               (make-post-init-request (example-src "fives/fours")))
-             (define ses (session (make-empty-zipper) identity 1 default-search-strategy))
-             (define-values (init-response ses^) (init! ses sample-req 'reset-real-id))
-             (define init-payload (string->jsexpr (response-body->string init-response)))
-             (match-define (hash* ['program init-program] #:open) init-payload)
-             (define-values (_step1 ses1) (step! ses^))
-             (define-values (_step2 ses2) (step! ses1))
-             (define-values (reset-response _ses3) (reset! ses2))
-             (check-equal? (response-code reset-response) 200)
-             (check-equal? (response-headers reset-response)
-                           (list (make-header #"X-Is-Start" #"true")))
-             (define reset-payload (string->jsexpr (response-body->string reset-response)))
-             (match-define (hash* ['step step]
-                                  ['stepName step-name]
-                                  ['program reset-program]
-                                  #:open)
-               reset-payload)
-             (check-equal? step 0)
-             (check-equal? step-name "Initialize Program")
-             (check-equal? (string->jsexpr reset-program)
-                           (string->jsexpr init-program)))
-  )
-
-(define-test-suite BACK!
-  #:before (thunk (displayln "Running tests for back!..."))
-  #:after (thunk (displayln "Finished running tests for back!."))
-
-  (test-case "back! sends initial state with header when only one thing in prev cache and updates state"
-             (define zip (zipper (list (step "Initialize Program" sample-tree))
-                                 (step "next" sample-tree)
-                                 '()
-                                 1))
-             (define stepper identity)
-             (define ses (session zip stepper 1 default-search-strategy))
-             (define-values (response ses^) (back! ses))
-             (check-equal? (response-code response) 200)
-             (check-equal? (response-message response) #"OK")
-             (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
-             (check-equal? (response-headers response)
-                           (list (header #"X-Is-Start" #"true")))
-             (check-sample-program-response response 0 "Initialize Program")
-             (match-define (session (zipper prev curr next idx) _ _ _) ses^)
-             (check-equal? prev '())
-             (check-equal? curr (step "Initialize Program" sample-tree))
-             (check-equal? next (list (step "next" sample-tree)))
-             (check-equal? idx 0))
-
-  (test-case "back! sends initial state when multiple things in prev cache and updates state"
-              (define zip (zipper (list (step "Initialize Program" sample-tree)
-                                        (step "test1" sample-tree))
-                                  (step "test2" sample-tree)
-                                  '()
-                                  2))
-              (define stepper identity)
-              (define ses (session zip stepper 1 default-search-strategy))
-              (define-values (response ses^) (back! ses))
-              (check-equal? (response-code response) 200)
-              (check-equal? (response-message response) #"OK")
-              (check-equal? (response-mime response) APPLICATION/JSON-MIME-TYPE)
-              (check-equal? (response-headers response) '())
-              (check-sample-program-response response 1 "Initialize Program")
-              (match-define (session (zipper prev curr next idx) _ _ _) ses^)
-              (check-equal? prev (list (step "test1" sample-tree)))
-              (check-equal? curr (step "Initialize Program" sample-tree))
-              (check-equal? next (list (step "test2" sample-tree)))
-              (check-equal? idx 1))
-  )
-
-(define-test-suite INIT-SEARCH-STRATEGY!
-  #:before (thunk (displayln "Running tests for init search strategy binding!..."))
-  #:after (thunk (displayln "Finished running tests for init search strategy binding!."))
-
-  (test-case "flip strategy emits flip rules and no rail rules"
-             (define ses (session (make-empty-zipper) step/const-tree-output 1 default-search-strategy))
-             (define-values (response ses^) (init! ses (make-post-init-request disj-delay-program #:strategy (search-strategy "flip")) 'testid))
-             (check-equal? (response-code response) 200)
-             (check-equal? (session-search-strategy ses^) (search-strategy "flip"))
-             (define names (collect-step-names ses^ STRATEGY-WITNESS-CAP))
-             (check-not-false (member "flip-delay-left" names))
-             (check-not-false (member "force-delay" names))
-             (check-false (member "rail-enter-right" names))
-             (check-false (member "rail-return-left" names)))
-
-  (test-case "factored flip witness reaches unify under owner annotations"
-             (define ses (session (make-empty-zipper) step/const-tree-output 1 default-search-strategy))
-             (define-values (response ses^)
-               (init!
-                ses
-                (make-post-init-request
-                 factored-continuation-micro-program
-                 (hasheq 'text factored-continuation-micro-program
-                         'sourceMode "micro")
-                 #:strategy (search-strategy "flip"))
-                'factored-witness-flip-id))
-             (check-equal? (response-code response) 200)
-             (define-values (payload _ses^^) (nth-step-payload ses^ 3))
-             (check-not-false payload)
-             (match-define (hash* ['step step]
-                                  ['stepName step-name]
-                                  #:open)
-               payload)
-             (check-equal? step 4)
-             (check-equal? step-name "unify-success"))
-
-  (test-case "rail strategy binds the session and keeps flip rules absent"
-             (define ses (session (make-empty-zipper) step/const-tree-output 1 default-search-strategy))
-             (define-values (response ses^) (init! ses (make-post-init-request (example-src "fives/fours") #:strategy (search-strategy "rail")) 'testid))
-             (check-equal? (response-code response) 200)
-             (check-equal? (session-search-strategy ses^) (search-strategy "rail"))
-             (define names (collect-step-names ses^ STRATEGY-WITNESS-CAP))
-             (check-not-false (member "force-delay" names))
-             (check-false (member "flip-delay-left" names)))
-
-  (test-case "rail delayed disjunction expands the right relcall after force-delay"
-             (define ses (session (make-empty-zipper) step/const-tree-output 1 default-search-strategy))
-             (define-values (response ses^)
-               (init! ses
-                      (make-post-init-request disj-delay-program
-                                              #:strategy (search-strategy "rail"))
-                      'testid))
-             (check-equal? (response-code response) 200)
-             (check-equal? (session-search-strategy ses^) (search-strategy "rail"))
-             (define names (collect-step-names ses^ STRATEGY-WITNESS-CAP))
-             (check-not-false (member "rail-enter-right" names))
-             (check-not-false (member "force-delay" names))
-             (check-true (>= (length (filter (lambda (name)
-                                               (equal? name "expand-relcall"))
-                                             names))
-                             2)))
-
-  (test-case "dfs relcall-delay profile expands relcall without eager/lazy resume rules"
-             (define ses (session (make-empty-zipper) step/const-tree-output 1 default-search-strategy))
-             (define-values (response ses^)
-               (init!
-                ses
-                (make-post-init-request
-                 disj-delay-program
-                 (hasheq 'text disj-delay-program
-                         'sourceMode "mini"
-                         'compileProfile (hasheq 'conjAssoc "left"
-                                                 'disjAssoc "right"
-                                                 'delayPlacement "relcall"))
-                 #:strategy (search-strategy "dfs"))
-                'testid))
-             (check-equal? (response-code response) 200)
-             (check-equal? (session-search-strategy ses^) (search-strategy "dfs"))
-             (define names (collect-step-names ses^ STRATEGY-WITNESS-CAP))
-             (check-not-false (member "expand-relcall" names))
-             (check-false (ormap (lambda (nm)
-                                   (regexp-match? #rx"eager|lazy|proceed" nm))
-                                 names)))
-
-  (test-case "disj delay placement does not also suspend plain relcalls"
-             (define ses (session (make-empty-zipper) step/const-tree-output 1 default-search-strategy))
-             (define-values (response ses^)
-               (init!
-                ses
-                (make-post-init-request
-                 disj-relcall-program
-                 (hasheq 'text disj-relcall-program
-                         'sourceMode "mini"
-                         'compileProfile (hasheq 'conjAssoc "right"
-                                                 'disjAssoc "left"
-                                                 'delayPlacement "disj"))
-                 #:strategy (search-strategy "rail"))
-                'testid))
-             (check-equal? (response-code response) 200)
-             (check-equal? (session-search-strategy ses^) (search-strategy "rail"))
-             (define names (collect-step-names ses^ STRATEGY-WITNESS-CAP))
-             (check-not-false (member "suspend-goal" names))
-             (check-not-false (member "expand-relcall" names))
-             (check-false (ormap (lambda (nm)
-                                   (regexp-match? #rx"eager|lazy|proceed" nm))
-                                 names))))
-
-(define-test-suite CONFIGURATION-NAVIGATION!
-  #:before (thunk (displayln "Running product configuration navigation tests..."))
-  #:after (thunk (displayln "Finished product configuration navigation tests."))
-
-  (test-case "non-default compile/runtime configuration survives step, back, and reset"
-             (define selected-profile
-               (hasheq 'conjAssoc "right"
-                       'disjAssoc "left"
-                       'delayPlacement "disj"))
-             (define selected-strategy (search-strategy "flip"))
-             (define req
-               (make-post-init-request
-                disj-relcall-program
-                (hasheq 'text disj-relcall-program
-                        'sourceMode "mini"
-                        'compileProfile selected-profile)
-                #:strategy selected-strategy))
-             (define-values (init-response ses1)
-               (init! (make-empty-session) req 'retained-config-id))
-             (define init-payload
-               (string->jsexpr (response-body->string init-response)))
-             (define init-program (hash-ref init-payload 'program))
-
-             ;; Disjunction placement delays the query's disjunction itself;
-             ;; the canonical relbody profile does not. This distinguishes the
-             ;; selected lowering from mere acceptance of its option values.
-             (check-true
-              (json-contains-name? (string->jsexpr init-program)
-                                   "Goal-Delay"))
-             (define-values (canonical-response _canonical-session)
-               (init!
-                (make-empty-session)
-                (make-post-init-request disj-relcall-program
-                                        #:strategy selected-strategy)
-                'canonical-config-comparison-id))
-             (define canonical-payload
-               (string->jsexpr (response-body->string canonical-response)))
-             (check-false
-              (json-contains-name?
-               (string->jsexpr (hash-ref canonical-payload 'program))
-               "Goal-Delay"))
-
-             ;; The selected lowering has observable operational force, and
-             ;; every surfaced label is the name of an actual Redex clause.
-             (define trace-names
-               (collect-step-names ses1 STRATEGY-WITNESS-CAP))
-             (check-not-false (member "suspend-goal" trace-names))
-             (check-not-false (member "expand-relcall" trace-names))
-             (check-true
-              (andmap (lambda (name)
-                        (if (member name flip-redex-rule-names) #t #f))
-                      trace-names))
-
-             (define-values (first-response ses2) (step! ses1))
-             (define first-payload
-               (string->jsexpr (response-body->string first-response)))
-             (check-equal? (session-search-strategy ses2) selected-strategy)
-
-             (define-values (back-response ses3) (back! ses2))
-             (define back-payload
-               (string->jsexpr (response-body->string back-response)))
-             (check-equal? (hash-ref back-payload 'program) init-program)
-             (check-equal? (session-search-strategy ses3) selected-strategy)
-
-             (define-values (replayed-response ses4) (step! ses3))
-             (define replayed-payload
-               (string->jsexpr (response-body->string replayed-response)))
-             (check-equal? replayed-payload first-payload)
-             (check-equal? (session-search-strategy ses4) selected-strategy)
-
-             (define-values (reset-response ses5) (reset! ses4))
-             (define reset-payload
-               (string->jsexpr (response-body->string reset-response)))
-             (check-equal? (hash-ref reset-payload 'program) init-program)
-             (check-equal? (session-search-strategy ses5) selected-strategy)
-
-             (define-values (post-reset-response ses6) (step! ses5))
-             (define post-reset-payload
-               (string->jsexpr (response-body->string post-reset-response)))
-             (check-equal? post-reset-payload first-payload)
-             (check-equal? (session-search-strategy ses6) selected-strategy)))
-
-(define-test-suite SOURCE-CONVERT!
-  (test-case "source-convert! lowers mini source to direct micro source with Zzz"
-             (define req
-               (make-post-source-convert-request
-                "(defrel (same x y) (== x y))
-                 (run* (q)
-                   (conde
-                     [(same q 'cat)]
-                     [(same q 'dog)]))"))
-             (define response (source-convert! req))
-             (check-equal? (response-code response) 200)
-             (define body (string->jsexpr (response-body->string response)))
-             (match-define (hash* ['source rendered] #:open) body)
-             (check-true (string? rendered))
-             (check-not-false (regexp-match? #rx"Zzz" rendered)))
-
-  (test-case "source-convert! rejects unsupported target source modes"
-             (define req
-               (make-post-source-convert-request
-                "(run* (q) (== q 'cat))"
-                (hasheq 'text "(run* (q) (== q 'cat))"
-                        'sourceMode "mini"
-                        'compileProfile (hash-ref default-source-options 'compileProfile)
-                        'targetSourceMode "mini")))
-             (check-exn exn:fail?
-                        (lambda () (source-convert! req)))))
+(require rackunit rackunit/text-ui json web-server/http
+         "../src/app.rkt" "../src/program-runner.rkt"
+         (only-in "../src/minikanren.rkt" run-source)
+         "../src/transpiler.rkt" "../src/search-runtime.rkt"
+         (only-in "../derivations/strict-search/shared/kernel-equations.rkt" current-atomic-observer)
+         (only-in "../derivations/strict-search/matrix/stages/full.rkt" SRel)
+         (only-in "../derivations/strict-search/shared/stages/schema.rkt" decompose D)
+         "test-http-helpers.rkt")
+
+(define (payload response) (string->jsexpr (response-body->string response)))
+(define (response-header response name)
+  (for/first ([entry (in-list (response-headers response))]
+              #:when (bytes=? name (header-field entry)))
+    (header-value entry)))
+
+(define (initialize source [mode "mini"] [profile #f])
+  (init! #f
+         (make-post-init-request source
+          (if profile
+              (hasheq 'text source 'sourceMode mode 'compileProfile profile)
+              (hasheq 'text source 'sourceMode mode)))
+         'api-test))
+
+(define (steps session count)
+  (if (zero? count) session
+      (let-values ([(response next) (step! session)])
+        (assert-step-payload-shape (payload response) 'step)
+        (steps next (sub1 count)))))
+
+(define (until session wanted [fuel 150])
+  (cond [(eq? (model-session-status session) wanted) session]
+        [(zero? fuel) (error 'until "did not reach ~e" wanted)]
+        [else
+         (define-values (_response next) (step! session))
+         (until next wanted (sub1 fuel))]))
+
+(define (check-actual-work session [fuel 100])
+  (unless (model-session-done? session)
+    (when (zero? fuel) (error 'check-actual-work "finite work witness exhausted its budget"))
+    (define before (decompose SRel (model-session-current-config session)))
+    (define observed '())
+    (define-values (_response next)
+      (parameterize ([current-atomic-observer
+                      (lambda (goal state) (set! observed (cons (list goal state) observed)))])
+        ;; These operations must not attempt reductions or replay a solver.
+        (model-session-status session)
+        (model-session-current-picture session)
+        (model-session-current-answer-nodes session)
+        (step! session)))
+    (define expected
+      (match (model-session-current-step-name next)
+        ["eval-atom"
+         (match before [(D (list 'eval _ goal state) _) (list (list goal state))])]
+        [_ '()]))
+    (check-equal? (reverse observed) expected)
+    (check-actual-work next (sub1 fuel))))
 
 (define/provide-test-suite APP
-  #:before (thunk (displayln "Running tests for app.rkt..."))
-  #:after (thunk (displayln "Finished running tests for app.rkt"))
-  STEP!
-  INIT!
-  RESET!
-  BACK!
-  INIT-SEARCH-STRATEGY!
-  CONFIGURATION-NAVIGATION!
-  SOURCE-CONVERT!
-)
+  (test-case "init preserves explicit query metadata and returns the compiled matrix picture"
+    (define-values (response session)
+      (initialize "(defrel (same x y) (== x y)) (run 2 (q r) (same q r))"))
+    (check-equal? (response-code response) 200)
+    (check-equal? (response-mime response) #"application/json; charset=utf-8")
+    (check-equal? (response-header response #"Set-Cookie")
+                  #"session-id=api-test; Path=/; SameSite=Lax")
+    (check-equal? (response-header response #"X-Is-Start") #"true")
+    (check-equal? (query-info-names (model-session-query session)) '(q r))
+    (check-equal? (query-info-variables (model-session-query session)) '(u:0 u:1))
+    (check-equal? (query-info-limit (model-session-query session)) 2)
+    (check-match (model-session-current-config session) (list 'program _ (list 'commit _)))
+    (check-equal? (hash-ref (payload response) 'executionStatus) "running")
+    (check-equal? (hash-ref (payload response) 'answerCount) 0)
+    (check-true (string? (hash-ref (payload response) 'htmlGuids)))
+    (check-equal? (string->jsexpr (hash-ref (payload response) 'program))
+                  (model-session-current-picture session)))
 
-(run-tests APP)
+  (test-case "paused Frontier is observable and next explicitly invokes public advance"
+    (define-values (_initial session)
+      (initialize "(run* (q) (Zzz (== q 'ready)))" "micro"))
+    (define paused (until session 'paused))
+    (check-false (model-session-done? paused))
+    (check-equal? (model-session-current-host-answers paused) '())
+    (define-values (response advancing) (step! paused))
+    (check-equal? (hash-ref (payload response) 'stepName) "advance")
+    (check-equal? (hash-ref (payload response) 'stepKind) "public-operation")
+    (check-false (response-header response #"X-Done"))
+    (match-define (list 'program definitions frontier) (model-session-current-config paused))
+    (check-equal? (model-session-current-config advancing)
+                  (list 'program definitions (list 'advance frontier)))
+    (define completed (until advancing 'complete))
+    (check-equal? (model-session-current-host-answers completed) '(ready))
+    (define-values (done-response same) (step! completed))
+    (check-equal? same completed)
+    (check-equal? (response-header done-response #"X-Done") #"true"))
+
+  (test-case "back, forward and reset preserve exact configurations, profiles and query metadata"
+    (define profile (hasheq 'conjAssoc "right" 'disjAssoc "left" 'delayPlacement "disj"))
+    (define-values (initial-response initial)
+      (initialize "(run* (q) (conde [(== q 'a)] [(== q 'b)]))" "mini" profile))
+    (define-values (first-response first) (step! initial))
+    (define-values (back-response back) (back! first))
+    (check-equal? (model-session-current-config back) (model-session-current-config initial))
+    (check-equal? (hash-ref (payload back-response) 'program)
+                  (hash-ref (payload initial-response) 'program))
+    (define-values (again-response again) (step! back))
+    (check-equal? (payload again-response) (payload first-response))
+    (check-equal? (model-session-current-config again) (model-session-current-config first))
+    (define-values (reset-response reset) (reset! (steps again 8)))
+    (check-equal? (model-session-current-config reset) (model-session-current-config initial))
+    (check-equal? (model-session-query reset) (model-session-query initial))
+    (check-equal? (hash-ref (payload reset-response) 'step) 0)
+    (check-equal? (response-header reset-response #"X-Is-Start") #"true"))
+
+  (test-case "Done and Last are completed terminal structures"
+    (for ([source '("(run* (q) fail)" "(run* (q) succeed)")]
+          [expected '(() (_.0))])
+      (define-values (_response initial) (initialize source "micro"))
+      (define final (until initial 'complete))
+      (check-equal? (model-session-current-host-answers final) expected)
+      (check-true (model-session-done? final))))
+
+  (test-case "undefined calls, wrong arity and free lexical variables reject at initialization"
+    (for ([source '("(run* (q) (missing q))"
+                    "(defrel (same x y) (== x y)) (run* (q) (same q))"
+                    "(defrel (bad x) (== x y)) (run* (q) (bad q))")])
+      (check-exn exn:fail? (lambda () (initialize source "micro")))))
+
+  (test-case "unguarded right recursion stays responsive and cannot commit its left candidate"
+    (define source
+      "(defrel (loopo x) (loopo x))
+       (run* (q) (disj (== q 'candidate) (loopo q)))")
+    (define-values (_response initial) (initialize source "micro"))
+    (define current (steps initial 30))
+    (check-equal? (model-session-status current) 'running)
+    (check-equal? (model-session-current-step-name current) "eval-call")
+    (check-equal? (model-session-current-host-answers current) '())
+    (check-exn #rx"step cap" (lambda () (run-source source #:source-mode "micro"
+                                                        #:answer-limit 1 #:step-cap 30))))
+
+  (test-case "stuck is distinct from a paused or completed configuration"
+    (define malformed (list 'program '() (list 'force '(Empty (Owners)))))
+    (check-equal? (configuration-status malformed) 'stuck)
+    (define-values (_response initial) (initialize "(run* (q) succeed)" "micro"))
+    (define query (model-session-query initial))
+    (define stuck (open-compiled malformed query))
+    (check-exn #rx"stuck matrix configuration" (lambda () (step! stuck))))
+
+  (test-case "status, rendering and answer extraction perform no extra kernel work"
+    (define-values (_response initial)
+      (initialize "(run* (q) (conj (disj (== q 'a) (Zzz (== q 'b))) (=/= q 'a)))"
+                  "micro"))
+    (check-actual-work initial))
+
+  (test-case "source conversion preserves selectable compilation and rejects other targets"
+    (define response
+      (source-convert! (make-post-source-convert-request
+                         "(defrel (same x y) (== x y)) (run* (q) (same q 'cat))")))
+    (check-not-false (regexp-match? #rx"Zzz" (hash-ref (payload response) 'source)))
+    (check-exn exn:fail?
+      (lambda () (source-convert! (make-post-source-convert-request
+                                   "(run* (q) (== q 'cat))"
+                                   (hasheq 'text "(run* (q) (== q 'cat))"
+                                           'targetSourceMode "mini")))))))
+
+(module+ test (run-tests APP))

@@ -19,15 +19,13 @@
          (struct-out relname)
          (struct-out defrel)
          (struct-out run)
-         map/fold
-         next-g-id
          konst->string
          term->string
          map/kons
          kons->string
-         add2
-         remove-tag-spaces
          add-guids
+         source-occurrence-ids
+         inherit-source-id!
          primitive-value?
          parse-term-within-quote
          kons*-terms
@@ -54,22 +52,53 @@
 (struct defrel (name lop goal) #:transparent)
 (struct run (n q goal) #:transparent)
 
-(define (map/fold f lst init-state)
-  (define-values (rev-acc state)
-    (for/fold ([rev-acc '()]
-               [state init-state])
-              ([x (in-list lst)])
-      (define-values (v next-state) (f x state))
-      (values (cons v rev-acc) next-state)))
-  (values (reverse rev-acc) state))
-
 (define (next-g-id prefix counter)
   (values (string-append prefix (number->string counter)) (add1 counter)))
 
+;; Compilation metadata keyed by source occurrence, not structural equality:
+;; two identical goals in the source still denote two different locations.
+;; The normalizer explicitly preserves this identity when rebuilding nodes.
+(define (source-occurrence-ids ast)
+  (define ids (make-hasheq))
+  (define (visit expr count)
+    (define prefix
+      (match expr
+        [(or (fresh _ _) (run _ _ _)) "f"]
+        [(or (conde _) (disj _ _)) "d"]
+        [(conj _ _) "c"]
+        [(unify _ _) "u"]
+        [(diseq _ _) "n"]
+        [(delay-goal _) "y"]
+        [(relcall _ _) "r"]
+        [(succeed) "s"]
+        [(fail) "fail"]
+        [_ #f]))
+    (define next
+      (if prefix
+          (let-values ([(id next) (next-g-id prefix count)])
+            (hash-set! ids expr id)
+            next)
+          count))
+    (match expr
+      [(prog rels query)
+       (visit query (for/fold ([n next]) ([rel (in-list rels)]) (visit rel n)))]
+      [(defrel _ _ goal) (visit goal next)]
+      [(or (fresh _ goal) (run _ _ goal) (delay-goal goal)) (visit goal next)]
+      [(conde clauses)
+       (for/fold ([n next]) ([clause (in-list clauses)]) (visit clause n))]
+      [(or (conj left right) (disj left right)) (visit right (visit left next))]
+      [_ next]))
+  (visit ast 0)
+  ids)
+
+(define (inherit-source-id! ids source rebuilt)
+  (hash-set! ids rebuilt (hash-ref ids source))
+  rebuilt)
+
 (define (konst->string const)
   (match const
-    [(struct konst (s)) #:when (symbol? s) (format "'~a" (symbol->string s))]
-    [(struct konst (s)) #:when (string? s) s]
+    [(struct konst (s)) #:when (symbol? s) (format "'~s" s)]
+    [(struct konst (s)) #:when (string? s) (format "~s" s)]
     [(struct konst (b)) #:when (boolean? b) (if b "#t" "#f")]
     [(struct konst (n)) #:when (number? n) (number->string n)]))
 
@@ -77,8 +106,8 @@
   (cond
     [(konst? t) (konst->string t)]
     [(nil? t) "'()"]
-    [(var? t) (symbol->string (var-v t))]
-    [(relname? t) (symbol->string (relname-name t))]
+    [(var? t) (format "~s" (var-v t))]
+    [(relname? t) (format "~s" (relname-name t))]
     [(kons? t) (kons->string t)]
     [else t]))
 
@@ -102,7 +131,7 @@
     [(struct kons (a nil-tail)) #:when (nil? nil-tail)
      (kons->string/help a)]
     [(struct var (v))
-     (format "~a" v)]
+     (format "~s" v)]
     [(struct konst (_k))
      (konst->string l)]
     [(struct kons (a d))
@@ -110,169 +139,63 @@
              (kons->string/help a)
              (kons->string/help d))]))
 
-(define (add2 n) (+ n 2))
-
-(define (remove-tag-spaces str)
-  (regexp-replace #px"\\]\\]\\s+" str "]]"))
-
-(define (add-guids expr s guids)
-  (match expr
-    [(struct prog (rels query))
-     (define-values (rel-strings guids1)
-       (map/fold (lambda (r g) (add-guids r 0 g)) rels guids))
-     (define-values (query-str guids2)
-       (add-guids query 0 guids1))
-     (values (string-append (string-join rel-strings "\n\n")
-                            "\n\n"
-                            query-str)
-             guids2)]
-
-    [(struct fresh (vars goal))
-     (match-define (cons id rest) guids)
-     (define-values (vars-str rest1)
-       (map/fold (lambda (v gs) (add-guids v 0 gs)) vars rest))
-     (define-values (goal-str rest2)
-       (add-guids goal (add2 s) rest1))
-     (values (format "~a[[~a]](fresh (~a)\n~a)[[/~a]]"
-                     (make-string s #\space)
-                     id
-                     (string-join vars-str " ")
-                     goal-str
-                     id)
-             rest2)]
-
-    [(struct conde (clauses))
-     (match-define (cons id rest) guids)
-     (define (indent n) (make-string n #\space))
-     (define-values (clause-strs remaining-guids)
-       (map/fold
-        (lambda (clause g)
-          (define-values (clause-str new-g) (add-guids clause (+ s 2) g))
-          (values (format "~a[~a]"
-                          (indent (+ s 2))
-                          (remove-tag-spaces (string-trim clause-str)))
-                  new-g))
-        clauses
-        rest))
-     (define body (string-join clause-strs "\n"))
-     (values (format "~a[[~a]](conde\n~a\n~a)[[/~a]]"
-                     (indent s)
-                     id
-                     body
-                     (indent s)
-                     id)
-             remaining-guids)]
-
-    [(struct conj (g1 g2))
-     (match-define (cons id rest) guids)
-     (define-values (tg1 rest1) (add-guids g1 s rest))
-     (define-values (tg2 rest2) (add-guids g2 s rest1))
-     (values (format "~a[[~a]]~a\n~a[[/~a]]"
-                     (make-string s #\space)
-                     id
-                     (remove-tag-spaces tg1)
-                     tg2
-                     id)
-             rest2)]
-
-    [(struct unify (t1 t2))
-     (match-define (cons id rest) guids)
-     (define-values (tt1 rest1) (add-guids t1 0 rest))
-     (define-values (tt2 rest2) (add-guids t2 0 rest1))
-     (values (format "~a[[~a]](== ~a ~a)[[/~a]]"
-                     (make-string s #\space)
-                     id
-                     tt1
-                     tt2
-                     id)
-             rest2)]
-
-    [(struct diseq (t1 t2))
-     (match-define (cons id rest) guids)
-     (define-values (tt1 rest1) (add-guids t1 0 rest))
-     (define-values (tt2 rest2) (add-guids t2 0 rest1))
-     (values (format "~a[[~a]](=/= ~a ~a)[[/~a]]"
-                     (make-string s #\space)
-                     id
-                     tt1
-                     tt2
-                     id)
-             rest2)]
-
-    [(struct succeed ())
-     (values (format "~a(succeed)" (make-string s #\space)) guids)]
-
-    [(struct fail ())
-     (values (format "~a(fail)" (make-string s #\space)) guids)]
-
-    [(struct disj (g1 g2))
-     (match-define (cons id rest) guids)
-     (define-values (tg1 rest1) (add-guids g1 (+ s 2) rest))
-     (define-values (tg2 rest2) (add-guids g2 (+ s 2) rest1))
-     (values (format "~a[[~a]](disj\n~a\n~a\n~a)[[/~a]]"
-                     (make-string s #\space)
-                     id
-                     tg1
-                     tg2
-                     (make-string s #\space)
-                     id)
-             rest2)]
-
-    [(struct relcall (name terms))
-     (match-define (cons id rest) guids)
-     (define-values (tname rest1) (add-guids name 0 rest))
-     (define-values (tterms rest2)
-       (map/fold (lambda (t g) (add-guids t 0 g)) terms rest1))
-     (values (format "~a[[~a]](~a ~a)[[/~a]]"
-                     (make-string s #\space)
-                     id
-                     tname
-                     (string-join tterms " ")
-                     id)
-             rest2)]
-
-    [(struct nil ())          (values "'()" guids)]
-    [(struct konst (_))       (values (konst->string expr) guids)]
-    [(struct kons (_ _))      (values (kons->string expr) guids)]
-    [(struct var (v))         (values (symbol->string v) guids)]
-    [(struct relname (name))  (values (symbol->string name) guids)]
-
-    [(struct defrel (rname lop goal))
-     (define-values (trname g1) (add-guids rname 0 guids))
-     (define-values (tlop g2)
-       (map/fold (lambda (v g) (add-guids v 0 g)) lop g1))
-     (define-values (tgoal g3) (add-guids goal 2 g2))
-     (values (format "(defrel (~a ~a)\n~a)"
-                     trname
-                     (string-join tlop " ")
-                     tgoal)
-             g3)]
-
-    [(struct run (n qs goal))
-     (match-define (cons id rest) guids)
-     (define-values (tq r1)
-       (map/fold (lambda (q g) (add-guids q 0 g)) qs rest))
-     (define-values (tg r2) (add-guids goal 0 r1))
-     (values (format "[[~a]](run~a ~a ~a)[[/~a]]"
-                     id
-                     (if (= n +inf.0) "*" (format " ~a" n))
-                     tq
-                     tg
-                     id)
-             r2)]
-
-    [(struct delay-goal (goal))
-     (match-define (cons id rest) guids)
-     (define-values (goal-str rest1) (add-guids goal (+ s 2) rest))
-     (values (format "~a[[~a]](Zzz\n~a\n~a)[[/~a]]"
-                     (make-string s #\space)
-                     id
-                     goal-str
-                     (make-string s #\space)
-                     id)
-             rest1)]
-
-    [_ (error "Unrecognized AST node in add-guids" expr)]))
+(define (add-guids expr s source-ids [source-mode "mini"])
+  (define padding (make-string s #\space))
+  (define body
+    (match expr
+      [(prog rels query)
+       (string-append
+        (string-join (map (lambda (rel) (add-guids rel 0 source-ids source-mode)) rels) "\n\n")
+        "\n\n" (add-guids query 0 source-ids source-mode))]
+      [(fresh vars goal)
+       (format "(fresh (~a)\n~a)"
+               (string-join (map term->string vars) " ")
+               (add-guids goal (+ s 2) source-ids source-mode))]
+      [(conde clauses)
+       (format "(conde\n~a\n~a)"
+               (string-join
+                (for/list ([clause (in-list clauses)])
+                  (format "~a[~a]" (make-string (+ s 2) #\space)
+                          (substring (add-guids clause (+ s 2) source-ids source-mode) (+ s 2))))
+                "\n")
+               padding)]
+      [(conj left right)
+       (if (equal? source-mode "micro")
+           (format "(conj\n~a\n~a\n~a)"
+                   (add-guids left (+ s 2) source-ids source-mode)
+                   (add-guids right (+ s 2) source-ids source-mode)
+                   padding)
+           (format "~a\n~a"
+                   (substring (add-guids left s source-ids source-mode) s)
+                   (add-guids right s source-ids source-mode)))]
+      [(unify left right) (format "(== ~a ~a)" (term->string left) (term->string right))]
+      [(diseq left right) (format "(=/= ~a ~a)" (term->string left) (term->string right))]
+      [(succeed) "succeed"]
+      [(fail) "fail"]
+      [(disj left right)
+       (format "(disj\n~a\n~a\n~a)"
+               (add-guids left (+ s 2) source-ids source-mode)
+               (add-guids right (+ s 2) source-ids source-mode)
+               padding)]
+      [(relcall name arguments)
+       (format "(~a~a)" (term->string name)
+               (if (null? arguments) ""
+                   (string-append " " (string-join (map term->string arguments) " "))))]
+      [(defrel name vars goal)
+       (format "(defrel (~a~a)\n~a)"
+               (term->string name)
+               (if (null? vars) "" (string-append " " (string-join (map term->string vars) " ")))
+               (add-guids goal (+ s 2) source-ids source-mode))]
+      [(run n vars goal)
+       (format "(run~a (~a) ~a)"
+               (if (= n +inf.0) "*" (format " ~a" n))
+               (string-join (map term->string vars) " ")
+               (substring (add-guids goal s source-ids source-mode) s))]
+      [(delay-goal goal)
+       (format "(Zzz\n~a\n~a)" (add-guids goal (+ s 2) source-ids source-mode) padding)]
+      [_ (term->string expr)]))
+  (define id (hash-ref source-ids expr #f))
+  (string-append padding (if id (format "[[~a]]~a[[/~a]]" id body id) body)))
 
 (define (primitive-value? v)
   (or (symbol? v)

@@ -7,6 +7,10 @@ export function goalIdFromTreeNodeData(data) {
   return data?.id ?? null;
 }
 
+export function stateKeyFromTreeNodeData(data) {
+  return data?.stateKey ?? data?.stateId ?? null;
+}
+
 export function treeNodesWithGoalId(node, goalId, acc = []) {
   if (goalId == null || node == null) return acc;
   if (Array.isArray(node)) {

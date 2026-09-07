@@ -1,13 +1,19 @@
 # Decorated search lattice
 
-The decorated lattice is the production modular family. Its source uses the
+The decorated lattice is the GUI's default modular family. Its source uses the
 **dormant-right / online** branch-evaluation policy: disjunction leaves the
 right goal unevaluated while the active left path runs. It is preserved as an
-online implementation and comparison family. The authoritative strict Search
-interpreter instead evaluates both merge operands and every `Yield` tail
+online implementation with No Interleave, Flip-Flop, and Railroad schedulers.
+The separate Strict Search view instead evaluates both merge operands and every `Yield` tail
 eagerly; only `Delay` suspends. The separate strict derivation and the guarded
 fusion obligation are recorded in the
 [semantic-policy matrix](../../../docs/semantic-policy-matrix.md).
+
+The GUI defaults to lattice Railroad. The historical phrase “Search/rail” in
+strict derivation documents names that derivation's Search feature; it does
+not make the strict `mplus-delay` equations an implementation of this oriented
+Railroad grammar. Both source families run unchanged through native session
+initialization and history. Interpreter correspondence is partial.
 
 Within this online policy, one factored source is assembled from core and two
 additive feature extensions.
@@ -29,7 +35,7 @@ flowchart TD
   RAIL["rail fiber + DisjR closure"]
   DFSFLIPCALL["DFS / flip with relcall"]
   RAILCALL["rail + relcall"]
-  DISTRIBUTED["distributed presentation (common DisjR carrier)"]
+  DISTRIBUTED["alternative distributed source (common DisjR carrier)"]
 
   CORE --> DELAY
   CORE --> DISJ
@@ -44,7 +50,7 @@ flowchart TD
   SEARCHCALL --> RAILCALL
   RAIL --> RAILCALL
   RELCALL --> RAILCALL
-  SEARCH -. "isolated presentation" .-> DISTRIBUTED
+  SEARCH -. "conjunction distribution experiment" .-> DISTRIBUTED
 ```
 
 Delay and disjunction are additive feature extensions of core. Search is their
@@ -170,20 +176,22 @@ suspension and force behavior. Disjunction owns left-active choice rules. Rail
 owns `DisjR`, six rules that close the right-active carrier under stepping, and
 the two scheduling transitions `rail-enter-right` and `rail-return-left`.
 
-## Isolated distributed presentation
+## Alternative distributed source
 
-`racket-server/src/search-lattice/experiments/distributed/` retains eager
-distribution as an isolated, executable presentation experiment. It reuses the
-production feature carriers, retains its historical common `DisjR` carrier
-locally, adds the focus-indexed normalization grammar, and exposes separately
-named relations. It has a dedicated aggregate and tests demonstrating where it
-intentionally steps differently from the factored source.
+[`../../derivations/distributed-search/`](../../derivations/distributed-search/README.md)
+keeps an executable alternative that distributes conjunction over choice in
+this older online source before machine derivation. It reuses the online
+feature carriers, retains a common `DisjR` carrier locally, and adds the
+`Early*` focus-indexed normalization grammar. Nested rails exhibit an
+observable answer-order difference from the factored source. Distribution
+therefore needs a semantic assessment; it is not established as a merely
+administrative or representation-preserving change.
 
-The experiment still needs raw rules regrouped under its `Early*` focus
-grammar. Its local `search-join-base-red.rkt`, and the raw production seam that
-it imports, are retained solely for that experiment. Production `search-red`
-does not import this seam, so it is neither a feature node nor an extra
-production composition layer.
+The experiment regroups raw rules under its `Early*` grammar. Both its
+`search-join-base-red.rkt` and the formerly shared raw seam now live together
+in its `reduction-relations/` directory; the latter is
+[`factored-search-base.rkt`](../../derivations/distributed-search/reduction-relations/factored-search-base.rkt).
+Ordinary `search-red` does not import this seam.
 
 The distributed presentation also deliberately retains its historical common
 right-active carrier. Its distributed search relation owns `DisjR`, the five
@@ -195,14 +203,15 @@ The distributed rail relation mechanically re-closes inherited rules on the
 common distributed-search carrier; its rule-inventory delta over distributed
 search is only those two scheduling transitions.
 
-Production language/relation aggregators do not import that tree. The runtime
-does not expose a policy switch for it. Keeping the experiment preserves the
-counterexamples and normalization question without burdening the primary
-grammar with anticipatory categories.
+Its dedicated [tests](../../derivations/distributed-search/tests.rkt) remain
+referenced by the older search-lattice test aggregate. That retains an
+existing comparison gate; it adds no GUI policy, strict matrix coordinate,
+or A7/A9 integration. No correspondence with the retained-scope strict
+interpreter or a derived distributed machine is claimed by this relocation.
 
 ## Scheduler fibers
 
-The public strategy surface contains only:
+The lattice scheduler surface contains exactly:
 
 ```text
 dfs | flip | rail
@@ -213,6 +222,8 @@ rail uses `DisjL`/`DisjR` plus its right-active closure and two scheduling
 rules. DFS and flip use `search-lang`, `search-relcall-lang`, `search-wf`, and
 `search-relcall-wf`, all of which exclude `DisjR`. Rail uses the corresponding
 `rail-lang`, `rail-relcall-lang`, `rail-wf`, and `rail-relcall-wf` extensions.
+Strict Search is selected separately as a model, not as an additional scheduler.
+Associativity and delay-placement compilation controls remain independent.
 
 ## WF metatheory and observations
 
@@ -243,21 +254,32 @@ commuting square.
 ## Mirrored semantic test topology
 
 `racket-server/tests/search-lattice/` mirrors the architecture through node,
-edge, join, grammar, scheduler-fiber, overlay, law, and distributed-presentation
-suites. Its single `all.rkt` aggregate is imported by
-the headless production runner. See
+edge, join, grammar, scheduler-fiber, overlay and law suites. Its `all.rkt`
+also references the separately located distributed-source comparison tests.
+This aggregate is also included in the current headless entry alongside strict
+research and native scheduler/application integration checks. See
 [`../../tests/search-lattice/README.md`](../../tests/search-lattice/README.md)
 for the exact responsibilities and theorem boundaries.
 
 ## Compiler and observations
 
-`parse-prog/canonical` is a canonicalizing compiler whose output is already a
-production `(Γ F)` configuration rooted at `More(Work(...))`. There is no
-mixed-work runtime IR or separate lowering module.
+`parse-prog/canonical` shares goal compilation, source IDs, relation definitions,
+and query metadata between lattice and strict execution. Explicit lattice
+selection constructs native `(Γ F)` syntax rooted at `More(Work(...))`;
+strict selection constructs `(program Γ (commit (eval ...)))`. These are
+initialization choices, not conversions of running machine configurations.
+Lattice histories retain `(Γ F)` terms and use this source's named reductions.
 
-The operational picture preserves fresh ownership, answer order, choice
-activity, and force evidence. It permits an unchanged visible tree only for
-the finite phase-neutral label set documented in `PICTURE-DESIGN-NOTES.md`.
+At the outer Frontier tip, `More(PendingDelay(...))` is reported as paused;
+the next manual step executes native `force-delay` and is marked as a public
+operation. Nested delay promotion and scheduling remain ordinary reductions.
+The strict view has its own explicit public `advance` invocation.
+
+The shared [search-picture.rkt](../search-picture.rkt) projection reads each
+native carrier directly. It preserves fresh ownership, candidates versus
+committed answers, Done/Last completion, choice activity, and force evidence.
+It replaces the application's earlier picture projection without changing
+the underlying source rules. See [PICTURE-DESIGN-NOTES.md](PICTURE-DESIGN-NOTES.md).
 
 Fresh allocation is a whole-frontier step. The rule names that frontier
 `F_support`; logical-variable occurrences throughout it derive the

@@ -1,202 +1,127 @@
 #lang racket
 
-(require rackunit
-         rackunit/text-ui
-         redex/reduction-semantics
-         "../src/search-runtime.rkt"
-         "../src/search-strategy.rkt"
-         "../src/sexpr-read.rkt"
-         "../src/transpiler.rkt"
-         "./example-compat-tests.rkt"
-         "./frontier-observable-support.rkt"
-         "./runtime-test-support.rkt")
+(require rackunit rackunit/text-ui
+         "../src/program-runner.rkt"
+         (only-in "../derivations/strict-search/shared/wf.rkt" wf-s-rel?)
+         "./example-compat-tests.rkt" "./runtime-test-support.rkt")
 
 (provide FRONTIER-EXAMPLES)
 
-(define FULL-TRACE-CAP 128)
-(define CADENCE-TRACE-CAP 12)
+(define fresh-delay-source
+  "(run* (q) (fresh (x) (conj (Zzz (== x 'nap)) (== q x))))")
+(define nested-rail-source
+  "(run* (q)
+     (disj (disj (== q 'left-now) (Zzz (== q 'left-later)))
+           (disj (== q 'right-now) (Zzz (== q 'right-later)))))")
 
-(define local-example-specs
-  (list
-   (list "fresh delay witness"
-         "micro"
-         "(run* (q)\n  (fresh (x)\n    (conj\n      (Zzz (== x 'nap))\n      (== q x))))")
-   (list "forced cadence witness"
-         "micro"
-         "(run* (q)\n  (disj\n    (disj\n      (== q 'left-now)\n      (Zzz (== q 'left-later)))\n    (disj\n      (== q 'right-now)\n      (Zzz (== q 'right-later)))))")))
+(define (example-source label)
+  (match (assoc label (frontend-example-programs))
+    [(cons _ source) source]
+    [_ (error 'example-source "missing frontend example: ~a" label)]))
 
-(define/match (strategy-label strategy)
-  [((search-strategy scheduler)) scheduler])
+(define (trace-session session [fuel 200] [reversed '()])
+  (define configuration (model-session-current-config session))
+  (check-true (wf-s-rel? configuration) (format "scope/trail failure: ~s" configuration))
+  (define accumulated (cons session reversed))
+  (cond
+    [(model-session-done? session) (reverse accumulated)]
+    [(zero? fuel) (error 'trace-session "finite Frontier witness exhausted its budget")]
+    [else (trace-session (model-session-step session) (sub1 fuel) accumulated)]))
 
-(define (count-step-name steps expected [count 0])
-  (match steps
-    ['() count]
-    [(cons step-name rest)
-     (count-step-name rest
-                      expected
-                      (if (string=? step-name expected)
-                          (add1 count)
-                          count))]))
+(define (trace-example label)
+  (trace-session (open-source (example-source label))))
 
-(define (example-spec label)
-  (or (for/first ([pr (in-list (frontend-example-programs))]
-                  #:do [(match-define (cons example-label src) pr)]
-                  #:when (equal? example-label label))
-        (list "mini" src))
-      (for/first ([spec (in-list local-example-specs)]
-                  #:do [(match-define (list example-label source-mode src) spec)]
-                  #:when (equal? example-label label))
-        (list source-mode src))))
+(define (label-count trace label)
+  (count (lambda (session) (equal? (model-session-current-step-name session) label)) trace))
 
-(define (parse-example/lattice label)
-  (define spec (example-spec label))
-  (unless spec
-    (error 'parse-example/lattice
-           (format "missing example label: ~a" label)))
-  (match-define (list source-mode src) spec)
-  (define-values (cfg _html)
-    (parse-prog/canonical (read-all-sexprs (open-input-string src))
-                          #:source-mode source-mode))
-  cfg)
+(define (owner-groups datum)
+  (match datum
+    [`(Owner ,variables ,tag) (list (list variables tag))]
+    [(? list? parts) (append-map owner-groups parts)]
+    [_ '()]))
 
-(define (trace-stepper step-once cfg [step-cap FULL-TRACE-CAP] [i 0] [acc '()])
-  (match (step-once cfg)
-    ['()
-     (values (reverse acc)
-             cfg
-             (if (final-config? cfg) 'value 'stuck))]
-    [(list _ ...) #:when (>= i step-cap)
-     (values (reverse acc) cfg 'cap)]
-    [(list (list name cfg^))
-     (trace-stepper step-once
-                    cfg^
-                    step-cap
-                    (add1 i)
-                    (cons (~a name) acc))]
-    [_ (values (reverse acc) cfg 'nondeterministic)]))
+;; Count only the persistent observer spine, never a suspended computation.
+(define (forced-count configuration)
+  (match configuration
+    [`(program ,_ ,frontier) (forced-count frontier)]
+    [`(Forced ,_ ,frontier) (add1 (forced-count frontier))]
+    [`(Emit ,_ ,_ ,frontier) (forced-count frontier)]
+    [`(,(or 'advance 'collect) ,frontier) (forced-count frontier)]
+    [_ 0]))
 
-(define (trace-example label strategy [step-cap FULL-TRACE-CAP])
-  (trace-stepper (lookup-search-step-once strategy)
-                 (parse-example/lattice label)
-                 step-cap))
+(define (answer-scopes session)
+  (map (lambda (answer) (hash-ref answer 'scope))
+       (model-session-current-answer-nodes session)))
 
 (define/provide-test-suite FRONTIER-EXAMPLES
-  (test-case "fresh witness introduces one scoped Freshened frontier across strategies"
-    (for ([strategy (in-list all-surfaced-search-strategies)])
-      (define-values (steps final-cfg status)
-        (trace-example "fresh witness" strategy))
-      (check-equal? status 'value (strategy-label strategy))
-      (check-true (structurally-well-formed? final-cfg)
-                  (strategy-label strategy))
-      (check-equal? (count-step-name steps "allocate-fresh")
-                    2
-                    (strategy-label strategy))
-      (check-equal? (term (structural-forced-count ,final-cfg))
-                    0
-                    (strategy-label strategy))
-      (check-equal? (term (structural-answer-count ,final-cfg))
-                    1
-                    (strategy-label strategy))))
+  (test-case "fresh witness retains its query and local introductions in the completed Frontier"
+    (define trace (trace-example "fresh witness"))
+    (define final (last trace))
+    (check-true (final-config? (model-session-current-config final)))
+    (check-equal? (label-count trace "allocate-fresh") 2)
+    (check-equal? (forced-count (model-session-current-config final)) 0)
+    (check-equal? (model-session-current-host-answers final) '(fresh))
+    (check-equal? (answer-scopes final) '((0 1))))
 
-  (test-case "shared and branch-local fresh examples differ by scoped Freshened count"
-    (for ([strategy (in-list all-surfaced-search-strategies)])
-      (define-values (shared-steps shared-final shared-status)
-        (trace-example "fresh shared disj" strategy))
-      (define-values (branch-steps branch-final branch-status)
-        (trace-example "fresh branch disj" strategy))
-      (check-equal? shared-status 'value (strategy-label strategy))
-      (check-equal? branch-status 'value (strategy-label strategy))
-      (check-true (structurally-well-formed? shared-final)
-                  (strategy-label strategy))
-      (check-true (structurally-well-formed? branch-final)
-                  (strategy-label strategy))
-      (check-equal? (term (structural-answer-count ,shared-final))
-                    2
-                    (strategy-label strategy))
-      (check-equal? (term (structural-answer-count ,branch-final))
-                    2
-                    (strategy-label strategy))
-      (check-equal? (count-step-name shared-steps "allocate-fresh")
-                    2
-                    (strategy-label strategy))
-      (check-equal? (count-step-name branch-steps "allocate-fresh")
-                    3
-                    (strategy-label strategy))))
+  (test-case "shared introductions belong to both answers; branch introductions retain their separate sites"
+    (define shared (trace-example "fresh shared disj"))
+    (define branch (trace-example "fresh branch disj"))
+    (define shared-config (model-session-current-config (last shared)))
+    (define branch-config (model-session-current-config (last branch)))
+    (check-equal? (label-count shared "allocate-fresh") 2)
+    (check-equal? (label-count branch "allocate-fresh") 3)
+    (check-equal? (length (owner-groups shared-config)) 2)
+    (check-equal? (length (owner-groups branch-config)) 3)
+    (match-define `(program ,_ (Emit ,shared-common ,_ ,_)) shared-config)
+    (match-define `(program ,_ (Emit ,branch-common ,_ ,_)) branch-config)
+    (check-equal? (map first (owner-groups shared-common)) '((u:0) (u:1)))
+    (check-equal? (map first (owner-groups branch-common)) '((u:0)))
+    (for ([trace (list shared branch)])
+      (check-equal? (model-session-current-host-answers (last trace)) '(left right))
+      (check-equal? (answer-scopes (last trace)) '((0 1) (0 1)))))
 
-  (test-case "split fresh conjunction stays live and preserves exact scope"
-    (for ([strategy (in-list all-surfaced-search-strategies)])
-      (define-values (_steps final-cfg status)
-        (trace-example "fresh split conj" strategy))
-      (check-equal? status 'value (strategy-label strategy))
-      (check-true (structurally-well-formed? final-cfg)
-                  (strategy-label strategy))
-      (check-equal? (term (structural-answer-count ,final-cfg))
-                    1
-                    (strategy-label strategy))))
+  (test-case "split fresh conjunction preserves both introductions through eager bind"
+    (define trace (trace-example "fresh split conj"))
+    (define final (last trace))
+    (check-equal? (label-count trace "allocate-fresh") 3)
+    (check-equal? (model-session-current-host-answers final) '((left . tail)))
+    (check-equal? (answer-scopes final) '((0 1 2))))
 
-  (test-case "fresh delay witness keeps one forced frame inside its exact Freshened scope"
-    (for ([strategy (in-list all-surfaced-search-strategies)])
-      (define-values (steps final-cfg status)
-        (trace-example "fresh delay witness" strategy))
-      (check-equal? status 'value (strategy-label strategy))
-      (check-true (structurally-well-formed? final-cfg)
-                  (strategy-label strategy))
-      (check-equal? (count-step-name steps "allocate-fresh")
-                    2
-                    (strategy-label strategy))
-      (check-equal? (count-step-name steps "force-delay")
-                    1
-                    (strategy-label strategy))
-      (check-equal? (term (structural-forced-count ,final-cfg))
-                    1
-                    (strategy-label strategy))
-      (check-equal? (term (structural-answer-count ,final-cfg))
-                    1
-                    (strategy-label strategy))))
+  (test-case "fresh across Delay retains scope and pending bind through public resumption"
+    (define trace (trace-session (open-source fresh-delay-source #:source-mode "micro")))
+    (define final (last trace))
+    (check-equal? (label-count trace "allocate-fresh") 2)
+    (check-equal? (label-count trace "advance") 1)
+    (check-equal? (label-count trace "advance-delay") 1)
+    ;; bind-delay retains the body directly; this witness crosses one public
+    ;; boundary. Internal force-delay is exercised by the nested rail below.
+    (check-equal? (label-count trace "force-delay") 0)
+    (check-equal? (forced-count (model-session-current-config final)) 1)
+    (check-equal? (model-session-current-host-answers final) '(nap))
+    (check-equal? (answer-scopes final) '((0 1)))
+    (define paused (findf (lambda (session) (eq? (model-session-status session) 'paused)) trace))
+    (check-not-false paused)
+    (check-false (final-config? (model-session-current-config paused)))
+    (check-equal? (model-session-current-answer-nodes paused) '()))
 
-  (test-case "forced cadence witness keeps final answers fixed while capped scheduler cadence stays within one answer"
-    (define strategy*
-      (list (search-strategy "dfs")
-            (search-strategy "flip")
-            (search-strategy "rail")))
-    (define full-observations
-      (for/list ([strategy (in-list strategy*)])
-        (define-values (steps final-cfg status)
-          (trace-example "forced cadence witness" strategy))
-        (check-equal? status 'value (strategy-label strategy))
-        (check-true (structurally-well-formed? final-cfg)
-                    (format "~a :: ~s"
-                            (strategy-label strategy)
-                            final-cfg))
-        (list (term (structural-answer-count ,final-cfg))
-              (count-step-name steps "allocate-fresh"))))
-    (check-true (positive? (caar full-observations)))
-    (check-true
-     (andmap (lambda (obs)
-               (= (second obs) 1))
-             full-observations))
-    (check-equal? (length (remove-duplicates (map first full-observations)))
-                  1)
-    (define cadence-observations
-      (for/list ([strategy (in-list strategy*)])
-        (define-values (_steps final-cfg status)
-          (trace-example "forced cadence witness" strategy CADENCE-TRACE-CAP))
-        (check-true (or (eq? status 'value)
-                        (eq? status 'cap))
-                    (strategy-label strategy))
-        (list (term (structural-answer-count ,final-cfg))
-              (term (structural-forced-count ,final-cfg)))))
-    (define answer-counts (map first cadence-observations))
-    (define forced-counts (map second cadence-observations))
-    (check-equal? (length (remove-duplicates forced-counts))
-                  1
-                  (format "expected capped forced cadence agreement, got ~s"
-                          cadence-observations))
-    (check-true (<= (- (apply max answer-counts)
-                       (apply min answer-counts))
-                    1)
-                (format "expected capped answers to stay within one of each other, got ~s"
-                        cadence-observations))))
+  (test-case "nested rail advances exact paused Frontiers and preserves every committed prefix"
+    (define trace (trace-session (open-source nested-rail-source #:source-mode "micro")))
+    (define final (last trace))
+    (check-equal? (model-session-current-host-answers final)
+                  '(left-now right-now left-later right-later))
+    (check-equal? (label-count trace "allocate-fresh") 1)
+    (check-true (positive? (label-count trace "force-delay")))
+    (check-equal? (forced-count (model-session-current-config final))
+                  (label-count trace "advance-delay"))
+    (for ([before (in-list trace)] [after (in-list (rest trace))])
+      (define answers-before (model-session-current-host-answers before))
+      (define answers-after (model-session-current-host-answers after))
+      (check-equal? answers-before (take answers-after (length answers-before)))
+      (when (eq? (model-session-status before) 'paused)
+        (match-define `(program ,definitions ,frontier) (model-session-current-config before))
+        (check-equal? (model-session-current-config after)
+                      `(program ,definitions (advance ,frontier)))
+        (check-equal? (model-session-current-step-kind after) 'public-operation)
+        (check-equal? answers-after answers-before)))))
 
-(module+ test
-  (run-tests FRONTIER-EXAMPLES))
+(module+ test (run-tests FRONTIER-EXAMPLES))

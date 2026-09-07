@@ -8,11 +8,11 @@
          "./minikanren-library-tests.rkt"
          "./model-example-matrix-tests.rkt"
          "./program-runner-tests.rkt"
-         "./property-core.rkt"
-         "./property-non-core.rkt"
          "./retired-work-syntax-tests.rkt"
          "./search-lattice/all.rkt"
          "./search-runtime-tests.rkt"
+         "./scheduler-integration-tests.rkt"
+         "./test-app.rkt"
          "./test-syntax-checking.rkt"
          "./test-transpiler.rkt"
          "./test-zipper.rkt"
@@ -25,15 +25,22 @@
   EXAMPLE-COMPAT
   MINIKANREN-LIBRARY
   PROGRAM-RUNNER
-  PROPERTY-CORE
-  PROPERTY-NON-CORE
   RETIRED-WORK-SYNTAX
   SEARCH-LATTICE-SEMANTICS
+  APP
   FRONTIER-EXAMPLES
   VISIBLE-CONTRACTS
   SEARCH-RUNTIME
+  SCHEDULER-INTEGRATION
   CONFIDENCE-GATES
   MODEL-EXAMPLE-MATRIX)
 
 (module+ test
-  (run-tests HEADLESS))
+  ;; The GUI exposes both the strict matrix and native lattice schedulers.
+  ;; Their source gates remain separate from cross-presentation comparisons.
+  (require "../derivations/strict-search/all.rkt"
+           (submod "./search-picture-tests.rkt" test)
+           (submod "./runtime-test-support.rkt" test))
+  (define failures (run-tests HEADLESS))
+  (unless (zero? failures)
+    (error 'HEADLESS "~a test case(s) failed" failures)))

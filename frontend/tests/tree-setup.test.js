@@ -3,6 +3,31 @@ import assert from "node:assert/strict";
 
 import { addColors } from "../src/utils/treeSetup.js";
 
+test("strict maturation highlights the right operand without resolving the left candidate as an answer", () => {
+  const tree = {
+    name: "Mplus", focusColor: "#ff8000", activeChildIndex: 1,
+    children: [
+      { name: "One", children: [{ name: "Candidate", nodeColor: "#fff2cc" }] },
+      { name: "Eval", activeChildIndex: 0, children: [{ name: "Unify" }] },
+    ],
+  };
+  const result = addColors(tree);
+  assert.equal(result.children[0].edgeColor, undefined);
+  assert.equal(result.children[0].children[0].nodeColor, "#fff2cc");
+  assert.equal(result.children[1].edgeColor, "#ff8000");
+});
+
+test("a paused strict Frontier does not highlight work inside its Delay", () => {
+  const tree = {
+    name: "More", children: [{ name: "Delay", suspended: true, children: [
+      { name: "Bind", focusColor: "blue", activeChildIndex: 0, children: [{ name: "Eval" }] },
+    ] }],
+  };
+  const result = addColors(tree);
+  assert.equal(result.children[0].color, undefined);
+  assert.equal(result.children[0].children[0].children[0].edgeColor, undefined);
+});
+
 test("addColors preserves binary Goal-Conj nesting", () => {
   const tree = {
     name: "Goal-Conj",

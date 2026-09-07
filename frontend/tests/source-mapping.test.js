@@ -1,11 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { parseTaggedText } from "../src/utils/tagged_source.js";
 
 import {
   goalIdFromTreeNodeData,
+  stateKeyFromTreeNodeData,
   selectedSourceSegments,
   treeNodesWithGoalId,
 } from "../src/utils/source_mapping.js";
+
+test("state inspection uses structural identity when distinct states retain the same semantic tag", () => {
+  const left = { stateId: "initial", stateKey: "(world state-a)" };
+  const right = { stateId: "initial", stateKey: "(world state-b)" };
+  assert.notEqual(stateKeyFromTreeNodeData(left), stateKeyFromTreeNodeData(right));
+  assert.equal(stateKeyFromTreeNodeData({ stateId: "old" }), "old");
+  assert.equal(stateKeyFromTreeNodeData(null), null);
+});
 
 test("selectedSourceSegments returns every source span sharing the selected UUID", () => {
   const segments = [
@@ -55,4 +65,33 @@ test("treeNodesWithGoalId finds all RHS tree nodes that share a source UUID", ()
   assert.equal(matches.length, 2);
   assert.deepEqual(matches.map((node) => node.name), ["Unify", "Unify"]);
   assert.deepEqual(treeNodesWithGoalId(tree, "missing"), []);
+});
+
+test("nested conde compiler markup selects the correct leaf and shared compound origin", () => {
+  // Actual default-profile compiler output for the same example. Source IDs
+  // are assigned before lowering: the two binary inner choices share d3.
+  const markup = `(defrel (same x y)
+  [[u0]](== x y)[[/u0]])
+
+[[f1]](run* (q) [[d2]](conde
+  [[[d3]](conde
+    [[[r4]](same q 'turtle)[[/r4]]]
+    [[[r5]](same q 'cat)[[/r5]]]
+    [[[u6]](== q 'dog)[[/u6]]]
+  )[[/d3]]]
+  [[[r7]](same q 'fish)[[/r7]]]
+)[[/d2]])[[/f1]]`;
+  const { plain, segments } = parseTaggedText(markup);
+  for (const [id, expected] of [["r4", "(same q 'turtle)"], ["r5", "(same q 'cat)"], ["u6", "(== q 'dog)"], ["r7", "(same q 'fish)"]]) {
+    const selected = selectedSourceSegments(segments, goalIdFromTreeNodeData({ id }));
+    assert.equal(selected.length, 1);
+    assert.equal(plain.slice(selected[0].start, selected[0].end), expected);
+  }
+  const choices = { id: "d3", children: [{ id: "r4" }, { id: "d3", children: [{ id: "r5" }, { id: "u6" }] }] };
+  assert.equal(treeNodesWithGoalId(choices, "d3").length, 2);
+  const [origin] = selectedSourceSegments(segments, "d3");
+  for (const id of ["r4", "r5", "u6"]) {
+    const [leaf] = selectedSourceSegments(segments, id);
+    assert.ok(origin.start <= leaf.start && leaf.end <= origin.end);
+  }
 });

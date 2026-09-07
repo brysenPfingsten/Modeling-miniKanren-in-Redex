@@ -4,24 +4,12 @@
          net/url-structs
          web-server/http
          web-server/servlet-env
-         "search-lattice/picture.rkt"
-         "search-runtime.rkt"
-         "search-strategy.rkt"
+         "program-runner.rkt"
          "sexpr-read.rkt"
          "syntax-checking.rkt"
-         "transpiler.rkt"
-         "zipper.rkt")
+         "transpiler.rkt")
 
-(provide step!
-         back!
-         reset!
-         init!
-         init-session
-         make-stepper
-         (struct-out step)
-         (struct-out session)
-         make-empty-session
-         source-convert!)
+(provide step! back! reset! init! source-convert!)
 
 (define (request->payload req)
   (bytes->jsexpr (request-post-data/raw req)))
@@ -29,159 +17,63 @@
 (define (payload->source-options payload)
   (define source-mode
     (normalize-source-mode (hash-ref payload 'sourceMode default-source-mode)))
-  (define compile-profile
-    (normalize-compile-profile (hash-ref payload 'compileProfile #f)
-                               source-mode))
-  (values source-mode compile-profile))
+  (values source-mode
+          (normalize-compile-profile (hash-ref payload 'compileProfile #f)
+                                     source-mode)))
 
-(define (payload->search-strategy payload)
-  (normalize-search-strategy (hash-ref payload 'searchStrategy #f)))
-
-(struct step (name prog) #:transparent)
-(struct session (zipper stepper nqv search-strategy) #:transparent)
-
-(define (program->json-string prog nqv)
-  (jsexpr->string (cfg->operational-picture prog nqv)))
-
-(define (make-empty-session [strategy default-search-strategy])
-  (define normalized (normalize-search-strategy strategy))
-  (session (make-empty-zipper)
-           (make-stepper (lookup-search-step-once normalized))
-           1
-           normalized))
-
-(define session-table (make-hash))
-
-(define/match (init-session ses prog)
-  [((and ses (session zip _ _ _)) prog)
-   (define seeded-zipper
-     (zipper-add (zipper-reset zip)
-                 (step "Initialize Program" prog)))
-   (struct-copy session ses
-                [zipper seeded-zipper]
-                [nqv (program-query-var-count prog)])])
-
-(define/match (step->response a-step a-idx nqv)
-  [((step name prog) a-idx nqv)
-   (response/jsexpr
-    (hasheq 'stepName name
-            'step a-idx
-            'program (program->json-string prog nqv))
-    #:mime-type #"application/json; charset=utf-8")])
-
-(define/match (step->response/start a-step nqv)
-  [((step name prog) nqv)
-   (response/jsexpr
-    (hasheq 'stepName name
-            'step 0
-            'program (program->json-string prog nqv))
-    #:mime-type #"application/json; charset=utf-8"
-    #:headers (list (make-header #"X-Is-Start" #"true")))])
-
-(define/match (step/html/cookie->response a-step tagged-prog session-id nqv)
-  [((step name prog) tagged-prog session-id nqv)
-   (response/jsexpr
-    (hasheq 'stepName name
-            'step 0
-            'program (program->json-string prog nqv)
-            'htmlGuids tagged-prog)
-    #:mime-type #"application/json; charset=utf-8"
-    #:headers
-    (list
-     (make-header
-      #"Set-Cookie"
-      (string->bytes/utf-8
-       (format "session-id=~a; Path=/; SameSite=Lax" session-id)))))])
-
-(define (send-end-step)
-  (response/jsexpr (json-null)
+;; HTTP and direct library use the same native configurations, history,
+;; observation boundaries, and committed-answer extraction for each model.
+(define (session->response ses #:html [html #f] #:cookie [session-id #f])
+  (define status (model-session-status ses))
+  (define body
+    (hasheq 'stepName (model-session-current-step-name ses)
+            'stepKind (symbol->string (model-session-current-step-kind ses))
+            'step (model-session-step-index ses)
+            'executionStatus (symbol->string status)
+            'answerCount (length (model-session-current-answer-nodes ses))
+            'program (jsexpr->string (model-session-current-picture ses))))
+  (define headers
+    (append
+     (list (make-header #"X-Execution-Status"
+                        (string->bytes/utf-8 (symbol->string status))))
+     (if (model-session-done? ses) (list (make-header #"X-Done" #"true")) '())
+     (if (zero? (model-session-step-index ses))
+         (list (make-header #"X-Is-Start" #"true")) '())
+     (if session-id
+         (list (make-header #"Set-Cookie"
+                            (string->bytes/utf-8
+                             (format "session-id=~a; Path=/; SameSite=Lax" session-id))))
+         '())))
+  (response/jsexpr (if html (hash-set body 'htmlGuids html) body)
                    #:mime-type #"application/json; charset=utf-8"
-                   #:headers (list (make-header #"X-Done" #"true"))))
+                   #:headers headers))
 
-(define (make-stepper step-term)
-  (lambda (z nqv)
-    (define-values (maybe-next z^) (zipper-forward z))
-    (cond
-      [(step? maybe-next)
-       (values (step->response maybe-next (zipper-idx z^) nqv) z^)]
-      [else
-       (match-define (zipper _ curr _ _) z)
-       (match (step-term (step-prog curr))
-         ['()
-          (values (send-end-step) z)]
-         [(cons (list name new-prog) _)
-          (define new-step (step name new-prog))
-          (define z^^ (zipper-add z new-step))
-          (values (step->response new-step (zipper-idx z^^) nqv) z^^)])])))
+(define (step! ses)
+  (define next (model-session-step ses))
+  (values (session->response next) next))
 
-(define/match (step! ses)
-  [((and ses (session zip stepper nqv _)))
-   (define-values (response zip^) (stepper zip nqv))
-   (values response (struct-copy session ses [zipper zip^]))])
+(define (back! ses)
+  (define previous (model-session-back ses))
+  (values (session->response previous) previous))
 
-(define (bind-session-search-strategy ses strategy)
-  (define normalized (normalize-search-strategy strategy))
-  (struct-copy session ses
-               [stepper (make-stepper (lookup-search-step-once normalized))]
-               [search-strategy normalized]))
+(define (reset! ses)
+  (define initial (model-session-reset ses))
+  (values (session->response initial) initial))
 
-(define (init! ses req ses-id)
+(define (init! _previous req session-id)
   (define payload (request->payload req))
   (define raw-prog (hash-ref payload 'text))
   (define-values (source-mode compile-profile) (payload->source-options payload))
-  (define search-strategy (payload->search-strategy payload))
+  (define strategy (normalize-search-strategy (hash-ref payload 'searchStrategy #f)))
   (when (equal? source-mode "mini")
     (check-syntax-capture-error raw-prog))
-  (define sexpr-prog (read-all-sexprs (open-input-string raw-prog)))
-  (define-values (model-prog html-prog)
-    (parse-prog/canonical sexpr-prog
+  (define-values (configuration html query)
+    (parse-prog/canonical (read-all-sexprs (open-input-string raw-prog))
                           #:source-mode source-mode
-                          #:compile-profile compile-profile))
-  (check-search-config search-strategy model-prog)
-  (define ses^
-    (init-session (bind-session-search-strategy ses search-strategy) model-prog))
-  (match-define (session init-zipper _ nqv _) ses^)
-  (define init-step (zipper-curr init-zipper))
-  (values (step/html/cookie->response init-step
-                                      html-prog
-                                      ses-id
-                                      nqv)
-          ses^))
-
-(define/match (reset! ses)
-  [((and ses (session (and z (zipper prev curr _ _)) _ nqv _)))
-   (define init-step
-     (cond
-       [(pair? prev)
-        (for/first ([entry (in-list (reverse prev))]
-                    #:when (step? entry))
-          entry)]
-       [(step? curr) curr]
-       [else #f]))
-   (unless (step? init-step)
-     (error 'reset! "session has no initial program to reset to"))
-   (define ses^
-     (struct-copy session ses
-                  [zipper (zipper-add (make-empty-zipper) init-step)]))
-   (values (step->response/start init-step nqv)
-           ses^)])
-
-(define/match (back! ses)
-  [((and ses (session (and z (zipper _ curr _ _)) _ nqv _)))
-   (define-values (maybe-back z^) (zipper-back z))
-   (define current-step
-     (cond
-       [(step? maybe-back) maybe-back]
-       [(step? curr) curr]
-       [else (error 'back! "session has no current step")]))
-   (define response
-     (cond
-       [(zero? (zipper-idx z^))
-        (step->response/start current-step nqv)]
-       [else
-        (step->response current-step (zipper-idx z^) nqv)]))
-   (values response
-           (struct-copy session ses [zipper z^]))])
+                          #:compile-profile compile-profile
+                          #:search-strategy strategy))
+  (define ses (open-compiled configuration query strategy))
+  (values (session->response ses #:html html #:cookie session-id) ses))
 
 (define (source-convert! req)
   (define payload (request->payload req))
@@ -189,20 +81,18 @@
   (define target-source-mode
     (normalize-source-mode (hash-ref payload 'targetSourceMode "micro")))
   (unless (equal? target-source-mode "micro")
-    (error 'source-convert!
-           "unsupported target source mode: ~a"
-           target-source-mode))
+    (error 'source-convert! "unsupported target source mode: ~a" target-source-mode))
   (define-values (source-mode compile-profile) (payload->source-options payload))
   (when (equal? source-mode "mini")
     (check-syntax-capture-error raw-prog))
-  (define sexpr-prog (read-all-sexprs (open-input-string raw-prog)))
   (response/jsexpr
    (hasheq 'source
-           (render-micro-source sexpr-prog
+           (render-micro-source (read-all-sexprs (open-input-string raw-prog))
                                 #:source-mode source-mode
                                 #:compile-profile compile-profile))
-   #:mime-type #"application/json; charset=utf-8"
-   #:code 200))
+   #:mime-type #"application/json; charset=utf-8"))
+
+(define session-table (make-hash))
 
 (define (cookie-field->string v)
   (cond
@@ -220,12 +110,7 @@
    (symbol->string (gensym 'sess-))))
 
 (define (get-session session-id)
-  (hash-ref session-table
-            session-id
-            (lambda ()
-              (define new-session (make-empty-session))
-              (hash-set! session-table session-id new-session)
-              new-session)))
+  (hash-ref session-table session-id #f))
 
 (define (put-session! session-id ses)
   (hash-set! session-table session-id ses))
@@ -266,8 +151,9 @@
     (dispatcher req)))
 
 (module+ main
+  (define port (or (and (getenv "PORT") (string->number (getenv "PORT"))) 5000))
   (serve/servlet handled-dispatcher
-                 #:port 5000
+                 #:port port
                  #:servlet-regexp #rx""
-                 #:listen-ip "0.0.0.0"
+                 #:listen-ip (or (getenv "HOST") "0.0.0.0")
                  #:launch-browser? #f))

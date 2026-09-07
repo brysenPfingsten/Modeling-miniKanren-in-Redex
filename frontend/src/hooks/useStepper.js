@@ -11,11 +11,11 @@ import {
 export default function useStepper({ onSuccess = () => {} } = {}) {
   const initialTree = { name: "Empty", children: [] };
   const [tree, setTree] = useState(initialTree);
-  const [stepInfo, setStep] = useState({ step: 0, stepName: '' });
+  const [stepInfo, setStep] = useState({ step: 0, stepName: '', executionStatus: 'idle' });
 
   const clear = () => {
     setTree(initialTree);
-    setStep({ step: 0, stepName: '' });
+    setStep({ step: 0, stepName: '', executionStatus: 'idle' });
   };
 
   const send = async (method, url, payload) => {
@@ -48,7 +48,9 @@ export default function useStepper({ onSuccess = () => {} } = {}) {
       }
 
       if (data != null) {
-        setStep({ step: data.step, stepName: data.stepName });
+        setStep({ step: data.step, stepName: data.stepName,
+          executionStatus: data.executionStatus, stepKind: data.stepKind,
+          answerCount: data.answerCount });
         setTree(JSON.parse(data.program));
       }
 

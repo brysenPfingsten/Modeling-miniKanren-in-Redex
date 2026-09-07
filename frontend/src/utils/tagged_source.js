@@ -4,9 +4,15 @@ export function parseTaggedText(raw) {
   let lastIndex = 0;
   const stack = [];
 
-  const markerRE = /\[\[(\/?)([^\]]+)\]\]/g;
+  // A conde clause starts with a literal '[' immediately before its first
+  // marker. Neither bracket belongs to an ID: in '[[[u0]]', skip the first
+  // bracket and recognize '[[u0]]'. Annotations surround goals, so strings,
+  // bar-quoted symbols, and escaped symbol characters are literal source.
+  const tokenRE = /"(?:\\[\s\S]|[^"\\])*"|\|[^|]*\||\\[\s\S]|\[\[(\/?)([^[\]]+)\]\]/g;
   let m;
-  while ((m = markerRE.exec(raw))) {
+  while ((m = tokenRE.exec(raw))) {
+    if (m[2] === undefined) continue;
+
     const close = m[1] === "/";
     const id = m[2];
     const idx = m.index;

@@ -11,8 +11,11 @@ import Resizable from './components/Resizable';
 import Sidebar from './components/Sidebar';
 import { exampleById } from './utils/example_programs.js';
 import {
+  buildSearchStrategy,
+  DEFAULT_SEARCH_MODEL,
   DEFAULT_SEARCH_STRATEGY,
   SCHEDULER_OPTIONS,
+  SEARCH_MODEL_OPTIONS,
 } from './utils/search_strategy.js';
 import {
   buildSourceOptions,
@@ -47,8 +50,10 @@ function App() {
   const [selectedExampleSource, setSelectedExampleSource] = useState('');
   const [sourceMode, setSourceMode] = useState(DEFAULT_SOURCE_MODE);
   const [compileProfile, setCompileProfile] = useState(DEFAULT_COMPILE_PROFILE);
-  const [searchStrategy, setSearchStrategy] = useState(DEFAULT_SEARCH_STRATEGY);
+  const [searchModel, setSearchModel] = useState(DEFAULT_SEARCH_MODEL);
+  const [latticeScheduler, setLatticeScheduler] = useState(DEFAULT_SEARCH_STRATEGY.scheduler);
   const [isFrozen, setFrozen] = useState(false);
+  const [isInitializing, setInitializing] = useState(false);
   const [isAtStart, setIsAtStart] = useState(true);
   const [isAtEnd, setIsAtEnd] = useState(false);
   const [alert, setAlert] = useState({ isOpen: false, message: '' });
@@ -114,25 +119,36 @@ function App() {
   };
 
   const handleInit = async () => {
+    if (isFrozen || isInitializing || isExampleLoading) return;
     const trimmed = code.trim();
     if (!trimmed) {
       setAlert({ isOpen: true, message: "Program is empty." });
       return;
     }
 
-    originalCodeRef.current = code;
-    const [success, progOrError] = await init(code, sourceMode, compileProfile, searchStrategy);
-    if (success) {
-      clearSelection();
-      const nextState = deriveFrozenEditorState(code, progOrError);
-      originalCodeRef.current = nextState.originalCode;
-      initialTaggedCodeRef.current = nextState.initialTaggedCode;
-      setFrozen(nextState.isFrozen);
-      setCode(nextState.code);
-      setIsAtStart(nextState.isAtStart);
-      setIsAtEnd(nextState.isAtEnd);
-    } else {
-      setAlert({ isOpen: true, message: progOrError });
+    setInitializing(true);
+    try {
+      originalCodeRef.current = code;
+      const [success, progOrError] = await init(
+        code,
+        sourceMode,
+        compileProfile,
+        buildSearchStrategy(searchModel, latticeScheduler),
+      );
+      if (success) {
+        clearSelection();
+        const nextState = deriveFrozenEditorState(code, progOrError);
+        originalCodeRef.current = nextState.originalCode;
+        initialTaggedCodeRef.current = nextState.initialTaggedCode;
+        setFrozen(nextState.isFrozen);
+        setCode(nextState.code);
+        setIsAtStart(nextState.isAtStart);
+        setIsAtEnd(nextState.isAtEnd);
+      } else {
+        setAlert({ isOpen: true, message: progOrError });
+      }
+    } finally {
+      setInitializing(false);
     }
   };
 
@@ -220,6 +236,7 @@ function App() {
   });
 
   const handleSourceModeChange = (nextSourceMode) => {
+    if (isInitializing) return;
     if (isFrozen) return;
     if (selectedExampleId) {
       setIsExampleLoading(true);
@@ -228,11 +245,13 @@ function App() {
   };
 
   const handleCompileProfileChange = (axis, value) => {
+    if (isInitializing) return;
     if (isFrozen) return;
     setCompileProfile((current) => ({ ...current, [axis]: value }));
   };
 
   const handleExampleChange = (exampleId) => {
+    if (isInitializing) return;
     if (isFrozen) {
       clearSelection();
       clearStepper();
@@ -249,11 +268,19 @@ function App() {
   };
 
   const handleSchedulerChange = (scheduler) => {
+    if (isInitializing) return;
     if (isFrozen) return;
-    setSearchStrategy({ scheduler });
+    setLatticeScheduler(scheduler);
+  };
+
+  const handleSearchModelChange = (model) => {
+    if (isInitializing) return;
+    if (isFrozen) return;
+    setSearchModel(model);
   };
 
   const handleCodeChange = (nextCode) => {
+    if (isInitializing) return;
     const nextState = deriveEditableCodeState(
       nextCode,
       selectedExampleId,
@@ -280,17 +307,20 @@ function App() {
             disjAssocOptions={DISJ_ASSOC_OPTIONS}
             delayPlacementOptions={DELAY_PLACEMENT_OPTIONS}
             onCompileProfileChange={handleCompileProfileChange}
-            schedulerValue={searchStrategy.scheduler}
+            searchModelValue={searchModel}
+            searchModelOptions={SEARCH_MODEL_OPTIONS}
+            onSearchModelChange={handleSearchModelChange}
+            schedulerValue={latticeScheduler}
             schedulerOptions={SCHEDULER_OPTIONS}
             onSchedulerChange={handleSchedulerChange}
-            isFrozen={isFrozen}
-            isExampleLoading={isExampleLoading}
+            isFrozen={isFrozen || isInitializing}
+            isExampleLoading={isExampleLoading || isInitializing}
           />
           <div className="editor-area">
             <CodeEditor
               codeText={code}
               setCodeText={handleCodeChange}
-              isFrozen={isFrozen}
+              isFrozen={isFrozen || isInitializing}
               isDark={darkMode}
               goalId={goalId}
               onTagClick={setGoalId}
@@ -301,10 +331,10 @@ function App() {
             onStep={handleStep}
             onBack={handleBack}
             onReset={handleReset}
-            canStart={toolbarState.canStart}
-            canReset={toolbarState.canReset}
-            canBack={toolbarState.canBack}
-            canStep={toolbarState.canStep}
+            canStart={!isInitializing && toolbarState.canStart}
+            canReset={!isInitializing && toolbarState.canReset}
+            canBack={!isInitializing && toolbarState.canBack}
+            canStep={!isInitializing && toolbarState.canStep}
           />
         </div>
 

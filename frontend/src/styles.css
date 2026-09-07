@@ -210,6 +210,9 @@
     background: var(--color-page-bg);
     font-family: var(--font-sans);
     color: var(--color-text);
+    max-height: 45%;
+    overflow-y: auto;
+    flex-shrink: 0;
   }
 
   .header-controls {
@@ -372,18 +375,26 @@
   .trace-controls {
     padding: 0 var(--space-md) var(--space-xs);
     background: var(--color-panel-bg);
+    flex-shrink: 0;
   }
 
   .control-section-trace .button-container {
     margin-top: 0;
     padding: 0;
+    gap: 6px;
+  }
+
+  .control-section-trace .button-container button {
+    min-width: 0;
+    padding: 8px 6px;
+    font-size: 14px;
   }
   /* ============================= */
   /*   Editor & Overlay            */
   /* ============================= */
    .editor-area {
     flex: 1;
-    min-height: 0;
+    min-height: 160px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
