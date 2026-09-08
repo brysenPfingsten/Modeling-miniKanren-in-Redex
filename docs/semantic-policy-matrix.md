@@ -9,7 +9,7 @@ keeps the history of superseded choices.
 The GUI must preserve **No Interleave, Flip-Flop, and Railroad** as runtime
 choices. They are part of the intended application, independently of the
 compiler's associativity and delay-placement controls. All three now operate
-within strict maturation and commitment. Their earlier dormant-right versions
+within strict maturation and commitment. The earlier dormant-branch semantics
 remain comparison sources, not GUI implementations.
 
 | Account | Current role | Operational contract |
@@ -17,7 +17,8 @@ remain comparison sources, not GUI implementations.
 | [Retained-scope S](../racket-server/derivations/strict-search/retained-scope/README.md) | Selected interpreter, independently stated source, corresponding machines, registers and first compression | Strict disjunction, eager Yield tails and bind; explicit commitment; only Delay suspends |
 | [Native S/E/N matrix](../racket-server/derivations/strict-search/matrix/README.md) | Twelve call-free representation/feature cells and three full relation cells through source, data stages and finite Big | Same retained-scope operations, expressed using syntax-owned introductions, state support, or numeric supply |
 | [Strict scheduler lattice](../racket-server/derivations/strict-search/matrix/scheduler-source.rkt) | GUI default Railroad; No Interleave (`dfs`), Flip-Flop (`flip`), and Railroad (`rail`) remain runtime choices | Strict `(program Γ q)` configurations; eager merge/bind; Railroad adds native `mplusR` and eager `YieldR` |
-| [Strict Search view](../racket-server/src/search-runtime.rkt) | Separate GUI view and default API/library selection; executes `strict-s-rel-red` directly | Native `(program Γ q)` syntax, explicit calls and exact source steps; no online conversion |
+| [Strict Search view](../racket-server/src/search-runtime.rkt) | Separate GUI view and default API/library selection; executes `strict-s-rel-red` directly | Native `(program Γ q)` syntax, explicit calls and exact source steps |
+| [Earlier dormant-branch semantics](../racket-server/derivations/scheduler-family/README.md) | Interpreter derivations and comparisons against the earlier lattice sources | Deferred operands and Yield/bind tails; fragment correspondence and historical strictness counterexamples. This is not the current GUI's demand policy. |
 
 The GUI sends an explicit lattice scheduler; Strict Search sends
 `{ "model": "strict" }`. Omitting selection at the API/library boundary uses
@@ -66,6 +67,16 @@ allocation scope and full relation calls. DFS has a distinct delayed-merge
 equation. Separate E/N scheduler rows, downstream derivations and universal
 proofs remain open; no strict-to-online fusion is used by the GUI.
 
+The derivations of the [earlier dormant-branch semantics](../racket-server/derivations/scheduler-family/README.md)
+distinguish demand policy from branch orientation. Their derived Railroad
+source erases to its Flip source, and the native Railroad carrier independently
+erases to native Flip through an exact named-step map in the checked corpus.
+This preserves work and answer scheduling while forgetting stable branch
+positions. This does not identify the strict interpreter with dormant-branch Railroad:
+finite work/commit traces differ, and a compiled unguarded recursive suffix
+disproves unrestricted exposed-answer equivalence. Full S ownership placement
+also needs a scope-transport relation beyond variable alpha-renaming.
+
 The two selected S derivations and native S/E/N machines have structural maps
 and configuration-level transition checks, including the full relation
 extension. Register decoders and compressed steps use prescribed original
@@ -82,9 +93,9 @@ Railroad. Native application integration does not complete that correspondence.
 Strict-to-online fusion is a different prospective theorem. It can move finite
 sibling work across commitment; without guardedness, `success(A) ∨ Ω` already
 distinguishes answer prefixes. The current strict runtime does not rely on
-that fusion, and no `κ / Q / π` compression is claimed. Earlier online
-source-relative tests do not establish the current strict application's
-contract.
+that fusion, and no `κ / Q / π` compression is claimed. Tests relative to the
+earlier dormant-branch semantics do not establish the current strict
+application's contract.
 
 The [distributed-conjunction experiment](../racket-server/derivations/distributed-search/README.md)
 remains a separate source-policy experiment. Distributing pending conjunction

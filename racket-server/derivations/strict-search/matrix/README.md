@@ -142,9 +142,9 @@ a runtime feature predicate.
 
 The full strict coordinate is **Search/rail**. Its `mplus-delay` rule is an
 explicit interaction beyond the union of the two child rule sets. This is
-where the direct interpreter's oriented rail policy acts. The old online
-family's scheduler-neutral literal Search union is preserved in its own
-policy; it is not asserted as a law of this strict interpreter coordinate.
+where the direct interpreter's delayed-merge policy acts. The scheduler-neutral
+literal Search union belongs to the earlier dormant-branch semantics;
+it is not asserted as a law of this strict interpreter coordinate.
 
 ## Direct representation maps and domain
 
@@ -190,8 +190,8 @@ E/N functional interpreter or register program.
 These are bounded executable correspondence checks. They do not constitute
 universal adequacy, naturality, guarded fusion, or productive-stream proofs.
 The source's `eval-atom` label is its strict atomic contraction; preserved
-kernel operations do not imply identity with the old online source's work
-trace.
+kernel operations do not imply identity with the work trace of the earlier
+dormant-branch semantics.
 
 ## Full relation programs
 
@@ -259,7 +259,7 @@ The renderer's arrows show merge orientation; its highlighted edge shows
 the operand currently being matured. These need not select the same child.
 Every scheduler uses explicit public `advance`, while `force-delay` remains
 an internal reduction. Scope allocation follows this matrix's active Owner
-path. Earlier dormant-right relations under `src/search-lattice/` remain
+path. The earlier dormant-branch semantics under `src/search-lattice/` remain
 comparison sources and are no longer the GUI's runtime provider.
 
 - `source-s.rkt`, `source-e.rkt`, `source-n.rkt`: call-free Search/rail source rows.

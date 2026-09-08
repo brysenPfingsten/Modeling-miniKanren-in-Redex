@@ -29,7 +29,7 @@ exports `SEARCH-LATTICE-SEMANTICS` to the comprehensive headless runner.
 - [The distributed-source tests](../../derivations/distributed-search/tests.rkt)
   live with their source under `derivations/distributed-search/`. This aggregate
   still references that existing comparison gate. The experiment distributes
-  conjunction before machine derivation in the older online source, retains
+  conjunction before machine derivation in the earlier dormant-branch semantics, retains
   common `DisjR` syntax, and lets distributed rail add only scheduling.
 
 `support.rkt` contains only helpers shared by multiple semantic owners. Expected

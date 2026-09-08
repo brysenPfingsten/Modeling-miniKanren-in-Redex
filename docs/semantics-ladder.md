@@ -34,7 +34,8 @@ Strict Search/rail has an explicit `mplus-delay` interaction; it is not merely
 the literal union of the Delay and Disjunction rule sets.
 The historical strict “Search/rail” name does not denote the oriented
 Railroad scheduler. Current DFS/Flip use `mplus`; Railroad adds `mplusR`
-and eager `YieldR`. Earlier `DisjL`/`DisjR` online sources remain comparisons.
+and eager `YieldR`. The earlier dormant-branch semantics use `DisjL`/`DisjR`
+and remain comparisons.
 
 ## The computation being represented
 
@@ -112,7 +113,7 @@ flowchart TD
 | Module | Responsibility |
 | --- | --- |
 | [transpiler/](../racket-server/src/transpiler/) | Parse mini/micro, associate goals, insert profile-selected delays, retain source IDs, initialize the selected native syntax and query metadata |
-| [search-lattice/](../racket-server/src/search-lattice/SEMILATTICE.md) | Earlier online sources and WF, retained for comparison; no current GUI dispatch |
+| [search-lattice/](../racket-server/src/search-lattice/SEMILATTICE.md) | Earlier dormant-branch semantics and WF, retained for comparison; no current GUI dispatch |
 | [matrix/full-source.rkt](../racket-server/derivations/strict-search/matrix/full-source.rkt) | Actual full S/E/N reduction relations and explicit call expansion |
 | [matrix/scheduler-source.rkt](../racket-server/derivations/strict-search/matrix/scheduler-source.rkt) | Strict S scheduler variations and native orientation syntax, reusing the matrix control equations |
 | [search-runtime.rkt](../racket-server/src/search-runtime.rkt) | Select strict scheduler relations and WF; expose structural status and public boundaries |
@@ -174,7 +175,7 @@ Browser error/warning logs were empty. Native servers ran on loopback ports
 API integration additionally checks 36 compiler-profile/scheduler
 combinations, exact payload/history replay, eager bind, divergence, scope and
 explicit public advance. Railroad steps are compared to the strict reference
-under orientation erasure; no online fusion is used.
+under orientation erasure; no strict-to-online fusion is used.
 
 Checks compare native configurations, named edges, prescribed administrative
 spans, intermediate Frontiers, actual work order, and exact allocation scope.

@@ -1,12 +1,11 @@
-# Decorated search lattice
+# Earlier dormant-branch semantics: decorated search lattice
 
-This directory retains the earlier decorated lattice for comparison. Its source uses the
-**dormant-right / online** branch-evaluation policy: disjunction leaves the
-right goal unevaluated while the active left path runs. It is preserved as an
-online implementation with No Interleave, Flip-Flop, and Railroad schedulers.
+This directory retains the **earlier dormant-branch semantics** for comparison.
+Disjunction leaves the right goal unevaluated while the active left path runs.
+The source family provides No Interleave, Flip-Flop, and Railroad schedulers.
 The current GUI uses [strict matrix scheduler rows](../../derivations/strict-search/matrix/scheduler-source.rkt)
 for all three choices, with eager operands and bind, explicit commitment,
-and active-scope allocation. The historical online sources documented below
+and active-scope allocation. The earlier dormant-branch sources documented below
 are no longer its runtime provider. The strict derivation and the separate
 fusion question are recorded in the
 [semantic-policy matrix](../../../docs/semantic-policy-matrix.md).
@@ -14,10 +13,11 @@ fusion question are recorded in the
 The historical phrase “Search/rail” in
 strict derivation documents names that derivation's Search feature; it does
 not make the strict `mplus-delay` equations an implementation of this oriented
-Railroad grammar. The earlier online interpreter correspondence is partial;
-it does not describe the current strict GUI integration.
+Railroad grammar. The [interpreter derivations of the earlier dormant-branch
+semantics](../../derivations/scheduler-family/README.md) have partial correspondence
+with these sources; they do not describe the current strict GUI integration.
 
-Within this online policy, one factored source is assembled from core and two
+Within this dormant-branch policy, one factored source is assembled from core and two
 additive feature extensions.
 Search is the literal union of delay and disjunction. DFS, flip, and rail are
 scheduler fibers rather than additional feature nodes; rail alone extends the
@@ -182,7 +182,7 @@ the two scheduling transitions `rail-enter-right` and `rail-return-left`.
 
 [`../../derivations/distributed-search/`](../../derivations/distributed-search/README.md)
 keeps an executable alternative that distributes conjunction over choice in
-this older online source before machine derivation. It reuses the online
+the earlier dormant-branch semantics before machine derivation. It reuses their
 feature carriers, retains a common `DisjR` carrier locally, and adds the
 `Early*` focus-indexed normalization grammar. Nested rails exhibit an
 observable answer-order difference from the factored source. Distribution
@@ -224,7 +224,8 @@ rail uses `DisjL`/`DisjR` plus its right-active closure and two scheduling
 rules. DFS and flip use `search-lang`, `search-relcall-lang`, `search-wf`, and
 `search-relcall-wf`, all of which exclude `DisjR`. Rail uses the corresponding
 `rail-lang`, `rail-relcall-lang`, `rail-wf`, and `rail-relcall-wf` extensions.
-Strict Search is selected separately as a model, not as an additional scheduler.
+The current GUI has the same three scheduler names, but executes strict S
+matrix sources. Its Strict reference view selects the matrix's Flip relation.
 Associativity and delay-placement compilation controls remain independent.
 
 ## WF metatheory and observations
@@ -290,6 +291,8 @@ frontier, records one `Owner` per binder, and therefore remains single-valued
 while seeing completed answers, sibling branches, and allocated-but-unused live
 variables.
 
-This document records the earlier online source semantics. Q, continuation and
-stream interpretations, recursive or infinite observations, and a vertical
-derivation beyond this source calculus remain deferred.
+This document records the earlier dormant-branch semantics. The separate
+[scheduler-family derivations](../../derivations/scheduler-family/README.md)
+provide interpreters, a generated machine, and partial source correspondence.
+Universal correspondence, full allocation transport, and recursive or infinite
+observation theorems remain open.

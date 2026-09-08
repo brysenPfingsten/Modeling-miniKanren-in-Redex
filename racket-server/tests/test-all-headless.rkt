@@ -36,9 +36,10 @@
   MODEL-EXAMPLE-MATRIX)
 
 (module+ test
-  ;; The GUI uses strict matrix scheduler rows. Earlier online source gates
-  ;; remain separate historical checks.
+  ;; The GUI uses strict matrix scheduler rows. Earlier dormant-branch source
+  ;; gates and their interpreter comparisons remain separate research checks.
   (require "../derivations/strict-search/all.rkt"
+           "../derivations/scheduler-family/all.rkt"
            (submod "./search-picture-tests.rkt" test)
            (submod "./runtime-test-support.rkt" test))
   (define failures (run-tests HEADLESS))

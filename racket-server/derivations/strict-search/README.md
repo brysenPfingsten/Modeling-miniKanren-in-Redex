@@ -17,15 +17,19 @@ view and the default API/library selection.
 The selected functional derivation carries the same environment explicitly
 through its data machines, generated registers, and existing compression.
 
-The GUI defaults to native **Lattice search**, with No Interleave, Flip-Flop,
-and oriented Railroad schedulers. Those sources remain separate. The
-historical phrase “Search/rail” in this derivation names its strict Search
-feature; it is not a claim that the strict source implements Railroad's
-`DisjL`/`DisjR` grammar.
+The GUI defaults to **Strict scheduler lattice / Railroad**, with No Interleave,
+Flip-Flop, and Railroad using the [strict S scheduler extension](matrix/scheduler-source.rkt).
+Flip reuses the reference relation; DFS changes delayed-merge priority, and
+Railroad adds `mplusR` and eager `YieldR` with a checked orientation map.
+Separate DFS/Railroad E/N rows and downstream scheduler derivations remain open.
+The historical phrase “Search/rail” names this derivation's strict Search
+feature, rather than either Railroad extension. The earlier `DisjL`/`DisjR`
+sources are retained as the **earlier dormant-branch semantics**.
 
-Both accounts preserve strict left-to-right disjunction, eager `Yield` tails
-and bind, exact allocation ancestry, and the Search/Frontier commitment
-boundary. Only object-language `Delay` suspends computation:
+The selected interpreter and its matrix counterparts preserve strict
+left-to-right disjunction, eager `Yield` tails and bind, exact allocation
+ancestry, and the Search/Frontier commitment boundary. Only object-language
+`Delay` suspends computation:
 
 ```text
 Search   ::= Empty(O) | One(O,σ) | Yield(O,A,Search) | Delay(O,R)
@@ -58,7 +62,7 @@ structure. Observations compare exact Frontiers, including suspended bodies.
 | [shared/](shared/README.md) | S/E/N variable/state languages, allocation and kernels, grammars, structural maps, well-formedness, and narrow transformation machinery |
 | [matrix/](matrix/README.md) | Native retained-scope S/E/N feature instances through R/D/Z/M/B/Big and their connection to the selected S checkpoint |
 | [test-support/](test-support/README.md) | Named witnesses, generated lexical goals, and reusable structural/transition assertions |
-| [all.rkt](all.rkt) | Maintained aggregate: retained scope, matrix, constructor/dependency contracts, and the online-policy witness |
+| [all.rkt](all.rkt) | Maintained aggregate: retained scope, matrix, constructor/dependency contracts, and the earlier dormant-branch semantics comparison witness |
 
 The neighboring [distributed-search experiment](../distributed-search/README.md)
 investigates a different conjunction/scheduling policy. It is kept outside
@@ -165,7 +169,7 @@ racket racket-server/derivations/strict-search/retained-scope/show-register-comp
 
 The aggregate includes [constructor contracts](constructor-tests.rkt),
 [dependency boundaries](layout-tests.rkt), and the narrow
-[strict/online work-order witness](policy-tests.rkt). Removed comparison suites
+[strict versus earlier dormant-branch work-order witness](policy-tests.rkt). Removed comparison suites
 are not evidence for the maintained artifact; the
 [correction log](CORRECTIONS.md#retired-and-deferred-results) records their
 deliberately deferred unique results.
@@ -190,10 +194,10 @@ Focused gates overlap this aggregate; their counts are not additive.
 
 This is finite executable evidence, including bounded productive and
 unguarded recursive runs. It does not establish universal correspondence,
-preservation, or productive-stream theorems. The final headless integration
-run passed **3,502 tests**, including these 3,262 strict checks, native lattice
+preservation, or productive-stream theorems. An earlier headless integration
+checkpoint passed **3,502 tests**, including these 3,262 strict checks, native lattice
 sources, and application gates. Its HEADLESS suite passed all 205 cases with
-zero failures or errors. These overlapping counts are not additive; see
+zero failures or errors. These overlapping counts are not additive; for the current gate, see
 [TEST-LANES.md](../../tests/TEST-LANES.md#frontend-and-aggregate-status).
 
 ## Next correspondence and application boundary
@@ -207,26 +211,26 @@ and bounded configuration checks on both sides, including explicit environments
 and pending calls in resumptions. General recursive-program adequacy,
 productive infinite behavior, and compact κ/Q/π rail compression remain open.
 
-The GUI's Strict Search view runs the full strict S matrix through
+Every GUI scheduler runs the full strict S matrix source or its scheduler
+extension through
 [search-runtime.rkt](../../src/search-runtime.rkt) and
 [app.rkt](../../src/app.rkt). Session history contains actual `(program Γ q)`
 configurations. Paused Frontiers require an explicit public advance before
 further named reductions. The [renderer](../../src/search-picture.rkt) reads
 that structure directly and distinguishes candidates from committed answers.
-The separate Lattice search view uses native `(Γ F)` configurations and
-its DFS, Flip, or oriented Railroad source relation. At an exposed delayed
-Frontier it takes the native public `force-delay` reduction. Both views share
-compiled goals, source IDs, query metadata, and the current renderer; their
-initialization wrappers and subsequent histories remain native. All twelve
-compilation profiles remain independent of runtime scheduling.
+The scheduler view selects strict DFS, Flip, or oriented Railroad; the
+reference view uses the same Flip relation. Every selection shares compiled
+goals, source IDs, query metadata, and the `(program Γ q)` initialization and
+history format. Internal `force-delay` remains distinct from public `advance`.
+All twelve compilation profiles remain independent of runtime scheduling.
 
 Automatic answer consumption belongs to [minikanren.rkt](../../src/minikanren.rkt);
 the GUI shares the single-step/session operations in
 [program-runner.rkt](../../src/program-runner.rkt). The `run n` adapter finishes
 the current eager round and commitment before checking the limit; manual GUI
 stepping remains independent of that policy. The API/library default is
-`(strict-search)`; an explicit `search-strategy` selects the lattice family
-with scheduler `"dfs"`, `"flip"`, or `"rail"`. Partial interpreter correspondence is accepted
-for the application; native lattice execution does not supply an equivalence
-theorem with this strict derivation. See the
+`(strict-search)`; an explicit `search-strategy` selects the strict S scheduler
+`"dfs"`, `"flip"`, or `"rail"`. Railroad has configuration-level checks against
+Flip under orientation erasure. General correspondence proofs, separate E/N
+DFS/Railroad rows, and downstream scheduler derivations remain open. See the
 [semantic policy matrix](../../../docs/semantic-policy-matrix.md).

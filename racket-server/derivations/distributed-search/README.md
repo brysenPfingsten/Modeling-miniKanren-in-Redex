@@ -20,8 +20,8 @@ The named rules are `distribute-choice` and `distribute-right-choice`.
 The `Early*` contexts require this distribution before ordinary work or
 scheduling beneath the conjunction. This is eager distribution of pending
 conjunction, **not the strict evaluation of both disjunction operands** used
-by the current interpreter. Both the experiment and its old factored
-comparison use the earlier online work-tree carrier.
+by the current interpreter. Both the experiment and its factored comparison
+use the work-tree carrier of the earlier dormant-branch semantics.
 
 ## Why keep it separate
 
@@ -37,12 +37,12 @@ labels, so their answer states can be distinguished.
 | Presentation | Answer-state order | Public forces before first answer |
 | --- | --- | --- |
 | Current strict source | A, B, C | 2 |
-| Old factored rail | A, B, C | 2 |
-| Distributed rail | C, A, B | 3 |
+| Earlier dormant-branch semantics, factored rail | A, B, C | 2 |
+| Earlier dormant-branch semantics, distributed rail | C, A, B | 3 |
 
 [The executable checks](tests.rkt) retain this counterexample alongside the
 presentation-specific transitions, allocation ownership, carrier closure,
-and scheduler witnesses. Agreement between strict and old factored execution
+and scheduler witnesses. Agreement between strict and dormant-branch factored execution
 on this witness does not establish their general equivalence.
 
 This result makes distribution interesting as a different search policy.
@@ -64,7 +64,7 @@ semantics. No integration or equivalence with the strict pipeline is claimed.
   used only by the experiment and moved here with it.
 - [tests.rkt](tests.rkt) is the standalone comparison suite.
 
-The experiment still reuses the old languages, kernels, owner operations,
+The experiment still reuses the earlier dormant-branch languages, kernels, owner operations,
 well-formedness predicates, and scheduler rules under
 [src/search-lattice/](../../src/search-lattice/). Those imports are real
 dependencies, not copied implementations or compatibility aliases. The GUI,

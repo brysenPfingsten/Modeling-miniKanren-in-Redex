@@ -19,9 +19,9 @@ racket -y -l raco -- test racket-server/derivations/strict-search/all.rkt
 
 This aggregate includes the selected retained-scope S derivation, the native
 S/E/N matrix, full relation-program checks, generated-artifact freshness, and
-constructor/dependency contracts. It also retains a strict/online work-order
-witness. That witness is not an application
-runtime adequacy check.
+constructor/dependency contracts. It also retains a work-order witness
+comparing strict evaluation with the earlier dormant-branch semantics.
+That witness is not an application runtime adequacy check.
 
 Focused gates:
 
@@ -55,6 +55,30 @@ The [research inventory](../derivations/strict-search/README.md) gives generator
 commands and proof obligations. Universal correspondence, domain preservation,
 productive streams and further `κ / Q / π` compression remain open. No separate
 E/N functional interpreter or register derivation is implied by the matrix.
+
+## Earlier dormant-branch semantics: interpreter derivations and comparison
+
+```sh
+raco test racket-server/derivations/scheduler-family/all.rkt
+racket racket-server/derivations/scheduler-family/derive.rkt --check
+racket racket-server/derivations/scheduler-family/show.rkt
+```
+
+The [family guide](../derivations/scheduler-family/README.md) states the exact
+domains for these derivations of the earlier dormant-branch semantics.
+Direct/CPS/defunctionalized/generated machines agree with their demand source
+through structural readback and prescribed 0/1 spans. The
+source/native map checks exact configuration transitions on the allocation-free
+empty-Owners fragment, and records an ownership-transport counterexample
+outside it. Local one-step allocation/kernel fixtures exercise additional
+labels without enlarging that full-trace claim. Native Railroad/Flip tests
+cover the full grammar, all native rules, active work, fresh and relation calls
+under the explicit orientation map. Strict work/commit differences, compiled
+divergent loops, and scoped provenance observations remain separate gates.
+
+This research aggregate is included in the headless gate. Its diagnostics
+name the earlier dormant-branch semantics explicitly; the current GUI uses the strict
+matrix scheduler rows instead.
 
 ## Compiler, manual session and application payloads
 
@@ -105,11 +129,11 @@ instead selects the corresponding strict S matrix scheduler. All selections
 share the strict program wrapper. Public `advance` is explicit for each;
 `force-delay` is always internal. Railroad retains its native orientation
 through rendering and uses a checked erasure map for comparison to Flip.
-The historical online lattice aggregate has **111 cases**. The corrected
+The earlier dormant-branch semantics aggregate has **111 cases**. The corrected
 scheduler integration suite has **7 cases**, covering 36 profile/scheduler
 traces, retained scope, exact work/commit order, pending bind, and guarded
 and unguarded recursion. Its earlier four-case checkpoint described the
-former online GUI sources.
+former GUI's dormant-branch sources.
 
 ## Automatic consumer and miniKanren library
 
@@ -134,8 +158,8 @@ racket -y -l raco -- test racket-server/derivations/distributed-search/tests.rkt
 ```
 
 [distributed-search/](../derivations/distributed-search/README.md) sits beside
-`strict-search/` and keeps an older online source that distributes conjunction
-over choice before machine derivation. Nested rails expose an observable
+`strict-search/` and varies the earlier dormant-branch semantics by distributing
+conjunction over choice before machine derivation. Nested rails expose an observable
 answer-order difference from the factored source. Its experiment-only raw
 seam is local to `reduction-relations/factored-search-base.rkt`.
 
@@ -162,19 +186,20 @@ Selector behavior does not establish an interpreter correspondence.
 
 `tests/test-all-headless.rkt` now aggregates the maintained compiler, library,
 session, API, rendering and payload suites, together with the strict research
-aggregate, all 111 native lattice source cases, scheduler integration, and
-runtime/dependency checks. Native source tests do not count as an interpreter
-correspondence proof. The current headless entry point is:
+aggregate, the 191 scheduler-family cases, all 111 native lattice source cases,
+scheduler integration, and runtime/dependency checks. Native source tests do
+not count as an interpreter correspondence proof. The current headless entry point is:
 
 ```sh
 racket -y -l raco -- test racket-server/tests/test-all-headless.rkt
 ```
 
-The strict scheduler correction passed **3,530 tests** in the staged
+The strict scheduler correction passed **3,721 tests** in the combined
 headless gate, including all **208 HEADLESS cases**, with zero failures or
 errors. Strict derivation and historical source checks are included in that
 total, not additive. HEADLESS raises on nonzero failures rather than silently
-succeeding. The preceding consolidation checkpoint recorded 3,502 tests.
+succeeding. The preceding consolidation checkpoints recorded 3,502 and
+3,693 tests before this correction.
 
 Current API/payload and picture checks pass. Fresh native servers on loopback
 ports 5101/5174 passed the browser check for all three strict schedulers and

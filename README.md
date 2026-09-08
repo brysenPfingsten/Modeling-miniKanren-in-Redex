@@ -54,7 +54,7 @@ racket -y -l raco -- test racket-server/tests/visible-contract-tests.rkt racket-
 racket -y racket-server/tests/ui-payload-smoke.rkt
 ```
 
-These gates check native lattice and strict steps, paused versus completed
+These gates check strict scheduler steps, paused versus completed
 Frontiers, exact history, candidate versus committed answers, source/state
 highlighting, and retained common/private introductions.
 
@@ -95,6 +95,14 @@ three full relation-program cells through source, data stages and finite Big.
 Start with the [strict derivation guide](racket-server/derivations/strict-search/README.md)
 for artifact roles, configuration-level evidence and remaining proofs.
 
+The [Earlier dormant-branch semantics](racket-server/derivations/scheduler-family/README.md)
+has a separate interpreter investigation connecting its DFS, Flip and
+orientation-preserving extension to independently stated source equations
+and generated machines. Its native correspondence is
+restricted to a stated fragment; full ownership transport and strict-to-online
+correspondence remain separate questions. It preserves executable negative
+examples as well as the positive maps.
+
 ### **5) Frontend and aggregate status**
 
 ```sh
@@ -103,8 +111,9 @@ npm --prefix frontend run lint
 npm --prefix frontend run build
 ```
 
-`racket-server/tests/test-all-headless.rkt` aggregates strict research, native
-lattice source suites, and application gates. The lattice aggregate also
+`racket-server/tests/test-all-headless.rkt` aggregates strict research, the
+earlier dormant-branch investigation, native lattice source suites, and application
+gates. The lattice aggregate also
 includes the separate [distribution comparison](racket-server/derivations/distributed-search/README.md).
 Source-relative lattice checks do not establish
 strict-interpreter correspondence. See the test-lane inventory for the latest
@@ -130,7 +139,7 @@ preserves the chosen lattice scheduler and source settings; runtime and
 compilation controls freeze during execution.
 
 `compileProfile` controls conjunction/disjunction association and explicit
-delay placement independently of runtime scheduling. Both families share
+delay placement independently of runtime scheduling. All selections share
 compiled goals, relation definitions, HTML source IDs, and query metadata.
 Every choice initializes the same strict configuration:
 
@@ -139,7 +148,7 @@ Every choice initializes the same strict configuration:
 ```
 
 The backend checks the selected grammar and well-formedness and records its
-named reductions. No running configuration is converted between families.
+named reductions. No running configuration is converted between schedulers.
 Relation expansion adds no implicit Delay.
 
 Payload status distinguishes `running`, `paused`, `complete`, and `stuck`.
@@ -271,7 +280,7 @@ and bind residuals before commitment; only Delay suspends. A right-oriented
 merge matures its right operand first, preserving the order represented by
 its orientation. Commitment separates active candidates from settled answers.
 Public advancement preserves the answer prefix and crosses one exposed
-Delay. No dormant-right conversion or strict-to-online fusion is part of
+Delay. No dormant-branch conversion or strict-to-online fusion is part of
 this application connection.
 
 Full first-order relation definitions, calls, recursion and mutual recursion
@@ -287,7 +296,7 @@ substitution, disequalities, trail and tag; a cumulative Support field belongs
 to E, and a numeric supply to N. Numeric-looking variable labels in the GUI
 do not change its S representation.
 
-The earlier online schedulers in `src/search-lattice/` remain executable
+The **Earlier dormant-branch semantics** in `src/search-lattice/` remains executable
 comparison sources with their own source-relative laws. They no longer
 provide the GUI runtime. The new strict S scheduler extension has a checked
 Railroad-to-Flip orientation map; separate E/N scheduler rows, downstream
@@ -296,7 +305,7 @@ derivations and universal correspondence proofs remain open.
 The distribution experiment lives
 beside the strict matrix work in
 [`racket-server/derivations/distributed-search/`](racket-server/derivations/distributed-search/README.md).
-It explores distributing conjunction over choice in the older online source
+It explores distributing conjunction over choice in that earlier source
 before machine derivation. Nested rails expose an observable answer-order
 difference from the factored source, so this is a semantic alternative to
 investigate, not a representation-only rewrite. The move adds no strict
@@ -317,7 +326,7 @@ Use this if you are jumping in with no project history:
 | Location | Responsibility |
 | --- | --- |
 | [src/transpiler/](racket-server/src/transpiler/) | Parse mini/micro, apply compilation profile, preserve source IDs, initialize the strict program carrier |
-| [src/search-lattice/](racket-server/src/search-lattice/SEMILATTICE.md) | Earlier online DFS, Flip, and Railroad sources retained for comparison |
+| [src/search-lattice/](racket-server/src/search-lattice/SEMILATTICE.md) | Earlier dormant-branch semantics: DFS, Flip, and Railroad sources retained for comparison |
 | [matrix/full-source.rkt](racket-server/derivations/strict-search/matrix/full-source.rkt) | Native full S/E/N reduction relations |
 | [matrix/scheduler-source.rkt](racket-server/derivations/strict-search/matrix/scheduler-source.rkt) | Strict S scheduler variations and native Railroad orientation used by the GUI |
 | [shared/wf.rkt](racket-server/derivations/strict-search/shared/wf.rkt) | Strict representation-specific scope, store and relation checks |
