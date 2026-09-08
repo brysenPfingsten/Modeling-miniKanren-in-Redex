@@ -7,6 +7,140 @@ It defaults to Railroad. All choices use strict matrix reduction semantics
 and retain their actual configurations in session history. Both operands and
 bind residuals mature before commitment; only Delay suspends work.
 
+## Project map
+
+**Earlier dormant-branch semantics** is the label for the retained
+`DisjL`/`DisjR` account: it leaves a sibling's goal work dormant while the
+active branch proceeds. Its source-relative derivations remain useful
+comparisons. The current GUI executes the strict matrix sources.
+
+```text
+project/
+|-- frontend/                         GUI controls and tree rendering
+|-- contracts/                        Shared visible-node contract
+|-- docs/                             Architecture and semantic boundaries
+`-- racket-server/
+    |-- src/
+    |   |-- transpiler/               Source, association, Delay placement
+    |   |-- search-runtime.rkt        Select strict matrix scheduler
+    |   |-- program-runner.rkt        Steps, history, Back/Reset
+    |   |-- search-picture.rkt        Scope, candidates, committed answers
+    |   |-- minikanren.rkt            Automatic run/run* consumption
+    |   |-- app.rkt                   HTTP interface
+    |   `-- search-lattice/           Earlier dormant-branch semantics
+    |       |-- languages/           Earlier goal and work-tree grammars
+    |       |-- reduction-relations/ Earlier scheduler rules
+    |       |   `-- private/         Internal relation composition
+    |       `-- wf/                  Earlier well-formedness judgments
+    |
+    |-- derivations/
+    |   |-- strict-search/
+    |   |   |-- retained-scope/       S interpreter, two derivations,
+    |   |   |                        machine maps, registers, compression
+    |   |   |-- matrix/
+    |   |   |   |-- full-source.rkt       Full S/E/N source reductions
+    |   |   |   |-- scheduler-source.rkt  LIVE GUI scheduling providers
+    |   |   |   |-- stages/               D/Z/M/B data stages and maps
+    |   |   |   `-- big/                  Finite judgments and certificates
+    |   |   |-- shared/
+    |   |   |   |-- core/{s,e,n}/     Live variable/grammar/kernel providers
+    |   |   |   `-- stages/           Shared stage construction
+    |   |   `-- test-support/         Witnesses and transition checks
+    |   |-- distributed-search/      Conjunction-distribution experiment
+    |   |   |-- languages/           Its extended carrier
+    |   |   `-- reduction-relations/  Its alternative rules
+    |   `-- scheduler-family/        Interpreter derivations of the
+    |                                Earlier dormant-branch semantics
+    `-- tests/                       Compiler, runtime, API and GUI gates
+        `-- search-lattice/          Earlier semantics' structural checks
+            |-- edges/  fibers/  grammar/  join/
+            `-- laws/   nodes/   overlays/
+```
+
+Braces and grouped names abbreviate sibling directories; the tree selects
+the main files within them. Shared providers are live dependencies even
+though their source ancestry predates the current strict derivation.
+The distribution experiment belongs beside the derivations and changes
+semantics; it is not a compression stage.
+
+See the [strict research inventory](racket-server/derivations/strict-search/README.md)
+for individual artifacts and the [policy guide](docs/semantic-policy-matrix.md)
+for the retained alternatives.
+
+## Derivation and GUI connections
+
+The retained-scope checkpoint connects two derivations of the same strict
+operations and pending work:
+
+```text
+retained-scope/interpreter.rkt              retained-scope/source.rkt
+            |                                         |
+           CPS                                    decomposition
+            |                                         |
+   data + defunctionalization                       refocusing
+            |                                         |
+   functional data machine <----------------> syntactic data machine
+            |              configuration maps         |
+            |              and prescribed spans       +--> structural
+        registers                                          compression
+            |
+   atomic-handler compression
+```
+
+The functional compression replaces a particular three-dispatch atomic
+sequence with one step; its continuation remains pending. The syntactic
+route has its own structural compression. The displayed machine connection
+does not identify the two compressed endpoints or establish a final
+`kappa / Q / pi` machine. Configuration checks are evidence; universal
+correspondence and productivity proofs remain open.
+
+The native matrix carries the retained-scope factoring across S/E/N and
+through R/D/Z/M/B/Big. The GUI's newer scheduler extension currently reaches
+the following sources:
+
+```text
+strict matrix reference (Flip): S / E / N, including relation programs
+                     |
+               select full S
+                     |
+         +-----------+------------+
+         |           |            |
+    No Interleave   Flip       Railroad
+    retain priority reference  retain orientation
+         |           |            |
+         +-----------+------------+
+                     |
+         matrix/scheduler-source.rkt
+```
+
+For No Interleave and Railroad, separate E/N scheduler rows and downstream
+machine derivations remain open. Railroad has explicit orientation-erasure
+checks against the strict Flip source. These schedulers preserve strict
+operand order, eager Search tails and bind, and separate commitment.
+
+The application selects those source relations and retains their actual
+configurations in the session:
+
+```text
+mini/micro --> transpiler --> strict configuration
+                  ^                  |
+          compilation profile        v
+matrix/scheduler-source.rkt --> search-runtime.rkt <-- scheduler selection
+                                     |
+                              program-runner.rkt
+                                /           \
+                      manual history     minikanren.rkt
+                            |            automatic run/run*
+                     picture + HTTP
+                            |
+                        frontend
+```
+
+Compilation association and Delay placement are independent of runtime
+scheduling. Relation calls are also an independent extension; expansion
+adds no implicit Delay. Guardedness conditions belong to claims about
+productive recursive behavior, not to the location of a scheduler coordinate.
+
 ## **Docker Setup**
 
 Follow the steps below to clone this repository, set up Docker, and run the application.
