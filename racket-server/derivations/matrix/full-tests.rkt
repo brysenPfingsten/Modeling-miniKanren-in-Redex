@@ -6,8 +6,8 @@
          "../shared/stages/schema.rkt" "../shared/stages/maps.rkt"
          "../test-support/stage-checks.rkt"
          (only-in "stages/tests.rkt" check-all-vertical)
-         (only-in "../retained-scope/source.rkt" retained-rel-red)
-         (only-in "../retained-scope/stages.rkt" RetainedSRel))
+         (only-in "../s-reference/source.rkt" retained-rel-red)
+         (only-in "../s-reference/stages.rkt" RetainedSRel))
 
 (define definitions
   '((r:eq (x:a x:b) (x:a =? x:b (label "eq-body")))

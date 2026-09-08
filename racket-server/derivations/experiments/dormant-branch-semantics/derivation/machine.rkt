@@ -6,7 +6,7 @@
           owners-append
           fresh-names
           substitute-goal)
-         "../../../retained-scope/relations.rkt"
+         "../../../s-reference/relations.rkt"
          "../../../shared/runtime.rkt"
          "data.rkt")
 

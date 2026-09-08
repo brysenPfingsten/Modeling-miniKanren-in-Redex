@@ -208,7 +208,7 @@ search is only those two scheduling transitions.
 Its dedicated [tests](../../early-conjunction-distribution/tests.rkt) run
 alongside this account under the experiments aggregate. That retains
 comparison evidence; it adds no GUI policy, strict matrix coordinate,
-or A7/A9 integration. No correspondence with the retained-scope strict
+or A7/A9 integration. No correspondence with the S reference
 interpreter or a derived distributed machine is claimed by this relocation.
 
 ## Scheduler fibers

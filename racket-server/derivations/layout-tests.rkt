@@ -6,7 +6,7 @@
 (define-runtime-path repository "../..")
 (define application (build-path directory ".." "src"))
 (define experiments (build-path directory "experiments"))
-(define retained (build-path directory "retained-scope"))
+(define reference (build-path directory "s-reference"))
 (define shared (build-path directory "shared"))
 (define support (build-path directory "test-support"))
 (define matrix (build-path directory "matrix"))
@@ -99,9 +99,9 @@
 
   (test-case "preferred runtime and derivation depend only on the current route and shared code"
     (define (runtime? path)
-      (and (or (inside? path retained) (inside? path shared))
+      (and (or (inside? path reference) (inside? path shared))
            (not (suite? path)) (not (demonstration? path))))
-    (check-closure (filter runtime? (source-files retained)) runtime?))
+    (check-closure (filter runtime? (source-files reference)) runtime?))
 
   (test-case "shared code does not depend on routes, fixtures, or test suites"
     (check-closure (source-files shared)
@@ -113,13 +113,13 @@
                      (and (or (inside? path shared) (inside? path support))
                           (not (suite? path))))))
 
-  (test-case "retained checks may compare native matrix providers without importing other suites"
+  (test-case "S reference checks may compare native matrix providers without importing other suites"
     (check-closure (filter (lambda (path)
                              (and (or (suite? path) (demonstration? path))
                                   (not (equal? (file-name-from-path path) (string->path "all.rkt")))))
-                           (source-files retained))
+                           (source-files reference))
                    (lambda (path)
-                     (and (or (inside? path retained) (inside? path shared)
+                     (and (or (inside? path reference) (inside? path shared)
                               (inside? path support) (inside? path matrix))
                           (not (suite? path))))))
 
@@ -129,12 +129,12 @@
            (not (suite? path))))
     (check-closure (filter runtime? (source-files matrix)) runtime?))
 
-  (test-case "matrix checks use native rows and the independent retained checkpoint"
+  (test-case "matrix checks use native rows and the independent S reference checkpoint"
     (check-closure (source-files matrix)
                    (lambda (path)
                      (or (inside? path matrix) (inside? path shared)
                          (inside? path support)
-                         (and (inside? path retained) (not (suite? path)))))))
+                         (and (inside? path reference) (not (suite? path)))))))
 
   (test-case "the strict aggregate includes both maintained derivation accounts"
     ;; Parse the actual direct require, without loading the broad aggregate
@@ -145,7 +145,7 @@
           (parameterize ([read-accept-reader #t])
             (syntax->datum (read-syntax "all.rkt" input))))))
     (match-define `(module ,_ ,_ (#%module-begin ,forms ...)) module-datum)
-    (for ([aggregate (in-list '("retained-scope/all.rkt" "matrix/all.rkt"))])
+    (for ([aggregate (in-list '("s-reference/all.rkt" "matrix/all.rkt"))])
       (check-not-false
        (for/or ([form (in-list forms)])
          (match form

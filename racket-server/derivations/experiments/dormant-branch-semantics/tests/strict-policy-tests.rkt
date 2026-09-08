@@ -1,7 +1,7 @@
 #lang racket
 
 (require rackunit redex/reduction-semantics
-         (prefix-in direct: "../../../retained-scope/interpreter.rkt")
+         (prefix-in direct: "../../../s-reference/interpreter.rkt")
          (only-in "../../../shared/kernel-equations.rkt" current-atomic-observer)
          (prefix-in online: "../source/reduction-relations/rail-red.rkt"))
 

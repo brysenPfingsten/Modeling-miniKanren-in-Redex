@@ -18,7 +18,7 @@ interaction check. Earlier counts are labelled as historical checkpoints.
 racket -y -l raco -- test racket-server/derivations/all.rkt
 ```
 
-This aggregate includes the selected retained-scope S derivation, the native
+This aggregate includes the S reference derivation, the native
 S/E/N matrix, full relation-program checks, generated-artifact freshness, and
 constructor/dependency contracts. It excludes experimental accounts and
 strict/dormant comparisons; those run in the experiments gate.
@@ -26,19 +26,19 @@ strict/dormant comparisons; those run in the experiments gate.
 Focused gates:
 
 ```sh
-racket -y -l raco -- test racket-server/derivations/retained-scope/all.rkt
+racket -y -l raco -- test racket-server/derivations/s-reference/all.rkt
 racket -y -l raco -- test racket-server/derivations/matrix/all.rkt
-racket -y -l raco -- test racket-server/derivations/matrix/retained-scope-tests.rkt
+racket -y -l raco -- test racket-server/derivations/matrix/s-reference-tests.rkt
 racket -y -l raco -- test racket-server/derivations/matrix/full-tests.rkt
-racket -y -l raco -- test racket-server/derivations/retained-scope/relation-tests.rkt
+racket -y -l raco -- test racket-server/derivations/s-reference/relation-tests.rkt
 racket -y -l raco -- test racket-server/derivations/matrix/big/full-tests.rkt
 ```
 
 | Gate | What it checks |
 | --- | --- |
-| Retained scope | Direct/CPS/data machines, functional-to-syntactic configuration maps, register decoders, and prescribed compression spans |
+| S reference | Direct/CPS/data machines, functional-to-syntactic configuration maps, register decoders, and prescribed compression spans |
 | Matrix aggregate | Twelve call-free S/E/N feature cells through R/D/Z/M/B/Big, direct representation maps, generated goals, exact work and allocation scope |
-| Retained-scope checkpoint | Independently stated selected/matrix S sources and stages, and the selected functional machine mapped to actual native S/E/N transitions |
+| S reference checkpoint | Independently stated reference/matrix S sources and stages, and the reference functional machine mapped to actual native S/E/N transitions |
 | Full source | Three additional relation cells, explicit `(program Γ q)`, native stage/configuration maps, calls, recursion and public boundaries |
 | Functional relation extension | Explicit Γ captures and program frames through direct/CPS/data/register/compressed stages; exact connection to native full-language machines |
 | Full Big | Independent finite judgments, fixed-point results, source-label traces and direct certificate maps with Γ in recursive premises |

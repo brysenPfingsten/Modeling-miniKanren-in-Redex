@@ -2,7 +2,7 @@
 
 (require rackunit redex/reduction-semantics
          "scheduler-source.rkt" "full-source.rkt"
-         (prefix-in direct: "../retained-scope/interpreter.rkt")
+         (prefix-in direct: "../s-reference/interpreter.rkt")
          "../test-support/witnesses.rkt")
 
 (define (atom name) `((sym ,name) =? (sym ,name) (label ,name)))

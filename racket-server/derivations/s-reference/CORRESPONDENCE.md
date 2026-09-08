@@ -1,6 +1,6 @@
-# The retained-scope functional and refocused machines
+# The S reference functional and refocused machines
 
-The selected S interpreter has an explicit data machine and a structural
+The S reference interpreter has an explicit data machine and a structural
 configuration map to the machine obtained by decomposition/refocusing of its
 source. The [research guide](../README.md) owns the artifact inventory and
 current coordinate status; this document states the machine relation.
@@ -97,7 +97,7 @@ This equality checks two separately stated maps; the whole-tree map is not
 used to implement Φ. Existing fieldwise S→E/N maps also agree with translating
 the reconstructed source, including every pending computation and state.
 These are structural representation squares. The
-[matrix checkpoint gate](../matrix/retained-scope-tests.rkt) additionally checks
+[matrix checkpoint gate](../matrix/s-reference-tests.rkt) additionally checks
 the independently stated selected and matrix S source/stage transitions, then
 maps functional configurations into native S/E/N M configurations and steps
 those machines. All three rows use the retained-scope force boundary with

@@ -35,7 +35,7 @@ project/
     |
     |-- derivations/
     |   |-- all.rkt                  Current strict account only
-    |   |-- retained-scope/          S interpreter, both derivations,
+    |   |-- s-reference/             S interpreter, both derivations,
     |   |                            machine maps, registers, compression
     |   |-- matrix/
     |   |   |-- full-source.rkt      Full S/E/N source reductions
@@ -72,11 +72,11 @@ for the retained alternatives.
 
 ## Derivation and GUI connections
 
-The retained-scope checkpoint connects two derivations of the same strict
+The S reference checkpoint connects two derivations of the same strict
 operations and pending work:
 
 ```text
-retained-scope/interpreter.rkt              retained-scope/source.rkt
+s-reference/interpreter.rkt                 s-reference/source.rkt
             |                                         |
            CPS                                    decomposition
             |                                         |
@@ -226,7 +226,7 @@ its lattice default.
 racket -y -l raco -- test racket-server/derivations/all.rkt
 ```
 
-Covers the retained-scope interpreter, corresponding machines, registerization
+Covers the S reference interpreter, corresponding machines, registerization
 and first compression, plus twelve native call-free S/E/N feature cells and
 three full relation-program cells through source, data stages and finite Big.
 Start with the [strict derivation guide](racket-server/derivations/README.md)
@@ -386,7 +386,7 @@ If you are studying the repo as a semantics artifact, use this order:
 2. [Strict derivation guide](racket-server/derivations/README.md) and
    [correction log](racket-server/derivations/CORRECTIONS.md):
    current inventory and why its semantic boundaries matter.
-3. [Retained scope](racket-server/derivations/retained-scope/README.md):
+3. [S reference](racket-server/derivations/s-reference/README.md):
    source/interpreter, CPS, defunctionalization, machine maps, registers and
    prescribed compression spans.
 4. [S/E/N matrix](racket-server/derivations/matrix/README.md):

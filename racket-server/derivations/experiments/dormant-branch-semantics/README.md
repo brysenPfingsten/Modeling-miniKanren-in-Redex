@@ -10,7 +10,7 @@ References below to the native lattice describe [source/](source/SEMILATTICE.md)
 these derivations do not provide the application's current scheduler dispatch.
 
 The investigation supports a systematic interpreter family, with an important
-qualification: its base is a **demand variation** of the retained-scope strict
+qualification: its base is a **demand variation** of the S reference
 interpreter. Changing only the strict interpreter's Delay scheduling case
 cannot explain the earlier dormant-branch semantics. The strict account matures
 both operands and bind residuals before commitment; the earlier lattice can
@@ -63,7 +63,7 @@ observations live in [neutral test support](../../test-support/README.md).
 ## The common interpreter and its variations
 
 [interpreter.rkt](derivation/interpreter.rkt) starts from the equations in
-[retained-scope/interpreter.rkt](../../retained-scope/interpreter.rkt).
+[s-reference/interpreter.rkt](../../s-reference/interpreter.rkt).
 Owners, logical states, lexical substitution, eager atomic kernels, eager
 relation expansion, answer-private support, and public commitment remain
 explicit. The new control policy changes these three demand sites:
@@ -162,7 +162,7 @@ establish correspondence with the earlier dormant-branch semantics.
 ## Derivation and executable relationships
 
 ```text
-Retained-scope strict interpreter
+S reference interpreter
                 |
                 | change demand policy; not an equivalence
                 v

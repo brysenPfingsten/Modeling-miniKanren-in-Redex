@@ -7,7 +7,7 @@
          (submod "commit-source-tests.rkt" test)
          (submod "property-tests.rkt" test)
          (submod "work-tests.rkt" test)
-         (submod "retained-scope-tests.rkt" test)
+         (submod "s-reference-tests.rkt" test)
          (submod "full-tests.rkt" test)
          (submod "scheduler-tests.rkt" test)
          (submod "stages/tests.rkt" test)

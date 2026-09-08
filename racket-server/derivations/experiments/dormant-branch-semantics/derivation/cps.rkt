@@ -3,7 +3,7 @@
 (require (only-in "../../../shared/kernel.rkt"
                   owners-support owners-append fresh-names substitute-goal)
          (only-in "interpreter.rkt" atomic check-policy complete? observe-closure)
-         "../../../retained-scope/relations.rkt")
+         "../../../s-reference/relations.rkt")
 (provide (all-defined-out))
 
 ;; CPS changes the calling convention of EVERY computation, including Yield

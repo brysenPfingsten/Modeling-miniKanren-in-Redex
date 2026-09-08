@@ -68,7 +68,7 @@ The experiment reuses the earlier dormant-branch languages, kernels, owner opera
 well-formedness predicates, and scheduler rules in
 [the sibling account's source/](../dormant-branch-semantics/source/SEMILATTICE.md). Those imports are real
 dependencies, not copied implementations or compatibility aliases. The GUI,
-strict matrix, and retained-scope machine providers do not import this
+strict matrix, and S reference machine providers do not import this
 experiment. Its [tests](tests.rkt) run under the
 [experiments aggregate](../all.rkt); cross-experiment architecture checks
 remain separate from the current strict gate.

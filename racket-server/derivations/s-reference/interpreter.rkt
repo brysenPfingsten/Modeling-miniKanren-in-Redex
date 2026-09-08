@@ -25,7 +25,7 @@
   procedure)
 
 ;; Mature root attachment still belongs to mplus's structural equations. What
-;; disappears in this experiment is attachment AFTER executing a resumption.
+;; this account avoids is attachment AFTER executing a resumption.
 (define (prefix owners search)
   (match search
     [`(Empty ,local) `(Empty ,(owners-append owners local))]

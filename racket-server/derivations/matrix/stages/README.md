@@ -117,7 +117,7 @@ rules. The gate also checks the absence of prefix frames, sparse allocation
 beneath retained active Owners, and the separation of force,
 resumed evaluation, and commitment at every stage and in all three carriers.
 
-[The checkpoint gate](../retained-scope-tests.rkt) additionally compares the
+[The checkpoint gate](../s-reference-tests.rkt) additionally compares the
 matrix S stages to the selected source's independently instantiated stages,
 then checks the selected functional machine against actual native S/E/N M
 steps through its structural configuration maps. Its administrative spans

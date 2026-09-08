@@ -1,15 +1,15 @@
 # Strict representation and feature matrix
 
 These native S/E/N feature instances use the retained-scope operation of the
-selected S source and interpreter in
-[retained-scope/](../retained-scope/README.md). Common grammars, kernels,
+S reference source and interpreter in
+[s-reference/](../s-reference/README.md). Common grammars, kernels,
 representation maps, and stage construction live in [shared/](../shared/README.md);
 this directory owns the matrix's source and Big rules and their instances.
 The [research guide](../README.md#sen-coordinate-inventory) owns the complete
 coordinate inventory and remaining obligations. Source and R/D/Z/M/B/Big
 equations use this factoring in all twelve feature cells. The
-[checkpoint gate](retained-scope-tests.rkt) connects the independently stated
-Search/rail S source and stages to the selected S functional machine and the
+[checkpoint gate](s-reference-tests.rkt) connects the independently stated
+Search/rail S source and stages to the S reference functional machine and the
 native E/N machine transitions.
 
 This matrix adds the `strict-round` branch-evaluation coordinate to the
@@ -177,9 +177,9 @@ traces, all three vertical maps and direct composition at every reached state.
 [property-tests.rkt](property-tests.rkt) extends those checks over generated
 lexical goals using the native S/E/N rows.
 
-[retained-scope-tests.rkt](retained-scope-tests.rkt) checks the independently
+[s-reference-tests.rkt](s-reference-tests.rkt) checks the independently
 stated selected and matrix S sources and D/Z/M/B configurations at each edge.
-It then maps the selected S functional configuration into native S/E/N M
+It then maps the S reference functional configuration into native S/E/N M
 configurations and checks actual native steps: one preclassified source
 operation with only administrative normalization around it. Native B steps
 must report and replay that exact M span. Direct S→N and
@@ -213,7 +213,7 @@ maps, well-formedness, finite and mutual recursion, bounded productive rounds,
 unguarded calls, lexical shadowing, fresh across Delay, sparse ancestry, nested
 rails, and pending bind. [big/full-tests.rkt](big/full-tests.rkt) checks the
 finite judgments and direct certificate maps. The selected functional route's
-[relation checks](../retained-scope/relation-tests.rkt) connect its independently
+[relation checks](../s-reference/relation-tests.rkt) connect its independently
 derived machine to these actual native configurations. This adds three full
 language instances above the twelve call-free representation/feature cells;
 it does not introduce separate E/N functional pipelines.
@@ -275,7 +275,7 @@ it is not the GUI's runtime provider.
   its README records the stage-specific construction and evidence.
 - `big/`: direct finite Big equations over the actual row carriers.
 - `property-tests.rkt`: generated-goal representation and source checks.
-- `retained-scope-tests.rkt`: selected S checkpoint and actual S/E/N source
+- `s-reference-tests.rkt`: S reference checkpoint and actual S/E/N source
   and machine transition checks.
 - `all.rkt`: aggregate source, feature, property, stage, and Big checks.
 

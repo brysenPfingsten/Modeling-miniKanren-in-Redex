@@ -6,7 +6,7 @@
 (define-runtime-path directory ".")
 
 ;; Reuse the checked tail-position transformation, not any checkpoint machine
-;; transitions. The input here is the retained-scope defunctionalized program.
+;; transitions. The input here is the S reference defunctionalized program.
 (define (control-definitions)
   (define module-datum
     (call-with-input-file (build-path directory "defunc.rkt")
@@ -38,7 +38,7 @@
     (define (drive/steps current fuel)
       (match current
         [(Halted value) value]
-        [_ (when (zero? fuel) (exhausted 'retained-scope-machine current))
+        [_ (when (zero? fuel) (exhausted 's-reference-machine current))
            (drive/steps (step current) (sub1 fuel))]))
     (define (drive current #:fuel [fuel 100000])
       (check-fuel fuel)
@@ -66,7 +66,7 @@
   (unless (and (= (length names) 13)
                (= (length names) (length (remove-duplicates names)))
                (andmap (lambda (signature) (<= 1 (length (cdr signature)) 5)) signatures))
-    (error 'derive "expected thirteen unique retained-scope controls using at most five operands"))
+    (error 'derive "expected thirteen unique S reference controls using at most five operands"))
   (define clauses
     (for/list ([definition (in-list definitions)])
       (match-define `(define (,name ,arguments ...) ,body ...) definition)
@@ -86,7 +86,7 @@
               (match current
                 ,@clauses
                 [(Halted _) #f]
-                [_ (raise-argument-error 'step "derived retained-scope configuration" current)])))))
+                [_ (raise-argument-error 'step "derived S reference configuration" current)])))))
   (with-output-to-string
     (lambda ()
       (displayln "#lang racket")
@@ -107,6 +107,6 @@
 
 (module+ main
   (match (vector->list (current-command-line-arguments))
-    ['() (generate!) (displayln "Generated machine.rkt from retained-scope defunc.rkt.")]
+    ['() (generate!) (displayln "Generated machine.rkt from S reference defunc.rkt.")]
     ['("--check") (check-generated!) (displayln "Generated machine matches defunc.rkt.")]
     [_ (error 'derive "usage: racket derive.rkt [--check]")]))

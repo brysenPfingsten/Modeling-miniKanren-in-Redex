@@ -90,7 +90,7 @@
   (check-true (wf-s? whole))
   (check-native-shape mapped)
   ;; These local checks establish structural readback squares. The matrix's
-  ;; retained-scope-tests.rkt independently checks the mapped E/N transitions.
+  ;; s-reference-tests.rkt independently checks the mapped E/N transitions.
   (define mapped-e (maps:M-SE mapped))
   (define mapped-n (maps:M-SN mapped))
   (check-equal? (maps:M-EN mapped-e) mapped-n)

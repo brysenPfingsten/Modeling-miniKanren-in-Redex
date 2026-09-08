@@ -14,7 +14,7 @@ remain comparison sources, not GUI implementations.
 
 | Account | Current role | Operational contract |
 | --- | --- | --- |
-| [Retained-scope S](../racket-server/derivations/retained-scope/README.md) | Selected interpreter, independently stated source, corresponding machines, registers and first compression | Strict disjunction, eager Yield tails and bind; explicit commitment; only Delay suspends |
+| [S reference](../racket-server/derivations/s-reference/README.md) | Selected interpreter, independently stated source, corresponding machines, registers and first compression | Strict disjunction, eager Yield tails and bind; explicit commitment; only Delay suspends |
 | [Native S/E/N matrix](../racket-server/derivations/matrix/README.md) | Twelve call-free representation/feature cells and three full relation cells through source, data stages and finite Big | Same retained-scope operations, expressed using syntax-owned introductions, state support, or numeric supply |
 | [Strict scheduler lattice](../racket-server/derivations/matrix/scheduler-source.rkt) | GUI default Railroad; No Interleave (`dfs`), Flip-Flop (`flip`), and Railroad (`rail`) remain runtime choices | Strict `(program Γ q)` configurations; eager merge/bind; Railroad adds native `mplusR` and eager `YieldR` |
 | [Strict Search view](../racket-server/src/search-runtime.rkt) | Separate GUI view and default API/library selection; executes `strict-s-rel-red` directly | Native `(program Γ q)` syntax, explicit calls and exact source steps |
@@ -84,7 +84,7 @@ finite work/commit traces differ, and a compiled unguarded recursive suffix
 disproves unrestricted exposed-answer equivalence. Full S ownership placement
 also needs a scope-transport relation beyond variable alpha-renaming.
 
-The two selected S derivations and native S/E/N machines have structural maps
+The two S reference derivations and native S/E/N machines have structural maps
 and configuration-level transition checks, including the full relation
 extension. Register decoders and compressed steps use prescribed original
 spans. Big equations and certificate maps provide independent finite evidence.

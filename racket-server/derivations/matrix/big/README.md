@@ -4,7 +4,7 @@ This directory retains finite Big presentations for the twelve matrix
 coordinates: Core, Delay, Disjunction, and Search/rail, each in S, E, and N.
 The full Search/rail language additionally has three native relation-call
 instances over explicit `(program Γ q)` configurations.
-Its source uses retained scope, matching the selected S source; see the
+Its source uses retained scope, matching the S reference source; see the
 [research inventory](../../README.md#sen-coordinate-inventory).
 There is no dormant-right policy or strict-to-online fusion in these artifacts.
 

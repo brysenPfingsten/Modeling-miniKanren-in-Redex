@@ -1,6 +1,6 @@
 # Semantics and application organization
 
-The selected account is [retained-scope S, Search/rail](../racket-server/derivations/retained-scope/README.md).
+The selected account is the [S reference, Search/rail](../racket-server/derivations/s-reference/README.md).
 Its functional and syntactic derivations meet through explicit configuration
 maps and prescribed transition spans. The [native S/E/N matrix](../racket-server/derivations/matrix/README.md)
 uses the same factoring, including a full relation-program extension. The
@@ -56,7 +56,7 @@ query-info = surface names, runtime variable identities, source tag, requested l
 ```
 
 Within strict `(program Γ q)`, q is the current computation or observation.
-For the retained-scope S account:
+For the S reference account:
 
 ```text
 Search   ::= Empty(O) | One(O,σ) | Yield(O,A,Search) | Delay(O,c)

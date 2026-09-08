@@ -6,7 +6,7 @@ The current GUI uses strict matrix scheduler rows and no longer exhibits
 these dormant-branch counterexamples. These diagnostics initialize and step
 the historical sources explicitly.
 
-The existing [retained-scope Strict interpreter](../../retained-scope/interpreter.rkt)
+The existing [S reference interpreter](../../s-reference/interpreter.rkt)
 is not the earlier dormant-branch Railroad interpreter merely with different constructors. It evaluates
 both disjunction operands, and the eager tail of a bind, before the resulting
 Search can commit. The lattice can commit a settled candidate while a sibling
@@ -22,7 +22,7 @@ raco test racket-server/derivations/experiments/dormant-branch-semantics/tests/b
 The tests execute the existing native runtime relations. Their configurations
 are checked against the native grammar and WF predicate. Strict's public
 `advance` invocation is recorded separately from a named contraction. Finite
-Strict results are also checked against the retained-scope direct interpreter.
+Strict results are also checked against the S reference direct interpreter.
 These tests do not modify either semantics or evaluate a proposed
 representation map to make the traces agree.
 

@@ -1,9 +1,14 @@
-# Retained-scope interpreter and corresponding machines
+# S reference: interpreter and corresponding machines
 
-This is the selected S, Search/rail account. When internal force removes a
-Delay, its introductions remain on the running computation before the body
-evaluates. The parent [research guide](../README.md) owns the artifact
-inventory, current coordinate status, generation commands, and reading order.
+This directory contains the S reference: an independently stated strict
+interpreter and reduction semantics, their two derivations, and the machine
+checkpoint used to check the S/E/N matrix. It uses named logic variables with
+introductions stored on the nodes that own their scope.
+
+Retained scope names an invariant of this account: when internal force removes
+a Delay, its introductions remain on the running computation before the body
+evaluates. The parent [research guide](../README.md) owns the Search/rail
+coordinate inventory, generation commands, and reading order.
 
 Both derivations use `Yield(O,A,S)` for the eager active Search cell and
 reserve `More(Delay(O,R))` for unfinished Frontier work. The eager-tail frame
@@ -236,7 +241,7 @@ caller support the basic identity is
 [machine-correspondence-tests.rkt](machine-correspondence-tests.rkt) checks
 structural squares for complete configurations. The matrix's E/N sources
 use the same force boundary without unary prefix phases. The
-[matrix checkpoint gate](../matrix/retained-scope-tests.rkt) goes beyond
+[matrix checkpoint gate](../matrix/s-reference-tests.rkt) goes beyond
 structural squares: it checks actual S/E/N source and machine transitions
 against this checkpoint, including the independent direct S→N map. Each
 functional step prescribes one source label or administrative identity; the

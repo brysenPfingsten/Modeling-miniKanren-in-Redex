@@ -1,7 +1,7 @@
 # Alternative semantic accounts
 
 The current strict semantics and its derivations live in
-[retained-scope/](../retained-scope/README.md) and
+[s-reference/](../s-reference/README.md) and
 [matrix/](../matrix/README.md). This directory keeps alternative accounts
 executable without making them stages of that derivation or GUI backends.
 Each account owns its source rules and the evidence principally about it.

@@ -8,7 +8,7 @@
 
 ;; Record each native execution's atomic goal and exact incoming state. The
 ;; source maps address only the recorded S/E observations; every row executes
-;; independently in its own carrier. The separate retained-scope-tests suite
+;; independently in its own carrier. The separate s-reference-tests suite
 ;; connects these native machines with the selected functional machine.
 (define (native-result/events stage configuration project-event [events '()] [fuel 10000])
   (match configuration

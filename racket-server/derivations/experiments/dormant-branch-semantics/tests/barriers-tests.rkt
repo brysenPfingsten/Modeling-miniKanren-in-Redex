@@ -11,7 +11,7 @@
          (only-in "../../../../src/transpiler.rkt" parse-prog/canonical)
          (prefix-in strict: "../../../matrix/full-source.rkt")
          (prefix-in lattice: "../source/languages/rail-relcall-lang.rkt")
-         (prefix-in direct: "../../../retained-scope/interpreter.rkt")
+         (prefix-in direct: "../../../s-reference/interpreter.rkt")
          (prefix-in online: "../derivation/interpreter.rkt")
          (prefix-in source: "../derivation/source.rkt")
          (only-in "../../../shared/kernel.rkt"

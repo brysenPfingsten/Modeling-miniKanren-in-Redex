@@ -1,7 +1,7 @@
 # Shared semantic and derivation machinery
 
-This directory contains implementations used by the current retained-scope
-route and the native S/E/N matrix. It contains no route's evaluator,
+This directory contains implementations used by the S reference
+account and the native S/E/N matrix. It contains no account's evaluator,
 contraction relation, or generated program. Consumers import these modules
 directly; the old utility locations have no forwarding stubs.
 Some experiments and application modules also consume these primitives.
@@ -41,7 +41,7 @@ hook. Execution does not use it to recover configurations, closures, or scope.
 Test fixtures and reusable assertions live in [test-support/](../test-support/README.md).
 
 [layout-tests.rkt](../layout-tests.rkt) checks the module dependency boundary:
-retained-scope execution and derivation depend only on retained-scope and
+S reference execution and derivation depend only on `s-reference/` and
 shared modules within this derivation tree. Shared and test-support modules
 cannot depend on experimental evaluators or their test suites. Sources and
 tests principally about an alternative account belong to that experiment.

@@ -72,7 +72,7 @@
     (define (drive/steps! bank fuel)
       (match (Registers-pc bank)
         ['halt (Registers-r0 bank)]
-        [_ (when (zero? fuel) (exhausted 'retained-scope-registers (decode bank)))
+        [_ (when (zero? fuel) (exhausted 's-reference-registers (decode bank)))
            (step! bank)
            (drive/steps! bank (sub1 fuel))]))
     (define (drive! bank #:fuel [fuel 100000])
@@ -154,6 +154,6 @@
 
 (module+ main
   (match (vector->list (current-command-line-arguments))
-    ['() (generate!) (displayln "Generated registers.rkt from retained-scope defunc.rkt.")]
+    ['() (generate!) (displayln "Generated registers.rkt from S reference defunc.rkt.")]
     ['("--check") (check-generated!) (displayln "Generated registers match defunc.rkt.")]
     [_ (error 'register-derive "usage: racket register-derive.rkt [--check]")]))

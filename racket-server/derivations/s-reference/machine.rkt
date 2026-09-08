@@ -53,7 +53,7 @@
    current
    ((Halted value) value)
    (_
-    (when (zero? fuel) (exhausted 'retained-scope-machine current))
+    (when (zero? fuel) (exhausted 's-reference-machine current))
     (drive/steps (step current) (sub1 fuel)))))
 
 (define (drive current #:fuel (fuel 100000)) (check-fuel fuel) (drive/steps current fuel))
@@ -293,4 +293,4 @@
         (Call 'collect/d (list value here (KCollectForced owners rest))))
        ((KCollectForced owners rest) (Call 'return/d (list `(Forced ,owners ,value) rest))))))
    ((Halted _) #f)
-   (_ (raise-argument-error 'step "derived retained-scope configuration" current))))
+   (_ (raise-argument-error 'step "derived S reference configuration" current))))

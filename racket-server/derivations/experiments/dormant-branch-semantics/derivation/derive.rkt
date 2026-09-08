@@ -85,7 +85,7 @@
     (append
      (list '(require (only-in "../../../shared/kernel.rkt"
                              owners-support owners-append fresh-names substitute-goal)
-                     "../../../retained-scope/relations.rkt"
+                     "../../../s-reference/relations.rkt"
                      "../../../shared/runtime.rkt" "data.rkt")
            '(provide (all-defined-out))
            `(define signatures ',signatures))

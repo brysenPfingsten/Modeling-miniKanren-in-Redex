@@ -3,8 +3,8 @@
 (require rackunit redex/reduction-semantics
          "shared/grammar-s.rkt" "shared/grammar-e.rkt" "shared/grammar-n.rkt"
          (prefix-in q: "shared/maps.rkt")
-         (only-in "retained-scope/source.rkt" ScopeS)
-         (prefix-in i: "retained-scope/interpreter.rkt"))
+         (only-in "s-reference/source.rkt" ScopeS)
+         (prefix-in i: "s-reference/interpreter.rkt"))
 
 (define state '(state () () () (label "initial")))
 (define goal '(succeed (label "next")))

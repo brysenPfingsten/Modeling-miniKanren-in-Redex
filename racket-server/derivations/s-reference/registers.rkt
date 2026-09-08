@@ -116,7 +116,7 @@
    (Registers-pc bank)
    ('halt (Registers-r0 bank))
    (_
-    (when (zero? fuel) (exhausted 'retained-scope-registers (decode bank)))
+    (when (zero? fuel) (exhausted 's-reference-registers (decode bank)))
     (step! bank)
     (drive/steps! bank (sub1 fuel)))))
 

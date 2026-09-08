@@ -1,6 +1,6 @@
 # Registers and bounded atomic-outcome compression
 
-The reference is the retained-scope `machine.rkt`: the thirteen-control
+The checkpoint is the S reference `machine.rkt`: the thirteen-control
 functional machine generated from `defunc.rkt`, whose configurations correspond
 to the independently refocused `RetainedS` machine through `functional->M`.
 The [research guide](../README.md) owns the inventory and reproduction
@@ -23,7 +23,7 @@ function, a reduction relation, or an observer table to execute the program.
 ## Registerization
 
 `register-derive.rkt` reuses the existing restricted tail-position transformer
-on the actual retained-scope `/d` definitions. The generated `registers.rkt`
+on the actual S reference `/d` definitions. The generated `registers.rkt`
 contains a mutable bank with an explicit PC, five operand registers, and a step
 counter. Its signature table states the meaning of each live register at each
 PC. For example:
@@ -188,9 +188,9 @@ It uses the existing strictness, nested-rail, retained-scope, sparse-ancestry,
 fresh-across-Delay, unused-introduction and pending-bind witnesses. It compares
 the exact public Frontiers, their unforced bodies, and actual atomic goal/state
 work in order. Decoders and maps are checked without kernel execution or
-closure observers. These tests join the retained-scope aggregate.
+closure observers. These tests join the S reference aggregate.
 
-The [matrix checkpoint gate](../matrix/retained-scope-tests.rkt) connects S
+The [matrix checkpoint gate](../matrix/s-reference-tests.rkt) connects S
 functional configurations to actual native S/E/N M transitions. The register
 decoder and prescribed compression spans provide the preceding maps. This
 connection does not supply separately generated E/N register programs or a

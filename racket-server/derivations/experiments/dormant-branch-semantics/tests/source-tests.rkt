@@ -10,7 +10,7 @@
          (prefix-in rail: "../source/reduction-relations/rail-relcall-red.rkt")
          (prefix-in wf: "../source/wf/all.rkt")
          (only-in "../../../shared/wf.rkt" wf-s-rel?)
-         (only-in "../../../retained-scope/relations.rkt" goal-body)
+         (only-in "../../../s-reference/relations.rkt" goal-body)
          "../../../shared/kernel-equations.rkt"
          "../../../test-support/witnesses.rkt")
 

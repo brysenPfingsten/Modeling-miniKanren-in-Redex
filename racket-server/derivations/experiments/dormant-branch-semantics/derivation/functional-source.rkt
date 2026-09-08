@@ -3,7 +3,7 @@
 (require "data.rkt"
          (prefix-in machine: "machine.rkt")
          (prefix-in source: "source.rkt")
-         "../../../retained-scope/relations.rkt"
+         "../../../s-reference/relations.rkt"
          (only-in "../../../shared/kernel.rkt"
                   owners-support owners-append valid-support?))
 

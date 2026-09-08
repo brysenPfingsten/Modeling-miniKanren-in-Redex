@@ -1,8 +1,8 @@
 # Strict Search research artifact
 
-The selected account is **retained-scope S, Search/rail**. Its
-[interpreter](retained-scope/interpreter.rkt) and
-[reduction semantics](retained-scope/source.rkt) have functional and syntactic
+The selected account is the **S reference, Search/rail**. Its
+[interpreter](s-reference/interpreter.rkt) and
+[reduction semantics](s-reference/source.rkt) have functional and syntactic
 derivations connected by a machine-configuration map and finite transition
 checks, followed by registers and one bounded atomic-outcome compression.
 The [S/E/N matrix](matrix/README.md) carries that retained-scope factoring
@@ -52,11 +52,11 @@ accounts and their own evidence live together under
 
 1. Read the [correction log](CORRECTIONS.md) and its small witnesses.
 2. Inspect [representations and primitives](shared/README.md), then the
-   [interpreter](retained-scope/interpreter.rkt) and
-   [source equations](retained-scope/source.rkt).
-3. Follow the [derivation stages](retained-scope/README.md),
-   [machine correspondence](retained-scope/CORRESPONDENCE.md), and
-   [register/compression contracts](retained-scope/REGISTERIZATION.md).
+   [interpreter](s-reference/interpreter.rkt) and
+   [source equations](s-reference/source.rkt).
+3. Follow the [derivation stages](s-reference/README.md),
+   [machine correspondence](s-reference/CORRESPONDENCE.md), and
+   [register/compression contracts](s-reference/REGISTERIZATION.md).
 4. Use the coordinate inventory below to read the
    [matrix source specification](matrix/README.md),
    [native stages](matrix/stages/README.md), and
@@ -64,11 +64,11 @@ accounts and their own evidence live together under
 
 | Location | Responsibility |
 | --- | --- |
-| [retained-scope/](retained-scope/README.md) | Selected S interpreter, source, functional/syntactic correspondence, registers, and first compression |
+| [s-reference/](s-reference/README.md) | Selected S interpreter, source, functional/syntactic correspondence, registers, and first compression |
 | [shared/](shared/README.md) | S/E/N variable/state languages, allocation and kernels, grammars, structural maps, well-formedness, and narrow transformation machinery |
-| [matrix/](matrix/README.md) | Native retained-scope S/E/N feature instances through R/D/Z/M/B/Big and their connection to the selected S checkpoint |
+| [matrix/](matrix/README.md) | Native retained-scope S/E/N feature instances through R/D/Z/M/B/Big and their connection to the S reference checkpoint |
 | [test-support/](test-support/README.md) | Named witnesses, generated lexical goals, and neutral random/structural/transition helpers shared by validation suites |
-| [all.rkt](all.rkt) | Current strict aggregate: retained scope, matrix, constructor contracts, and dependency/layout checks |
+| [all.rkt](all.rkt) | Current strict aggregate: S reference, matrix, constructor contracts, and dependency/layout checks |
 | [experiments/](experiments/README.md) | Complete alternative accounts, with a separate aggregate for their sources, derivations, and comparisons |
 
 The [dormant-branch account](experiments/dormant-branch-semantics/README.md)
@@ -76,7 +76,7 @@ and [early conjunction distribution](experiments/early-conjunction-distribution/
 are semantic alternatives. Their separate gates preserve positive maps and
 counterexamples; they are outside this matrix and derivation pipeline.
 
-## Selected S derivation and evidence
+## S reference derivation and evidence
 
 ```text
 interpreter → CPS → data + defunc → functional machine → registers → compressed
@@ -90,12 +90,12 @@ outcome-handler dispatches; these are distinct downstream transformations.
 
 | Artifact | Implementation and checks | Remaining obligation |
 | --- | --- | --- |
-| Interpreter and CPS | [interpreter.rkt](retained-scope/interpreter.rkt), [cps.rkt](retained-scope/cps.rkt); [interpreter tests](retained-scope/interpreter-tests.rkt) | General direct/CPS correctness over the admitted domain |
-| Defunctionalized program and machine | [data.rkt](retained-scope/data.rkt), [defunc.rkt](retained-scope/defunc.rkt), [machine.rkt](retained-scope/machine.rkt); [data/machine tests](retained-scope/defunc-tests.rkt) | General defunctionalization and generation correctness |
-| Source and syntactic stages | [source.rkt](retained-scope/source.rkt), [stages.rkt](retained-scope/stages.rkt); [source tests](retained-scope/source-tests.rkt) | Domain preservation and general R/D/Z/M/B correspondence |
-| Machine relation | [configuration map](retained-scope/machine-correspondence.rkt), independent [readback](retained-scope/readback.rkt), [administrative rank](retained-scope/administration.rkt); [transition checks](retained-scope/machine-correspondence-tests.rkt) | All-configuration labelled diagrams and native administrative progress; [contract](retained-scope/CORRESPONDENCE.md) |
-| Registers and compression | [registers.rkt](retained-scope/registers.rkt), [compressed.rkt](retained-scope/compressed.rkt), [span maps](retained-scope/compression-correspondence.rkt); [register tests](retained-scope/register-tests.rkt), [span tests](retained-scope/register-compression-tests.rkt) | Generator/mutation correctness and prescribed spans on the full domain; [contract](retained-scope/REGISTERIZATION.md) |
-| S/E/N correspondence | [source maps](shared/maps.rkt), [stage maps](shared/stages/maps.rkt), [domain predicates](shared/wf.rkt); [checkpoint transition checks](matrix/retained-scope-tests.rkt) | Universal source/stage diagrams and domain preservation; E/N functional interpreters and register programs are not separately derived |
+| Interpreter and CPS | [interpreter.rkt](s-reference/interpreter.rkt), [cps.rkt](s-reference/cps.rkt); [interpreter tests](s-reference/interpreter-tests.rkt) | General direct/CPS correctness over the admitted domain |
+| Defunctionalized program and machine | [data.rkt](s-reference/data.rkt), [defunc.rkt](s-reference/defunc.rkt), [machine.rkt](s-reference/machine.rkt); [data/machine tests](s-reference/defunc-tests.rkt) | General defunctionalization and generation correctness |
+| Source and syntactic stages | [source.rkt](s-reference/source.rkt), [stages.rkt](s-reference/stages.rkt); [source tests](s-reference/source-tests.rkt) | Domain preservation and general R/D/Z/M/B correspondence |
+| Machine relation | [configuration map](s-reference/machine-correspondence.rkt), independent [readback](s-reference/readback.rkt), [administrative rank](s-reference/administration.rkt); [transition checks](s-reference/machine-correspondence-tests.rkt) | All-configuration labelled diagrams and native administrative progress; [contract](s-reference/CORRESPONDENCE.md) |
+| Registers and compression | [registers.rkt](s-reference/registers.rkt), [compressed.rkt](s-reference/compressed.rkt), [span maps](s-reference/compression-correspondence.rkt); [register tests](s-reference/register-tests.rkt), [span tests](s-reference/register-compression-tests.rkt) | Generator/mutation correctness and prescribed spans on the full domain; [contract](s-reference/REGISTERIZATION.md) |
+| S/E/N correspondence | [source maps](shared/maps.rkt), [stage maps](shared/stages/maps.rkt), [domain predicates](shared/wf.rkt); [checkpoint transition checks](matrix/s-reference-tests.rkt) | Universal source/stage diagrams and domain preservation; E/N functional interpreters and register programs are not separately derived |
 
 The interpreters do not execute the source relation. The functional machine
 map constructs native controls and continuation fields directly. Independent
@@ -123,7 +123,7 @@ or prefix continuation in these cells.
 | Delay | [StrictSDelay](matrix/features.rkt) | [StrictEDelay](matrix/features.rkt) | [StrictNDelay](matrix/features.rkt) | [features](matrix/feature-tests.rkt), [stages](matrix/stages/tests.rkt), [Big](matrix/big/tests.rkt) |
 | Disjunction | [StrictSDisjunction](matrix/features.rkt) | [StrictEDisjunction](matrix/features.rkt) | [StrictNDisjunction](matrix/features.rkt) | [features](matrix/feature-tests.rkt), [stages](matrix/stages/tests.rkt), [Big](matrix/big/tests.rkt) |
 | Search/rail | [S](matrix/source-s.rkt) | [E](matrix/source-e.rkt) | [N](matrix/source-n.rkt) | [source maps](matrix/tests.rkt), [generated goals](matrix/property-tests.rkt), [stages](matrix/stages/tests.rkt), [Big](matrix/big/tests.rkt) |
-| Search/rail + relations | [StrictSRel](matrix/full-source.rkt) | [StrictERel](matrix/full-source.rkt) | [StrictNRel](matrix/full-source.rkt) | [source/stage maps](matrix/full-tests.rkt), [functional machine](retained-scope/relation-tests.rkt), [Big](matrix/big/full-tests.rkt) |
+| Search/rail + relations | [StrictSRel](matrix/full-source.rkt) | [StrictERel](matrix/full-source.rkt) | [StrictNRel](matrix/full-source.rkt) | [source/stage maps](matrix/full-tests.rkt), [functional machine](s-reference/relation-tests.rkt), [Big](matrix/big/full-tests.rkt) |
 
 [Stage instances](matrix/stages/instances.rkt) instantiate all twelve cells.
 Big uses [S](matrix/big/s.rkt), [E](matrix/big/e.rkt), and [N](matrix/big/n.rkt)
@@ -134,7 +134,7 @@ proofs are obtained independently. The
 [stage commitment checks](matrix/stages/commit-tests.rkt) cover exact public
 boundaries and direct S→E, E→N, and S→N squares.
 
-The [checkpoint gate](matrix/retained-scope-tests.rkt) compares the independently
+The [checkpoint gate](matrix/s-reference-tests.rkt) compares the independently
 stated S sources and native stages, then checks the selected functional
 machine's mapped configurations against actual S/E/N machine transitions.
 These are prescribed source-operation and administrative spans, not only
@@ -148,12 +148,12 @@ The three checked-in generated programs are:
 
 | Generated file | Generator and input |
 | --- | --- |
-| [machine.rkt](retained-scope/machine.rkt) | [derive.rkt](retained-scope/derive.rkt) reifies the `/d` bodies of [defunc.rkt](retained-scope/defunc.rkt) |
-| [registers.rkt](retained-scope/registers.rkt) | [register-derive.rkt](retained-scope/register-derive.rkt) transforms the same control bodies into PC/register dispatch |
-| [compressed.rkt](retained-scope/compressed.rkt) | [compression-derive.rkt](retained-scope/compression-derive.rkt) checks the atomic-handler rewrite, then uses the register generator |
+| [machine.rkt](s-reference/machine.rkt) | [derive.rkt](s-reference/derive.rkt) reifies the `/d` bodies of [defunc.rkt](s-reference/defunc.rkt) |
+| [registers.rkt](s-reference/registers.rkt) | [register-derive.rkt](s-reference/register-derive.rkt) transforms the same control bodies into PC/register dispatch |
+| [compressed.rkt](s-reference/compressed.rkt) | [compression-derive.rkt](s-reference/compression-derive.rkt) checks the atomic-handler rewrite, then uses the register generator |
 
 Each generator accepts `--check` for freshness; omit it to regenerate.
-The retained-scope and overall aggregates also check freshness. Feature/source,
+The S reference and overall aggregates also check freshness. Feature/source,
 stage, and Big macros construct literal instances at module expansion without
 additional checked-in generated programs. The
 [tail-call transformer](shared/control-transform.rkt) and
@@ -163,15 +163,15 @@ they are not a universal semantic framework.
 Run from the repository root:
 
 ```sh
-racket racket-server/derivations/retained-scope/derive.rkt --check
-racket racket-server/derivations/retained-scope/register-derive.rkt --check
-racket racket-server/derivations/retained-scope/compression-derive.rkt --check
-raco test racket-server/derivations/retained-scope/all.rkt
+racket racket-server/derivations/s-reference/derive.rkt --check
+racket racket-server/derivations/s-reference/register-derive.rkt --check
+racket racket-server/derivations/s-reference/compression-derive.rkt --check
+raco test racket-server/derivations/s-reference/all.rkt
 raco test racket-server/derivations/matrix/all.rkt
 raco test racket-server/derivations/all.rkt
-racket racket-server/derivations/retained-scope/show.rkt
-racket racket-server/derivations/retained-scope/show-machines.rkt
-racket racket-server/derivations/retained-scope/show-register-compression.rkt
+racket racket-server/derivations/s-reference/show.rkt
+racket racket-server/derivations/s-reference/show-machines.rkt
+racket racket-server/derivations/s-reference/show-register-compression.rkt
 ```
 
 The aggregate includes [constructor contracts](constructor-tests.rkt) and

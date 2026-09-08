@@ -5,7 +5,7 @@
          (prefix-in machine: "../derivation/machine.rkt")
          (prefix-in source: "../derivation/source.rkt")
          (prefix-in derive: "../derivation/derive.rkt")
-         "../../../retained-scope/relations.rkt"
+         "../../../s-reference/relations.rkt"
          "../../../test-support/witnesses.rkt")
 
 (define empty-state '(state () () () (label "initial")))

@@ -8,13 +8,13 @@
          (only-in "../shared/kernel.rkt" owners-support)
          "../shared/feature-schema.rkt"
          "../test-support/witnesses.rkt" "../test-support/frontiers.rkt"
-         (only-in "../retained-scope/data.rkt" KDone)
-         "../retained-scope/source.rkt" "../retained-scope/stages.rkt"
-         "../retained-scope/machine-correspondence.rkt"
-         "../retained-scope/administration.rkt"
-         (only-in "../retained-scope/readback.rkt"
+         (only-in "../s-reference/data.rkt" KDone)
+         "../s-reference/source.rkt" "../s-reference/stages.rkt"
+         "../s-reference/machine-correspondence.rkt"
+         "../s-reference/administration.rkt"
+         (only-in "../s-reference/readback.rkt"
                   reify-frontier readback-call readback-halted)
-         (prefix-in f: "../retained-scope/machine.rkt"))
+         (prefix-in f: "../s-reference/machine.rkt"))
 
 ;; This is a validation dependency on the independently stated S checkpoint.
 ;; Matrix execution never imports the functional machine or its transitions.

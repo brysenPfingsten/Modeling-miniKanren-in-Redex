@@ -3,10 +3,10 @@
 (require (only-in "../../../shared/kernel.rkt"
                   owners-support owners-append fresh-names substitute-goal)
          "../../../shared/kernel-equations.rkt"
-         "../../../retained-scope/relations.rkt")
+         "../../../s-reference/relations.rkt")
 (provide (all-defined-out))
 
-;; A demand variation of the retained-scope direct interpreter. Both arguments
+;; A demand variation of the S reference direct interpreter. Both arguments
 ;; of merge are computations, and Yield's residual is a computation. These
 ;; procedures are NOT object-language Delays. Only the Delay constructor marks
 ;; a scheduler/public suspension. The strict interpreter is unchanged.

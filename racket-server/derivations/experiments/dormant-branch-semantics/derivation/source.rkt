@@ -4,7 +4,7 @@
          (only-in "../../../shared/grammar-s.rkt" StrictS)
          (only-in "../../../shared/kernel.rkt"
                   owners-support owners-append fresh-names substitute-goal)
-         "../../../retained-scope/relations.rkt"
+         "../../../s-reference/relations.rkt"
          (only-in "data.rkt" atomic/data Failure Success))
 (provide (all-defined-out))
 

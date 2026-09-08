@@ -14,7 +14,7 @@
                     "../dormant-branch-semantics/source/wf/all.rkt")
          "../dormant-branch-semantics/source/reduction-relations/private/common.rkt"
          "../dormant-branch-semantics/source/structural-observations.rkt"
-         (prefix-in strict: "../../retained-scope/source.rkt")
+         (prefix-in strict: "../../s-reference/source.rkt")
          (only-in "../../shared/wf.rkt" wf-s?)
          "../dormant-branch-semantics/tests/frontier-observable-support.rkt"
          "../dormant-branch-semantics/tests/search-lattice-support.rkt")

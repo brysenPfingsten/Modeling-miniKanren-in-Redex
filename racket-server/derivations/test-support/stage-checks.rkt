@@ -6,7 +6,7 @@
 (provide check-row successor-list map-edge)
 
 ;; The source relation and stage instance are inputs, so this checker is shared
-;; by the S/E/N matrix and the corresponding retained-scope derivation.
+;; by the S/E/N matrix and the corresponding S reference derivation.
 (define (successor-list edge)
   (match edge [#f '()] [_ (list edge)]))
 
