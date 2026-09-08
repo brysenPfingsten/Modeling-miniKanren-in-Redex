@@ -218,11 +218,49 @@ derived machine to these actual native configurations. This adds three full
 language instances above the twelve call-free representation/feature cells;
 it does not introduce separate E/N functional pipelines.
 
-The compiler and GUI execute `strict-s-rel-red` from this module directly.
+The strict reference and Flip GUI selections execute `strict-s-rel-red` from
+this module directly; the compiler supplies their common initialization.
 The twelve compiler profiles (associativity and delay placement) are distinct
 from the matrix's twelve call-free representation/feature cells.
 
 ## Files and interfaces
+
+The GUI's three schedulers now use [scheduler-source.rkt](scheduler-source.rkt),
+an extension of this strict S source. Flip is the existing `strict-s-rel-red`
+itself. DFS changes its delayed-merge equation to retain left priority.
+Railroad adds `mplusR` and eager `YieldR` syntax to retain orientation when
+scheduling switches sides. This is an S source extension; separate DFS/Railroad
+E/N rows and downstream derivations have not been generated.
+
+All policies mature both merge operands and eager bind residuals before
+commitment. For right-oriented merge, the right operand is the first logical
+argument: evaluate right, then left, then merge. `YieldR` matures its tail
+before becoming a Search value. There is no evaluation beneath Delay or
+Frontier More. Omitting Owners just to display the scheduling equations:
+
+```text
+DFS:   mplus(Delay c, S) → Delay(mplus(force(Delay c), S))
+Flip:  mplus(Delay c, S) → Delay(mplus(S, force(Delay c)))
+Rail:  mplus(Delay c, S) → Delay(mplusR(force(Delay c), S))
+       mplusR(S, Delay c) → Delay(mplus(S, force(Delay c)))
+```
+
+`erase-orientation` maps `mplusR(L,R)` to `mplus(R,L)` and `YieldR(T,A)`
+to `Yield(A,T)`, retaining Owners, definitions, goals and states literally.
+[scheduler-tests.rkt](scheduler-tests.rkt) compares each Railroad successor
+list against exactly one reference Flip step after the explicit rule-name
+map, including retained-scope witnesses, eager oriented bind and relation
+calls. This map is used for inspection/WF/status and to read the active Owner
+path from an allocation context. Execution uses native Railroad rules, never
+a Flip reduction of a converted configuration. Universal correspondence
+is still a proof obligation.
+
+The renderer's arrows show merge orientation; its highlighted edge shows
+the operand currently being matured. These need not select the same child.
+Every scheduler uses explicit public `advance`, while `force-delay` remains
+an internal reduction. Scope allocation follows this matrix's active Owner
+path. Earlier dormant-right relations under `src/search-lattice/` remain
+comparison sources and are no longer the GUI's runtime provider.
 
 - `source-s.rkt`, `source-e.rkt`, `source-n.rkt`: call-free Search/rail source rows.
 - `full-source.rkt`, `full-tests.rkt`: full relation-program extension and checks.

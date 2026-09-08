@@ -86,8 +86,8 @@ test("lattice remains the default with exactly its three scheduler choices", () 
     ],
   );
   assert.deepEqual(SEARCH_MODEL_OPTIONS, [
-    { value: "lattice", label: "Lattice search" },
-    { value: "strict", label: "Strict Search" },
+    { value: "lattice", label: "Strict scheduler lattice" },
+    { value: "strict", label: "Strict reference (Flip)" },
   ]);
 });
 

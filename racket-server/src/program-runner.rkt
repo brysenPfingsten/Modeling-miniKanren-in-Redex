@@ -155,10 +155,6 @@
   (match (model-session-current-step-name session)
     ["Initialize Program" 'initialization]
     ["advance" 'public-operation]
-    ["force-delay"
-     (if (search-strategy? (model-session-search-strategy session))
-         'public-operation
-         'reduction)]
     [_ 'reduction]))
 
 (define (model-session-current-config session)
@@ -166,7 +162,8 @@
 
 (define (model-session-current-picture session)
   (cfg->operational-picture (model-session-current-config session)
-                            (query-info-variables (model-session-query session))))
+                            (query-info-variables (model-session-query session))
+                            (search-strategy? (model-session-search-strategy session))))
 
 (define (model-session-current-answer-nodes session)
   (committed-answer-nodes (model-session-current-config session)
@@ -201,9 +198,7 @@
      (define successors
        (match status
          ['paused
-          (if (strict-search? strategy)
-              (list (list "advance" (advance-configuration current)))
-              (step-once current))]
+          (list (list "advance" (advance-configuration current)))]
          ['complete '()]
          ['running (step-once current)]
          ['stuck (error 'model-session-step "stuck ~a configuration: ~e"

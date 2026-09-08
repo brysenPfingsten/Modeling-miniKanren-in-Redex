@@ -5,8 +5,8 @@ export const DEFAULT_SEARCH_STRATEGY = Object.freeze({
 export const DEFAULT_SEARCH_MODEL = "lattice";
 
 export const SEARCH_MODEL_OPTIONS = Object.freeze([
-  Object.freeze({ value: "lattice", label: "Lattice search" }),
-  Object.freeze({ value: "strict", label: "Strict Search" }),
+  Object.freeze({ value: "lattice", label: "Strict scheduler lattice" }),
+  Object.freeze({ value: "strict", label: "Strict reference (Flip)" }),
 ]);
 
 export const SCHEDULER_OPTIONS = Object.freeze([

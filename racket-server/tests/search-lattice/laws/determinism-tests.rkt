@@ -14,7 +14,7 @@
                     "../../../src/search-lattice/wf/all.rkt")
          (prefix-in distributed:
                     "../../../derivations/distributed-search/all.rkt")
-         "../../../src/search-runtime.rkt"
+         "../support.rkt"
          "../../../src/search-strategy.rkt"
          "../../../src/sexpr-read.rkt"
          "../../../src/transpiler.rkt"
@@ -44,8 +44,10 @@
        (not (regexp-match? #rx"/archive/" (path->string p)))))
 
 (define (parse-src/canonical src)
-  (parse-prog/canonical (read-all-sexprs (open-input-string src))
-                        #:search-strategy (search-strategy "rail")))
+  (define-values (cfg html query)
+    (parse-prog/canonical (read-all-sexprs (open-input-string src))
+                          #:search-strategy (search-strategy "rail")))
+  (values (compiled-goal->online-fixture cfg) html query))
 
 (define/match (strategy-label strategy)
   [((search-strategy scheduler)) scheduler])
@@ -100,10 +102,8 @@
                            acc*)]))
 
 (define (strategy-matches-generated? strategy cfg)
-  (match-define (strategy-spec _ _ in-domain? well-formed?)
-    (lookup-strategy-spec strategy))
-  (and (in-domain? cfg)
-       (well-formed? cfg)))
+  (and (online-in-domain? strategy cfg)
+       (online-well-formed? strategy cfg)))
 
 (define (generate-random-config strategy
                                 rng
@@ -140,8 +140,8 @@
               [ex (in-list examples)])
     (match-define (cons _label src) ex)
     (define-values (cfg0 _html _query) (parse-src/canonical src))
-    (and (search-config-in-domain? strategy cfg0)
-         (search-config-well-formed? strategy cfg0)
+    (and (online-in-domain? strategy cfg0)
+         (online-well-formed? strategy cfg0)
          (hash 'strategy strategy
                'cfg cfg0))))
 

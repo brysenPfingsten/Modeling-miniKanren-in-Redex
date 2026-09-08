@@ -4,11 +4,7 @@
          "../src/app.rkt" "../src/program-runner.rkt"
          "../src/search-runtime.rkt" "../src/sexpr-read.rkt"
          (only-in "../src/transpiler.rkt" parse-prog/canonical query-info)
-         (prefix-in dfs: "../src/search-lattice/reduction-relations/search-dfs-relcall-red.rkt")
-         (prefix-in flip: "../src/search-lattice/reduction-relations/search-flip-relcall-red.rkt")
-         (prefix-in rail: "../src/search-lattice/reduction-relations/rail-relcall-red.rkt")
-         (prefix-in lang: "../src/search-lattice/languages/rail-relcall-lang.rkt")
-         (prefix-in wf: "../src/search-lattice/wf/all.rkt")
+         (prefix-in scheduler: "../derivations/strict-search/matrix/scheduler-source.rkt")
          (prefix-in strict: "../derivations/strict-search/matrix/full-source.rkt")
          (only-in "../derivations/strict-search/shared/wf.rkt" wf-s-rel?)
          "../derivations/strict-search/test-support/witnesses.rkt"
@@ -21,17 +17,14 @@
 (define (native-relation strategy)
   (match strategy
     [(strict-search) strict:strict-s-rel-red]
-    [(search-strategy "dfs") dfs:search-dfs-relcall-red]
-    [(search-strategy "flip") flip:search-flip-relcall-red]
-    [(search-strategy "rail") rail:rail-relcall-red]))
+    [(search-strategy "dfs") scheduler:strict-dfs-red]
+    [(search-strategy "flip") scheduler:strict-flip-red]
+    [(search-strategy "rail") scheduler:strict-rail-red]))
 
 (define (native-wf? strategy configuration)
   (match strategy
     [(strict-search) (wf-s-rel? configuration)]
-    [(search-strategy "rail")
-     (judgment-holds (wf:wf-config/rail-relcall? ,configuration))]
-    [(search-strategy (or "dfs" "flip"))
-     (judgment-holds (wf:wf-config/search-relcall? ,configuration))]))
+    [(search-strategy _) (scheduler:scheduler-well-formed? configuration)]))
 
 (define (contains-constructor? datum constructor)
   (match datum
@@ -77,7 +70,8 @@
   (check-equal? configuration (model-session-current-config library))
   (check-true (native-wf? strategy configuration))
   (when (member strategy (list (search-strategy "dfs") (search-strategy "flip")))
-    (check-false (contains-constructor? configuration 'DisjR)))
+    (check-false (contains-constructor? configuration 'mplusR))
+    (check-false (contains-constructor? configuration 'YieldR)))
   (define answer-count (length (answer-states (configuration-body configuration))))
   (check-equal? (length (model-session-current-answer-nodes api)) answer-count)
   (check-equal? (count (lambda (node) (equal? (hash-ref node 'renderRole #f) "answer-node"))
@@ -90,12 +84,12 @@
     [(and status (or 'running 'paused))
      (when (zero? fuel) (error 'check-trace "finite witness exceeded its bound"))
      (define expected
-       (match* (strategy status)
-         [((strict-search) 'paused)
+       (match status
+         ['paused
           (match-define `(program ,definitions ,frontier) configuration)
-          (check-equal? (apply-reduction-relation strict:strict-s-rel-red configuration) '())
+          (check-equal? (apply-reduction-relation (native-relation strategy) configuration) '())
           (list "advance" `(program ,definitions (advance ,frontier)))]
-         [(_ _)
+         [_
           (match-define (list successor)
             (apply-reduction-relation/tag-with-names (native-relation strategy) configuration))
           successor]))
@@ -105,8 +99,6 @@
                          (model-session-current-config next-api)) expected)
      (check-equal? (model-session-current-step-kind next-api)
                    (if (eq? status 'paused) 'public-operation 'reduction))
-     (when (and (search-strategy? strategy) (eq? status 'paused))
-       (check-equal? (first expected) "force-delay"))
      (check-payload response next-api)
      (check-trace next-api next-library (sub1 fuel)
                   (cons (edge (first expected) configuration (second expected)) reversed))]
@@ -116,16 +108,11 @@
 (define empty-query (query-info '() '() '(label "query") #f))
 (define (open-goal strategy goal [owners '(Owners)] [state empty-state])
   (open-compiled
-   (match strategy
-     [(strict-search) `(program () (commit (eval ,owners ,goal ,state)))]
-     [(search-strategy _) `(() (More (Work ,owners ,goal ,state)))])
+   `(program () (commit (eval ,owners ,goal ,state)))
    empty-query strategy))
 
-(define old-active
-  (term-match/single lang:rail-relcall-lang
-    [(Γ (in-hole WorkFocus (Work owners g σ))) (term g)]))
 (define strict-active
-  (term-match/single strict:StrictSRel
+  (term-match/single scheduler:StrictRail
     [(in-hole C (eval owners a σ)) (term a)]))
 (define (state-label state)
   (match state [`(state ,_ ,_ (,equation ,_ ...) ,_) (second (last equation))]))
@@ -136,9 +123,8 @@
      (append
       (match name
         ["advance" '(public-advance)]
-        ["force-delay" (list (if (strict-search? strategy) 'internal-force 'public-force))]
-        [(or "eval-atom" "unify-success")
-         (list (list 'work (second (last ((if (strict-search? strategy) strict-active old-active) before)))))]
+        ["force-delay" '(internal-force)]
+        ["eval-atom" (list (list 'work (second (last (strict-active before)))))]
         [_ '()])
       (for/list ([state (in-list (drop (answer-states (configuration-body after))
                                       (length (answer-states (configuration-body before)))))])
@@ -154,6 +140,48 @@
     [`(Done ,_) 'Done]))
 
 (define/provide-test-suite SCHEDULER-INTEGRATION
+  (test-case "every GUI scheduler finishes sibling work before commitment"
+    (define goal '(((sym "A") =? (sym "A") (label "A")) ∨
+                   ((sym "B") =? (sym "B") (label "B")) (label "choice")))
+    (for ([strategy (in-list all-surfaced-search-strategies)])
+      (define session (open-goal strategy goal))
+      (define-values (_final edges) (check-trace session session))
+      (check-equal? (meaningful-events strategy edges)
+                    '((work "A") (work "B") (commit "A") (commit "B")))))
+
+  (test-case "unguarded strict operands never commit a known answer in any scheduler"
+    (define call '(r:loop (label "loop")))
+    (define definitions `((r:loop () ,call)))
+    (for* ([strategy (in-list all-surfaced-search-strategies)]
+           [goal (in-list
+                  (list `(((sym "A") =? (sym "A") (label "A")) ∨ ,call (label "choice"))
+                        `((suspend ,call (label "delay")) ∨
+                          ((sym "B") =? (sym "B") (label "B")) (label "choice"))))])
+      (define initial (open-compiled `(program ,definitions (commit (eval (Owners) ,goal ,empty-state)))
+                                     empty-query strategy))
+      (define final
+        (for/fold ([session initial]) ([_ (in-range 60)])
+          (check-equal? (model-session-current-answer-nodes session) '())
+          (check-true (native-wf? strategy (model-session-current-config session)))
+          (model-session-step session)))
+      (check-equal? (model-session-current-answer-nodes final) '())
+      ;; Close the exact call self-loop; fuel exhaustion alone is not the claim.
+      (define cfg (model-session-current-config final))
+      (check-equal? (apply-reduction-relation/tag-with-names (native-relation strategy) cfg)
+                    (list (list "eval-call" cfg)))))
+
+  (test-case "strict schedulers still distinguish a guarded infinite left branch"
+    (define call '(r:loop (label "loop")))
+    (define definitions `((r:loop () (suspend ,call (label "guard")))))
+    (define goal `(,call ∨ ((sym "B") =? (sym "B") (label "B")) (label "choice")))
+    (for ([strategy (in-list all-surfaced-search-strategies)])
+      (define initial (open-compiled `(program ,definitions (commit (eval (Owners) ,goal ,empty-state)))
+                                     empty-query strategy))
+      (define final
+        (for/fold ([session initial]) ([_ (in-range 60)]) (model-session-step session)))
+      (check-equal? (length (model-session-current-answer-nodes final))
+                    (if (equal? strategy (search-strategy "dfs")) 0 1))))
+
   (test-case "all twelve profiles initialize and step all three native scheduler carriers"
     (define source
       "(defrel (same x y) (== x y))
@@ -175,13 +203,13 @@
                      (hasheq 'text source 'sourceMode "mini" 'compileProfile profile)
                      #:strategy strategy) 'scheduler-profile))
         (define library (open-source source #:compile-profile profile #:search-strategy strategy))
-        (check-match compiled `(,_ (More (Work (Owners) ,_ ,_))))
+        (check-match compiled `(program ,_ (commit (eval (Owners) ,_ ,_))))
         (check-equal? compiled (model-session-current-config api))
         (check-equal? query (model-session-query api))
         (check-payload response api)
         (define-values (final edges) (check-trace api library))
-        (check-not-false (member "force-delay" (map edge-name edges)))
-        (check-false (member "advance" (map edge-name edges)))
+        (check-not-false (member "advance-delay" (map edge-name edges)))
+        (check-not-false (member "advance" (map edge-name edges)))
         (check-equal? (sort (model-session-current-host-answers final) symbol<?) '(b c)))))
 
   (test-case "nested rails preserve their own work order and public force boundaries"
@@ -196,37 +224,34 @@
       (check-equal?
        (meaningful-events strategy edges)
        (match strategy
-         [(strict-search)
+         [(or (strict-search) (search-strategy (or "flip" "rail")))
           '((work "B") public-advance internal-force (work "A") (commit "B")
             public-advance internal-force (work "C") (commit "A") (commit "C"))]
          [(search-strategy "dfs")
-          '(public-force (work "A") (commit "A") (work "B") (commit "B")
-            public-force (work "C") (commit "C"))]
-         [(search-strategy (or "flip" "rail"))
-          '(public-force (work "B") (commit "B") public-force (work "A")
-            (commit "A") (work "C") (commit "C"))]))
+          '((work "B") public-advance internal-force (work "A") (commit "A") (commit "B")
+            public-advance (work "C") (commit "C"))]))
       (check-equal?
        (frontier-shape (configuration-body (model-session-current-config final)))
        (match strategy
          [(search-strategy "dfs") '(Forced (Emit "A" (Emit "B" (Forced (Last "C")))))]
          [_ '(Forced (Emit "B" (Forced (Emit "A" (Last "C")))))]))
       (when (equal? strategy (search-strategy "rail"))
-        (check-true (ormap (lambda (transition) (contains-constructor? (edge-after transition) 'DisjR)) edges)))
+        (check-true (ormap (lambda (transition) (contains-constructor? (edge-after transition) 'mplusR)) edges)))
       (check-equal?
        (for/list ([transition (in-list edges)]
                   #:when (equal? (edge-name transition)
-                                  (if (strict-search? strategy) "advance" "force-delay")))
+                                  "advance"))
          (frontier-shape (configuration-body (edge-before transition))))
        (match strategy
          [(search-strategy "dfs") '(More (Forced (Emit "A" (Emit "B" More))))]
          [_ '(More (Forced (Emit "B" More)))]))
-      ;; Equal final observations do not equate intermediate pending work.
+      ;; The first commitment leaves a mature Search tail, never an
+      ;; unevaluated sibling. Delayed bodies remain legitimately suspended.
       (define first-emission
         (edge-after (findf (lambda (transition)
                             (= 1 (length (answer-states (configuration-body (edge-after transition)))))) edges)))
-      (match strategy
-        [(strict-search) (check-true (contains-constructor? first-emission 'One))]
-        [(search-strategy _) (check-true (contains-constructor? first-emission 'Work))])))
+      (check-match first-emission
+                   `(program ,_ (Forced ,_ (Emit ,_ ,_ (commit ,(? scheduler:scheduler-value?))))))))
 
   (test-case "existing allocation witnesses retain native scope across scheduler forcing"
     (for* ([name '(unused-binder allocation-across-delay sparse-inherited-ancestry
@@ -247,7 +272,7 @@
           (check-equal? scopes '((9 2 7 0))))
         (when (eq? name 'allocation-across-delay)
           (define labels (map edge-name edges))
-          (check-true (< (index-of labels "force-delay")
+          (check-true (< (index-of labels "advance-delay")
                          (last (indexes-of labels "allocate-fresh"))))))))
 
   (test-case "pending conjunction candidates never enter the committed answer spine"
@@ -258,9 +283,11 @@
       (define initial (open-goal strategy goal))
       (define-values (final edges) (check-trace initial initial 80))
       (check-equal? (model-session-current-answer-nodes final) '())
+      (check-equal? (meaningful-events strategy edges)
+                    '((work "left") (work "right") (work "pending") (work "pending")))
       (for ([transition (in-list edges)])
         (check-equal? (answer-states (configuration-body (edge-after transition))) '()))
-      (check-true (ormap (lambda (transition) (contains-constructor? (edge-after transition) 'Returned)) edges)))))
+      (check-true (ormap (lambda (transition) (contains-constructor? (edge-after transition) 'One)) edges)))))
 
 (module+ test
   (define failures (run-tests SCHEDULER-INTEGRATION))

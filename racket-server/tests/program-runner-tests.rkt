@@ -170,10 +170,10 @@
       (check-equal? (run-result-host-answers result) '(a))
       (check-equal? (configuration-status (run-result-final-config result)) 'paused)
       (check-match (run-result-final-config result)
-                   `(,_ (Emit ,_ ,_ (Emit ,_ ,_ (More (PendingDelay ,_ ,_))))))
+                   `(program ,_ (Emit ,_ ,_ (Emit ,_ ,_ (More (Delay ,_ ,_))))))
       (check-equal? (length (committed-answer-nodes (run-result-final-config result) '(u:0))) 2)
-      ;; A manual session can expose a committed answer before this unguarded
-      ;; residual. The automatic boundary policy still waits for a Delay.
+      ;; Strict operand maturation cannot expose a committed answer before
+      ;; this unguarded residual, even in a manually stepped session.
       (check-exn #rx"step cap"
                  (lambda ()
                    (run-source unguarded #:source-mode "micro" #:search-strategy strategy

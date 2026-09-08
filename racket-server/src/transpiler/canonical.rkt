@@ -136,14 +136,11 @@
   (define-values (compiled-goal _hidden)
     (transpile-canonical query source-ids hidden-count))
   (define initial-state '(state () () () (label "s")))
-  ;; Both models start from the same lowered source. Only initialization
-  ;; chooses a carrier; no running configuration is translated between them.
+  ;; Every surfaced scheduler starts in the strict matrix carrier. Scheduler
+  ;; selection changes runtime merge rules, never the compiled goal or Delay.
+  (normalize-search-strategy strategy)
   (define compiled-config
-    (match (normalize-search-strategy strategy)
-      [(strict-search)
-       `(program ,compiled-relations (commit (eval (Owners) ,compiled-goal ,initial-state)))]
-      [(search-strategy _)
-       `(,compiled-relations (More (Work (Owners) ,compiled-goal ,initial-state)))]))
+    `(program ,compiled-relations (commit (eval (Owners) ,compiled-goal ,initial-state))))
   (define used-labels (configuration-labels compiled-config))
   (define display-ids
     (for/hasheq ([(source id) (in-hash source-ids)] #:when (member id used-labels))

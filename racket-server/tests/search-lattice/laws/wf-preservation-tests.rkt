@@ -11,7 +11,7 @@
                     "../../../src/search-lattice/languages/all.rkt")
          (prefix-in wf:
                     "../../../src/search-lattice/wf/all.rkt")
-         "../../../src/search-runtime.rkt"
+         "../support.rkt"
          "../../../src/search-strategy.rkt"
          "../../../src/sexpr-read.rkt"
          "../../../src/transpiler.rkt"
@@ -47,7 +47,7 @@
   (define-values (config _html _query)
     (parse-prog/canonical (read-all-sexprs (open-input-string src))
                           #:search-strategy (search-strategy "rail")))
-  config)
+  (compiled-goal->online-fixture config))
 
 (define (example-frontier label)
   (match (example-cfg label)
@@ -367,14 +367,15 @@
       (match-define (list label stepper invariant? cfg) entry)
       (check-trace-invariant label stepper invariant? cfg)))
 
-  (test-case "surfaced runtime traces stay inside the selected strategy domain"
+  (test-case "historical online traces stay inside the selected strategy domain"
     (for ([entry (in-list surfaced-trace-cases)])
       (match-define (list strategy label cfg0) entry)
       (check-trace-invariant
        (format "~a / ~a" (search-strategy->jsexpr strategy) label)
-       (lookup-search-step-once strategy)
        (lambda (cfg)
-         (and (search-config-in-domain? strategy cfg)
+         (apply-reduction-relation/tag-with-names (online-relation strategy) cfg))
+       (lambda (cfg)
+         (and (online-in-domain? strategy cfg)
               (produced-answer-spine-only? cfg)))
        cfg0)))
 

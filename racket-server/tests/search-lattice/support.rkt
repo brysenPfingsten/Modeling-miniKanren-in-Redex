@@ -2,12 +2,44 @@
 
 (require rackunit
          redex/reduction-semantics
+         (prefix-in red: "../../src/search-lattice/reduction-relations/all.rkt")
+         (prefix-in lang: "../../src/search-lattice/languages/all.rkt")
+         (prefix-in wf: "../../src/search-lattice/wf/all.rkt")
+         "../../src/search-strategy.rkt"
          "../search-lattice-support.rkt")
 
 (provide named-step
          check-static-rule-inventory
          check-live-rule-coverage
+         online-relation
+         online-in-domain?
+         online-well-formed?
+         compiled-goal->online-fixture
          CORE-RULE-REPRESENTATIVES)
+
+;; Historical lattice tests select their native sources explicitly. Application
+;; scheduler routing now selects strict matrix rows with a different carrier.
+(define/match (online-relation strategy)
+  [((search-strategy "dfs")) red:search-dfs-relcall-red]
+  [((search-strategy "flip")) red:search-flip-relcall-red]
+  [((search-strategy "rail")) red:rail-relcall-red])
+
+(define (online-in-domain? strategy cfg)
+  (match strategy
+    [(search-strategy "rail") (redex-match? lang:rail-relcall-lang config cfg)]
+    [_ (redex-match? lang:search-relcall-lang config cfg)]))
+
+(define (online-well-formed? strategy cfg)
+  (match strategy
+    [(search-strategy "rail") (judgment-holds (wf:wf-config/rail-relcall? ,cfg))]
+    [_ (judgment-holds (wf:wf-config/search-relcall? ,cfg))]))
+
+;; Compile once using the current compiler, then initialize the older source
+;; from its goal. This is test setup, never an execution-state conversion.
+(define (compiled-goal->online-fixture cfg)
+  (match cfg
+    [`(program ,definitions (commit (eval ,owners ,goal ,state)))
+     `(,definitions (More (Work ,owners ,goal ,state)))]))
 
 ;; Preserve raw Redex proof cardinality: callers receive a step only when the
 ;; tagged relation produced exactly one proof, before any deduplication.

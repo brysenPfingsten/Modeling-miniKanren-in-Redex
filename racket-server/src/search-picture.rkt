@@ -3,7 +3,7 @@
 (require racket/hash
          (only-in "../derivations/strict-search/shared/kernel.rkt"
                   named-variable? owners-support)
-         (only-in "../derivations/strict-search/matrix/full-source.rkt" s-rel-value?))
+         (only-in "../derivations/strict-search/matrix/scheduler-source.rkt" scheduler-value?))
 
 (provide cfg->operational-picture
          committed-answer-nodes
@@ -155,9 +155,9 @@
              (list (with-owners `(Owners ,@rest) (append introductions introduced) render)) 0)
        'vars (map term->visible-json introduced)) tag)]))
 
-(define (tree->picture term introductions query-variables [committed? #f])
+(define (tree->picture term introductions query-variables [committed? #f] [oriented? #f])
   (define (render child [world introductions] [answer? #f])
-    (tree->picture child world query-variables answer?))
+    (tree->picture child world query-variables answer? oriented?))
   (match term
     [`(,constructor ,(and owners `(Owners ,_ ...)) ,parts ...)
      (with-owners
@@ -178,7 +178,10 @@
           [`(Answer ,state) (state-node state here query-variables committed?)]
           [`(Yield ,answer ,tail)
            (node "Yield" "search-yield" (list (render answer here) (render tail here))
-                 (and (not (s-rel-value? tail)) 1) "#a66b00")]
+                 (and (not (scheduler-value? tail)) 1) "#a66b00")]
+          [`(YieldR ,tail ,answer)
+           (node "YieldR" "search-yield" (list (render tail here) (render answer here))
+                 (and (not (scheduler-value? tail)) 0) "#a66b00")]
           [`(,(or 'Delay 'PendingDelay) ,body)
            (hash-set (node "Delay" "delay" (list (render body here))) 'suspended #t)]
           [`(,(and orientation (or 'DisjL 'DisjR)) ,left ,right)
@@ -188,13 +191,17 @@
           [`(Conj ,work ,goal)
            (node "Conjunction" "search-conjunction"
                  (list (render work here) (goal->picture goal)) 0 "blue")]
-          [`(mplus ,left ,right)
-           (node "Mplus" "search-merge" (list (render left here) (render right here))
-                 (cond [(not (s-rel-value? left)) 0] [(not (s-rel-value? right)) 1] [else #f])
+          [`(,(and orientation (or 'mplus 'mplusR)) ,left ,right)
+           (define right? (eq? orientation 'mplusR))
+           (node (if oriented? (if right? "+->" "<-+") (if right? "MplusR" "Mplus"))
+                 "search-merge" (list (render left here) (render right here))
+                 (if right?
+                     (cond [(not (scheduler-value? right)) 1] [(not (scheduler-value? left)) 0] [else #f])
+                     (cond [(not (scheduler-value? left)) 0] [(not (scheduler-value? right)) 1] [else #f]))
                  "#ff8000")]
           [`(bind ,search ,goal)
            (node "Bind" "search-bind" (list (render search here) (goal->picture goal))
-                 (and (not (s-rel-value? search)) 0) "blue")]
+                 (and (not (scheduler-value? search)) 0) "blue")]
           [`(Last ,answer)
            (hash-set* (node "Last" "completed" (list (render answer here #t)))
                       'resolvedChildIndices '(0) 'resolvedColor "green")]
@@ -213,8 +220,8 @@
            (list (render body)) 0)]
     [_ (error 'tree->picture "unknown source computation: ~e" term)]))
 
-(define (cfg->operational-picture configuration query-variables)
-  (tree->picture (configuration-body configuration) '() query-variables))
+(define (cfg->operational-picture configuration query-variables [oriented? #f])
+  (tree->picture (configuration-body configuration) '() query-variables #f oriented?))
 
 ;; Follow the committed outer Frontier only. In particular, commit's Search
 ;; operand and Yield's Answer payload are never traversed for answers.

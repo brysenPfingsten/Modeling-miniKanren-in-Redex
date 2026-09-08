@@ -1,19 +1,21 @@
 # Decorated search lattice
 
-The decorated lattice is the GUI's default modular family. Its source uses the
+This directory retains the earlier decorated lattice for comparison. Its source uses the
 **dormant-right / online** branch-evaluation policy: disjunction leaves the
 right goal unevaluated while the active left path runs. It is preserved as an
 online implementation with No Interleave, Flip-Flop, and Railroad schedulers.
-The separate Strict Search view instead evaluates both merge operands and every `Yield` tail
-eagerly; only `Delay` suspends. The separate strict derivation and the guarded
-fusion obligation are recorded in the
+The current GUI uses [strict matrix scheduler rows](../../derivations/strict-search/matrix/scheduler-source.rkt)
+for all three choices, with eager operands and bind, explicit commitment,
+and active-scope allocation. The historical online sources documented below
+are no longer its runtime provider. The strict derivation and the separate
+fusion question are recorded in the
 [semantic-policy matrix](../../../docs/semantic-policy-matrix.md).
 
-The GUI defaults to lattice Railroad. The historical phrase “Search/rail” in
+The historical phrase “Search/rail” in
 strict derivation documents names that derivation's Search feature; it does
 not make the strict `mplus-delay` equations an implementation of this oriented
-Railroad grammar. Both source families run unchanged through native session
-initialization and history. Interpreter correspondence is partial.
+Railroad grammar. The earlier online interpreter correspondence is partial;
+it does not describe the current strict GUI integration.
 
 Within this online policy, one factored source is assembled from core and two
 additive feature extensions.
@@ -63,7 +65,7 @@ Relcall is an overlay rooted in the delayed language. It adds relation goals,
 of that independently delayed-rooted overlay with search. `rail-relcall` is the
 union of relcall and the rail fiber.
 
-The production modules follow the same immediate-predecessor structure.
+These historical source modules follow the same immediate-predecessor structure.
 `search-red` combines assembled `disj-red` with the delay deltas, thereby
 inheriting core exactly once. `rail-red` lifts that assembled `search-red` and
 adds only `rail-delta-red` (the right-active closure and scheduler transitions).
@@ -198,7 +200,7 @@ right-active carrier. Its distributed search relation owns `DisjR`, the five
 right-active closure clauses, and `distribute-right-choice`; distributed DFS
 and flip inherit that carrier, and distributed rail adds only the two scheduler
 transitions. This exception is contained inside the experiment and does not
-alter the production search, DFS, flip, or WF domains described above.
+alter the historical search, DFS, flip, or WF domains described above.
 The distributed rail relation mechanically re-closes inherited rules on the
 common distributed-search carrier; its rule-inventory delta over distributed
 search is only those two scheduling transitions.
@@ -288,6 +290,6 @@ frontier, records one `Owner` per binder, and therefore remains single-valued
 while seeing completed answers, sibling branches, and allocated-but-unused live
 variables.
 
-This document states the production source semantics only. Q, continuation and
+This document records the earlier online source semantics. Q, continuation and
 stream interpretations, recursive or infinite observations, and a vertical
 derivation beyond this source calculus remain deferred.

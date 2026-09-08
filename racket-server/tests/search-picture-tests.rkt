@@ -160,7 +160,24 @@
     (check-not-equal? (hash-ref left 'stateKey) (hash-ref right 'stateKey))
     (check-equal? (hash-ref left 'stateKey) (hash-ref (answer "a") 'stateKey)))
 
-  (test-case "lattice orientation selects a child without turning returned work into answers"
+  (test-case "strict Railroad orientation keeps slots while focus follows operand maturation"
+    (define right `(One (Owners) ,empty-state))
+    (define pending `(eval (Owners) ,yes ,empty-state))
+    (define configuration `(program () (commit (mplusR (Owners) ,pending ,right))))
+    (define picture (cfg->operational-picture configuration '() #t))
+    (define merge (car (named picture "+->")))
+    ;; Right has already matured; the remaining eager work is on the left.
+    (check-equal? (map (lambda (child) (hash-ref child 'name)) (hash-ref merge 'children)) '("Eval" "One"))
+    (check-equal? (hash-ref merge 'activeChildIndex) 0)
+    (check-equal? (committed-answer-nodes configuration '()) '())
+    (define both `(program () (commit (mplusR (Owners) ,pending ,pending))))
+    (check-equal? (hash-ref (car (named (cfg->operational-picture both '() #t) "+->")) 'activeChildIndex) 1)
+    (define tail `(program () (commit (YieldR (Owners) ,pending (Answer (Owners) ,empty-state)))))
+    (define yielded (car (named (check-picture tail) "YieldR")))
+    (check-equal? (hash-ref yielded 'activeChildIndex) 0)
+    (check-equal? (committed-answer-nodes tail '()) '()))
+
+  (test-case "historical lattice orientation selects a child without committing returned work"
     (define owners '(Owners (Owner (u:9) (label "query"))))
     (define state '(state ((u:9 (sym "a"))) () () (label "candidate")))
     (for ([orientation '(DisjL DisjR)] [active '(0 1)] [name '("<-+" "+->")])

@@ -9,6 +9,7 @@
          (submod "work-tests.rkt" test)
          (submod "retained-scope-tests.rkt" test)
          (submod "full-tests.rkt" test)
+         (submod "scheduler-tests.rkt" test)
          (submod "stages/tests.rkt" test)
          (submod "stages/domain-tests.rkt" test)
          (submod "stages/commit-tests.rkt" test)

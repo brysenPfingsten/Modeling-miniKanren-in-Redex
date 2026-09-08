@@ -1,7 +1,5 @@
 #lang racket
 
-(require (only-in "../src/search-runtime.rkt" configuration-status))
-
 (provide final-config?
          tagged-successor-name
          tagged-successor-cfg
@@ -10,7 +8,19 @@
          overlap-event)
 
 (define (final-config? configuration)
-  (eq? (configuration-status configuration) 'complete))
+  ;; Shared observation for strict and historical test carriers. Production
+  ;; routing need not accept the older carrier to test its completed Frontier.
+  (match configuration
+    [`(program ,_ ,frontier) (final-frontier? frontier)]
+    [`(,_ ,frontier) (final-frontier? frontier)]
+    [_ #f]))
+
+(define (final-frontier? frontier)
+  (match frontier
+    [(or `(Done ,_) `(Last ,_ (Answer ,_ ,_))) #t]
+    [(or `(Emit ,_ (Answer ,_ ,_) ,tail) `(Forced ,_ ,tail))
+     (final-frontier? tail)]
+    [_ #f]))
 
 (define (tagged-successor-name succ)
   (match succ

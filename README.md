@@ -1,10 +1,11 @@
 # Modeling-miniKanren-in-Redex
 
-The visualizer offers **Lattice search** with No Interleave, Flip-Flop, and
-Railroad, plus a separate **Strict Search** view of the
+The visualizer offers a **Strict scheduler lattice** with No Interleave,
+Flip-Flop, and Railroad, plus the **Strict reference (Flip)** view of the
 [S/E/N research matrix](racket-server/derivations/strict-search/matrix/README.md).
-It defaults to lattice Railroad. Each view runs its own native reduction
-semantics and retains its actual configurations in session history.
+It defaults to Railroad. All choices use strict matrix reduction semantics
+and retain their actual configurations in session history. Both operands and
+bind residuals mature before commitment; only Delay suspends work.
 
 ## **Docker Setup**
 
@@ -119,23 +120,22 @@ The GUI/API boundary selects each run structurally.
 - `sourceMode` = `"mini"` or `"micro"`
 - optional `compileProfile` when `sourceMode = "mini"`
 - optional `searchStrategy`, either:
-  - `{ "scheduler": "rail" }` for Lattice search, with `"dfs"`, `"flip"`, or `"rail"`
-  - `{ "model": "strict" }` for Strict Search
+  - `{ "scheduler": "rail" }` for the strict scheduler lattice, with `"dfs"`, `"flip"`, or `"rail"`
+  - `{ "model": "strict" }` for the existing strict reference (Flip)
 
 Omitting the selection uses Strict Search at the API/library boundary. The GUI
-defaults to Lattice search and explicitly sends `{ "scheduler": "rail" }`.
-Strict Search is a separate runtime, not a fourth scheduler. Switching views
+defaults to Strict scheduler lattice and explicitly sends `{ "scheduler": "rail" }`.
+The reference is not a fourth scheduler. Switching views
 preserves the chosen lattice scheduler and source settings; runtime and
 compilation controls freeze during execution.
 
 `compileProfile` controls conjunction/disjunction association and explicit
 delay placement independently of runtime scheduling. Both families share
 compiled goals, relation definitions, HTML source IDs, and query metadata.
-Initialization builds the selected native configuration:
+Every choice initializes the same strict configuration:
 
 ```text
-Strict:  (program Γ (commit (eval (Owners) query-goal initial-state)))
-Lattice: (Γ (More (Work (Owners) query-goal initial-state)))
+(program Γ (commit (eval (Owners) query-goal initial-state)))
 ```
 
 The backend checks the selected grammar and well-formedness and records its
@@ -143,10 +143,9 @@ named reductions. No running configuration is converted between families.
 Relation expansion adds no implicit Delay.
 
 Payload status distinguishes `running`, `paused`, `complete`, and `stuck`.
-At a paused strict `More(Delay(...))` Frontier, the next manual step records
-public `advance` before its source contractions. At a lattice
-`More(PendingDelay(...))` boundary, the next step is its native public
-`force-delay` reduction. Completed payloads retain Done/Last. GUI stepping
+At a paused `More(Delay(...))` Frontier, the next manual step records public
+`advance` before its source contractions, for every scheduler. Internal
+`force-delay` remains a reduction. Completed payloads retain Done/Last. GUI stepping
 ignores the source `run n` limit; automatic consumption is a library operation.
 
 ## **Direct Library Surface**
@@ -252,25 +251,28 @@ If you are studying the repo as a semantics artifact, use this order:
 
 ## **Current Runtime Surface**
 
-The default GUI executes the native lattice Railroad relation in
-[`src/search-lattice/`](racket-server/src/search-lattice/SEMILATTICE.md).
-No Interleave and Flip-Flop retain the `DisjL`-only carrier; Railroad adds
-`DisjR` and its right-active work path. These are runtime choices, separate
+The default GUI executes strict Railroad from
+[`matrix/scheduler-source.rkt`](racket-server/derivations/strict-search/matrix/scheduler-source.rkt).
+No Interleave changes the strict delayed-merge scheduling rule. Flip-Flop
+reuses the existing strict source, and Railroad adds `mplusR` and eager
+`YieldR` to retain branch orientation. These runtime choices remain separate
 from the twelve compiler profiles.
 
-The separate Strict Search view executes the full S source in
+The separate Strict reference (Flip) view executes the same full S source as
+Flip-Flop in
 [`matrix/full-source.rkt`](racket-server/derivations/strict-search/matrix/full-source.rkt).
 The historical name “Search/rail” in strict derivation documents refers to
 that strict Search feature, not the oriented Railroad scheduler. E/N have
 native source, data-machine and finite Big implementations and structural
 maps; there is currently no S/E/N GUI selector.
 
-Strict disjunction matures both operands left-to-right. `Yield` tails and bind
-are eager; only Delay suspends. Commitment separates active candidates from
-settled answers. Public advancement preserves the answer prefix and crosses
-one exposed Delay. No dormant-right conversion or strict-to-online fusion is
-part of this strict application connection. The lattice continues to execute
-its own online rules; these two source families have not been equated.
+All GUI schedulers mature both disjunction operands and eager Search tails
+and bind residuals before commitment; only Delay suspends. A right-oriented
+merge matures its right operand first, preserving the order represented by
+its orientation. Commitment separates active candidates from settled answers.
+Public advancement preserves the answer prefix and crosses one exposed
+Delay. No dormant-right conversion or strict-to-online fusion is part of
+this application connection.
 
 Full first-order relation definitions, calls, recursion and mutual recursion
 are implemented in S/E/N. Γ remains explicit in source programs and data
@@ -285,9 +287,12 @@ substitution, disequalities, trail and tag; a cumulative Support field belongs
 to E, and a numeric supply to N. Numeric-looking variable labels in the GUI
 do not change its S representation.
 
-The `src/search-lattice/` sources are live scheduler implementations. Their
-source-relative laws do not establish strict-interpreter adequacy; partial
-interpreter correspondence is an accepted boundary of the application.
+The earlier online schedulers in `src/search-lattice/` remain executable
+comparison sources with their own source-relative laws. They no longer
+provide the GUI runtime. The new strict S scheduler extension has a checked
+Railroad-to-Flip orientation map; separate E/N scheduler rows, downstream
+derivations and universal correspondence proofs remain open.
+
 The distribution experiment lives
 beside the strict matrix work in
 [`racket-server/derivations/distributed-search/`](racket-server/derivations/distributed-search/README.md).
@@ -311,14 +316,15 @@ Use this if you are jumping in with no project history:
 
 | Location | Responsibility |
 | --- | --- |
-| [src/transpiler/](racket-server/src/transpiler/) | Parse mini/micro, apply compilation profile, preserve source IDs, initialize the selected native carrier |
-| [src/search-lattice/](racket-server/src/search-lattice/SEMILATTICE.md) | Native lattice sources with DFS, Flip, and oriented Railroad schedulers |
+| [src/transpiler/](racket-server/src/transpiler/) | Parse mini/micro, apply compilation profile, preserve source IDs, initialize the strict program carrier |
+| [src/search-lattice/](racket-server/src/search-lattice/SEMILATTICE.md) | Earlier online DFS, Flip, and Railroad sources retained for comparison |
 | [matrix/full-source.rkt](racket-server/derivations/strict-search/matrix/full-source.rkt) | Native full S/E/N reduction relations |
+| [matrix/scheduler-source.rkt](racket-server/derivations/strict-search/matrix/scheduler-source.rkt) | Strict S scheduler variations and native Railroad orientation used by the GUI |
 | [shared/wf.rkt](racket-server/derivations/strict-search/shared/wf.rkt) | Strict representation-specific scope, store and relation checks |
-| [src/search-runtime.rkt](racket-server/src/search-runtime.rkt) | Select native strict or lattice relations and WF; inspect status and public boundaries |
+| [src/search-runtime.rkt](racket-server/src/search-runtime.rkt) | Select strict scheduler relations and WF; inspect status and public boundaries |
 | [src/program-runner.rkt](racket-server/src/program-runner.rkt) | Manual session, exact configuration history and back/reset |
 | [src/app.rkt](racket-server/src/app.rkt) | HTTP/API boundary and source conversion |
-| [src/search-picture.rkt](racket-server/src/search-picture.rkt) | Unified projection of both native carriers, owner annotations, candidates and committed answers |
+| [src/search-picture.rkt](racket-server/src/search-picture.rkt) | Project strict scheduler terms with branch orientation, owner annotations, candidates and committed answers; also inspect historical trees |
 | [src/minikanren.rkt](racket-server/src/minikanren.rkt) | Automatic consumer and run/run* library interfaces |
 | [Frontend examples](frontend/src/utils/example_programs.js) | Source-of-truth example programs, read by compiler and integration tests |
 

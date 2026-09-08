@@ -36,8 +36,8 @@
   MODEL-EXAMPLE-MATRIX)
 
 (module+ test
-  ;; The GUI exposes both the strict matrix and native lattice schedulers.
-  ;; Their source gates remain separate from cross-presentation comparisons.
+  ;; The GUI uses strict matrix scheduler rows. Earlier online source gates
+  ;; remain separate historical checks.
   (require "../derivations/strict-search/all.rkt"
            (submod "./search-picture-tests.rkt" test)
            (submod "./runtime-test-support.rkt" test))

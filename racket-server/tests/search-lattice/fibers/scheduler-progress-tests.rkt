@@ -5,7 +5,7 @@
          rackunit
          rackunit/text-ui
          redex/reduction-semantics
-         "../../../src/search-runtime.rkt"
+         "../support.rkt"
          "../../../src/search-strategy.rkt")
 
 (provide SCHEDULER-PROGRESS)
@@ -17,7 +17,7 @@
 (struct owner-observation (intro tag) #:transparent)
 (struct answer-observation (event owners) #:transparent)
 
-;; Both durable witnesses enter the repaired production carrier directly.
+;; Both durable witnesses enter the historical online carrier directly.
 ;; There is deliberately no compatibility layer for the former tree/shell
 ;; vocabulary: the root is F, and unfinished computation sits below More as W.
 (define nested-fresh/disj-config
@@ -100,14 +100,14 @@
 
 (define (run-strategy strategy config [remaining TRACE-CAP] [rev-edges '()])
   (define who (strategy-label strategy))
-  (check-true (search-config-in-domain? strategy config)
+  (check-true (online-in-domain? strategy config)
               (format "~a left its grammatical language at ~s" who config))
-  (check-true (search-config-well-formed? strategy config)
+  (check-true (online-well-formed? strategy config)
               (format "~a violated grammatical well-formedness at ~s" who config))
   (when (negative? remaining)
     (fail-check (format "~a exceeded the ~a-edge cap at ~s"
                         who TRACE-CAP config)))
-  (define next* ((lookup-search-step-once strategy) config))
+  (define next* (apply-reduction-relation/tag-with-names (online-relation strategy) config))
   (match next*
     ['()
      (check-true (final-config? config)
@@ -323,15 +323,15 @@
     (for ([scheduler (in-list '("dfs" "flip"))])
       (define strategy (search-strategy scheduler))
       (check-false
-       (search-config-in-domain? strategy rail-right-active-config)
+       (online-in-domain? strategy rail-right-active-config)
        (format "~a admitted rail-local DisjR syntax" scheduler)))
     (define rail-strategy (search-strategy "rail"))
     (check-true
-     (search-config-in-domain? rail-strategy rail-right-active-config))
+     (online-in-domain? rail-strategy rail-right-active-config))
     (check-true
-     (search-config-well-formed? rail-strategy rail-right-active-config))
+     (online-well-formed? rail-strategy rail-right-active-config))
     (check-equal?
-     ((lookup-search-step-once rail-strategy) rail-right-active-config)
+     (apply-reduction-relation/tag-with-names (online-relation rail-strategy) rail-right-active-config)
      (list (list "rail-return-left" rail-right-active-target))))
   )
 

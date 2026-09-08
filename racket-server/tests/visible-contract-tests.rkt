@@ -43,8 +43,8 @@
          [(list (or "Goal-Conj" "Goal-Disj") "goal-branch" 2) #t]
          [(list "Eval" "evaluation" 1) #t]
          [(list "One" "search-value" 1) #t]
-         [(list "Yield" "search-yield" 2) #t]
-         [(list "Mplus" "search-merge" 2) #t]
+         [(list (or "Yield" "YieldR") "search-yield" 2) #t]
+         [(list (or "Mplus" "MplusR" "<-+" "+->") "search-merge" 2) #t]
          [(list "Bind" "search-bind" 2) #t]
          [(list "Delay" "delay" 1)
           (and (hash-ref node 'suspended #f) (not (hash-has-key? node 'activeChildIndex)))]
