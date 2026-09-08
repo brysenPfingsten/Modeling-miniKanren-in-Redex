@@ -7,31 +7,31 @@ An isolated compiled root avoids mixing cached artifacts from concurrent edits:
 export PLTCOMPILEDROOTS=/private/tmp/full-strict-checks:
 ```
 
-The trailing colon retains the normal compiled-root fallback. The aggregate
-status below records the integration run on 2026-09-07; rerun the affected
-gates after subsequent changes.
+The trailing colon retains the normal compiled-root fallback. The gate layout
+below separates the current strict account from alternative experiments.
+The status table records completed relocation gates and the remaining browser
+interaction check. Earlier counts are labelled as historical checkpoints.
 
 ## Strict source, derivations and representation matrix
 
 ```sh
-racket -y -l raco -- test racket-server/derivations/strict-search/all.rkt
+racket -y -l raco -- test racket-server/derivations/all.rkt
 ```
 
 This aggregate includes the selected retained-scope S derivation, the native
 S/E/N matrix, full relation-program checks, generated-artifact freshness, and
-constructor/dependency contracts. It also retains a work-order witness
-comparing strict evaluation with the earlier dormant-branch semantics.
-That witness is not an application runtime adequacy check.
+constructor/dependency contracts. It excludes experimental accounts and
+strict/dormant comparisons; those run in the experiments gate.
 
 Focused gates:
 
 ```sh
-racket -y -l raco -- test racket-server/derivations/strict-search/retained-scope/all.rkt
-racket -y -l raco -- test racket-server/derivations/strict-search/matrix/all.rkt
-racket -y -l raco -- test racket-server/derivations/strict-search/matrix/retained-scope-tests.rkt
-racket -y -l raco -- test racket-server/derivations/strict-search/matrix/full-tests.rkt
-racket -y -l raco -- test racket-server/derivations/strict-search/retained-scope/relation-tests.rkt
-racket -y -l raco -- test racket-server/derivations/strict-search/matrix/big/full-tests.rkt
+racket -y -l raco -- test racket-server/derivations/retained-scope/all.rkt
+racket -y -l raco -- test racket-server/derivations/matrix/all.rkt
+racket -y -l raco -- test racket-server/derivations/matrix/retained-scope-tests.rkt
+racket -y -l raco -- test racket-server/derivations/matrix/full-tests.rkt
+racket -y -l raco -- test racket-server/derivations/retained-scope/relation-tests.rkt
+racket -y -l raco -- test racket-server/derivations/matrix/big/full-tests.rkt
 ```
 
 | Gate | What it checks |
@@ -51,21 +51,26 @@ sparse ancestry and lexical shadowing. Productive recursion is checked only
 for bounded prefixes; deliberately unguarded calls must not invent a Delay
 or commit a pending candidate.
 
-The [research inventory](../derivations/strict-search/README.md) gives generator
+The [research inventory](../derivations/README.md) gives generator
 commands and proof obligations. Universal correspondence, domain preservation,
 productive streams and further `κ / Q / π` compression remain open. No separate
 E/N functional interpreter or register derivation is implied by the matrix.
 
-## Earlier dormant-branch semantics: interpreter derivations and comparison
+## Experiments and dormant-branch account
 
 ```sh
-raco test racket-server/derivations/scheduler-family/all.rkt
-racket racket-server/derivations/scheduler-family/derive.rkt --check
-racket racket-server/derivations/scheduler-family/show.rkt
+racket -y -l raco -- test racket-server/derivations/experiments/all.rkt
+raco test racket-server/derivations/experiments/dormant-branch-semantics/all.rkt
+racket racket-server/derivations/experiments/dormant-branch-semantics/derivation/derive.rkt --check
+racket racket-server/derivations/experiments/dormant-branch-semantics/derivation/show.rkt
 ```
 
-The [family guide](../derivations/scheduler-family/README.md) states the exact
-domains for these derivations of the earlier dormant-branch semantics.
+The [experiment overview](../derivations/experiments/README.md) describes the
+two accounts and their separate gate. The
+[dormant-branch guide](../derivations/experiments/dormant-branch-semantics/README.md)
+owns that complete account: source languages/reductions/WF, interpreter and
+machine derivations, structural maps, source laws, picture checks, and
+strict/dormant comparison witnesses. It states the exact correspondence domains.
 Direct/CPS/defunctionalized/generated machines agree with their demand source
 through structural readback and prescribed 0/1 spans. The
 source/native map checks exact configuration transitions on the allocation-free
@@ -76,7 +81,9 @@ cover the full grammar, all native rules, active work, fresh and relation calls
 under the explicit orientation map. Strict work/commit differences, compiled
 divergent loops, and scoped provenance observations remain separate gates.
 
-This research aggregate is included in the headless gate. Its diagnostics
+The experiments aggregate also includes early conjunction distribution and
+cross-experiment architecture checks. It is included in the headless gate.
+Its diagnostics
 name the earlier dormant-branch semantics explicitly; the current GUI uses the strict
 matrix scheduler rows instead.
 
@@ -85,9 +92,9 @@ matrix scheduler rows instead.
 ```sh
 racket -y -l raco -- test racket-server/tests/test-transpiler.rkt racket-server/tests/example-compat-tests.rkt
 racket -y -l raco -- test racket-server/tests/search-runtime-tests.rkt racket-server/tests/model-example-matrix-tests.rkt
-racket -y -l raco -- test racket-server/tests/scheduler-integration-tests.rkt racket-server/tests/search-lattice/all.rkt
+racket -y -l raco -- test racket-server/tests/scheduler-integration-tests.rkt
 racket -y -l raco -- test racket-server/tests/test-app.rkt racket-server/tests/visible-contract-tests.rkt racket-server/tests/search-picture-tests.rkt
-racket -y -l raco -- test racket-server/tests/frontier-example-tests.rkt racket-server/tests/confidence-gates-tests.rkt racket-server/tests/runtime-test-support.rkt
+racket -y -l raco -- test racket-server/tests/frontier-example-tests.rkt racket-server/tests/confidence-gates-tests.rkt racket-server/derivations/test-support/runtime-test-support.rkt
 racket -y racket-server/tests/ui-payload-smoke.rkt
 ```
 
@@ -111,9 +118,11 @@ not a new semantic transformation.
 The application gates distinguish paused More from completed Done/Last,
 Search candidates from committed answers, and internal force from public
 advance. All application sessions retain strict `(program Γ q)` configurations.
-The historical source tests initialize their own `(Γ F)` fixtures and select
-their native relations directly. The picture projection can also inspect those
-earlier terms. The gates check source/state highlighting, exact common/private scope,
+The dormant source tests initialize their own `(Γ F)` fixtures and select
+their native relations directly. Their work-tree inspection lives in the
+experiment's `source/inspection.rkt`; production `search-picture.rkt` accepts
+strict terms. Logical-state, Owner, and goal drawing is shared through
+`src/search-picture-common.rkt`. The application gates check source/state highlighting, exact common/private scope,
 back/replay/reset, bounded responsiveness, and the absence of extra kernel work
 during status inspection or rendering. The visible-contract entry point remains
 part of `scripts/run_ui_smoke.sh`. The payload smoke prints actual full program
@@ -129,11 +138,10 @@ instead selects the corresponding strict S matrix scheduler. All selections
 share the strict program wrapper. Public `advance` is explicit for each;
 `force-delay` is always internal. Railroad retains its native orientation
 through rendering and uses a checked erasure map for comparison to Flip.
-The earlier dormant-branch semantics aggregate has **111 cases**. The corrected
-scheduler integration suite has **7 cases**, covering 36 profile/scheduler
-traces, retained scope, exact work/commit order, pending bind, and guarded
-and unguarded recursion. Its earlier four-case checkpoint described the
-former GUI's dormant-branch sources.
+The scheduler integration suite covers 36 profile/scheduler traces, retained
+scope, exact work/commit order, pending bind, and guarded and unguarded
+recursion. Its current subject is the live strict runtime; dormant-source
+and strict/dormant comparison suites belong to the experiment.
 
 ## Automatic consumer and miniKanren library
 
@@ -151,20 +159,20 @@ Returned answers can be a requested prefix while the saved configuration and
 picture retain surplus committed answers. Tests also cover zero limits, finite
 completion, step caps, source modes and host-value reification.
 
-## Alternative distributed-source experiment
+## Early conjunction distribution
 
 ```sh
-racket -y -l raco -- test racket-server/derivations/distributed-search/tests.rkt
+racket -y -l raco -- test racket-server/derivations/experiments/early-conjunction-distribution/tests.rkt
 ```
 
-[distributed-search/](../derivations/distributed-search/README.md) sits beside
-`strict-search/` and varies the earlier dormant-branch semantics by distributing
+[early-conjunction-distribution/](../derivations/experiments/early-conjunction-distribution/README.md)
+sits beside the dormant-branch experiment and varies its source by distributing
 conjunction over choice before machine derivation. Nested rails expose an observable
 answer-order difference from the factored source. Its experiment-only raw
 seam is local to `reduction-relations/factored-search-base.rkt`.
 
-The older `tests/search-lattice/all.rkt` still references this dedicated suite
-at its new path, preserving an existing gate. Relocation does not add a strict
+The experiments aggregate invokes this dedicated suite alongside the
+dormant-branch account. Relocation does not add a strict
 correspondence, GUI selector, matrix cell, or A7/A9 machine integration.
 The alternative and its semantic assessment remain separate from the strict
 application gates above.
@@ -177,45 +185,46 @@ npm --prefix frontend run lint
 npm --prefix frontend run build
 ```
 
-Frontend tests cover runtime-family requests, the three lattice schedulers,
-remembered settings, frozen controls, profile requests, source mapping, state
-inspection, and both families' visible-node contract. The latest completed
-frontend run after the strict scheduler correction passed **56 tests**;
-the build passed and lint reported zero errors with three unchanged hook warnings.
-Selector behavior does not establish an interpreter correspondence.
+Frontend tests cover runtime requests, the three strict lattice schedulers,
+remembered settings, initialization/frozen controls, profile requests, source
+mapping, state inspection, and the visible-node contract. Selector behavior
+does not establish an interpreter correspondence.
 
-`tests/test-all-headless.rkt` now aggregates the maintained compiler, library,
-session, API, rendering and payload suites, together with the strict research
-aggregate, the 191 scheduler-family cases, all 111 native lattice source cases,
-scheduler integration, and runtime/dependency checks. Native source tests do
-not count as an interpreter correspondence proof. The current headless entry point is:
+`tests/test-all-headless.rkt` invokes `derivations/all.rkt` for the current
+strict account, `derivations/experiments/all.rkt` for both alternatives and
+their architecture checks, and the application/compiler/library/session/API
+suites. Neutral generator and runtime-test helpers live in
+`derivations/test-support/`; their location does not select an account.
+Native source tests do not count as an interpreter correspondence proof.
+The comprehensive entry point is:
 
 ```sh
 racket -y -l raco -- test racket-server/tests/test-all-headless.rkt
 ```
 
-The strict scheduler correction passed **3,721 tests** in the combined
-headless gate, including all **208 HEADLESS cases**, with zero failures or
-errors. Strict derivation and historical source checks are included in that
-total, not additive. HEADLESS raises on nonzero failures rather than silently
-succeeding. The preceding consolidation checkpoints recorded 3,502 and
-3,693 tests before this correction.
+HEADLESS raises on nonzero failures rather than silently succeeding.
 
-Current API/payload and picture checks pass. Fresh native servers on loopback
-ports 5101/5174 passed the browser check for all three strict schedulers and
-the reference view: eager work before commitment, nested Delay boundaries,
-Railroad orientation, answer inspection, Back/Step replay, reset and frozen
-controls. The full `same` relation example also completed with a nondefault
-compilation profile. Existing application servers were not replaced. See the
-[application trace](../../docs/semantics-ladder.md#evidence-and-remaining-work).
+| Validation | Status |
+| --- | --- |
+| Relocated current strict aggregate | 3,294 tests passed |
+| Relocated comprehensive headless gate | 3,760 tests passed, including all 90 HEADLESS cases; exit 0 |
+| Relocated experiments aggregate | 343 tests passed |
+| Layout and cross-experiment architecture checks | 9 tests each passed; included in their aggregates |
+| Generated artifacts | All four freshness checks passed |
+| Frontend | 56 tests and build passed; lint had zero errors and three unchanged hook warnings |
+| `scripts/run_ui_smoke.sh` | Passed: 9 app cases, 4 visible-contract cases, and full payload checks |
+| Isolated packaging | Copied application plus matrix/shared providers ran and rendered the strict reference and all three schedulers with exact answers; both Compose configurations validate |
+| Relocated native browser check | `same` completed with four answers under No Interleave (47 steps), Flip-Flop (45), Railroad (45), and the strict reference (45); Back/replay/Reset passed; the reference console reported no errors |
+| Pre-relocation headless checkpoint, 2026-09-07 | 3,721 tests passed, including 208 HEADLESS cases; overlapping counts, not additive |
+| Pre-relocation browser check | All three strict schedulers and the reference view passed; see the [recorded application trace](../../docs/semantics-ladder.md#evidence-and-remaining-work) |
+| Docker image/container execution | Unverified; the earlier daemon attempt returned HTTP 500 |
 
-The Dockerfile now preserves `src/` and includes the strict matrix/shared
-providers at their imported paths. Both Compose configurations validate, and
-an isolated copy without compiled caches loaded the application and rendered
-all three schedulers to completion. Docker image build/container execution
-remains unverified because the daemon returned HTTP 500.
+Focused counts overlap the aggregates and must not be added. The relocated
+browser checks used a fresh isolated backend containing only application and
+matrix/shared code, with the current frontend. Packaging keeps the imported matrix/shared
+providers at their relocated paths and excludes the experimental providers.
 
 `tests/test-all.rkt` is the GUI RackUnit runner, not the headless CI entry point.
 Lattice operational suites are not substitutes for the strict source
 and relation-stage checks. See the [policy boundary](../../docs/semantic-policy-matrix.md)
-and [correction log](../derivations/strict-search/CORRECTIONS.md).
+and [correction log](../derivations/CORRECTIONS.md).

@@ -1,9 +1,9 @@
 # Semantic policy and integration status
 
-The [strict-search inventory](../racket-server/derivations/strict-search/README.md)
+The [strict derivation inventory](../racket-server/derivations/README.md)
 records the maintained derivations and remaining proofs. The
 [organization guide](semantics-ladder.md) connects them to the application;
-the [correction log](../racket-server/derivations/strict-search/CORRECTIONS.md)
+the [correction log](../racket-server/derivations/CORRECTIONS.md)
 keeps the history of superseded choices.
 
 The GUI must preserve **No Interleave, Flip-Flop, and Railroad** as runtime
@@ -14,11 +14,18 @@ remain comparison sources, not GUI implementations.
 
 | Account | Current role | Operational contract |
 | --- | --- | --- |
-| [Retained-scope S](../racket-server/derivations/strict-search/retained-scope/README.md) | Selected interpreter, independently stated source, corresponding machines, registers and first compression | Strict disjunction, eager Yield tails and bind; explicit commitment; only Delay suspends |
-| [Native S/E/N matrix](../racket-server/derivations/strict-search/matrix/README.md) | Twelve call-free representation/feature cells and three full relation cells through source, data stages and finite Big | Same retained-scope operations, expressed using syntax-owned introductions, state support, or numeric supply |
-| [Strict scheduler lattice](../racket-server/derivations/strict-search/matrix/scheduler-source.rkt) | GUI default Railroad; No Interleave (`dfs`), Flip-Flop (`flip`), and Railroad (`rail`) remain runtime choices | Strict `(program Γ q)` configurations; eager merge/bind; Railroad adds native `mplusR` and eager `YieldR` |
+| [Retained-scope S](../racket-server/derivations/retained-scope/README.md) | Selected interpreter, independently stated source, corresponding machines, registers and first compression | Strict disjunction, eager Yield tails and bind; explicit commitment; only Delay suspends |
+| [Native S/E/N matrix](../racket-server/derivations/matrix/README.md) | Twelve call-free representation/feature cells and three full relation cells through source, data stages and finite Big | Same retained-scope operations, expressed using syntax-owned introductions, state support, or numeric supply |
+| [Strict scheduler lattice](../racket-server/derivations/matrix/scheduler-source.rkt) | GUI default Railroad; No Interleave (`dfs`), Flip-Flop (`flip`), and Railroad (`rail`) remain runtime choices | Strict `(program Γ q)` configurations; eager merge/bind; Railroad adds native `mplusR` and eager `YieldR` |
 | [Strict Search view](../racket-server/src/search-runtime.rkt) | Separate GUI view and default API/library selection; executes `strict-s-rel-red` directly | Native `(program Γ q)` syntax, explicit calls and exact source steps |
-| [Earlier dormant-branch semantics](../racket-server/derivations/scheduler-family/README.md) | Interpreter derivations and comparisons against the earlier lattice sources | Deferred operands and Yield/bind tails; fragment correspondence and historical strictness counterexamples. This is not the current GUI's demand policy. |
+| [Earlier dormant-branch semantics](../racket-server/derivations/experiments/dormant-branch-semantics/README.md) | Complete alternative account: native sources, interpreter/machine derivation, and its tests | Deferred operands and Yield/bind tails; fragment correspondence and historical strictness counterexamples. This is not the current GUI's demand policy. |
+
+Directory ownership follows these roles. `src/` contains application plumbing;
+the current strict account is directly under `derivations/`. Each experiment
+owns its source and evidence under `derivations/experiments/`. Shared semantic
+primitives and neutral test support remain outside the experiments. The strict
+aggregate excludes experimental comparisons; the headless aggregate invokes
+both the strict and experiments gates.
 
 The GUI sends an explicit lattice scheduler; Strict Search sends
 `{ "model": "strict" }`. Omitting selection at the API/library boundary uses
@@ -67,7 +74,7 @@ allocation scope and full relation calls. DFS has a distinct delayed-merge
 equation. Separate E/N scheduler rows, downstream derivations and universal
 proofs remain open; no strict-to-online fusion is used by the GUI.
 
-The derivations of the [earlier dormant-branch semantics](../racket-server/derivations/scheduler-family/README.md)
+The derivations of the [earlier dormant-branch semantics](../racket-server/derivations/experiments/dormant-branch-semantics/README.md)
 distinguish demand policy from branch orientation. Their derived Railroad
 source erases to its Flip source, and the native Railroad carrier independently
 erases to native Flip through an exact named-step map in the checked corpus.
@@ -97,7 +104,7 @@ that fusion, and no `κ / Q / π` compression is claimed. Tests relative to the
 earlier dormant-branch semantics do not establish the current strict
 application's contract.
 
-The [distributed-conjunction experiment](../racket-server/derivations/distributed-search/README.md)
+The [distributed-conjunction experiment](../racket-server/derivations/experiments/early-conjunction-distribution/README.md)
 remains a separate source-policy experiment. Distributing pending conjunction
 into branches is a different question from retaining the three GUI schedulers;
 the experiment is not integrated into the matrix or application.

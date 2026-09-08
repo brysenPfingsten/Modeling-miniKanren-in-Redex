@@ -3,14 +3,14 @@
          rackunit/text-ui
          redex/reduction-semantics
          (prefix-in production:
-                    "../derivations/strict-search/shared/relation-grammar.rkt")
+                    "../derivations/shared/relation-grammar.rkt")
          (prefix-in wf:
-                    "../derivations/strict-search/shared/wf.rkt")
+                    "../derivations/shared/wf.rkt")
          "../src/sexpr-read.rkt"
          "../src/transpiler.rkt"
          (prefix-in ast: "../src/transpiler/ast.rkt")
          (only-in "../src/transpiler/program.rkt" prepare-program)
-         (only-in "../derivations/strict-search/shared/kernel.rkt"
+         (only-in "../derivations/shared/kernel.rkt"
                   instantiate-relation allocate/s))
 
 (define (parse-src/canonical src

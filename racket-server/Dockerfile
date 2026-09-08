@@ -10,8 +10,8 @@ RUN raco pkg install --auto hosted-minikanren
 
 # Keep module-relative imports into the strict matrix and shared providers valid.
 COPY src/ src/
-COPY derivations/strict-search/shared/ derivations/strict-search/shared/
-COPY derivations/strict-search/matrix/ derivations/strict-search/matrix/
+COPY derivations/shared/ derivations/shared/
+COPY derivations/matrix/ derivations/matrix/
 
 ENV PLTSTDERR=error
 ENV DISPLAY=:99

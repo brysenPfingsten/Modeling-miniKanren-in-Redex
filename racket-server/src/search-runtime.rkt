@@ -1,9 +1,9 @@
 #lang racket
 
 (require redex/reduction-semantics
-         (prefix-in strict: "../derivations/strict-search/matrix/full-source.rkt")
-         (prefix-in scheduler: "../derivations/strict-search/matrix/scheduler-source.rkt")
-         (only-in "../derivations/strict-search/shared/wf.rkt" wf-s-rel?)
+         (prefix-in strict: "../derivations/matrix/full-source.rkt")
+         (prefix-in scheduler: "../derivations/matrix/scheduler-source.rkt")
+         (only-in "../derivations/shared/wf.rkt" wf-s-rel?)
          "search-strategy.rkt")
 
 (provide (struct-out strategy-spec)

@@ -4,7 +4,7 @@
          "../src/search-runtime.rkt" "../src/search-strategy.rkt"
          "../src/sexpr-read.rkt" "../src/transpiler.rkt"
          "./example-compat-tests.rkt"
-         (prefix-in matrix: "../derivations/strict-search/matrix/full-source.rkt"))
+         (prefix-in matrix: "../derivations/matrix/full-source.rkt"))
 
 (provide SEARCH-RUNTIME)
 

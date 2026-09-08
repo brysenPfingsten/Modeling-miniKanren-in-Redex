@@ -4,10 +4,10 @@
          "../src/app.rkt" "../src/program-runner.rkt"
          "../src/search-runtime.rkt" "../src/sexpr-read.rkt"
          (only-in "../src/transpiler.rkt" parse-prog/canonical query-info)
-         (prefix-in scheduler: "../derivations/strict-search/matrix/scheduler-source.rkt")
-         (prefix-in strict: "../derivations/strict-search/matrix/full-source.rkt")
-         (only-in "../derivations/strict-search/shared/wf.rkt" wf-s-rel?)
-         "../derivations/strict-search/test-support/witnesses.rkt"
+         (prefix-in scheduler: "../derivations/matrix/scheduler-source.rkt")
+         (prefix-in strict: "../derivations/matrix/full-source.rkt")
+         (only-in "../derivations/shared/wf.rkt" wf-s-rel?)
+         "../derivations/test-support/witnesses.rkt"
          "test-http-helpers.rkt")
 
 (provide SCHEDULER-INTEGRATION)

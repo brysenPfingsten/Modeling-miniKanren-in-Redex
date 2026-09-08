@@ -4,8 +4,8 @@
          rackunit
          rackunit/text-ui
          redex/reduction-semantics
-         (only-in "../derivations/strict-search/matrix/full-source.rkt" StrictSRel)
-         (only-in "../derivations/strict-search/shared/wf.rkt" wf-s-rel?)
+         (only-in "../derivations/matrix/full-source.rkt" StrictSRel)
+         (only-in "../derivations/shared/wf.rkt" wf-s-rel?)
          "../src/sexpr-read.rkt"
          "../src/transpiler.rkt")
 

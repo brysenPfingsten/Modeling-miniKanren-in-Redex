@@ -2,7 +2,7 @@
 
 The visualizer offers a **Strict scheduler lattice** with No Interleave,
 Flip-Flop, and Railroad, plus the **Strict reference (Flip)** view of the
-[S/E/N research matrix](racket-server/derivations/strict-search/matrix/README.md).
+[S/E/N research matrix](racket-server/derivations/matrix/README.md).
 It defaults to Railroad. All choices use strict matrix reduction semantics
 and retain their actual configurations in session history. Both operands and
 bind residuals mature before commitment; only Delay suspends work.
@@ -13,6 +13,11 @@ bind residuals mature before commitment; only Delay suspends work.
 `DisjL`/`DisjR` account: it leaves a sibling's goal work dormant while the
 active branch proceeds. Its source-relative derivations remain useful
 comparisons. The current GUI executes the strict matrix sources.
+
+`src/` compiles, runs, presents, and serves a selected semantics.
+`derivations/` contains the semantics and machines themselves. The current
+strict account occupies its top level; each alternative account keeps its
+source, derivation, and evidence together under `experiments/`.
 
 ```text
 project/
@@ -26,44 +31,42 @@ project/
     |   |-- program-runner.rkt        Steps, history, Back/Reset
     |   |-- search-picture.rkt        Scope, candidates, committed answers
     |   |-- minikanren.rkt            Automatic run/run* consumption
-    |   |-- app.rkt                   HTTP interface
-    |   `-- search-lattice/           Earlier dormant-branch semantics
-    |       |-- languages/           Earlier goal and work-tree grammars
-    |       |-- reduction-relations/ Earlier scheduler rules
-    |       |   `-- private/         Internal relation composition
-    |       `-- wf/                  Earlier well-formedness judgments
+    |   `-- app.rkt                   HTTP interface
     |
     |-- derivations/
-    |   |-- strict-search/
-    |   |   |-- retained-scope/       S interpreter, two derivations,
-    |   |   |                        machine maps, registers, compression
-    |   |   |-- matrix/
-    |   |   |   |-- full-source.rkt       Full S/E/N source reductions
-    |   |   |   |-- scheduler-source.rkt  LIVE GUI scheduling providers
-    |   |   |   |-- stages/               D/Z/M/B data stages and maps
-    |   |   |   `-- big/                  Finite judgments and certificates
-    |   |   |-- shared/
-    |   |   |   |-- core/{s,e,n}/     Live variable/grammar/kernel providers
-    |   |   |   `-- stages/           Shared stage construction
-    |   |   `-- test-support/         Witnesses and transition checks
-    |   |-- distributed-search/      Conjunction-distribution experiment
-    |   |   |-- languages/           Its extended carrier
-    |   |   `-- reduction-relations/  Its alternative rules
-    |   `-- scheduler-family/        Interpreter derivations of the
-    |                                Earlier dormant-branch semantics
-    `-- tests/                       Compiler, runtime, API and GUI gates
-        `-- search-lattice/          Earlier semantics' structural checks
-            |-- edges/  fibers/  grammar/  join/
-            `-- laws/   nodes/   overlays/
+    |   |-- all.rkt                  Current strict account only
+    |   |-- retained-scope/          S interpreter, both derivations,
+    |   |                            machine maps, registers, compression
+    |   |-- matrix/
+    |   |   |-- full-source.rkt      Full S/E/N source reductions
+    |   |   |-- scheduler-source.rkt Strict GUI scheduling providers
+    |   |   |-- stages/              D/Z/M/B data stages and maps
+    |   |   `-- big/                 Finite judgments and certificates
+    |   |-- shared/
+    |   |   |-- core/{s,e,n}/        Live variable/grammar/kernel providers
+    |   |   `-- stages/              Shared stage construction
+    |   |-- test-support/            Witnesses, generators, shared assertions
+    |   `-- experiments/
+    |       |-- all.rkt              Both alternatives and architecture checks
+    |       |-- dormant-branch-semantics/
+    |       |   |-- source/          Languages, reductions, WF, inspection
+    |       |   |-- derivation/      Interpreters, machines, correspondence maps
+    |       |   `-- tests/           Source laws and strict/dormant comparisons
+    |       `-- early-conjunction-distribution/
+    |           |-- languages/      Alternative distribution contexts
+    |           |-- reduction-relations/
+    |           `-- tests.rkt        Comparison with factored conjunction
+    `-- tests/                       Application and cross-account integration
 ```
 
 Braces and grouped names abbreviate sibling directories; the tree selects
 the main files within them. Shared providers are live dependencies even
 though their source ancestry predates the current strict derivation.
-The distribution experiment belongs beside the derivations and changes
-semantics; it is not a compression stage.
+The experiments change semantic choices; they are not compression stages.
+Their placement keeps them executable without giving them authority over the
+current strict account.
 
-See the [strict research inventory](racket-server/derivations/strict-search/README.md)
+See the [strict research inventory](racket-server/derivations/README.md)
 for individual artifacts and the [policy guide](docs/semantic-policy-matrix.md)
 for the retained alternatives.
 
@@ -220,16 +223,16 @@ its lattice default.
 ### **4) Strict derivations and representation matrix**
 
 ```sh
-racket -y -l raco -- test racket-server/derivations/strict-search/all.rkt
+racket -y -l raco -- test racket-server/derivations/all.rkt
 ```
 
 Covers the retained-scope interpreter, corresponding machines, registerization
 and first compression, plus twelve native call-free S/E/N feature cells and
 three full relation-program cells through source, data stages and finite Big.
-Start with the [strict derivation guide](racket-server/derivations/strict-search/README.md)
+Start with the [strict derivation guide](racket-server/derivations/README.md)
 for artifact roles, configuration-level evidence and remaining proofs.
 
-The [Earlier dormant-branch semantics](racket-server/derivations/scheduler-family/README.md)
+The [Earlier dormant-branch semantics](racket-server/derivations/experiments/dormant-branch-semantics/README.md)
 has a separate interpreter investigation connecting its DFS, Flip and
 orientation-preserving extension to independently stated source equations
 and generated machines. Its native correspondence is
@@ -245,13 +248,13 @@ npm --prefix frontend run lint
 npm --prefix frontend run build
 ```
 
-`racket-server/tests/test-all-headless.rkt` aggregates strict research, the
-earlier dormant-branch investigation, native lattice source suites, and application
-gates. The lattice aggregate also
-includes the separate [distribution comparison](racket-server/derivations/distributed-search/README.md).
-Source-relative lattice checks do not establish
-strict-interpreter correspondence. See the test-lane inventory for the latest
-completed validation and any checks still running.
+`racket-server/tests/test-all-headless.rkt` invokes the current
+[`derivations/all.rkt`](racket-server/derivations/all.rkt), the separate
+[`experiments/all.rkt`](racket-server/derivations/experiments/all.rkt), and
+application gates. Passing the current derivation does not silently include
+historical comparisons; the comprehensive gate checks both. Experiment
+checks establish only their stated source-relative relationships. See the
+[test lanes](racket-server/tests/TEST-LANES.md) for validation status.
 
 ## **Backend Init Contract**
 
@@ -380,22 +383,22 @@ If you are studying the repo as a semantics artifact, use this order:
 
 1. [Semantics organization](docs/semantics-ladder.md): independent compiler,
    representation, feature and derivation-stage choices; application flow.
-2. [Strict-search guide](racket-server/derivations/strict-search/README.md) and
-   [correction log](racket-server/derivations/strict-search/CORRECTIONS.md):
+2. [Strict derivation guide](racket-server/derivations/README.md) and
+   [correction log](racket-server/derivations/CORRECTIONS.md):
    current inventory and why its semantic boundaries matter.
-3. [Retained scope](racket-server/derivations/strict-search/retained-scope/README.md):
+3. [Retained scope](racket-server/derivations/retained-scope/README.md):
    source/interpreter, CPS, defunctionalization, machine maps, registers and
    prescribed compression spans.
-4. [S/E/N matrix](racket-server/derivations/strict-search/matrix/README.md):
+4. [S/E/N matrix](racket-server/derivations/matrix/README.md):
    native feature and full relation cells, allocation maps, data stages and Big.
 5. [Policy boundary](docs/semantic-policy-matrix.md) and
-   [distributed source](racket-server/derivations/distributed-search/README.md):
+   [experiments](racket-server/derivations/experiments/README.md):
    retained alternatives and their distinct observations.
 
 ## **Current Runtime Surface**
 
 The default GUI executes strict Railroad from
-[`matrix/scheduler-source.rkt`](racket-server/derivations/strict-search/matrix/scheduler-source.rkt).
+[`matrix/scheduler-source.rkt`](racket-server/derivations/matrix/scheduler-source.rkt).
 No Interleave changes the strict delayed-merge scheduling rule. Flip-Flop
 reuses the existing strict source, and Railroad adds `mplusR` and eager
 `YieldR` to retain branch orientation. These runtime choices remain separate
@@ -403,7 +406,7 @@ from the twelve compiler profiles.
 
 The separate Strict reference (Flip) view executes the same full S source as
 Flip-Flop in
-[`matrix/full-source.rkt`](racket-server/derivations/strict-search/matrix/full-source.rkt).
+[`matrix/full-source.rkt`](racket-server/derivations/matrix/full-source.rkt).
 The historical name “Search/rail” in strict derivation documents refers to
 that strict Search feature, not the oriented Railroad scheduler. E/N have
 native source, data-machine and finite Big implementations and structural
@@ -430,15 +433,15 @@ substitution, disequalities, trail and tag; a cumulative Support field belongs
 to E, and a numeric supply to N. Numeric-looking variable labels in the GUI
 do not change its S representation.
 
-The **Earlier dormant-branch semantics** in `src/search-lattice/` remains executable
-comparison sources with their own source-relative laws. They no longer
-provide the GUI runtime. The new strict S scheduler extension has a checked
+The [earlier dormant-branch account](racket-server/derivations/experiments/dormant-branch-semantics/README.md)
+keeps its source semantics, interpreter/machine derivation, correspondence
+limits, and tests together. It remains executable and does not provide the
+GUI runtime. The strict S scheduler extension has a checked
 Railroad-to-Flip orientation map; separate E/N scheduler rows, downstream
 derivations and universal correspondence proofs remain open.
 
-The distribution experiment lives
-beside the strict matrix work in
-[`racket-server/derivations/distributed-search/`](racket-server/derivations/distributed-search/README.md).
+The other semantic experiment lives in
+[`racket-server/derivations/experiments/early-conjunction-distribution/`](racket-server/derivations/experiments/early-conjunction-distribution/README.md).
 It explores distributing conjunction over choice in that earlier source
 before machine derivation. Nested rails expose an observable answer-order
 difference from the factored source, so this is a semantic alternative to
@@ -448,10 +451,10 @@ correspondence, GUI policy, matrix cell, or A7/A9 integration.
 That retained experiment has a common distributed-search carrier with `DisjR` and the
 right-active normalization/closure rules, while distributed rail adds only its
 two scheduler transitions. Its experiment-only raw seam lives with its consumer in
-[`distributed-search/reduction-relations/factored-search-base.rkt`](racket-server/derivations/distributed-search/reduction-relations/factored-search-base.rkt).
-Its dedicated [tests](racket-server/derivations/distributed-search/tests.rkt)
-remain referenced by the older semantic aggregate; this preserves the existing
-comparison gate rather than adding integration with the strict derivation.
+[`early-conjunction-distribution/reduction-relations/factored-search-base.rkt`](racket-server/derivations/experiments/early-conjunction-distribution/reduction-relations/factored-search-base.rkt).
+Its dedicated [tests](racket-server/derivations/experiments/early-conjunction-distribution/tests.rkt)
+run under the experiments aggregate, alongside the dormant-branch account.
+This preserves comparison evidence without adding a strict derivation stage.
 
 ## **Orientation (Minimal)**
 
@@ -460,14 +463,15 @@ Use this if you are jumping in with no project history:
 | Location | Responsibility |
 | --- | --- |
 | [src/transpiler/](racket-server/src/transpiler/) | Parse mini/micro, apply compilation profile, preserve source IDs, initialize the strict program carrier |
-| [src/search-lattice/](racket-server/src/search-lattice/SEMILATTICE.md) | Earlier dormant-branch semantics: DFS, Flip, and Railroad sources retained for comparison |
-| [matrix/full-source.rkt](racket-server/derivations/strict-search/matrix/full-source.rkt) | Native full S/E/N reduction relations |
-| [matrix/scheduler-source.rkt](racket-server/derivations/strict-search/matrix/scheduler-source.rkt) | Strict S scheduler variations and native Railroad orientation used by the GUI |
-| [shared/wf.rkt](racket-server/derivations/strict-search/shared/wf.rkt) | Strict representation-specific scope, store and relation checks |
+| [experiments/dormant-branch-semantics/](racket-server/derivations/experiments/dormant-branch-semantics/README.md) | Complete earlier account: sources, interpreter/machine derivation, and comparison tests |
+| [matrix/full-source.rkt](racket-server/derivations/matrix/full-source.rkt) | Native full S/E/N reduction relations |
+| [matrix/scheduler-source.rkt](racket-server/derivations/matrix/scheduler-source.rkt) | Strict S scheduler variations and native Railroad orientation used by the GUI |
+| [shared/wf.rkt](racket-server/derivations/shared/wf.rkt) | Strict representation-specific scope, store and relation checks |
 | [src/search-runtime.rkt](racket-server/src/search-runtime.rkt) | Select strict scheduler relations and WF; inspect status and public boundaries |
 | [src/program-runner.rkt](racket-server/src/program-runner.rkt) | Manual session, exact configuration history and back/reset |
 | [src/app.rkt](racket-server/src/app.rkt) | HTTP/API boundary and source conversion |
-| [src/search-picture.rkt](racket-server/src/search-picture.rkt) | Project strict scheduler terms with branch orientation, owner annotations, candidates and committed answers; also inspect historical trees |
+| [src/search-picture.rkt](racket-server/src/search-picture.rkt) | Project strict scheduler terms with branch orientation, owner annotations, candidates and committed answers |
+| [src/search-picture-common.rkt](racket-server/src/search-picture-common.rkt) | Shared logical-state, Owner and goal drawing; dormant-tree control inspection belongs to its experiment |
 | [src/minikanren.rkt](racket-server/src/minikanren.rkt) | Automatic consumer and run/run* library interfaces |
 | [Frontend examples](frontend/src/utils/example_programs.js) | Source-of-truth example programs, read by compiler and integration tests |
 

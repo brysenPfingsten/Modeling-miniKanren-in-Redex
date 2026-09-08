@@ -4,9 +4,9 @@
          "../src/app.rkt" "../src/program-runner.rkt"
          (only-in "../src/minikanren.rkt" run-source)
          "../src/transpiler.rkt" "../src/search-runtime.rkt"
-         (only-in "../derivations/strict-search/shared/kernel-equations.rkt" current-atomic-observer)
-         (only-in "../derivations/strict-search/matrix/stages/full.rkt" SRel)
-         (only-in "../derivations/strict-search/shared/stages/schema.rkt" decompose D)
+         (only-in "../derivations/shared/kernel-equations.rkt" current-atomic-observer)
+         (only-in "../derivations/matrix/stages/full.rkt" SRel)
+         (only-in "../derivations/shared/stages/schema.rkt" decompose D)
          "test-http-helpers.rkt")
 
 (define (payload response) (string->jsexpr (response-body->string response)))

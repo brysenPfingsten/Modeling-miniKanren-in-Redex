@@ -5,8 +5,8 @@
          (only-in "../src/transpiler.rkt" render-micro-source)
          "../src/sexpr-read.rkt"
          "../src/search-runtime.rkt"
-         "../derivations/strict-search/matrix/full-source.rkt"
-         "../derivations/strict-search/shared/wf.rkt"
+         "../derivations/matrix/full-source.rkt"
+         "../derivations/shared/wf.rkt"
          "test-http-helpers.rkt")
 
 ;; Three conjuncts and three alternatives make both association choices real.

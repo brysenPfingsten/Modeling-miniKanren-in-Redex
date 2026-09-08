@@ -1,19 +1,26 @@
 # Semantics and application organization
 
-The selected account is [retained-scope S, Search/rail](../racket-server/derivations/strict-search/retained-scope/README.md).
+The selected account is [retained-scope S, Search/rail](../racket-server/derivations/retained-scope/README.md).
 Its functional and syntactic derivations meet through explicit configuration
-maps and prescribed transition spans. The [native S/E/N matrix](../racket-server/derivations/strict-search/matrix/README.md)
+maps and prescribed transition spans. The [native S/E/N matrix](../racket-server/derivations/matrix/README.md)
 uses the same factoring, including a full relation-program extension. The
 Strict Search view executes that matrix's S reduction relation directly.
 The GUI defaults to strict Railroad. No Interleave, Flip-Flop and Railroad
-now use the matrix's [strict S scheduler extension](../racket-server/derivations/strict-search/matrix/scheduler-source.rkt).
+now use the matrix's [strict S scheduler extension](../racket-server/derivations/matrix/scheduler-source.rkt).
 Flip reuses the selected strict source itself; Railroad has an explicit
 orientation map with configuration-level transition checks.
 
-The [research inventory](../racket-server/derivations/strict-search/README.md)
+The [research inventory](../racket-server/derivations/README.md)
 owns the detailed artifacts and proof obligations. The
-[correction log](../racket-server/derivations/strict-search/CORRECTIONS.md)
+[correction log](../racket-server/derivations/CORRECTIONS.md)
 records the earlier strictness, scope, and commitment mistakes.
+
+The filesystem separates roles: `racket-server/src/` compiles, runs, presents,
+and serves selected semantics; `racket-server/derivations/` defines the current
+strict semantics and machines. Complete alternative accounts live under
+[`derivations/experiments/`](../racket-server/derivations/experiments/README.md),
+including their source-specific and strict-comparison tests. Central
+`racket-server/tests/` owns application and cross-account integration gates.
 
 ## Independent choices
 
@@ -113,13 +120,14 @@ flowchart TD
 | Module | Responsibility |
 | --- | --- |
 | [transpiler/](../racket-server/src/transpiler/) | Parse mini/micro, associate goals, insert profile-selected delays, retain source IDs, initialize the selected native syntax and query metadata |
-| [search-lattice/](../racket-server/src/search-lattice/SEMILATTICE.md) | Earlier dormant-branch semantics and WF, retained for comparison; no current GUI dispatch |
-| [matrix/full-source.rkt](../racket-server/derivations/strict-search/matrix/full-source.rkt) | Actual full S/E/N reduction relations and explicit call expansion |
-| [matrix/scheduler-source.rkt](../racket-server/derivations/strict-search/matrix/scheduler-source.rkt) | Strict S scheduler variations and native orientation syntax, reusing the matrix control equations |
+| [dormant-branch-semantics/](../racket-server/derivations/experiments/dormant-branch-semantics/README.md) | Earlier source semantics/WF, interpreter-machine derivation, and comparison evidence; no current GUI dispatch |
+| [matrix/full-source.rkt](../racket-server/derivations/matrix/full-source.rkt) | Actual full S/E/N reduction relations and explicit call expansion |
+| [matrix/scheduler-source.rkt](../racket-server/derivations/matrix/scheduler-source.rkt) | Strict S scheduler variations and native orientation syntax, reusing the matrix control equations |
 | [search-runtime.rkt](../racket-server/src/search-runtime.rkt) | Select strict scheduler relations and WF; expose structural status and public boundaries |
 | [program-runner.rkt](../racket-server/src/program-runner.rkt) | Manual sessions, one-step execution, exact configuration history, back/reset, query metadata |
 | [app.rkt](../racket-server/src/app.rkt) | HTTP initialization, stepping, history and source-conversion endpoints |
-| [search-picture.rkt](../racket-server/src/search-picture.rkt) | Project strict scheduler configurations and state into the tree, retaining orientation; extract answers only along the committed Frontier; also inspect historical trees |
+| [search-picture.rkt](../racket-server/src/search-picture.rkt) | Project strict scheduler configurations and extract answers only along the committed Frontier |
+| [search-picture-common.rkt](../racket-server/src/search-picture-common.rkt) | Shared logical-state, Owner and goal drawing; experimental control inspection stays in the experiment |
 | [minikanren.rkt](../racket-server/src/minikanren.rkt) | Automatic answer consumption, run/run*, host-facing library and evaluator entry points |
 
 The GUI preserves `running`, `paused`, `complete`, and `stuck` distinctions.
@@ -141,8 +149,10 @@ compilation settings remain independent. See the
 
 ## Evidence and remaining work
 
-The live GUI check on 2026-09-07 used fresh native servers with the strict
-scheduler correction. This microKanren source completed in all four selections:
+The pre-relocation GUI check on 2026-09-07 used fresh native servers with the
+strict scheduler correction. This recorded evidence concerns those semantics;
+the current relocation gates are tracked in the test lanes. This microKanren
+source completed in all four selections:
 
 ```racket
 (run* (q)
@@ -188,7 +198,8 @@ checks do not establish universal adequacy, preservation, machine
 correspondence, or productive-stream theorems. Further compression to a
 `κ / Q / π` machine remains an investigation, not the implemented target.
 The [test lanes](../racket-server/tests/TEST-LANES.md) identify executable gates
-and the latest completed validation. The headless gate runs strict research
-and current application suites, including native lattice source tests and
-scheduler integration. Separate E/N DFS/Railroad rows, downstream scheduler
+and the latest completed validation. The headless gate invokes the current
+strict aggregate, the separate experiments aggregate, and application suites.
+Dormant source laws and strict/dormant comparisons belong to the experiment;
+live strict scheduler integration stays central. Separate E/N DFS/Railroad rows, downstream scheduler
 derivations and universal correspondence proofs remain open.

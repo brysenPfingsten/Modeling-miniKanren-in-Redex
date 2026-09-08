@@ -2,8 +2,8 @@
 
 (require rackunit json racket/runtime-path redex/reduction-semantics
          "../src/search-picture.rkt"
-         "../derivations/strict-search/matrix/full-source.rkt"
-         "../derivations/strict-search/test-support/witnesses.rkt")
+         "../derivations/matrix/full-source.rkt"
+         "../derivations/test-support/witnesses.rkt")
 
 (define-runtime-path contract-path "../../contracts/visible-node-contract.json")
 (define allowed-names
@@ -176,52 +176,6 @@
     (define yielded (car (named (check-picture tail) "YieldR")))
     (check-equal? (hash-ref yielded 'activeChildIndex) 0)
     (check-equal? (committed-answer-nodes tail '()) '()))
-
-  (test-case "historical lattice orientation selects a child without committing returned work"
-    (define owners '(Owners (Owner (u:9) (label "query"))))
-    (define state '(state ((u:9 (sym "a"))) () () (label "candidate")))
-    (for ([orientation '(DisjL DisjR)] [active '(0 1)] [name '("<-+" "+->")])
-      (define configuration
-        `(() (More (,orientation ,owners
-                      (Returned (Owners) ,state)
-                      (Conj (Owners) (Work (Owners) ,yes ,state) ,no)))))
-      (define picture (check-picture configuration '(u:9)))
-      (define choice (car (named picture name)))
-      (check-equal? (hash-ref choice 'activeChildIndex) active)
-      (check-equal? (hash-ref picture 'renderRole) "unfinished-frontier")
-      (check-equal? (hash-ref picture 'activeChildIndex) 0)
-      (check-equal? (length (named picture "Returned")) 1)
-      (check-equal? (length (named picture "Candidate")) 1)
-      (check-equal? (length (named picture "Conjunction")) 1)
-      (check-equal? (named picture "Answer") '())
-      (check-equal? (committed-answer-nodes configuration '(u:9)) '())
-      (check-equal? (hash-ref (car (named picture "Work")) 'scope) '(9))))
-
-  (test-case "lattice delay keeps retained work suspended and outer answers committed"
-    (define common '(Owners (Owner () (label "unused")) (Owner (u:9) (label "common"))))
-    (define state '(state ((u:9 (sym "a"))) () () (label "answer")))
-    (define configuration
-      `(() (Emit ,common
-             (Answer (Owners (Owner (u:2) (label "private"))) ,state)
-             (More (PendingDelay (Owners (Owner (u:3) (label "delayed")))
-                     (DisjR (Owners)
-                       (Work (Owners) ,yes ,state)
-                       (Work (Owners) ,no ,state)))))))
-    (define picture (check-picture configuration '(u:9)))
-    (define paused (car (named picture "More")))
-    (define delay (car (named picture "Delay")))
-    (check-equal? (hash-ref paused 'renderRole) "paused-frontier")
-    (check-false (hash-has-key? paused 'activeChildIndex))
-    (check-false (hash-has-key? delay 'activeChildIndex))
-    (check-true (hash-ref delay 'suspended))
-    (check-equal? (map (lambda (node) (hash-ref node 'scope)) (named picture "Work"))
-                  '((9 3) (9 3)))
-    (check-equal? (map (lambda (node) (hash-ref node 'scope))
-                       (committed-answer-nodes configuration '(u:9))) '((9 2)))
-    (check-equal? (map (lambda (node) (hash-ref node 'id)) (named picture "Freshened"))
-                  '("unused" "common" "private" "delayed"))
-    (check-equal? (hash-ref (check-picture '(() (More (Dead (Owners))))) 'renderRole)
-                  "unfinished-frontier"))
 
   (test-case "relation bodies and resumed recursive calls render their actual source tags"
     (define definitions

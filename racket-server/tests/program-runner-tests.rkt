@@ -5,7 +5,7 @@
          "../src/minikanren.rkt"
          (only-in "../src/search-runtime.rkt" configuration-status)
          (only-in "../src/search-picture.rkt" committed-answer-nodes)
-         (only-in "../derivations/strict-search/shared/kernel-equations.rkt"
+         (only-in "../derivations/shared/kernel-equations.rkt"
                   current-atomic-observer))
 
 (define mini-same-program

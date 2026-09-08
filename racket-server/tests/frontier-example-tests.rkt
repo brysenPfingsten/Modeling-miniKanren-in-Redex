@@ -2,8 +2,8 @@
 
 (require rackunit rackunit/text-ui
          "../src/program-runner.rkt"
-         (only-in "../derivations/strict-search/shared/wf.rkt" wf-s-rel?)
-         "./example-compat-tests.rkt" "./runtime-test-support.rkt")
+         (only-in "../derivations/shared/wf.rkt" wf-s-rel?)
+         "./example-compat-tests.rkt" "../derivations/test-support/runtime-test-support.rkt")
 
 (provide FRONTIER-EXAMPLES)
 
