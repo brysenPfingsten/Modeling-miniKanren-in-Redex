@@ -109,7 +109,7 @@ site. The kernel still produces native Failure/Success data; no functional
 outcome adapter is introduced. Shared `data.rkt` retains all its definitions
 for the uncompressed machine.
 
-All eighteen continuation constructors and all three resumption constructors
+All nineteen continuation constructors (including KProgram) and all three resumption constructors
 remain. In particular, the resulting `return/d` still has the same k: it has
 not applied KCommit, KConj, KBindHead, or any other pending continuation.
 

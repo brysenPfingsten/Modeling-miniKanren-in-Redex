@@ -16,9 +16,10 @@ rejected forms, eager-tail contexts, and the unchanged commitment boundary.
 | Module | Responsibility |
 | --- | --- |
 | `core/{s,e,n}/language.rkt` | Live primitive grammars, allocation operations, and unification/disequality kernels; byte-identical provenance is in [core/PROVENANCE.md](core/PROVENANCE.md) |
-| `kernel.rkt` | Allocation, substitution, owner/support operations, native atomic kernel outcomes |
-| `kernel-equations.rkt` | Common atomic equations instantiated with functional or data outcome constructors |
+| `kernel.rkt` | Allocation, substitution, introduction-group and allocated-name support operations, native S/E/N atomic kernel outcomes |
+| `kernel-equations.rkt` | S atomic equations instantiated with functional or data outcome constructors by the S reference derivation |
 | `grammar-{s,e,n}.rkt`, `ownerless-grammar.rkt`, `feature-schema.rkt` | Search/control/frontier syntax and feature productions, without source contractions |
+| `relation-grammar.rkt` | Relation definitions, calls, and program syntax extending the S/E/N grammars |
 | `maps.rkt`, `wf.rkt` | Structural S/E/N maps and well-formedness predicates |
 | `stages/schema.rkt`, `stages/views.rkt`, `stages/maps.rkt` | Generic decomposition/refocusing machinery, constructor views, and structural stage maps |
 | `control-transform.rkt` | Syntactic tail-call transformation used by the machine generators |
@@ -30,7 +31,7 @@ route does not make these shared dependencies disposable.
 
 The shared grammars and stage views contain no syntactic `prefix` operation
 or frame. Internal S force retains Owners on the running body; E/N force
-enters the stored body directly. The selected source and the native matrix
+enters the stored body directly. The S reference source and the native matrix
 state their contractions independently over this common syntax and stage
 construction. The functional interpreter's `prefix` helper only attaches
 Owners to an already mature Search; it is not a pending source computation

@@ -17,9 +17,10 @@ avoids making a semantic account depend on an unrelated test suite.
 | `helpers-tests.rkt` | Focused assertions for the shared helper behavior |
 
 The [S reference aggregate](../s-reference/all.rkt) and
-[matrix aggregate](../matrix/all.rkt) own the actual checks. Each supplies its
-source and stage to the reusable checker; these helpers do not select a
-semantic policy. The [matrix checkpoint gate](../matrix/s-reference-tests.rkt)
+[matrix aggregate](../matrix/all.rkt) collect their accounts' checks. Their
+transition suites supply a source and stage to the reusable checker; these
+helpers do not select a semantic policy. The
+[matrix checkpoint gate](../matrix/s-reference-tests.rkt)
 also uses the named witnesses to connect the S reference machine to actual
 native S/E/N transitions. The [correction log](../CORRECTIONS.md) connects
 those witnesses to the distinctions they protect. Being shared validation

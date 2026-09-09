@@ -7,7 +7,7 @@ introductions stored on the nodes that own their scope.
 
 Retained scope names an invariant of this account: when internal force removes
 a Delay, its introductions remain on the running computation before the body
-evaluates. The parent [research guide](../README.md) owns the Search/rail
+evaluates. The parent [research guide](../README.md) owns the strict Search
 coordinate inventory, generation commands, and reading order.
 
 Both derivations use `Yield(O,A,S)` for the eager active Search cell and
@@ -16,16 +16,11 @@ is `KMergeYield`/`yield`; the corresponding source cases are `mplus-yield`,
 `bind-yield`, `render-yield`, and `commit-yield`. These names identify the same
 operations and stopping boundaries in both presentations.
 
-Both presentations preserve scope while work runs. The existing owner field
-of `eval`, `mplus`, or `bind` carries O; there is no pending `prefix` context.
-
-The parent [strict derivation guide](../README.md) selects this route as the main
-entry point, and its aggregate includes this directory's `all.rkt`. Common
-grammars, kernels, stage construction and control transformation live in
+Common grammars, kernels, stage construction and control transformation live in
 [shared/](../shared/README.md); fixtures and reusable checks live in
 [test-support/](../test-support/README.md). Runtime and derivation modules
 depend on those shared implementations directly. The native S/E/N matrix
-now uses the same source factoring. Its independently stated S equations and
+uses the same source factoring. Its independently stated S equations and
 stages are checked against this checkpoint; the functional interpreter does
 not execute any matrix source or machine.
 
@@ -41,7 +36,7 @@ The source-guided reconstruction can be inspected in this order:
 4. [interpreter.rkt](interpreter.rkt): direct-style equations with those
    continuations discharged through ordinary calls and returns.
 
-The functional pipeline now continues explicitly:
+The functional pipeline is:
 
 ```text
 interpreter.rkt → cps.rkt → data.rkt + defunc.rkt → machine.rkt
@@ -56,18 +51,13 @@ The direct/CPS reconstruction and defunctionalization are manual passes.
 the actual defunctionalized control bodies. Neither functional evaluator calls
 a reduction relation or another machine driver.
 
-[machine-correspondence.rkt](machine-correspondence.rkt) maps every functional
-control and continuation into native refocused control and Frame/K fields.
-Each functional transition corresponds to either one prescribed named source
-operation or administrative identity, with only native structural traversal
-around it. [readback.rkt](readback.rkt) independently reconstructs whole source
-terms; the two maps agree on the corpus. No observer descriptions or suspended
-procedure calls occur in these data-machine maps.
-
-[CORRESPONDENCE.md](CORRESPONDENCE.md) states the configuration relation,
-continuation mapping, labelled diagrams and administrative progress measure.
-The checks now cover complete intermediate machine configurations. A universal
-proof of domain preservation and correspondence remains an obligation.
+[machine-correspondence.rkt](machine-correspondence.rkt) maps functional
+configurations directly into native refocused controls and continuations.
+[readback.rkt](readback.rkt) independently reconstructs whole source terms.
+[CORRESPONDENCE.md](CORRESPONDENCE.md) owns the configuration relation, frame
+mapping, prescribed source-operation spans, and administrative progress measure.
+The checks compare complete intermediate configurations; universal domain
+preservation and correspondence remain obligations.
 
 ## Relation definitions and calls
 
@@ -93,18 +83,12 @@ does not use dynamic parameters or an evaluator hidden behind readback.
 Structural configuration validation checks every pending capture against
 its program boundary and rejects missing or changed environments.
 
-The original generator still derives thirteen machine controls and five
-register operands. The same atomic-handler transformation still reduces
-thirteen controls to ten; `eval-call` and the program-boundary return each
-retain their original single-step span. No relation-specific compression or
-separate E/N functional pipeline is introduced.
-
 [relation-tests.rkt](relation-tests.rkt) checks exact source operations,
 native S/E/N configuration maps, direct/CPS atomic work and paused Frontiers,
 generated-machine/register transitions, and prescribed compressed spans.
 Its witnesses include named calls, parameter shadowing, mutual recursion,
 bounded explicit-delay recursion, deliberately unguarded right recursion,
-nested rails, retained unused allocations, sparse ancestry, and eager bind.
+nested delayed merges, retained unused allocations, sparse ancestry, and eager bind.
 
 ## Registerization and first compression
 
@@ -115,63 +99,29 @@ executable stages:
 machine.rkt ← decode ← registers.rkt ← structural embedding ← compressed.rkt
 ```
 
-[register-derive.rkt](register-derive.rkt) generates the explicit PC/register
-dispatcher in [registers.rkt](registers.rkt) from the defunctionalized
-program. Each register step decodes to one functional-machine step. The host dispatch
-loop and object-language Delay remain separate.
+[register-derive.rkt](register-derive.rkt) produces [registers.rkt](registers.rkt);
+each register step decodes to one functional-machine step. The host dispatch
+loop remains separate from object-language Delay.
+[compression-derive.rkt](compression-derive.rkt) produces
+[compressed.rkt](compressed.rkt), replacing three atomic dispatches with one.
+The resulting `return/d` still has its pending continuation. Calls and
+program-boundary returns retain their original single-step spans.
 
-[compression-derive.rkt](compression-derive.rkt) checks and rewrites one
-redundant atomic outcome-handler sequence, then reuses that generator to emit
-[compressed.rkt](compressed.rkt). It replaces three atomic dispatch steps with
-one, reducing thirteen PCs to ten. The step ends at the original `return/d`
-configuration, with its continuation still pending. All continuation and
-resumption families remain.
-
-[compression-correspondence.rkt](compression-correspondence.rkt) defines the
-structural maps and exact original span for each compressed transition. The
-tests check these prescribed one- or three-step spans, their operation labels,
-scope and actual work, rather than searching for a matching later result.
-[REGISTERIZATION.md](REGISTERIZATION.md) gives the diagrams, termination
-argument, concrete before/after example, reproduction commands, and remaining
-proof obligations. [show-register-compression.rkt](show-register-compression.rkt)
-prints the paired atomic traces with commitment still pending.
+[REGISTERIZATION.md](REGISTERIZATION.md) owns the register layout, structural
+decoders, prescribed one- or three-step spans, termination argument, and
+concrete before/after example. All continuation and resumption families remain;
+this compression does not derive a compact κ/Q/π machine or separate E/N
+register programs.
 
 ## Retaining introductions on active computation
 
-Let `O ++ L` concatenate introduction groups, preserving their names, order,
-group boundaries, and tags. `lift_O` prepends O to the root owner field of an
-active computation or Search. It passes through a `force` wrapper, whose own
-syntax carries no owners:
-
-```text
-lift_O(eval(L,g,σ))     = eval(O ++ L,g,σ)
-lift_O(mplus(L,c₁,c₂)) = mplus(O ++ L,c₁,c₂)
-lift_O(bind(L,c,g))     = bind(O ++ L,c,g)
-lift_O(Empty(L))        = Empty(O ++ L)
-lift_O(One(L,σ))        = One(O ++ L,σ)
-lift_O(Yield(L,A,c))     = Yield(O ++ L,A,c)
-lift_O(Delay(L,c))      = Delay(O ++ L,c)
-lift_O(force(c))       = force(lift_O(c))
-
-force(Delay(O,c))      → lift_O(c)
-```
-
-There is no pending `prefix` computation or context in this source language.
-Attaching introductions to an existing mature value remains part of mplus's
-ordinary equations. Common introductions are never distributed individually
-onto the two operands or mixed with answer-private introductions.
-
-Strict left-then-right disjunction, eager Yield tails, eager bind, and the
-Search/Frontier commitment boundary are explicit source rules. No context
-descends beneath Delay. Public advancement still crosses only the exposed tip:
-
-```text
-advance(More(Delay(O,c))) → Forced(O,commit(c))
-```
-
-The retained `Forced` already carries O. Applying `lift_O` to its body as well
-would duplicate the introduction. The same consideration governs collection
-and delayed bind.
+The [matrix source contract](../matrix/README.md#program-active-search-and-settled-frontier)
+records the shared lifting equations and the distinction between internal
+force and public advancement. Internal force places Owners on the running
+root; public advancement retains them on Forced. The independently stated
+[S reference source](source.rkt) follows those same rules. Its `eval`, `mplus`,
+and `bind` controls retain ownership while operands run, so neither derivation
+needs a pending `prefix` operation or continuation.
 
 ## What interpreter the source suggests
 
@@ -213,7 +163,7 @@ when an operand is being evaluated. Defunctionalization produces the ordinary
 KMergeForced/KBindForced frames carrying that root ownership, and preserves
 KCommit and strict operand continuations. There is no KPrefix data constructor.
 
-This is a changed resumption interface: direct resumptions accept `(O,P)`;
+Direct resumptions accept `(O,P)`;
 CPS resumptions accept `(O,P,k)`. They are context-parameterized suspended
 computations. Only Delay suspends search work. They do not cache an inherited
 `here` value. Public consumers instead reconstruct inherited support by
@@ -239,15 +189,11 @@ The existing S→E/N maps account for allocation along owner paths. At the same
 caller support the basic identity is
 `Q(lift_O(V),P) = Q(V,P ++ names(O))` for mature Search.
 [machine-correspondence-tests.rkt](machine-correspondence-tests.rkt) checks
-structural squares for complete configurations. The matrix's E/N sources
-use the same force boundary without unary prefix phases. The
-[matrix checkpoint gate](../matrix/s-reference-tests.rkt) goes beyond
-structural squares: it checks actual S/E/N source and machine transitions
-against this checkpoint, including the independent direct S→N map. Each
-functional step prescribes one source label or administrative identity; the
-native comparison performs only the specified operation and structural
-normalization. There are still no separately derived E/N functional
-interpreters or register programs.
+structural squares for complete configurations. The matrix's
+[representation-map contract](../matrix/README.md#direct-representation-maps-and-domain)
+owns the native S/E/N domain and checkpoint checks. Those checks connect this
+functional machine to actual native S/E/N transitions, including direct S→N;
+they do not derive separate E/N functional interpreters or register programs.
 
 ## Examples and validation
 
@@ -277,12 +223,12 @@ program environments and recursive calls without weakening observations.
 
 The [shared witnesses](../test-support/witnesses.rkt) cover empty and unused
 introductions, sparse ancestry, fresh across Delay, existing variables,
-saved-right reuse, eager bind, terminal structure, and nested rail
-orientation. [all.rkt](all.rkt) aggregates this account's checks, including
+saved-right reuse, eager bind, terminal structure, and nested delayed merges.
+[all.rkt](all.rkt) aggregates this account's checks, including
 freshness of its three generated programs; commands are in the
 [parent guide](../README.md#generated-artifacts-and-reproduction).
 
-These are finite checks of the selected account and its downstream
+These are finite checks of the S reference and its downstream
 transformations. General domain preservation, administrative progress on the
 native side, universal S/E/N correspondence, productive streams, and compact
 κ/Q/π rail compression remain obligations. The aligned

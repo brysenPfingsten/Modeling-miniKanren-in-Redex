@@ -1,4 +1,4 @@
-# Dormant-branch source and derivation tests
+# Earlier dormant-branch source and derivation tests
 
 This subtree mirrors the semantic architecture instead of the historical order
 in which the implementation was assembled. The local `all.rkt` exports the
@@ -16,7 +16,7 @@ whole account, rather than placing its source laws among application tests.
   core to delay, core to disjunction, delay to search, and disjunction to
   search. An edge checks grammar inclusion, WF agreement on the source image,
   complete named-successor multisets, raw proof counts, and positive coverage.
-- `join/` proves that search is the literal semilattice join of delay and
+- `join/` checks that search is the literal semilattice join of delay and
   disjunction: exact inherited syntax/rules, one shared core copy, and no new
   carrier syntax or rule.
 - `grammar/` owns the compositional recursive focus grammar and raw context
@@ -41,11 +41,10 @@ that own them.
 
 ## Feature shape
 
-Delay and disjunction are additive feature extensions of core. Search is their
-literal semilattice join: the language/relation union adds no constructor,
-frame, or rule. Relcall is a separate overlay rooted in delay; search-relcall is
-the union of relcall and search, while rail-relcall is the union of relcall and
-the rail fiber.
+The [source's feature diamond](../source/SEMILATTICE.md#additive-feature-diamond)
+owns the language/relation composition. Scheduler fibers are checked both
+with and without the independent relcall overlay; scheduling does not require
+relation calls.
 
 Static topology evidence also checks the implementation arrows: native
 search consumes assembled disjunction plus the delay delta, rail lifts assembled
@@ -69,19 +68,21 @@ Neutral generators and runtime observations are imported from
 [`derivations/test-support/`](../../../test-support/README.md). Those helpers
 contain no dormant evaluator. Current GUI/compiler/API tests remain central.
 
-Source-level edge suites establish embedding, conservativity, and provenance.
+Source-level edge suites check embedding, conservativity, and provenance on
+their stated domains.
 They are not naturality tests. Naturality would require a second derivation
 transformation available at multiple stages and a commuting square, which this
 source-only test tree does not claim.
 
 ## Theorem boundaries
 
-Keep these claims separate:
+These are executable checks, not universal metatheorems. Keep their claims
+separate:
 
 - a node suite establishes node-local grammar, WF, and named behavior;
 - an edge suite establishes a claimed conservative feature embedding;
 - the join suite establishes exact inherited syntax/rule provenance, one shared
-  core copy, and absence of join-owned additions;
+  core copy, and absence of join-owned constructors, frames, or rules;
 - a fiber suite establishes scheduler behavior, not feature extension;
 - fiber suites use ordinary search/search-relcall WF for DFS and flip, and the
   larger rail/rail-relcall WF only for rail;
@@ -93,7 +94,7 @@ Keep these claims separate:
   rails exhibit an observable answer-order difference. Its common right-active
   carrier is experiment-local, not evidence that ordinary search/DFS/flip
   admit `DisjR`. Keeping its existing gate is not strict correspondence or
-  GUI, matrix, or A7/A9 integration.
+  GUI or current derivation-pipeline integration.
 
 ## Running the tests
 

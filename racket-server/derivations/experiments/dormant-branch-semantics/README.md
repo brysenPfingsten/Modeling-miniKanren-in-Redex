@@ -4,8 +4,9 @@ This directory owns the complete **earlier dormant-branch account**: its
 native work-tree source, interpreter/machine derivation, correspondence maps,
 counterexamples, and semantics-specific tests. The current GUI uses
 [strict S matrix scheduler rows](../../matrix/scheduler-source.rkt):
-DFS, Flip, and Railroad, with Railroad selected by default. Separate E/N
-DFS/Railroad rows and downstream scheduler derivations remain open.
+No Interleave (`dfs`), Flip-Flop (`flip`), and Railroad (`rail`), with Railroad
+selected by default. Separate E/N DFS/Railroad rows and downstream scheduler
+derivations remain open.
 References below to the native lattice describe [source/](source/SEMILATTICE.md);
 these derivations do not provide the application's current scheduler dispatch.
 
@@ -17,7 +18,7 @@ both operands and bind residuals before commitment; the earlier lattice can
 expose an answer before its sibling runs. The [executable counterexamples](BARRIERS.md) establish this
 difference, including a compiled recursive program with an exact self-loop.
 
-Within the new demand account, DFS and Flip differ at one scheduling choice.
+Within this dormant demand account, DFS and Flip differ at one scheduling choice.
 The Railroad extension retains left/right positions in the Search and
 resumption language. Its orientation erasure yields Flip, both in the derived
 source family and independently in the native lattice. The extra state retains
@@ -66,7 +67,7 @@ observations live in [neutral test support](../../test-support/README.md).
 [s-reference/interpreter.rkt](../../s-reference/interpreter.rkt).
 Owners, logical states, lexical substitution, eager atomic kernels, eager
 relation expansion, answer-private support, and public commitment remain
-explicit. The new control policy changes these three demand sites:
+explicit. The dormant control policy changes these three demand sites:
 
 1. A disjunction retains a computation for its right operand. It demands its
    left operand first; it does not mature both before merging.
@@ -218,14 +219,14 @@ The current correspondence statements are deliberately different in strength:
 | Relationship | Strongest current result and its domain |
 |---|---|
 | Direct ↔ CPS ↔ defunctionalized ↔ generated machine | Exact tested public Frontiers, residual captures and actual work order for each policy; all PCs and record families exercised. General transformation correctness remains a proof obligation. |
-| Generated machine → new source | Structural readback on reachable configurations, exact zero-or-one source contraction per machine step, and a strictly decreasing rank on empty spans. Every source label and every in-scope PC is covered. |
+| Generated machine → computation source | Structural readback on reachable configurations, exact zero-or-one source contraction per machine step, and a strictly decreasing rank on empty spans. Every source label and every in-scope PC is covered. |
 | Extended source → Flip source | Explicit orientation erasure; tested one-step equality including all retained-scope ownership witnesses. Owners, Γ, states and tags remain literal. |
 | Derived DFS → native DFS | Configuration-level weak correspondence on the closed allocation-free fragment with empty Owners; prescribed administrative and public spans. Full allocation/ownership correspondence is not claimed. |
 | Derived Flip → native Flip | Same fragment and strength, with swapping in the delayed merge. |
 | Derived Railroad → native Railroad | Same fragment and strength, with both active-side constructors and right-candidate bind/commit. |
 | Native Railroad → native Flip | Complete one-step successor lists agree under orientation/label erasure in checked configurations, including all 30 Railroad / 23 Flip rules, full relations and fresh allocation. A strong-bisimulation proof sketch is below. |
-| New family → matching native scheduler, with allocation | All 20 retained-scope witnesses × 3 policies preserve ordered atomic attempts and completed world-Frontier observations under explicit scoped alpha and ownership transport. This is full-owner observational evidence, not a pending-configuration bisimulation. |
-| Existing Strict ↔ native Railroad | Finite completed-result evidence at specified observations; unrestricted exposed-answer equivalence fails by an exact recursive counterexample. Full work/commit traces already differ on finite goals. |
+| Derived family → matching native scheduler, with allocation | All 20 retained-scope witnesses × 3 policies preserve ordered atomic attempts and completed world-Frontier observations under explicit scoped alpha and ownership transport. This is full-owner observational evidence, not a pending-configuration bisimulation. |
+| S reference strict source ↔ native Railroad | Finite completed-result evidence at specified observations; unrestricted exposed-answer equivalence fails by an exact recursive counterexample. Full work/commit traces already differ on finite goals. |
 
 The machine/source relation covers initial evaluation, internal computation
 demand, commitment, halted Frontiers and explicit public advancement. Its
@@ -291,10 +292,10 @@ Numbers refer to: **1** representation/alpha; **2** administrative/phase;
 |---|---|
 | Flip swaps children; Railroad changes active side | **3**, with extra position information erased by the two orientation maps. It is visible to a position-sensitive GUI observer. |
 | Strict operands and bind tails are eager; lattice siblings/residuals are dormant | **4**. Finite work/commit counterexamples and compiled unguarded self-loop. |
-| Search candidate versus committed answer | **2** within the new family/native fragment: Yield/Returned may still be under bind. Pending failure emits nothing. Moving strict commitment across sibling work would instead be **4**. |
+| Search candidate versus committed answer | **2** within the derived family/native fragment: Yield/Returned may still be under bind. Pending failure emits nothing. Moving strict commitment across sibling work would instead be **4**. |
 | Yield packaging and unfinished Frontier wrappers | **1/2** under the explicit decoder. Unary More remains unfinished Frontier work; Done and Last remain distinct terminal forms. |
-| Internal computational demand versus public Delay advancement | **2** for the new derived/native spans; no extra public round for a Yield tail. Strict's eager internal force has **4** work/commit consequences. |
-| Bind and merge continuation records versus work-tree contexts | **1/2**, checked structurally in the new derivation. Right-active bind retains the oriented residual. |
+| Internal computational demand versus public Delay advancement | **2** for the derived/native spans; no extra public round for a Yield tail. Strict's eager internal force has **4** work/commit consequences. |
+| Bind and merge continuation records versus work-tree contexts | **1/2**, checked structurally in the functional derivation. Right-active bind retains the oriented residual. |
 | Relation environment/call representation | **1/2**: explicit Γ and eager expansion are retained. Calls introduce no implicit Delay; compilation supplies any suspension. |
 | Active-path versus whole-retained-Frontier fresh names | **1** on tested scoped observations. A single global renaming is insufficient; failed branches can disappear and names can be reused. |
 | Shared Owners on Forced versus a following Emit/merge | Requires an explicit scope-transport relation beyond alpha (**1/2** for world observations). Exact node-provenance observations distinguish them (**4** at that observation level). The simple native map has an asserted counterexample. |
@@ -329,9 +330,11 @@ The focused source/native gate exercises all 32 distinct native labels across
 the three policies and all five source administrative labels. Allocation and
 constrained-unification cases outside the full-trace fragment are explicitly
 local one-step checks. The functional/source gate exercises all 24 source
-labels and 12 in-scope machine PCs, checking 1,575 singleton semantic spans
-and 2,094 decreasing administrative spans in its finite corpus. The independent
-functional gate also checks the thirteenth PC for library collection.
+labels and 12 in-scope machine PCs. The recorded checkpoint checked 1,575
+singleton semantic spans and 2,094 decreasing administrative spans; the
+[gate](tests/functional-source-tests.rkt) reports these corpus-dependent counts
+on each run. The independent functional gate also checks the thirteenth PC for
+library collection.
 
 Remaining formal obligations are:
 
@@ -346,15 +349,15 @@ Remaining formal obligations are:
 5. A full pending-configuration relation combining scoped alpha and exact
    allocation-world/provenance transport. Completed world observations alone
    do not supply this relation; the current raw map fails beyond its fragment.
-6. A separately hypothesized guarded strict-to-online observation theorem.
+6. A separately hypothesized guarded strict-to-dormant-branch observation theorem.
    It must specify answer order, Delay rounds, commitment and provenance
    observations; unrestricted correspondence is disproved.
 7. General productivity/fairness and coinductive stream results. The guarded
    witnesses and finite Big results elsewhere do not establish these.
 
 The GUI's association and delay-placement settings remain a separate
-compilation coordinate. The new interpreters receive an already compiled
-goal and explicit definitions; scheduler choice does not rewrite them.
+compilation coordinate. These experimental interpreters receive an already
+compiled goal and explicit definitions; scheduler choice does not rewrite them.
 [Compiler-driven barriers](tests/barriers-tests.rkt) hold compilation fixed, and the
 [existing application gate](../../../tests/scheduler-integration-tests.rkt)
 retains the full profile/scheduler combinations. No GUI runtime is redirected

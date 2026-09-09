@@ -103,8 +103,10 @@ rendered micro against the full strict grammar, WF and explicit query metadata.
 `model-example-matrix-tests` checks all twelve **compiler profiles** on a finite
 relation program: 2 conjunction associations × 2 disjunction associations ×
 3 delay placements. These are not the matrix's twelve representation/feature
-cells. The strict-view sessions must follow the exact named S source edges,
-including explicit public advancement, and agree with rendered micro.
+cells. Direct sessions and HTTP-handler payloads are compared at every named
+strict S source edge, including explicit public advancement, and the checks
+are repeated on rendered micro. This gate exercises handlers without a live
+network server.
 
 The compiler's source-attribution cases check occurrence IDs and emitted spans
 across all twelve profiles, including nested `conde`, reassociated conjunction,
@@ -131,7 +133,7 @@ configurations, operation labels, statuses and committed counts.
 Manual sessions in `src/program-runner.rkt` and the GUI do not enforce a source
 `run n` limit. Their status describes the computation. Automatic consumption
 is tested separately below. The GUI defaults to the strict scheduler lattice/Railroad and
-retains No Interleave and Flip-Flop; its separate Strict Search view sends
+retains No Interleave and Flip-Flop; its separate Strict reference (Flip) view sends
 `{ "model": "strict" }`. API/library calls default to `(strict-search)`.
 An explicit `search-strategy` with scheduler `"dfs"`, `"flip"`, or `"rail"`
 instead selects the corresponding strict S matrix scheduler. All selections

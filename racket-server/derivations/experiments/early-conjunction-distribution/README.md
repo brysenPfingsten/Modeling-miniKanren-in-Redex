@@ -2,10 +2,10 @@
 
 This [semantic experiment](../README.md) is separate from
 [the current strict derivations](../../README.md). It is **not a
-matrix row, an A7–A9 transformation stage, or a GUI backend**. Its implemented
-artifacts are Redex languages, reduction relations, scheduler variants, and
-tests; it has no independently derived functional interpreter or machine
-correspondence.
+matrix row, a stage of either current machine derivation, or a GUI backend**.
+Its implemented artifacts are Redex languages, reduction relations, scheduler
+variants, and tests; it has no independently derived functional interpreter or
+machine correspondence.
 
 The question belongs at the source-semantics level: should pending conjunction
 remain outside a choice until a candidate is available, or be distributed into
@@ -36,7 +36,7 @@ labels, so their answer states can be distinguished.
 
 | Presentation | Answer-state order | Public forces before first answer |
 | --- | --- | --- |
-| Current strict source | A, B, C | 2 |
+| S reference strict source | A, B, C | 2 |
 | Earlier dormant-branch semantics, factored rail | A, B, C | 2 |
 | Earlier dormant-branch semantics, distributed rail | C, A, B | 3 |
 
@@ -57,8 +57,10 @@ semantics. No integration or equivalence with the strict pipeline is claimed.
 - [languages/](languages/) defines the distribution focus contexts and the
   experiment's common right-active `DisjR` carrier.
 - [reduction-relations/](reduction-relations/) assembles disjunction, search,
-  DFS, flip, rail, and relation-call variants. Distributed rail adds the two
-  scheduler transitions to the common distributed-search carrier.
+  DFS, flip, rail, and relation-call variants. Distributed search owns the
+  right-active distribution rule and five right-active closure rules;
+  distributed DFS and Flip inherit them. Distributed rail adds only the two
+  scheduler transitions to that common carrier.
 - [factored-search-base.rkt](reduction-relations/factored-search-base.rkt)
   assembles inherited raw rules for re-closing under `Early*`. This seam is
   used only by the experiment and moved here with it.

@@ -1,32 +1,32 @@
 # Strict Search research artifact
 
-The selected account is the **S reference, Search/rail**. Its
+The current account is the **S reference** for strict **Search**. Its
 [interpreter](s-reference/interpreter.rkt) and
 [reduction semantics](s-reference/source.rkt) have functional and syntactic
 derivations connected by a machine-configuration map and finite transition
 checks, followed by registers and one bounded atomic-outcome compression.
-The [S/E/N matrix](matrix/README.md) carries that retained-scope factoring
-through R/D/Z/M/B/Big in twelve native feature cells. Its Search/rail S row
-is checked against this checkpoint, and configuration-level transition
+The [S/E/N matrix](matrix/README.md) carries the same strict operations and
+allocation-scope invariant through R/D/Z/M/B/Big in twelve native feature cells.
+Its Search S row is checked against this checkpoint, and configuration-level transition
 checks connect the checkpoint machine to the native E/N machines.
 
 The [full relation-program extension](matrix/full-source.rkt) adds explicit Γ
 environments, named calls, recursive calls, and mutual recursion in all three
-rows. It is the source relation used by the GUI's separate **Strict Search**
+rows. It is the source relation used by the GUI's separate **Strict reference (Flip)**
 view and the default API/library selection.
-The selected functional derivation carries the same environment explicitly
+The S reference functional derivation carries the same environment explicitly
 through its data machines, generated registers, and existing compression.
 
 The GUI defaults to **Strict scheduler lattice / Railroad**, with No Interleave,
 Flip-Flop, and Railroad using the [strict S scheduler extension](matrix/scheduler-source.rkt).
-Flip reuses the reference relation; DFS changes delayed-merge priority, and
-Railroad adds `mplusR` and eager `YieldR` with a checked orientation map.
-Separate DFS/Railroad E/N rows and downstream scheduler derivations remain open.
+Flip-Flop reuses the reference relation; No Interleave changes delayed-merge
+priority, and Railroad adds `mplusR` and eager `YieldR` with a checked orientation map.
+Separate No Interleave/Railroad E/N rows and downstream scheduler derivations remain open.
 The historical phrase “Search/rail” names this derivation's strict Search
 feature, rather than either Railroad extension. The earlier `DisjL`/`DisjR`
 sources are retained as the **earlier dormant-branch semantics**.
 
-The selected interpreter and its matrix counterparts preserve strict
+The S reference interpreter and its matrix counterparts preserve strict
 left-to-right disjunction, eager `Yield` tails and bind, exact allocation
 ancestry, and the Search/Frontier commitment boundary. Only object-language
 `Delay` suspends computation:
@@ -64,9 +64,9 @@ accounts and their own evidence live together under
 
 | Location | Responsibility |
 | --- | --- |
-| [s-reference/](s-reference/README.md) | Selected S interpreter, source, functional/syntactic correspondence, registers, and first compression |
+| [s-reference/](s-reference/README.md) | S reference interpreter, source, functional/syntactic correspondence, registers, and first compression |
 | [shared/](shared/README.md) | S/E/N variable/state languages, allocation and kernels, grammars, structural maps, well-formedness, and narrow transformation machinery |
-| [matrix/](matrix/README.md) | Native retained-scope S/E/N feature instances through R/D/Z/M/B/Big and their connection to the S reference checkpoint |
+| [matrix/](matrix/README.md) | Native strict S/E/N feature instances through R/D/Z/M/B/Big and their connection to the S reference checkpoint |
 | [test-support/](test-support/README.md) | Named witnesses, generated lexical goals, and neutral random/structural/transition helpers shared by validation suites |
 | [all.rkt](all.rkt) | Current strict aggregate: S reference, matrix, constructor contracts, and dependency/layout checks |
 | [experiments/](experiments/README.md) | Complete alternative accounts, with a separate aggregate for their sources, derivations, and comparisons |
@@ -104,30 +104,30 @@ not the correspondence criterion.
 
 ## S/E/N coordinate inventory
 
-S uses named variables with ordered tagged introduction groups on the active
-world path. E uses named variables with ordered state-local Support. N uses
-positional variables with a state-local allocation counter. The live
+S uses named variables with ordered tagged introduction groups along the active
+scope. E uses named variables with ordered state-local allocated-name Support.
+N uses positional variables with a state-local allocation counter. The live
 [primitive providers](shared/core/PROVENANCE.md) retain each representation's
 unification and disequality kernels. [Kernel checks](matrix/kernel-tests.rkt)
 exercise their native outcomes and state preservation.
 
-Every cell below has native R/D/Z/M/B and Big implementations under the
-retained-scope equations. Internal S force puts the removed Delay's Owners
-on its active body; E/N force enters the body directly because allocation
-support is already in their states. There is no syntactic `prefix` operation
-or prefix continuation in these cells.
+Every cell below has native R/D/Z/M/B and Big implementations of the same
+strict operations. The [matrix source contract](matrix/README.md#program-active-search-and-settled-frontier)
+specifies retained scope during internal force, commitment, and public
+advancement; its [allocation representations](matrix/README.md#allocation-representations)
+explain the S introduction groups, E support, and N supply.
 
 | Feature | S source | E source | N source | Correspondence checks |
 | --- | --- | --- | --- | --- |
 | Core | [StrictSCore](matrix/features.rkt) | [StrictECore](matrix/features.rkt) | [StrictNCore](matrix/features.rkt) | [features](matrix/feature-tests.rkt), [stages](matrix/stages/tests.rkt), [Big](matrix/big/tests.rkt) |
 | Delay | [StrictSDelay](matrix/features.rkt) | [StrictEDelay](matrix/features.rkt) | [StrictNDelay](matrix/features.rkt) | [features](matrix/feature-tests.rkt), [stages](matrix/stages/tests.rkt), [Big](matrix/big/tests.rkt) |
 | Disjunction | [StrictSDisjunction](matrix/features.rkt) | [StrictEDisjunction](matrix/features.rkt) | [StrictNDisjunction](matrix/features.rkt) | [features](matrix/feature-tests.rkt), [stages](matrix/stages/tests.rkt), [Big](matrix/big/tests.rkt) |
-| Search/rail | [S](matrix/source-s.rkt) | [E](matrix/source-e.rkt) | [N](matrix/source-n.rkt) | [source maps](matrix/tests.rkt), [generated goals](matrix/property-tests.rkt), [stages](matrix/stages/tests.rkt), [Big](matrix/big/tests.rkt) |
-| Search/rail + relations | [StrictSRel](matrix/full-source.rkt) | [StrictERel](matrix/full-source.rkt) | [StrictNRel](matrix/full-source.rkt) | [source/stage maps](matrix/full-tests.rkt), [functional machine](s-reference/relation-tests.rkt), [Big](matrix/big/full-tests.rkt) |
+| Search | [S](matrix/source-s.rkt) | [E](matrix/source-e.rkt) | [N](matrix/source-n.rkt) | [source maps](matrix/tests.rkt), [generated goals](matrix/property-tests.rkt), [stages](matrix/stages/tests.rkt), [Big](matrix/big/tests.rkt) |
+| Search + relations | [StrictSRel](matrix/full-source.rkt) | [StrictERel](matrix/full-source.rkt) | [StrictNRel](matrix/full-source.rkt) | [source/stage maps](matrix/full-tests.rkt), [functional machine](s-reference/relation-tests.rkt), [Big](matrix/big/full-tests.rkt) |
 
 [Stage instances](matrix/stages/instances.rkt) instantiate all twelve cells.
 Big uses [S](matrix/big/s.rkt), [E](matrix/big/e.rkt), and [N](matrix/big/n.rkt)
-for Search/rail and [features.rkt](matrix/big/features.rkt) for the other nine.
+for Search and [features.rkt](matrix/big/features.rkt) for the other nine.
 [Big maps](matrix/big/maps.rkt) map every recursive certificate node; target
 proofs are obtained independently. The
 [source commitment checks](matrix/commit-source-tests.rkt) and
@@ -135,7 +135,7 @@ proofs are obtained independently. The
 boundaries and direct S→E, E→N, and S→N squares.
 
 The [checkpoint gate](matrix/s-reference-tests.rkt) compares the independently
-stated S sources and native stages, then checks the selected functional
+stated S sources and native stages, then checks the S reference functional
 machine's mapped configurations against actual S/E/N machine transitions.
 These are prescribed source-operation and administrative spans, not only
 readback equalities. Big independently supplies finite judgments and mapped
@@ -144,7 +144,7 @@ machine correspondence, and productivity proofs remain open.
 
 ## Generated artifacts and reproduction
 
-The three checked-in generated programs are:
+The S reference has three checked-in generated programs:
 
 | Generated file | Generator and input |
 | --- | --- |
@@ -186,7 +186,7 @@ The maintained aggregate excludes retired numeric-interpreter/register
 comparisons and their additional host-language domains. Native S/E/N
 [work checks](matrix/work-tests.rkt) compare actual atomic work directly;
 literal ownership, settled-prefix persistence, and independent register-bank
-assertions remain in the selected account. These do not retain the older
+assertions remain in the S reference account. These do not retain the older
 numeric Big proof-search or productive host-recursion results. Application
 checks and their separate scope are described in
 [TEST-LANES.md](../tests/TEST-LANES.md).
@@ -194,44 +194,31 @@ checks and their separate scope are described in
 ### Validation scope
 
 The [test lanes](../tests/TEST-LANES.md) distinguish the current strict gate,
-the experiment gate, and the comprehensive application gate. Counts recorded
-before this relocation are historical validation checkpoints, not results of
-the reorganized aggregates. The relation corpus includes fresh allocation
+the experiment gate, and the comprehensive application gate. Recorded counts
+describe completed validation checkpoints; they are not a claim that a later
+edit has rerun those gates. The relation corpus includes fresh allocation
 after a public Delay resumes, bounded productive prefixes, and unguarded
 recursive runs. These finite checks do not establish universal correspondence,
 preservation, or productive-stream theorems.
 
 ## Next correspondence and application boundary
 
-Hold the selected Search/rail behavior and machine fixed while turning the
+Hold the S reference Search behavior and machine fixed while turning the
 checked S/E/N configuration diagrams into general correspondence and domain
-preservation arguments. The native E/N machines now connect to the selected
-S functional machine; separate E/N direct/CPS/defunctionalized/register
+preservation arguments. The native E/N machines connect to the S reference
+functional machine; separate E/N direct/CPS/defunctionalized/register
 programs remain to be derived. Full relation programs now have exact finite
 and bounded configuration checks on both sides, including explicit environments
 and pending calls in resumptions. General recursive-program adequacy,
 productive infinite behavior, and compact κ/Q/π rail compression remain open.
 
-Every GUI scheduler runs the full strict S matrix source or its scheduler
-extension through
-[search-runtime.rkt](../src/search-runtime.rkt) and
-[app.rkt](../src/app.rkt). Session history contains actual `(program Γ q)`
-configurations. Paused Frontiers require an explicit public advance before
-further named reductions. The [renderer](../src/search-picture.rkt) reads
-that structure directly and distinguishes candidates from committed answers.
-The scheduler view selects strict DFS, Flip, or oriented Railroad; the
-reference view uses the same Flip relation. Every selection shares compiled
-goals, source IDs, query metadata, and the `(program Γ q)` initialization and
-history format. Internal `force-delay` remains distinct from public `advance`.
-All twelve compilation profiles remain independent of runtime scheduling.
-
-Automatic answer consumption belongs to [minikanren.rkt](../src/minikanren.rkt);
-the GUI shares the single-step/session operations in
-[program-runner.rkt](../src/program-runner.rkt). The `run n` adapter finishes
-the current eager round and commitment before checking the limit; manual GUI
-stepping remains independent of that policy. The API/library default is
-`(strict-search)`; an explicit `search-strategy` selects the strict S scheduler
-`"dfs"`, `"flip"`, or `"rail"`. Railroad has configuration-level checks against
-Flip under orientation erasure. General correspondence proofs, separate E/N
-DFS/Railroad rows, and downstream scheduler derivations remain open. See the
-[semantic policy matrix](../../docs/semantic-policy-matrix.md).
+The GUI executes the full strict S source or its scheduler extension; it does
+not execute a registerized or compressed machine. The matrix guide owns the
+[scheduler equations and orientation map](matrix/README.md#files-and-interfaces).
+The root README owns the [application flow](../../README.md#derivation-and-gui-connections),
+[initialization and manual advancement](../../README.md#backend-init-contract),
+and [automatic run/run* policy](../../README.md#direct-library-surface).
+These consumers preserve actual source configurations and the same commitment
+boundary. Separate E/N No Interleave/Railroad rows, downstream scheduler
+derivations, and general correspondence proofs remain open; the
+[semantic policy matrix](../../docs/semantic-policy-matrix.md) records those boundaries.

@@ -97,8 +97,8 @@ does not identify the two compressed endpoints or establish a final
 `kappa / Q / pi` machine. Configuration checks are evidence; universal
 correspondence and productivity proofs remain open.
 
-The native matrix carries the retained-scope factoring across S/E/N and
-through R/D/Z/M/B/Big. The GUI's newer scheduler extension currently reaches
+The native matrix carries the strict operations and allocation-scope invariant
+across S/E/N and through R/D/Z/M/B/Big. The GUI scheduler extension reaches
 the following sources:
 
 ```text
@@ -108,7 +108,7 @@ strict matrix reference (Flip): S / E / N, including relation programs
                      |
          +-----------+------------+
          |           |            |
-    No Interleave   Flip       Railroad
+    No Interleave Flip-Flop    Railroad
     retain priority reference  retain orientation
          |           |            |
          +-----------+------------+
@@ -118,7 +118,7 @@ strict matrix reference (Flip): S / E / N, including relation programs
 
 For No Interleave and Railroad, separate E/N scheduler rows and downstream
 machine derivations remain open. Railroad has explicit orientation-erasure
-checks against the strict Flip source. These schedulers preserve strict
+checks against the strict Flip-Flop source. These schedulers preserve strict
 operand order, eager Search tails and bind, and separate commitment.
 
 The application selects those source relations and retains their actual
@@ -160,16 +160,15 @@ Before you begin, ensure you have the following installed:
 
 Open a terminal and run:
 ```sh
-git clone https://github.com/brysenPfingsten/Modeling-miniKanren-in-Redex.git
+git clone https://github.com/brysenPfingsten/mk-redex-viz.git Modeling-miniKanren-in-Redex
 cd Modeling-miniKanren-in-Redex
-docker login
 docker compose -f docker-compose.dev.yml up --build
 ```
 Finally, visit [localhost:5173](http://localhost:5173).
 
 ### Docker Compose Notes
 
-- `docker-compose.dev.yml` is the supported dev stack (`frontend` on `5173`, backend servlet on `5000`).
+- `docker-compose.dev.yml` serves the frontend on host port `5173`; the backend servlet uses port `5000` inside the Compose network.
 - In the dev frontend container, API calls are expected to go through the Vite proxy (`/api -> racket-server:5000`).
 - `docker-compose.yaml` binds frontend on `8080`; if that port is in use, startup will fail with an "address already in use" error.
 
@@ -183,78 +182,27 @@ installed Racket dependencies and an isolated compiled root:
 export PLTCOMPILEDROOTS=/private/tmp/full-strict-checks:
 ```
 
-### **1) App/API and native rendering**
+Run the comprehensive backend gate and frontend checks:
 
 ```sh
-racket -y -l raco -- test racket-server/tests/test-app.rkt racket-server/tests/search-runtime-tests.rkt
-racket -y -l raco -- test racket-server/tests/visible-contract-tests.rkt racket-server/tests/search-picture-tests.rkt
-racket -y racket-server/tests/ui-payload-smoke.rkt
-```
-
-These gates check strict scheduler steps, paused versus completed
-Frontiers, exact history, candidate versus committed answers, source/state
-highlighting, and retained common/private introductions.
-
-### **2) Compiler profiles and source modes**
-
-```sh
-racket -y -l raco -- test racket-server/tests/test-transpiler.rkt racket-server/tests/example-compat-tests.rkt
-racket -y -l raco -- test racket-server/tests/model-example-matrix-tests.rkt
-```
-
-The profile gate exercises twelve combinations: two conjunction associations,
-two disjunction associations, and three delay placements. A finite relation
-program follows the same named strict S transitions through direct sessions
-and HTTP, including its rendered micro form. These twelve profiles are
-distinct from the twelve call-free S/E/N feature cells.
-
-### **3) Automatic consumer and library**
-
-```sh
-racket -y -l raco -- test racket-server/tests/program-runner-tests.rkt
-racket -y -l raco -- test racket-server/tests/minikanren-library-tests.rkt
-```
-
-The driver checks cover completed Frontier boundaries, answer limits, retained
-surplus answers, step caps, host reification, and explicit lattice scheduler
-selection. Direct APIs default to Strict Search; the GUI explicitly selects
-its lattice default.
-
-### **4) Strict derivations and representation matrix**
-
-```sh
-racket -y -l raco -- test racket-server/derivations/all.rkt
-```
-
-Covers the S reference interpreter, corresponding machines, registerization
-and first compression, plus twelve native call-free S/E/N feature cells and
-three full relation-program cells through source, data stages and finite Big.
-Start with the [strict derivation guide](racket-server/derivations/README.md)
-for artifact roles, configuration-level evidence and remaining proofs.
-
-The [Earlier dormant-branch semantics](racket-server/derivations/experiments/dormant-branch-semantics/README.md)
-has a separate interpreter investigation connecting its DFS, Flip and
-orientation-preserving extension to independently stated source equations
-and generated machines. Its native correspondence is
-restricted to a stated fragment; full ownership transport and strict-to-online
-correspondence remain separate questions. It preserves executable negative
-examples as well as the positive maps.
-
-### **5) Frontend and aggregate status**
-
-```sh
+racket -y -l raco -- test racket-server/tests/test-all-headless.rkt
 npm --prefix frontend test
 npm --prefix frontend run lint
 npm --prefix frontend run build
 ```
 
-`racket-server/tests/test-all-headless.rkt` invokes the current
-[`derivations/all.rkt`](racket-server/derivations/all.rkt), the separate
-[`experiments/all.rkt`](racket-server/derivations/experiments/all.rkt), and
-application gates. Passing the current derivation does not silently include
-historical comparisons; the comprehensive gate checks both. Experiment
-checks establish only their stated source-relative relationships. See the
-[test lanes](racket-server/tests/TEST-LANES.md) for validation status.
+The backend gate includes the current strict derivations, the separate
+experiments, and application checks. Passing an experiment's tests establishes
+only its stated source-relative relationship. Focused commands and recorded
+results live in one [test-lane inventory](racket-server/tests/TEST-LANES.md):
+
+| Focus | Detailed commands and evidence |
+| --- | --- |
+| App/API, rendering, source modes and twelve compiler profiles | [Compiler and application gates](racket-server/tests/TEST-LANES.md#compiler-manual-session-and-application-payloads) |
+| Answer limits, surplus answers, step caps and host reification | [Automatic consumer and library](racket-server/tests/TEST-LANES.md#automatic-consumer-and-minikanren-library) |
+| S reference, native S/E/N cells, stages and Big | [Strict derivation gates](racket-server/tests/TEST-LANES.md#strict-source-derivations-and-representation-matrix) |
+| Earlier dormant-branch semantics and early conjunction distribution | [Experiment gates](racket-server/tests/TEST-LANES.md#experiments-and-dormant-branch-account) |
+| Frontend, browser checks and completed validation checkpoints | [Aggregate status](racket-server/tests/TEST-LANES.md#frontend-and-aggregate-status) |
 
 ## **Backend Init Contract**
 
@@ -321,7 +269,7 @@ plus consumption limits:
 - `#:search-strategy`: `(strict-search)` by default, or
   `(search-strategy "dfs")`, `(search-strategy "flip")`, `(search-strategy "rail")`
 - `#:step-cap` to bound diverging programs
-- `#:answer-limit` to stop at a completed Frontier boundary with enough answers
+- `#:answer-limit` to stop at an exposed Delay with enough answers, or at completion
 
 The adapter saves the selected family's native configuration. Automatic answer
 limits live in `minikanren.rkt` as a driver policy. For a positive limit the
@@ -329,7 +277,7 @@ driver reaches the next exposed Delay or terminal Frontier before testing the co
 in Strict Search this finishes eager evaluation and the entire commitment.
 It leaves the next exposed Delay unforced and also stops on completion with
 fewer answers. A zero limit returns immediately without stepping.
-For lattice execution this intentionally continues past committed answers;
+For every scheduler this intentionally continues past committed answers;
 an unguarded residual can prevent reaching the next Delay and exhaust the step cap.
 
 Returned answer lists contain at most the requested number. The saved
@@ -366,7 +314,8 @@ stops partway through commitment.
 ;; => '(a b)
 ```
 
-Important limitation:
+The module-level bindings have one limitation:
+
 - relation definitions are tracked per file/module, so keep the `defrel`s and
   the corresponding `run`/`run*` in the same source file unless you use an
   explicit evaluator object
@@ -399,62 +348,27 @@ If you are studying the repo as a semantics artifact, use this order:
 
 The default GUI executes strict Railroad from
 [`matrix/scheduler-source.rkt`](racket-server/derivations/matrix/scheduler-source.rkt).
-No Interleave changes the strict delayed-merge scheduling rule. Flip-Flop
-reuses the existing strict source, and Railroad adds `mplusR` and eager
-`YieldR` to retain branch orientation. These runtime choices remain separate
-from the twelve compiler profiles.
-
 The separate Strict reference (Flip) view executes the same full S source as
 Flip-Flop in
 [`matrix/full-source.rkt`](racket-server/derivations/matrix/full-source.rkt).
-The historical name “Search/rail” in strict derivation documents refers to
-that strict Search feature, not the oriented Railroad scheduler. E/N have
-native source, data-machine and finite Big implementations and structural
-maps; there is currently no S/E/N GUI selector.
+The [matrix guide](racket-server/derivations/matrix/README.md#files-and-interfaces)
+owns the scheduler equations, operand orientation, public/internal forcing
+distinction, and Railroad-to-Flip-Flop map. Its
+[allocation contract](racket-server/derivations/matrix/README.md#allocation-representations)
+explains common and answer-private introduction groups, including empty and
+unused groups. Numeric-looking variable labels do not change the GUI's S
+representation; there is no S/E/N GUI selector.
 
-All GUI schedulers mature both disjunction operands and eager Search tails
-and bind residuals before commitment; only Delay suspends. A right-oriented
-merge matures its right operand first, preserving the order represented by
-its orientation. Commitment separates active candidates from settled answers.
-Public advancement preserves the answer prefix and crosses one exposed
-Delay. No dormant-branch conversion or strict-to-online fusion is part of
-this application connection.
+The [research inventory](racket-server/derivations/README.md#sen-coordinate-inventory)
+records the native S/E/N stages and full relation-program correspondence.
+Separate E/N scheduler rows, downstream scheduler machines, and universal
+proofs remain open. The GUI still executes source reductions.
 
-Full first-order relation definitions, calls, recursion and mutual recursion
-are implemented in S/E/N. Γ remains explicit in source programs and data
-frames, including pending calls and resumptions. The selected functional S
-derivation carries it through its generated machine, registers and existing
-compression. General correspondence and productive-stream proofs remain open.
-
-S allocation reads the Owner groups on the active computation's world path.
-Common groups reach both branches; answer-private groups stay with their
-answer. Empty and unused groups remain meaningful. S states contain only
-substitution, disequalities, trail and tag; a cumulative Support field belongs
-to E, and a numeric supply to N. Numeric-looking variable labels in the GUI
-do not change its S representation.
-
-The [earlier dormant-branch account](racket-server/derivations/experiments/dormant-branch-semantics/README.md)
-keeps its source semantics, interpreter/machine derivation, correspondence
-limits, and tests together. It remains executable and does not provide the
-GUI runtime. The strict S scheduler extension has a checked
-Railroad-to-Flip orientation map; separate E/N scheduler rows, downstream
-derivations and universal correspondence proofs remain open.
-
-The other semantic experiment lives in
-[`racket-server/derivations/experiments/early-conjunction-distribution/`](racket-server/derivations/experiments/early-conjunction-distribution/README.md).
-It explores distributing conjunction over choice in that earlier source
-before machine derivation. Nested rails expose an observable answer-order
-difference from the factored source, so this is a semantic alternative to
-investigate, not a representation-only rewrite. The move adds no strict
-correspondence, GUI policy, matrix cell, or A7/A9 integration.
-
-That retained experiment has a common distributed-search carrier with `DisjR` and the
-right-active normalization/closure rules, while distributed rail adds only its
-two scheduler transitions. Its experiment-only raw seam lives with its consumer in
-[`early-conjunction-distribution/reduction-relations/factored-search-base.rkt`](racket-server/derivations/experiments/early-conjunction-distribution/reduction-relations/factored-search-base.rkt).
-Its dedicated [tests](racket-server/derivations/experiments/early-conjunction-distribution/tests.rkt)
-run under the experiments aggregate, alongside the dormant-branch account.
-This preserves comparison evidence without adding a strict derivation stage.
+The [experiment guides](racket-server/derivations/experiments/README.md)
+own the earlier dormant-branch derivations and the early conjunction
+distribution counterexample. They preserve their grammars, raw-rule
+interfaces, tests, and correspondence limits together. Neither experiment
+provides the GUI runtime or constitutes a strict machine-compression stage.
 
 ## **Orientation (Minimal)**
 
@@ -462,7 +376,7 @@ Use this if you are jumping in with no project history:
 
 | Location | Responsibility |
 | --- | --- |
-| [src/transpiler/](racket-server/src/transpiler/) | Parse mini/micro, apply compilation profile, preserve source IDs, initialize the strict program carrier |
+| [src/transpiler/](racket-server/src/transpiler/) | Parse mini/micro, apply compilation profile, preserve source IDs, initialize the strict program configuration |
 | [experiments/dormant-branch-semantics/](racket-server/derivations/experiments/dormant-branch-semantics/README.md) | Complete earlier account: sources, interpreter/machine derivation, and comparison tests |
 | [matrix/full-source.rkt](racket-server/derivations/matrix/full-source.rkt) | Native full S/E/N reduction relations |
 | [matrix/scheduler-source.rkt](racket-server/derivations/matrix/scheduler-source.rkt) | Strict S scheduler variations and native Railroad orientation used by the GUI |
@@ -475,22 +389,21 @@ Use this if you are jumping in with no project history:
 | [src/minikanren.rkt](racket-server/src/minikanren.rkt) | Automatic consumer and run/run* library interfaces |
 | [Frontend examples](frontend/src/utils/example_programs.js) | Source-of-truth example programs, read by compiler and integration tests |
 
-Focused source-mode and profile integration command:
-
-```sh
-racket -y -l raco -- test racket-server/tests/example-compat-tests.rkt racket-server/tests/model-example-matrix-tests.rkt
-```
+Focused source-mode and profile checks are listed with the
+[compiler and application gates](racket-server/tests/TEST-LANES.md#compiler-manual-session-and-application-payloads).
 
 ## **Configuration**
 
-The Docker images expect an amd64 platform. Users on Apple Silicon or other arm64 based architectures,
-will need to rely on emulation. This build is known to build and works under QEMU.
+The checked-in Dockerfiles and Compose files do not pin an architecture.
+The backend uses `racket/racket:latest`; the architecture and behavior therefore
+depend on the resolved image and local Docker configuration. The Apple Silicon
+note below records a historical emulation issue, not a current build guarantee.
 
 ## **Issues**
 
 ### `Error reading from ~a`
 
-When building with Docker on an Apple Silicon machine, some users encounter an error like the following:
+An earlier Apple Silicon Docker run reported:
 
 ```
 Error: error reading from ~a
@@ -499,7 +412,7 @@ Aborted
 ```
 
 
-Here is a minimal test that should produce the same error:
+The recorded reproducer was (the `latest` image was not pinned):
 
 ```
 $ docker run -it --platform linux/amd64 racket/racket:latest sh -c "uname -m; racket"
@@ -509,6 +422,7 @@ Error: error reading from ~a
 Aborted
 ```
 
-To resolve this, open Docker.app and under Settings > General >
-Virtual Machine Options, make sure you have un-checked `Use Rosetta
-for x86_64/amd64 emulation on Apple Silicon`, and have selected QEMU as the VMM.
+The reported workaround was to disable `Use Rosetta for x86_64/amd64 emulation
+on Apple Silicon` and select QEMU as the VMM. The recorded menu path was
+Docker.app > Settings > General > Virtual Machine Options. That path and
+workaround have not been revalidated for current Docker Desktop releases.

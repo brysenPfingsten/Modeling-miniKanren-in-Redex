@@ -8,7 +8,7 @@ Each account owns its source rules and the evidence principally about it.
 
 | Account | What it investigates | Artifacts |
 | --- | --- | --- |
-| [Dormant-branch semantics](dormant-branch-semantics/README.md) | Deferred sibling and bind-residual work, with DFS, Flip, and oriented Railroad scheduling | Native source languages/reductions/WF, direct/CPS/data-machine derivation, structural maps, source laws, and strictness/allocation counterexamples |
+| [Earlier dormant-branch semantics](dormant-branch-semantics/README.md) | Deferred sibling and bind-residual work, with DFS, Flip, and oriented Railroad scheduling | Native source languages/reductions/WF, direct/CPS/data-machine derivation, structural maps, source laws, and strictness/allocation counterexamples |
 | [Early conjunction distribution](early-conjunction-distribution/README.md) | Distributing pending conjunction into choices before ordinary branch work | Alternative languages/reductions and tests against the factored dormant source and selected strict witnesses |
 
 The first account includes both the original work-tree source and a derived

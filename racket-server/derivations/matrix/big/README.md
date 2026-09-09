@@ -1,37 +1,33 @@
 # Strict Big and fixed-point stages in the representation matrix
 
-This directory retains finite Big presentations for the twelve matrix
-coordinates: Core, Delay, Disjunction, and Search/rail, each in S, E, and N.
-The full Search/rail language additionally has three native relation-call
+This directory supplies finite Big presentations for the twelve matrix
+coordinates: Core, Delay, Disjunction, and Search, each in S, E, and N.
+The full Search language additionally has three native relation-call
 instances over explicit `(program Γ q)` configurations.
-Its source uses retained scope, matching the S reference source; see the
-[research inventory](../../README.md#sen-coordinate-inventory).
-There is no dormant-right policy or strict-to-online fusion in these artifacts.
+The [matrix contract](../README.md) owns their allocation and feature rules,
+including the retained-scope invariant shared with the S reference. This
+directory supplies independent inductive judgments, recursive evaluators,
+and finite certificates for those same rules.
 
 ## Native equations and feature instances
 
-`s-schema.rkt` defines the S equations over local `Owners`, answer-local
-ownership, and the original four-field logical state. An explicit ordered
-support parameter records the enclosing active Owner path. Both operands of
-strict `mplus`, an eager `Yield` tail, and recursive bind residuals inherit the
-appropriate shared prefix. Answer-local owners do not enter the residual.
+`s-schema.rkt` defines the S equations over its native configuration syntax.
+An explicit ordered support parameter records the enclosing active Owner
+path in each premise. Answer-private Owners do not enter a residual's support.
 Internal forcing retains saved Owners on the active computation before its
 body premise evaluates. The independent `retain-owners` operation prepends
 them to the root's Owner field, traversing only a transparent `force` wrapper.
 It neither enters a delayed body nor distributes common Owners to siblings.
-The native E/N equations resume the stored computation directly; those rows
-already carry the corresponding allocation support in their states. There
-is no syntactic `prefix` computation or `prefix-value` contraction in any row.
+The E/N premises carry allocation information in their own states and failed
+values, following the [source allocation rules](../README.md#allocation-representations).
 
 `ownerless.rkt` specializes the equations separately for E and N at macro
 expansion. E retains named variables and ordered `Support`; N retains
-positional variables and its numeric counter. Each uses its selected native
+positional variables and its numeric counter. Each uses its native
 kernel and allocator. Execution does not encode a row into another row.
 
-Atomic premises match native `Failure`/`Success(state)` results as data.
-They do not apply functional result selectors. The primitive equations
-complete eagerly before the premise constructs its Search result; this
-first-order boundary is shared with the matrix's source rules.
+Atomic premises use the same eager `Failure`/`Success(state)` data boundary
+as the source rules.
 
 The Search judgments describe active computation and mature residuals.
 `commit-big` constructs a partial settled frontier `F` from mature Search,
@@ -40,18 +36,13 @@ nor changes the strict operand schedule. `advance-big` crosses one exposed
 suspension and commits its next mature chunk; `collect-big` explicitly crosses
 every remaining suspension and concludes a completed observation `O`.
 
-In S, committing `One(Owners,state)` places those Owners on the terminal
-Answer under an empty outer Last. That transfer is an explicit observation
-boundary. Both the syntactic and functional presentations use Yield for the
-active Search cell; unary Frontier More holds unfinished Delay work.
-
-Legacy `render-big` retains its existing collect-all behavior; its `render-*`
-labels distinguish the constructor cases. The general `observe-big` judgment concludes partial
+The comparison operation `render-big` consumes the complete Search; its
+`render-*` labels distinguish constructor cases. The general `observe-big` judgment concludes partial
 `F`, including complete `O`, and accepts native `commit`, `advance`, and
-`collect` query contexts as well as legacy `render`. Its value clause admits
+`collect` query contexts as well as `render`. Its value clause admits
 partial frontiers without evaluating their suspended tips.
 
-`s.rkt`, `e.rkt`, and `n.rkt` instantiate Search/rail. `features.rkt`
+`s.rkt`, `e.rkt`, and `n.rkt` instantiate Search. `features.rkt`
 instantiates the remaining nine coordinates using the corresponding
 restricted source grammar. `feature-schema.rkt` removes unavailable literal
 judgment rules and fixed-point constructor cases during macro expansion.
@@ -88,39 +79,39 @@ unguarded recursive proof search are not validation operations. The focused
 gate checks unguarded recursion only through a bounded native reduction run;
 it asserts that strict right-operand work prevents earlier commitment.
 
+## Judgments and fixed-point evaluators
+
 The operation judgments are `search-big/<coordinate>`,
 `merge-big/<coordinate>` where disjunction exists, `bind-big/<coordinate>`,
 `render-big/<coordinate>`, `commit-big/<coordinate>`,
 `advance-big/<coordinate>`, `collect-big/<coordinate>`, and
 `observe-big/<coordinate>`. Coordinates are
-`s`, `e`, `n` for Search/rail, or names such as `s-core`, `e-delay`, and
+`s`, `e`, `n` for Search, or names such as `s-core`, `e-delay`, and
 `n-disjunction`. S judgments additionally take the inherited support prefix.
 
 These are mutually inductive, unbounded judgments. They give a mature Search
 or exact partial/completed frontier and an ordered list of source contraction labels.
 There is no transition relation, normalized machine execution, or numeric
-fuel inside their premises. `promote/<coordinate>` ties the corresponding
-constructor-erased recursive equations directly; it is an independent
-unbounded fixed-point evaluator, not a call to judgment search.
+fuel inside their premises. `promote/<coordinate>` evaluates corresponding
+recursive equations directly, retaining the native Search and Frontier
+constructors but omitting label traces and derivation trees. It is an
+independent unbounded fixed-point evaluator, not a call to judgment search.
 
-The strict premises evaluate the left operand, evaluate the right operand,
-and then merge. Bind over `Yield` evaluates the continuation result and the
-recursive residual before merging. A `Delay` is a value without a premise
-for its body. Internal forcing resumes a computation with its saved Owners
-already retained at the active root; public consumers retain those Owners
-on the enclosing `Forced` node and resume the stored computation directly.
-Observations retain exact
-`Emit`, `Forced`, `Last`, and `Done` structure and all native state fields.
+The strict premises evaluate the left operand, then the right operand, then
+merge. Bind over `Yield` evaluates the continuation result and recursive
+residual before merging. A `Delay` is a value without a premise for its body.
+The [source observation and scope rules](../README.md#program-active-search-and-settled-frontier)
+determine the distinct internal-force and public-resumption premises.
+Conclusions preserve exact `Emit`, `Forced`, `Last`, and `Done` structure,
+including the commit-one Owner transfer, and all native state fields.
 An exposed advancement records `advance-delay`, then the resumed computation's
 strict search labels, then its `commit-*` labels. It introduces no synthetic
 `force-delay` event. Collection additionally
 performs the recursive `collect-*` premises. Existing `Forced` prefixes are
 retained through `advance-forced` or `collect-forced`; merely constructing
 unary `More(Delay(...))` records no forcing event.
-Delayed bind likewise stores the computation directly under the pending
-bind. Its public resumption does not reconstruct and force an empty-owner
-`Delay`. A genuine delayed merge still uses internal force and retains its
-saved Owners before resumed computation starts.
+Delayed bind's direct body premise introduces no synthetic force either;
+resuming a delayed merge still has the explicit internal-force premise.
 
 ## Finite certificates and vertical maps
 
@@ -162,7 +153,8 @@ under strict contexts, perform the named local contraction, and lift the
 remaining premises under the resulting constructors. There is no lift
 beneath an unforced `Delay`. Conversely, a finite deterministic source run
 splits at those strict context boundaries; the established B/M spans carry
-the same finite run.
+the same finite run on the checked corpus. Extending that argument to the
+whole admitted domain remains a proof obligation.
 
 ## Validation and scope
 
@@ -174,7 +166,7 @@ raco test racket-server/derivations/matrix/big/full-tests.rkt
 The gate checks mature Search and complete observations across the native
 feature rows, exact source/B labels, M span replay, fixed-point agreement,
 raw proof uniqueness, and recursive QBig squares/composition. Targeted cases
-cover intermediate nested-rail states, inherited and sparse support, shared
+cover intermediate nested delayed-merge states, inherited and sparse support, shared
 versus answer-local ownership, constructor overlaps, and absent-feature
 rejection.
 
@@ -184,7 +176,7 @@ exposed boundary. These are compared with exact R/B results and label traces,
 fixed-point equations, unique raw proofs, and full recursive S/E/N certificate
 maps. Further cases assert exact forcing labels and exercise public operations
 throughout the feature/row instances. Complete results are also compared with
-the legacy render operation.
+the full-consumption `render` operation.
 
 Retained-scope regressions check allocation and attachment order and inspect
 the internal-force certificate's exact active body premise. Bind, choice,
@@ -196,14 +188,15 @@ and row. Delay and Search exercise internal forcing in all three native rows.
 The full gate additionally compares native recursive Big proofs, fixed-point
 results, source labels, and R/D/Z/M/B stages at public boundaries. Its cases
 cover direct and mutual recursion, lexical shadowing, relation bodies that
-allocate before and after Delay, nested rails with pending bind, sparse
+allocate before and after Delay, nested delayed merges with pending bind, sparse
 ancestry, unused introductions, and finite productive rounds. Every recursive
 certificate retains and maps the explicit relation environment.
 
 The unbounded inductive presentations are not bounded interpreters. Their
 finite witness gate is evidence for the stated correspondence contracts, not
 a general mechanized preservation, adequacy, productivity, or coinductive
-stream proof. Strict-to-online fusion remains outside these coordinates.
+stream proof. A fusion with the earlier dormant-branch semantics remains
+outside these coordinates, as do No Interleave/Railroad Big instances.
 These finite Big certificates do not derive new E/N functional
 or register machines. The retired numeric Big/proof-search results are
 recorded separately in the [correction log](../../CORRECTIONS.md#retired-and-deferred-results).
