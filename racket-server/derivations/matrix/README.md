@@ -212,6 +212,21 @@ is reachable configurations from well-formed roots and their explicit S/E/N
 translations, with future goals referring only to inherited variables. A raw
 grammar match is not a proof of that domain.
 
+### How strong should WF be?
+
+The early refactoring notes asked:
+
+> Do I want those triangle properties enforced in the wf- check in the model?
+> It may be overkill for the properties we want to demonstrate and make testing more difficult.
+
+The note leaves "triangle properties" unspecified. The current matrix requires
+acyclicity and exact trail replay. The question to retain is
+which WF conditions each intended result actually needs, and whether their
+strength is justified. The implementation and
+[replay checks](tests.rkt) continue to enforce the full contract described above.
+
+### Executable domain and correspondence checks
+
 The core corpus includes empty, unused, multiple and shadowing fresh binders;
 aliases, occurs checks and disequality failure; and allocation followed by
 failure. Feature corpora add independent sibling allocation, shared outer

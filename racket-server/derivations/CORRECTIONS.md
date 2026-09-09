@@ -18,6 +18,47 @@ maintained witnesses that make the answers inspectable. The
 | Does the strict correspondence supersede the GUI's three runtime choices? | No Interleave, Flip-Flop, and Railroad remain essential schedulers, separate from compiler association and Delay placement. The current extension uses strict `mplus`; Railroad adds `mplusR` and eager `YieldR`. It does not reinstate dormant `DisjL`/`DisjR` execution. The strict reference view shares Flip's source; downstream DFS/Railroad derivations remain open. | [Strict scheduler equations and map](matrix/scheduler-source.rkt), [scheduler checks](matrix/scheduler-tests.rkt), and [runtime/application checks](../tests/search-runtime-tests.rkt) |
 | Does a source being selectable by an application make it application plumbing? | Source semantics and machines belong in `derivations/`; `src/` compiles, selects, runs and presents them. A superseded semantic account keeps its source, derivation and account-specific tests together in `experiments/`. Neutral shared providers stay outside those accounts. | [Current inventory](README.md), [experiments](experiments/README.md), and [layout contracts](layout-tests.rkt) |
 
+## Construction lessons
+
+These passages retain wording from the early refactoring notes, with examples
+updated to the current syntax.
+
+- **Keep semantic roles grammatical.** Some constructors belong to more than
+  one nonterminal. That overlap is acceptable as long as reductions and renderers
+  know which role they mean from context or nonterminal position. For conjunction,
+  the left child must stay active computation, not arbitrary observation.
+  The [strict grammar](shared/grammar-s.rkt) expresses this as `bind` over `c`;
+  committed Frontiers belong to `o`.
+- **Inherit recursive context extensions.** `define-union-language` does merge
+  recursive context extensions extensionally. Because of that, we should not
+  restate a combined recursive context at a higher layer unless we are actually
+  changing its shape. If the intent is just to inherit two independent extensions,
+  the union language already gives that. The
+  [earlier Search language](experiments/dormant-branch-semantics/source/languages/search-lang.rkt)
+  uses that construction. This grammar fact does not supply an interaction rule:
+  [strict Search](matrix/README.md#feature-ownership-and-scheduler-policy)
+  additionally requires `mplus-delay`.
+- **Distinguish syntax from policy.** If two language layers are syntactically
+  identical and differ only in their reducers, that distinction belongs in the
+  reduction-relations layer rather than in separate language modules.
+  [No Interleave and Flip-Flop](matrix/scheduler-source.rkt) share `StrictSRel`;
+  Railroad extends the syntax to retain orientation.
+- **Keep inherited rule identities stable.** Reduction-rule names like
+  `core/...`, `delay/...`, and similar language-provenance prefixes are useful
+  temporary scaffolding while the lattice is still being corrected and debugged,
+  because they make blame and search easier. They are not the desired final
+  naming style. Once the semantics stabilize, those provenance annotations
+  should be removed so the same inherited rule keeps the same language-neutral
+  identity all the way up the lattice. The current
+  [feature checks](matrix/feature-tests.rkt) compare inherited rule labels;
+  [Railroad's explicit label map](matrix/scheduler-source.rkt) accounts for its
+  added orientation cases.
+
+The open [WF design question](matrix/README.md#how-strong-should-wf-be)
+is retained with the current domain contract. The obsolete constructor/context
+plan and its collector-removal instructions are retired; today's `commit`
+and `collect` remain semantic operations.
+
 ## Retired and deferred results
 
 The [early conjunction distribution experiment](experiments/early-conjunction-distribution/README.md)
